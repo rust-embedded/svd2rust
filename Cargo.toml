@@ -1,0 +1,16 @@
+[package]
+authors = ["Jorge Aparicio <japaricious@gmail.com>"]
+build = "build.rs"
+name = "svd2rust"
+version = "0.1.0"
+
+[dependencies]
+aster = "*"
+clap = "2.14.0"
+inflections = "1.0.0"
+quasi = "*"
+quasi_macros = "*"
+
+[dependencies.svd]
+git = "https://github.com/japaric/svd"
+optional = false
