@@ -134,7 +134,7 @@ This is signature of each of these methods:
 ``` rust
 impl Cr2 {
     pub fn modify<F>(&mut self, f: F)
-        where F: FnOnce(&mut Cr2W) -> &mut Cr2W
+        where for<'w> F: FnOnce(&Cr2R, &'w mut Cr2W) -> &'w mut Cr2W
     {
         ..
     }
@@ -209,15 +209,15 @@ Usage looks like this:
 i2c1.cr2.write(|w| w.sadd0(true).sadd1(0b0011110));
 ```
 
-Finally, the `modify` method performs a read-modify-write operation that involves at least a `LDR`
-instruction, a `STR` instruction plus extra instructions to modify the fetched value of the `CR2`
+Finally, the `modify` method performs a read-modify-write operation that involves at least one `LDR`
+instruction, one `STR` instruction plus extra instructions to modify the fetched value of the `CR2`
 register. This method accepts a closure that specifies how the `CR2` register will be modified.
 
 Usage looks like this:
 
 ``` rust
-// Sets the STOP bit of the CR2 register
-i2c1.cr2.modify(|r| r.stop(true));
+// Toggle the STOP bit of the CR2 register and set the START bit
+i2c1.cr2.modify(|r, w| w.stop(!r.stop()).start(true));
 ```
 
 ## License
