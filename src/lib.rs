@@ -186,8 +186,12 @@ pub fn gen_register(cx: &ExtCtxt, r: &Register, d: &Defaults) -> Vec<P<Item>> {
 
             items.push(quote_item!(cx,
                                    impl $name {
-                                       pub fn write(&self, value: $name_w) {
-                                           self.register.write(value.bits);
+                                       pub fn write<F>(&self, f: F)
+                                           where F: FnOnce(&mut $name_w) -> &mut $name_w,
+                                       {
+                                           let mut w = $name_w::reset_value();
+                                           f(&mut w);
+                                           self.register.write(w.bits);
                                        }
                                    })
                 .unwrap());
