@@ -15,11 +15,12 @@ main() {
     cargo build --release
 
     gen
-    gen gpioa
     gen dbgmcu
-    gen tim6
+    gen gpioa
     gen i2c1
     gen rcc
+    gen spi1
+    gen tim6
 }
 
 main $1
