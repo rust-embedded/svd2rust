@@ -156,11 +156,13 @@ pub fn gen_register(cx: &ExtCtxt, r: &Register, d: &Defaults) -> Vec<P<Item>> {
             items.push(quote_item!(cx,
                                    impl $name {
                                        pub fn modify<F>(&mut self, f: F)
-                                           where F: FnOnce(&mut $name_w) -> &mut $name_w,
+                                           where for<'w> F: FnOnce(&$name_r, &'w mut $name_w) -> &'w mut $name_w,
                                        {
-                                           let mut rw = $name_w { bits: self.register.read() };
-                                           f(&mut rw);
-                                           self.register.write(rw.bits);
+                                           let bits = self.register.read();
+                                           let r = $name_r { bits: bits };
+                                           let mut w = $name_w { bits: bits };
+                                           f(&r, &mut w);
+                                           self.register.write(w.bits);
                                        }
 
                                        pub fn read(&self) -> $name_r {
