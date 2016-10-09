@@ -141,7 +141,11 @@ impl Cr2 {
 
     pub fn read(&self) -> Cr2R { .. }
 
-    pub fn write(&mut self, value: Cr2W) { .. }
+    pub fn write<F>(&mut self, f: F)
+        where F: FnOnce(&mut Cr2W) -> &mut Cr2W,
+    {
+        ..
+    }
 }
 ```
 
@@ -172,10 +176,12 @@ if i2c1.c2r.read().sadd0() {
 ```
 
 The `write` method performs a single, volatile `STR` instruction to write a value to the `CR2`
-register. This method takes a `Cr2W` struct that only allows constructing valid states of the `CR2`
-register. The only constructor that `Cr2W` provides is `reset_value` which returns the value of the
-`CR2` register after a reset. The rest of `Cr2W` methods are "builder" like and can be used to set
-or reset the writable bits of the `CR2` register.
+register. This method involves the `Cr2W` struct which only allows constructing valid states of the
+`CR2` register.
+
+The only constructor that `Cr2W` provides is `reset_value` which returns the value of the `CR2`
+register after a reset. The rest of `Cr2W` methods are "builder" like and can be used to set or
+reset the writable bits of the `CR2` register.
 
 ``` rust
 impl Cr2W {
@@ -192,10 +198,15 @@ impl Cr2W {
 }
 ```
 
+The `write` method takes a closure with signature `&mut Cr2W -> &mut Cr2W`. If passed the identity
+closure, `|w| w`, the `write` method will set the `CR2` register to its reset value. Otherwise, the
+closure specifies how that reset value will be modified before it's written to `CR2`.
+
 Usage looks like this:
 
 ``` rust
-i2c1.cr2.write(*Cr2W::reset_value().sadd0(true).sadd1(0b0011110));
+// Write to CR2, its reset value but with its SADD0 and SADD1 fields set to `true` and `0b0011110`
+i2c1.cr2.write(|w| w.sadd0(true).sadd1(0b0011110));
 ```
 
 Finally, the `modify` method performs a read-modify-write operation that involves at least a `LDR`
