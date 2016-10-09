@@ -5,9 +5,9 @@ name = "svd2rust"
 version = "0.1.0"
 
 [dependencies]
-aster = "*"
+aster = "0.29.0"
 clap = "2.14.0"
 inflections = "1.0.0"
-quasi = "*"
+quasi = "0.21.0"
 quasi_macros = "*"
 svd-parser = "0.1.1"
