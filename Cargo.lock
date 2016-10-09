@@ -7,7 +7,7 @@ dependencies = [
  "inflections 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quasi 0.21.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quasi_macros 0.21.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "svd 0.1.0 (git+https://github.com/japaric/svd)",
+ "svd-parser 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -86,9 +86,9 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "svd"
-version = "0.1.0"
-source = "git+https://github.com/japaric/svd#d480246c0258e054e34f94eb38cb5a01c6ea2ffd"
+name = "svd-parser"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "xmltree 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -156,7 +156,7 @@ dependencies = [
 "checksum quasi_codegen 0.21.0 (registry+https://github.com/rust-lang/crates.io-index)" = "33b1c5d4834fdfaa2e474042d7ce85f484af20b1ced969b7032ebc316942598c"
 "checksum quasi_macros 0.21.0 (registry+https://github.com/rust-lang/crates.io-index)" = "5a4cb2241afdd606ad5b4736f02489faffda06bc6b7f51f0831019cd7dfc31e8"
 "checksum strsim 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "50c069df92e4b01425a8bf3576d5d417943a6a7272fbabaf5bd80b1aaa76442e"
-"checksum svd 0.1.0 (git+https://github.com/japaric/svd)" = "<none>"
+"checksum svd-parser 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "17a278c8bc26a599b2de0d6c86181d083a988e5bb60f7418f7b743f900b754ac"
 "checksum term_size 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3f7f5f3f71b0040cecc71af239414c23fd3c73570f5ff54cf50e03cef637f2a0"
 "checksum unicode-segmentation 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b905d0fc2a1f0befd86b0e72e31d1787944efef9d38b9358a9e92a69757f7e3b"
 "checksum unicode-width 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "2d6722facc10989f63ee0e20a83cd4e1714a9ae11529403ac7e0afd069abc39e"

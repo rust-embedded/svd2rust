@@ -5,7 +5,7 @@
 extern crate aster;
 extern crate inflections;
 extern crate quasi;
-extern crate svd;
+extern crate svd_parser as svd;
 extern crate syntax;
 
 use syntax::ast::{Item, Ty};

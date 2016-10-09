@@ -3,7 +3,7 @@
 
 extern crate clap;
 extern crate svd2rust;
-extern crate svd;
+extern crate svd_parser as svd;
 extern crate syntax;
 
 use std::ascii::AsciiExt;
@@ -13,7 +13,6 @@ use syntax::ext::base::DummyResolver;
 use syntax::parse::ParseSess;
 use syntax::print::pprust;
 
-use svd::Device;
 use clap::{App, Arg};
 
 fn main() {
@@ -38,7 +37,7 @@ fn main() {
     let xml = &mut String::new();
     File::open(matches.value_of("input").unwrap()).unwrap().read_to_string(xml).unwrap();
 
-    let d = Device::parse(xml);
+    let d = svd::parse(xml);
     match matches.value_of("peripheral") {
         None => {
             for peripheral in d.peripherals.iter() {

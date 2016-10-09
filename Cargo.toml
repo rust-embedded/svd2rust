@@ -10,7 +10,4 @@ clap = "2.14.0"
 inflections = "1.0.0"
 quasi = "*"
 quasi_macros = "*"
-
-[dependencies.svd]
-git = "https://github.com/japaric/svd"
-optional = false
+svd-parser = "0.1.1"
