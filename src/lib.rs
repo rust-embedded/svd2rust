@@ -62,7 +62,9 @@ pub fn gen_peripheral(cx: &ExtCtxt, p: &Peripheral, d: &Defaults) -> Vec<P<Item>
             i += 1;
         }
 
-        let comment = &format!("/// {}", respace(&register.description))[..];
+        let comment = &format!("/// 0x{:02x} - {}",
+                               register.address_offset,
+                               respace(&register.description))[..];
         fields.push(builder.struct_field(register.name.to_camel_case())
             .pub_()
             .attr()
@@ -241,7 +243,13 @@ pub fn gen_register_r(cx: &ExtCtxt, r: &Register, d: &Defaults) -> Vec<P<Item>> 
         };
 
         if let Some(description) = field.description.as_ref() {
-            let comment = &format!("/// {}", respace(description))[..];
+            let bits = if width == 1 {
+                format!("Bit {}", field.bit_range.offset)
+            } else {
+                format!("Bits {}:{}", field.bit_range.offset, field.bit_range.offset + width - 1)
+            };
+
+            let comment = &format!("/// {} - {}", bits, respace(description))[..];
             item.attrs.push(builder.attr().doc(comment));
         }
 
@@ -319,7 +327,13 @@ pub fn gen_register_w(cx: &ExtCtxt, r: &Register, d: &Defaults) -> Vec<P<Item>> 
         };
 
         if let Some(description) = field.description.as_ref() {
-            let comment = &format!("/// {}", respace(description))[..];
+            let bits = if width == 1 {
+                format!("Bit {}", field.bit_range.offset)
+            } else {
+                format!("Bits {}:{}", field.bit_range.offset, field.bit_range.offset + width - 1)
+            };
+
+            let comment = &format!("/// {} - {}", bits, respace(description))[..];
             item.attrs.push(builder.attr().doc(comment));
         }
 
