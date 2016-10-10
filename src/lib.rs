@@ -133,6 +133,7 @@ pub fn gen_register(cx: &ExtCtxt, r: &Register, d: &Defaults) -> Vec<P<Item>> {
     match access {
         Access::ReadOnly => {
             items.push(quote_item!(cx,
+                                   #[repr(C)]
                                    pub struct $name {
                                        register: ::volatile_register::RO<$bits_ty>
                                    })
@@ -148,6 +149,7 @@ pub fn gen_register(cx: &ExtCtxt, r: &Register, d: &Defaults) -> Vec<P<Item>> {
         }
         Access::ReadWrite => {
             items.push(quote_item!(cx,
+                                   #[repr(C)]
                                    pub struct $name {
                                        register: ::volatile_register::RW<$bits_ty>
                                    })
@@ -181,6 +183,7 @@ pub fn gen_register(cx: &ExtCtxt, r: &Register, d: &Defaults) -> Vec<P<Item>> {
         }
         Access::WriteOnly => {
             items.push(quote_item!(cx,
+                                   #[repr(C)]
                                    pub struct $name {
                                        register: ::volatile_register::WO<$bits_ty>
                                    })
@@ -213,6 +216,7 @@ pub fn gen_register_r(cx: &ExtCtxt, r: &Register, d: &Defaults) -> Vec<P<Item>> 
 
     items.push(quote_item!(cx,
                            #[derive(Clone, Copy)]
+                           #[repr(C)]
                            pub struct $name {
                                bits: $bits_ty,
                            })
@@ -279,6 +283,7 @@ pub fn gen_register_w(cx: &ExtCtxt, r: &Register, d: &Defaults) -> Vec<P<Item>> 
     let bits_ty = r.size.or(d.size).expect(&format!("{:#?} has no `size` field", r)).to_ty();
     items.push(quote_item!(cx,
                            #[derive(Clone, Copy)]
+                           #[repr(C)]
                            pub struct $name {
                                bits: $bits_ty,
                            })
