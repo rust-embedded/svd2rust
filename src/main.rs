@@ -1,5 +1,4 @@
 #![feature(plugin, rustc_private)]
-#![plugin(quasi_macros)]
 
 extern crate clap;
 extern crate svd2rust;
@@ -9,9 +8,6 @@ extern crate syntax;
 use std::ascii::AsciiExt;
 use std::fs::File;
 use std::io::Read;
-use syntax::ext::base::DummyResolver;
-use syntax::parse::ParseSess;
-use syntax::print::pprust;
 
 use clap::{App, Arg};
 
@@ -30,10 +26,6 @@ fn main() {
         .version(include_str!(concat!(env!("OUT_DIR"), "/version.txt")))
         .get_matches();
 
-    let sess = &ParseSess::new();
-    let macro_loader = &mut DummyResolver;
-    let cx = &svd2rust::make_ext_ctxt(sess, macro_loader);
-
     let xml = &mut String::new();
     File::open(matches.value_of("input").unwrap()).unwrap().read_to_string(xml).unwrap();
 
@@ -50,9 +42,9 @@ fn main() {
             for peripheral in &d.peripherals {
                 if peripheral.name.to_ascii_lowercase().contains(&pattern) {
                     println!("{}",
-                             svd2rust::gen_peripheral(cx, peripheral, &d.defaults)
+                             svd2rust::gen_peripheral(peripheral, &d.defaults)
                                  .iter()
-                                 .map(|i| pprust::item_to_string(i))
+                                 .map(|i| i.to_string())
                                  .collect::<Vec<_>>()
                                  .join("\n\n"));
 
