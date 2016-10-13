@@ -54,7 +54,7 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
     let p_name = Ident::new(p.name.to_pascal_case());
 
     if let Some(description) = p.description.as_ref() {
-        let comment = &format!("{}", respace(description))[..];
+        let comment = &respace(description)[..];
         items.push(quote! {
             #[doc = #comment]
         });
@@ -350,7 +350,7 @@ impl U32Ext for u32 {
         match *self {
             1...8 => Ident::new("u8"),
             9...16 => Ident::new("u16"),
-            16...32 => Ident::new("u32"),
+            17...32 => Ident::new("u32"),
             _ => panic!("{}.to_ty()", *self),
         }
     }

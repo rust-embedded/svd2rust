@@ -29,7 +29,7 @@ fn main() {
     let d = svd::parse(xml);
     match matches.value_of("peripheral") {
         None => {
-            for peripheral in d.peripherals.iter() {
+            for peripheral in &d.peripherals {
                 println!("const {}: usize = 0x{:08x};",
                          peripheral.name,
                          peripheral.base_address);
