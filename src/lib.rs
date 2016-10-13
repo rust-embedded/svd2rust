@@ -285,7 +285,7 @@ pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
         }
 
         let name = Ident::new(field.name.to_snake_case());
-        let offset = u8::from(field.bit_range.offset as u8);
+        let offset = field.bit_range.offset as u8;
 
         let width = field.bit_range.width;
 
