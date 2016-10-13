@@ -53,7 +53,6 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
 
     let p_name = Ident::new(p.name.to_pascal_case());
 
-    // TODO add doc comment.
     if let Some(description) = p.description.as_ref() {
         let comment = &format!("{}", respace(description))[..];
         items.push(quote! {
