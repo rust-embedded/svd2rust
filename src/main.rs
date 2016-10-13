@@ -1,9 +1,6 @@
-#![feature(plugin, rustc_private)]
-
 extern crate clap;
 extern crate svd2rust;
 extern crate svd_parser as svd;
-extern crate syntax;
 
 use std::ascii::AsciiExt;
 use std::fs::File;
