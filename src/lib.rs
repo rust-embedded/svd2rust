@@ -129,13 +129,13 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
                 impl #name {
                     pub fn modify<F>(&mut self, f: F)
                         where for<'w> F: FnOnce(&#name_r, &'w mut #name_w) -> &'w mut #name_w,
-                              {
-                                  let bits = self.register.read();
-                                  let r = #name_r { bits: bits };
-                                  let mut w = #name_w { bits: bits };
-                                  f(&r, &mut w);
-                                  self.register.write(w.bits);
-                              }
+                    {
+                        let bits = self.register.read();
+                        let r = #name_r { bits: bits };
+                        let mut w = #name_w { bits: bits };
+                        f(&r, &mut w);
+                        self.register.write(w.bits);
+                    }
 
                     pub fn read(&self) -> #name_r {
                         #name_r { bits: self.register.read() }
@@ -143,11 +143,11 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
 
                     pub fn write<F>(&mut self, f: F)
                         where F: FnOnce(&mut #name_w) -> &mut #name_w,
-                              {
-                                  let mut w = #name_w::reset_value();
-                                  f(&mut w);
-                                  self.register.write(w.bits);
-                              }
+                    {
+                        let mut w = #name_w::reset_value();
+                        f(&mut w);
+                        self.register.write(w.bits);
+                    }
                 }
             });
         },
@@ -164,11 +164,11 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
                 impl #name {
                     pub fn write<F>(&self, f: F)
                         where F: FnOnce(&mut #name_w) -> &mut #name_w,
-                              {
-                                  let mut w = #name_w::reset_value();
-                                  f(&mut w);
-                                  self.register.write(w.bits);
-                              }
+                    {
+                        let mut w = #name_w::reset_value();
+                        f(&mut w);
+                        self.register.write(w.bits);
+                    }
                 }
             });
         },
