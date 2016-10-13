@@ -268,8 +268,6 @@ pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut impl_items = vec![];
 
     if let Some(reset_value) = r.reset_value.or(d.reset_value) {
-        let reset_value = u32::from(reset_value);
-
         impl_items.push(quote! {
             /// Reset value
             pub fn reset_value() -> Self {
