@@ -227,8 +227,8 @@ pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
             }
         } else {
             let width_ty = width.to_ty();
-            let mask: u32 = (1 << width) - 1;
-            let mask = Lit::Int(u64::from(mask), IntTy::Unsuffixed);
+            let mask: u64 = (1 << width) - 1;
+            let mask = Lit::Int(mask, IntTy::Unsuffixed);
 
             quote! {
                 pub fn #name(&self) -> #width_ty {
@@ -314,8 +314,8 @@ pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
             }
         } else {
             let width_ty = width.to_ty();
-            let mask: u32 = (1 << width) - 1;
-            let mask = Lit::Int(u64::from(mask), IntTy::Unsuffixed);
+            let mask = (1 << width) - 1;
+            let mask = Lit::Int(mask, IntTy::Unsuffixed);
 
             quote! {
                 pub fn #name(&mut self, value: #width_ty) -> &mut Self {
