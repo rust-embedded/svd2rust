@@ -7,8 +7,8 @@ sudo: required
 
 env:
   global:
-   - CRATE_NAME=svd2rust
-   - TARGET=x86_64-unknown-linux-gnu
+    - CRATE_NAME=svd2rust
+    - TARGET=x86_64-unknown-linux-gnu
 
 matrix:
   include:
@@ -45,6 +45,7 @@ deploy:
   provider: releases
   api_key:
     secure: b+q2Uul+hA1OyFbfWaQTF02xwZNTl5x8uumHkx7eeZZYtrXZh8aKyMgUiCVbcdch+p8r0QqvGYXyHUqtCmeFzLrFiudoleQBojs+0Pbrfnw5PH93k4Bf2snOJu6Sp5xjl5X34C+eM/hT3vIrAmEZCXFwVG7piZsdXWBdvkudz6pit8R2hsa6uxbyCs2lXmS/aWHSygg25DtrP/cezILxwS0VtXwgFOUTn8AQMd4bZeEz6ezTcUuCKEHdC9SUmFiNIwR7rjVzL4+Z7ffOz3TF4UHyTa+DLRM4pIO4L/DH+G2KJ3kw2C/98tLGwyObYChwiKXY1lW+bjauD38rwIMpzbAEAx+oPZQNLwdLXjIk9ZN9K3Dm0yWs5aZC+8O7QiOgxMTA3zQmZJdSRpnHLZJKns8hmxOyVeGr+RlTt+sJXqErgN8yzUSdn918kTbAqvc1x0zb/eC+wAx7ULvgjGmO6AuWZWRVM6SrXoKjANUCH1OdkpFA7T0pZ3Nx4p503234hKFyIoS/sd1I17bcBElP59zdv/NlpBAndxRdzPk/V2W40736xxLdQWgRgTMP95+/AJmsf8orscVag/wOdN4ACmwdAi6YxZB+bO9mMzuLJ8Z9BoudGqzaw3uCxkNNQSn+KJ+MrkhBnct7TnDPuAhy4pAOtmwgW3PTPrxsiNQQw+4=
+  file_glob: true
   file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
   # don't delete the target directory
   skip_cleanup: true
