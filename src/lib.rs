@@ -1,4 +1,3 @@
-#![feature(plugin)]
 #![recursion_limit="100"]
 
 extern crate inflections;

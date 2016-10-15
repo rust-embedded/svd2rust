@@ -1,28 +1,28 @@
 set -ex
 
 run() {
-    local target=$1
-
-    echo $target
-
     # This directory needs to exist before calling docker, otherwise docker will create it but it
     # will be owned by root
     mkdir -p target
 
-    docker build -t $target ci/docker/$target
+    docker build -t $1 ci/docker/$1
     docker run \
            --rm \
            --user $(id -u):$(id -g) \
            -e CARGO_HOME=/cargo \
            -e CARGO_TARGET_DIR=/target \
-           -e HOME=/tmp \
+           -e TARGET=$1 \
+           -e TRAVIS_OS_NAME=linux \
+           -e TRAVIS_RUST_VERSION=$TRAVIS_RUST_VERSION \
+           -e TRAVIS_TAG=$TRAVIS_TAG \
+           -e USER=$USER \
            -v $HOME/.cargo:/cargo \
            -v `pwd`/target:/target \
            -v `pwd`:/checkout:ro \
            -v `rustc --print sysroot`:/rust:ro \
            -w /checkout \
-           -it $target \
-           sh -c "PATH=\$PATH:/rust/bin ci/run.sh $target"
+           -it $1 \
+           sh -c "HOME=/tmp PATH=\$PATH:/rust/bin ci/run.sh"
 }
 
 if [ -z $1 ]; then
