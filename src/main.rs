@@ -20,7 +20,8 @@ fn main() {
         .arg(Arg::with_name("peripheral")
             .help("Pattern used to select a single peripheral")
             .value_name("PATTERN"))
-        .version(env!("CARGO_PKG_VERSION"))
+        .version(concat!(env!("CARGO_PKG_VERSION"),
+                         include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))))
         .get_matches();
 
     let xml = &mut String::new();

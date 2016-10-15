@@ -40,7 +40,7 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
 
         let field_ty = Ident::new(register.name.to_pascal_case());
         let field_name = Ident::new(register.name.to_snake_case());
-        fields.push(quote! { 
+        fields.push(quote! {
             #[doc = #comment]
             pub #field_name : #field_ty
         });
@@ -114,7 +114,7 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
                     }
                 }
             });
-        },
+        }
 
         Access::ReadWrite => {
             items.push(quote! {
@@ -149,7 +149,7 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
                     }
                 }
             });
-        },
+        }
 
         Access::WriteOnly => {
             items.push(quote! {
@@ -170,7 +170,7 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
                     }
                 }
             });
-        },
+        }
 
         _ => unreachable!(),
     }
@@ -207,7 +207,9 @@ pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
             let bits = if width == 1 {
                 format!("Bit {}", field.bit_range.offset)
             } else {
-                format!("Bits {}:{}", field.bit_range.offset, field.bit_range.offset + width - 1)
+                format!("Bits {}:{}",
+                        field.bit_range.offset,
+                        field.bit_range.offset + width - 1)
             };
 
             let comment = &format!("{} - {}", bits, respace(description))[..];
@@ -289,7 +291,9 @@ pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
             let bits = if width == 1 {
                 format!("Bit {}", field.bit_range.offset)
             } else {
-                format!("Bits {}:{}", field.bit_range.offset, field.bit_range.offset + width - 1)
+                format!("Bits {}:{}",
+                        field.bit_range.offset,
+                        field.bit_range.offset + width - 1)
             };
 
             let comment = &format!("{} - {}", bits, respace(description))[..];
