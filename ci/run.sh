@@ -1,27 +1,25 @@
 set -ex
 
 test_gen() {
-    echo 'extern crate volatile_register;' > /tmp/foo/src/lib.rs
-    cargo run --release -- -i /tmp/STM32F30x.svd $1 >> /tmp/foo/src/lib.rs
-    cargo build --manifest-path /tmp/foo/Cargo.toml
+    echo 'extern crate volatile_register;' > $td/src/lib.rs
+    cargo run $flags --release -- -i $td/STM32F30x.svd $1 >> $td/src/lib.rs
+    cargo build $flags --manifest-path $td/Cargo.toml
 }
 
-main() {
-    export LD_LIBRARY_PATH=$(rustc --print sysroot)/lib/rustlib/${1}/lib
-    export USER=rust
+test_mode() {
+    # test crate
+    cargo init --name foo $td
+    echo 'volatile-register = "0.1.0"' >> $td/Cargo.toml
 
     curl -L \
-         https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/STMicro/STM32F30x.svd \
-         > /tmp/STM32F30x.svd
+         https://raw.githubusercontent.com/posborne/cmsis-svd/python-0.4/data/STMicro/STM32F30x.svd \
+         > $td/STM32F30x.svd
 
     # test the library
-    cargo build --release
+    cargo build $flags
+    cargo build $flags --release
 
-    # test repository
-    cargo new /tmp/foo
-    echo 'volatile-register = "0.1.0"' >> /tmp/foo/Cargo.toml
-
-    # test generated code
+    # test the generated code
     test_gen
     test_gen dbgmcu
     test_gen gpioa
@@ -31,4 +29,27 @@ main() {
     test_gen tim6
 }
 
-main $1
+deploy_mode() {
+    cargo rustc $flags --release --bin svd2rust -- -C lto
+}
+
+run() {
+    flags="--target $TARGET"
+
+    case $TRAVIS_OS_NAME in
+        linux)
+            td=$(mktemp -d)
+            ;;
+        osx)
+            td=$(mktemp -d -t tmp)
+            ;;
+    esac
+
+    if [ -z $TRAVIS_TAG ]; then
+        test_mode
+    else
+        deploy_mode
+    fi
+}
+
+run
