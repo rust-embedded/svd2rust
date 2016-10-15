@@ -1,6 +1,6 @@
-[![Build Status][travis]](https://travis-ci.org/japaric/svd2rust)
-
-[travis]: https://travis-ci.org/japaric/svd2rust.svg?branch=master
+[![Build status](https://travis-ci.org/japaric/svd2rust.svg?branch=master)](https://travis-ci.org/japaric/svd2rust)
+[![crates.io](https://img.shields.io/crates/d/svd2rust.svg)](https://crates.io/crates/svd2rust)
+[![crates.io](https://img.shields.io/crates/v/svd2rust.svg)](https://crates.io/crates/svd2rust)
 
 # `svd2rust`
 
