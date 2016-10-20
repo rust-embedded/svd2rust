@@ -1,10 +1,13 @@
-#![recursion_limit="100"]
+#![recursion_limit = "100"]
 
 extern crate inflections;
 extern crate svd_parser as svd;
 #[macro_use]
 extern crate quote;
 extern crate syn;
+
+use std::io;
+use std::io::Write;
 
 use quote::Tokens;
 use syn::*;
@@ -23,11 +26,18 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         .as_ref()
         .expect(&format!("{:#?} has no `registers` field", p));
     for register in registers {
-        let pad = register.address_offset
-            .checked_sub(offset)
-            .unwrap_or_else(|| {
-                panic!("{:#?} overlapped with other register!", p)
-            });
+        let pad = if let Some(pad) = register.address_offset
+            .checked_sub(offset) {
+            pad
+        } else {
+            writeln!(io::stderr(),
+                     "WARNING {} overlaps with another register at offset \
+                      {}. Ignoring.",
+                     register.name,
+                     register.address_offset)
+                .ok();
+            continue;
+        };
 
         if pad != 0 {
             let name = Ident::new(format!("_reserved{}", i));
@@ -38,8 +48,7 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
             i += 1;
         }
 
-        let comment =
-            &format!("0x{:02x} - {}",
+        let comment = &format!("0x{:02x} - {}",
                      register.address_offset,
                      respace(&register.description))[..];
 

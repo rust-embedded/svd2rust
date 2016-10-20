@@ -26,6 +26,7 @@ test_mode() {
     test_gen i2c1
     test_gen rcc
     test_gen spi1
+    test_gen tim2
     test_gen tim6
 }
 
