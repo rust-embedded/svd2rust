@@ -19,11 +19,15 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
     let mut fields = vec![];
     let mut offset = 0;
     let mut i = 0;
-    let registers = p.registers.as_ref().expect(&format!("{:#?} has no `registers` field", p));
+    let registers = p.registers
+        .as_ref()
+        .expect(&format!("{:#?} has no `registers` field", p));
     for register in registers {
         let pad = register.address_offset
             .checked_sub(offset)
-            .unwrap_or_else(|| panic!("{:#?} overlapped with other register!", p));
+            .unwrap_or_else(|| {
+                panic!("{:#?} overlapped with other register!", p)
+            });
 
         if pad != 0 {
             let name = Ident::new(format!("_reserved{}", i));
@@ -34,9 +38,10 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
             i += 1;
         }
 
-        let comment = &format!("0x{:02x} - {}",
-                               register.address_offset,
-                               respace(&register.description))[..];
+        let comment =
+            &format!("0x{:02x} - {}",
+                     register.address_offset,
+                     respace(&register.description))[..];
 
         let field_ty = Ident::new(register.name.to_pascal_case());
         let field_name = Ident::new(register.name.to_snake_case());
@@ -46,7 +51,9 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         });
 
         offset = register.address_offset +
-                 register.size.or(d.size).expect(&format!("{:#?} has no `size` field", register)) /
+                 register.size
+            .or(d.size)
+            .expect(&format!("{:#?} has no `size` field", register)) /
                  8;
     }
 
@@ -81,9 +88,14 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
     let name = Ident::new(r.name.to_pascal_case());
-    let bits_ty = r.size.or(d.size).expect(&format!("{:#?} has no `size` field", r)).to_ty();
+    let bits_ty = r.size
+        .or(d.size)
+        .expect(&format!("{:#?} has no `size` field", r))
+        .to_ty();
     let access = r.access.unwrap_or_else(|| {
-        let fields = r.fields.as_ref().expect(&format!("{:#?} has no `fields` field", r));
+        let fields = r.fields
+            .as_ref()
+            .expect(&format!("{:#?} has no `fields` field", r));
         if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
             Access::ReadOnly
         } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
@@ -182,7 +194,10 @@ pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
     let name = Ident::new(format!("{}R", r.name.to_pascal_case()));
-    let bits_ty = r.size.or(d.size).expect(&format!("{:#?} has no `size` field", r)).to_ty();
+    let bits_ty = r.size
+        .or(d.size)
+        .expect(&format!("{:#?} has no `size` field", r))
+        .to_ty();
 
     items.push(quote! {
         #[derive(Clone, Copy)]
@@ -193,7 +208,9 @@ pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
 
     let mut impl_items = vec![];
 
-    for field in r.fields.as_ref().expect(&format!("{:#?} has no `fields` field", r)) {
+    for field in r.fields
+        .as_ref()
+        .expect(&format!("{:#?} has no `fields` field", r)) {
         if let Some(Access::WriteOnly) = field.access {
             continue;
         }
@@ -257,7 +274,10 @@ pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
     let name = Ident::new(format!("{}W", r.name.to_pascal_case()));
-    let bits_ty = r.size.or(d.size).expect(&format!("{:#?} has no `size` field", r)).to_ty();
+    let bits_ty = r.size
+        .or(d.size)
+        .expect(&format!("{:#?} has no `size` field", r))
+        .to_ty();
     items.push(quote! {
         #[derive(Clone, Copy)]
         #[repr(C)]
@@ -277,7 +297,9 @@ pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
         });
     }
 
-    for field in r.fields.as_ref().expect(&format!("{:#?} has no `fields` field", r)) {
+    for field in r.fields
+        .as_ref()
+        .expect(&format!("{:#?} has no `fields` field", r)) {
         if let Some(Access::ReadOnly) = field.access {
             continue;
         }
