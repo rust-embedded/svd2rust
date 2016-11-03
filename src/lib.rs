@@ -49,8 +49,8 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         }
 
         let comment = &format!("0x{:02x} - {}",
-                     register.address_offset,
-                     respace(&register.description))[..];
+                               register.address_offset,
+                               respace(&register.description))[..];
 
         let field_ty = Ident::new(register.name.to_pascal_case());
         let field_name = Ident::new(register.name.to_snake_case());
@@ -62,8 +62,7 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         offset = register.address_offset +
                  register.size
             .or(d.size)
-            .expect(&format!("{:#?} has no `size` field", register)) /
-                 8;
+            .expect(&format!("{:#?} has no `size` field", register)) / 8;
     }
 
     let p_name = Ident::new(p.name.to_pascal_case());
