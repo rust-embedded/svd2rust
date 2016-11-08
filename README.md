@@ -1,5 +1,3 @@
-[![Build status](https://ci.appveyor.com/api/projects/status/53qwpljindxmhvd3?svg=true)](https://ci.appveyor.com/project/japaric/svd2rust)
-[![Build status](https://travis-ci.org/japaric/svd2rust.svg?branch=master)](https://travis-ci.org/japaric/svd2rust)
 [![crates.io](https://img.shields.io/crates/d/svd2rust.svg)](https://crates.io/crates/svd2rust)
 [![crates.io](https://img.shields.io/crates/v/svd2rust.svg)](https://crates.io/crates/svd2rust)
 
@@ -160,7 +158,7 @@ impl Cr2R {
 
     /// Bits 1:7 - Slave address bit 7:1 (master mode)
     pub fn sadd1(&self) -> u8 { .. }
-    
+
     (..)
 }
 ```
