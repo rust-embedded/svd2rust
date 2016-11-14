@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.1] - 2016-11-13
+
 ### Fixed
 
 - Some SVD files specify that two registers exist at the same address.
