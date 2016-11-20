@@ -42,7 +42,11 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
     let registers = p.registers
         .as_ref()
         .expect(&format!("{:#?} has no `registers` field", p));
-    for register in registers {
+
+    let mut registers: Vec<&Register> = registers.iter().collect();
+    registers.sort_by_key(|x| x.address_offset);
+
+    for register in registers.iter() {
         let pad = if let Some(pad) = register.address_offset
             .checked_sub(offset) {
             pad
