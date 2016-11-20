@@ -52,11 +52,11 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
                      register.address_offset,
                      respace(&register.description))[..];
 
-        let field_ty = Ident::new(register.name.to_pascal_case());
-        let field_name = Ident::new(register.name.to_snake_case());
+        let reg_ty = Ident::new(register.name.to_pascal_case());
+        let reg_name = Ident::new(register.name.to_snake_case());
         fields.push(quote! {
             #[doc = #comment]
-            pub #field_name : #field_ty
+            pub #reg_name : #reg_ty
         });
 
         offset = register.address_offset +
