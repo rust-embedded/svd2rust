@@ -126,11 +126,8 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
             Access::ReadOnly
         } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
             Access::WriteOnly
-        } else if fields.iter().any(|f| f.access == Some(Access::ReadWrite)) {
-            Access::ReadWrite
         } else {
-            panic!("unexpected case: {:#?}",
-                   fields.iter().map(|f| f.access).collect::<Vec<_>>())
+            Access::ReadWrite
         }
     });
 
