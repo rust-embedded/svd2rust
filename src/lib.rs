@@ -15,6 +15,23 @@ use syn::*;
 use inflections::Inflect;
 use svd::{Access, Defaults, Peripheral, Register};
 
+/// Trait that sanitizes name avoiding rust keywords and the like.
+trait SanitizeName {
+    /// Sanitize a name; avoiding Rust keywords and the like.
+    fn sanitize(&self) -> String;
+}
+
+impl SanitizeName for String {
+    fn sanitize(&self) -> String {
+        match self.as_str() {
+            "fn" => "fn_".to_owned(),
+            "match" => "match_".to_owned(),
+            "mod" => "mod_".to_owned(),
+            _ => self.to_owned(),
+        }
+    }
+}
+
 pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
     assert!(p.derived_from.is_none(), "DerivedFrom not supported");
 
@@ -224,7 +241,7 @@ pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
             continue;
         }
 
-        let name = Ident::new(field.name.to_snake_case());
+        let name = Ident::new(field.name.to_snake_case().sanitize());
         let offset = field.bit_range.offset as u8;
 
         let width = field.bit_range.width;
@@ -313,7 +330,7 @@ pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
             continue;
         }
 
-        let name = Ident::new(field.name.to_snake_case());
+        let name = Ident::new(field.name.to_snake_case().sanitize());
         let offset = field.bit_range.offset as u8;
 
         let width = field.bit_range.width;
