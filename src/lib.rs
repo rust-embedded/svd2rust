@@ -74,7 +74,7 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
                      respace(&register.description))[..];
 
         let reg_ty = Ident::new(register.name.to_pascal_case());
-        let reg_name = Ident::new(register.name.to_snake_case());
+        let reg_name = Ident::new(register.name.to_snake_case().sanitize());
         fields.push(quote! {
             #[doc = #comment]
             pub #reg_name : #reg_ty
