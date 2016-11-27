@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- `svd2rust -i $FILE tim1` will now try to match `tim1`, the name of the
+  requested peripheral, *exactly* before looking for a peripheral that start
+  with `tim1`. The result is that the previous command now returns the register
+  map of TIM1 instead of e.g. the map of TIM15 which appeared "first" in the SVD
+  file.
+
+### Fixed
+
+- svd2rust now "sanitizes" register names that match existing Rust keywords.
+  This means that if a register is named `mod` in the SVD file, svd2rust will,
+  instead, use `mod_` as the name of the register for the generated Rust code.
+  With this change, the generated Rust code will compile out of the box, without
+  requiring further, manual changes.
+
+- svd2rust no longer assumes that SVD files list the registers of a register
+  block sorted by their "offsets". With this change, svd2rust now accepts more
+  SVD files.
+
 ## [v0.1.1] - 2016-11-13
 
 ### Fixed
