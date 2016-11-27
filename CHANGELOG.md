@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.2] - 2016-11-27
+
 ### Changed
 
 - `svd2rust -i $FILE tim1` will now try to match `tim1`, the name of the
@@ -43,5 +45,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.1.2...HEAD
+[v0.1.2]: https://github.com/japaric/svd2rust/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/japaric/svd2rust/compare/v0.1.0...v0.1.1
