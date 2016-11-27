@@ -44,7 +44,9 @@ fn main() {
             if let Some(peripheral) = d.peripherals
                 .iter()
                 .find(|x| x.name.to_ascii_lowercase() == pattern)
-                .or(d.peripherals.iter().find(|x| x.name.to_ascii_lowercase().contains(&pattern))) {
+                .or(d.peripherals
+                    .iter()
+                    .find(|x| x.name.to_ascii_lowercase().contains(&pattern))) {
                 println!("{}",
                          svd2rust::gen_peripheral(peripheral, &d.defaults)
                              .iter()
