@@ -1,5 +1,7 @@
 //! Generate Rust register maps (`struct`s) from SVD files
 //!
+//! # [Changelog](https://github.com/japaric/svd2rust/blob/master/CHANGELOG.md)
+//!
 //! # Installation
 //!
 //! ```
