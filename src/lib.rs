@@ -563,7 +563,7 @@ pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
         impl_items.push(quote! {
             /// Reset value
             pub fn reset_value() -> Self {
-                #name { bits: #reset_value }
+                #name { bits: #reset_value as #bits_ty}
             }
         });
     }
