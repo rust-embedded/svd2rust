@@ -348,38 +348,33 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
 
     for register in registers {
         items.extend(gen_register(register, d));
-        items.extend(gen_register_r(register, d));
-        items.extend(gen_register_w(register, d));
+        if register.has_fields() {
+            items.extend(gen_register_r(register, d));
+            items.extend(gen_register_w(register, d));
+        }
     }
 
     items
 }
 
-#[doc(hidden)]
-pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
+fn gen_register_with_fields(r: &Register, fields: &[svd::Field],
+                            bits_ty: &Ident) -> Vec<Tokens> {
     let mut items = vec![];
 
     let name = Ident::new(r.name.to_pascal_case());
-    let bits_ty = r.size
-        .or(d.size)
-        .expect(&format!("{:#?} has no `size` field", r))
-        .to_ty();
+    let name_r = Ident::new(format!("{}R", r.name.to_pascal_case()));
+    let name_w = Ident::new(format!("{}W", r.name.to_pascal_case()));
+
     let access = r.access.unwrap_or_else(|| {
-        if let Some(ref fields) = r.fields {
-            if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
-                Access::ReadOnly
-            } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
-                Access::WriteOnly
-            } else {
-                Access::ReadWrite
-            }
+        if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
+            Access::ReadOnly
+        } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
+            Access::WriteOnly
         } else {
             Access::ReadWrite
         }
     });
 
-    let name_r = Ident::new(format!("{}R", r.name.to_pascal_case()));
-    let name_w = Ident::new(format!("{}W", r.name.to_pascal_case()));
     match access {
         Access::ReadOnly => {
             items.push(quote! {
@@ -458,6 +453,91 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
     }
 
     items
+}
+
+fn gen_register_without_fields(r: &Register, bits_ty: &Ident) -> Vec<Tokens> {
+    let mut items = vec![];
+
+    let name = Ident::new(r.name.to_pascal_case());
+    let access = r.access.unwrap_or(Access::ReadWrite);
+
+    match access {
+        Access::ReadOnly => {
+            items.push(quote! {
+                #[repr(C)]
+                pub struct #name {
+                    register: ::volatile_register::RO<#bits_ty>
+                }
+            });
+
+            items.push(quote! {
+                impl #name {
+                    pub fn read(&self) -> #bits_ty {
+                        self.register.read()
+                    }
+                }
+            });
+        }
+
+        Access::ReadWrite => {
+            items.push(quote! {
+                #[repr(C)]
+                pub struct #name {
+                    register: ::volatile_register::RW<#bits_ty>
+                }
+            });
+
+            items.push(quote! {
+                impl #name {
+                    pub fn read(&self) -> #bits_ty {
+                        self.register.read()
+                    }
+
+                    pub fn write(&mut self, value: #bits_ty) {
+                        self.register.write(value);
+                    }
+                }
+            });
+        }
+
+        Access::WriteOnly => {
+            items.push(quote! {
+                #[repr(C)]
+                pub struct #name {
+                    register: ::volatile_register::WO<#bits_ty>
+                }
+            });
+
+            items.push(quote! {
+                impl #name {
+                    pub fn write(&self, value: #bits_ty) {
+                        self.register.write(value);
+                    }
+                }
+            });
+        }
+
+        _ => unreachable!(),
+    }
+
+    items
+}
+
+#[doc(hidden)]
+pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
+
+    let bits_ty = r.size
+        .or(d.size)
+        .expect(&format!("{:#?} has no `size` field", r))
+        .to_ty();
+
+    match r.fields {
+        Some(ref fields) => {
+            assert!(fields.len() > 0);
+            gen_register_with_fields(r, fields, &bits_ty)
+        }
+        None => gen_register_without_fields(r, &bits_ty)
+    }
 }
 
 fn gen_field_items_r(field: &svd::Field, bits_ty: &Ident) -> Vec<Tokens> {
