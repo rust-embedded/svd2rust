@@ -265,6 +265,7 @@ impl SanitizeName for String {
     fn sanitize(&self) -> String {
         match self.as_str() {
             "fn" => "fn_".to_owned(),
+            "in" => "in_".to_owned(),
             "match" => "match_".to_owned(),
             "mod" => "mod_".to_owned(),
             _ => self.to_owned(),
