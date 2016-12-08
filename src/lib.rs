@@ -274,7 +274,7 @@ impl SanitizeName for String {
 
 #[doc(hidden)]
 pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
-    assert!(p.derived_from.is_none(), "DerivedFrom not supported");
+    assert!(p.derived_from.is_none(), "DerivedFrom not supported here (should be resolved earlier)");
 
     let mut items = vec![];
     let mut fields = vec![];

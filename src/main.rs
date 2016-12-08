@@ -41,20 +41,40 @@ fn main() {
             }
         }
         Some(pattern) => {
-            if let Some(peripheral) = d.peripherals
-                .iter()
-                .find(|x| x.name.to_ascii_lowercase() == pattern)
-                .or(d.peripherals
-                    .iter()
-                    .find(|x| x.name.to_ascii_lowercase().contains(&pattern))) {
-                println!("{}",
-                         svd2rust::gen_peripheral(peripheral, &d.defaults)
-                             .iter()
-                             .map(|i| i.to_string())
-                             .collect::<Vec<_>>()
-                             .join("\n\n"));
-
+            if let Some(peripheral) = find_peripheral(&d, |n| n == pattern)
+                .or(find_peripheral(&d, |n| n.contains(pattern))) {
+                if let Some(base_peripheral) = peripheral.derived_from.as_ref()
+                        .and_then(|bn| find_peripheral(&d, |n| n == bn.to_ascii_lowercase())) {
+                    let merged_peripheral = merge(peripheral, base_peripheral);
+                    println!("{}", gen_peripheral_desc(&merged_peripheral, &d.defaults));
+                } else {
+                    println!("{}", gen_peripheral_desc(peripheral, &d.defaults));
+                }
             }
         }
+    }
+}
+
+fn find_peripheral<F: Fn(&str) -> bool>(device: &svd::Device, matcher: F) -> Option<&svd::Peripheral> {
+    device.peripherals.iter().find(|x| matcher(&x.name.to_ascii_lowercase()))
+}
+
+fn gen_peripheral_desc(p: &svd::Peripheral, def: &svd::Defaults) -> String {
+    svd2rust::gen_peripheral(p, &def)
+        .iter()
+        .map(|i| i.to_string())
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+fn merge(p: &svd::Peripheral, bp: &svd::Peripheral) -> svd::Peripheral {
+    svd::Peripheral {
+        name: p.name.clone(),
+        base_address: p.base_address,
+        derived_from: None,
+        group_name: p.group_name.clone().or(bp.group_name.clone()),
+        description: p.description.clone().or(bp.description.clone()),
+        interrupt: p.interrupt.clone().or(bp.interrupt.clone()),
+        registers: p.registers.clone().or(bp.registers.clone()),
     }
 }
