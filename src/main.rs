@@ -42,7 +42,7 @@ fn main() {
         }
         Some(pattern) => {
             if let Some(peripheral) = find_peripheral(&d, |n| n == pattern)
-                .or(find_peripheral(&d, |n| n.contains(pattern))) {
+                .or_else(|| find_peripheral(&d, |n| n.contains(pattern))) {
                 if let Some(base_peripheral) = peripheral.derived_from.as_ref()
                         .and_then(|bn| find_peripheral(&d, |n| n == bn.to_ascii_lowercase())) {
                     let merged_peripheral = merge(peripheral, base_peripheral);
@@ -72,9 +72,9 @@ fn merge(p: &svd::Peripheral, bp: &svd::Peripheral) -> svd::Peripheral {
         name: p.name.clone(),
         base_address: p.base_address,
         derived_from: None,
-        group_name: p.group_name.clone().or(bp.group_name.clone()),
-        description: p.description.clone().or(bp.description.clone()),
-        interrupt: p.interrupt.clone().or(bp.interrupt.clone()),
-        registers: p.registers.clone().or(bp.registers.clone()),
+        group_name: p.group_name.clone().or_else(|| bp.group_name.clone()),
+        description: p.description.clone().or_else(|| bp.description.clone()),
+        interrupt: p.interrupt.clone().or_else(|| bp.interrupt.clone()),
+        registers: p.registers.clone().or_else(|| bp.registers.clone()),
     }
 }
