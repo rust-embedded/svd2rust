@@ -274,7 +274,18 @@ impl SanitizeName for String {
 
 #[doc(hidden)]
 pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
-    assert!(p.derived_from.is_none(), "DerivedFrom not supported");
+    if let Some(ref derived_from) = p.derived_from {
+        let p_name = Ident::new(p.name.to_pascal_case());
+        let derived_name = format!("::{}::{}",
+                                   derived_from.to_snake_case(),
+                                   derived_from.to_pascal_case());
+        let derived_ty = Ident::new(derived_name);
+
+        let type_alias = quote! {
+            pub type #p_name = #derived_ty;
+        };
+        return vec![type_alias];
+    }
 
     let mut items = vec![];
     let mut fields = vec![];
