@@ -273,6 +273,10 @@ impl SanitizeName for String {
     }
 }
 
+fn register_basename(r: &Register) -> String {
+    r.name.replace("%s", "")
+}
+
 #[doc(hidden)]
 pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
     assert!(p.derived_from.is_none(), "DerivedFrom not supported");
@@ -315,18 +319,43 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
                      register.address_offset,
                      respace(&register.description))[..];
 
-        let reg_ty = Ident::new(register.name.to_pascal_case());
-        let reg_name = Ident::new(register.name.to_snake_case().sanitize());
+        let reg_ty;
+        let reg_name;
+
+        match **register {
+            Register::Single(_) => {
+                reg_ty = Ident::new(register.name.to_pascal_case());
+                reg_name = Ident::new(register.name.to_snake_case().sanitize());
+            }
+            Register::Array(_, ref array_info) => {
+                let name = register_basename(register);
+                reg_ty = Ident::new(format!("[{}; {}]", name.to_pascal_case(), array_info.dim));
+                reg_name = Ident::new(name.to_snake_case().sanitize());
+            }
+        };
+
         fields.push(quote! {
             #[doc = #comment]
             pub #reg_name : #reg_ty
         });
 
-        offset = register.address_offset +
-                 register.size
-            .or(d.size)
-            .expect(&format!("{:#?} has no `size` field", register)) /
-                 8;
+        if let Register::Array(_, ref array_info) = **register {
+            // This cannot be `address_offset + dim * reg_size` because that
+            // would not allow for reserved areas inside the register array.
+            // It is always the case that
+            //
+            //    reg_size <= dim_increment
+            //
+            // and here we want to skip over the whole register array, not just
+            // the usable area, so we use `dim * dim_increment`.
+            offset = register.address_offset + array_info.dim * array_info.dim_increment;
+        } else {
+            let reg_size = register.size
+                                   .or(d.size)
+                                   .expect(&format!("{:#?} has no `size` field", register)) / 8;
+
+            offset = register.address_offset + reg_size;
+        }
     }
 
     let p_name = Ident::new(p.name.to_pascal_case());
@@ -349,9 +378,11 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
 
     for register in registers {
         items.extend(gen_register(register, d));
-        if register.has_fields() {
-            items.extend(gen_register_r(register, d));
-            items.extend(gen_register_w(register, d));
+        if let Some(ref fields) = register.fields {
+            if fields.len() > 0 {
+                items.extend(gen_register_r(register, d));
+                items.extend(gen_register_w(register, d));
+            }
         }
     }
 
@@ -362,9 +393,9 @@ fn gen_register_with_fields(r: &Register, fields: &[svd::Field],
                             bits_ty: &Ident) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(r.name.to_pascal_case());
-    let name_r = Ident::new(format!("{}R", r.name.to_pascal_case()));
-    let name_w = Ident::new(format!("{}W", r.name.to_pascal_case()));
+    let name = Ident::new(register_basename(r).to_pascal_case());
+    let name_r = Ident::new(format!("{}R", register_basename(r).to_pascal_case()));
+    let name_w = Ident::new(format!("{}W", register_basename(r).to_pascal_case()));
 
     let access = r.access.unwrap_or_else(|| {
         if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
@@ -459,7 +490,7 @@ fn gen_register_with_fields(r: &Register, fields: &[svd::Field],
 fn gen_register_without_fields(r: &Register, bits_ty: &Ident) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(r.name.to_pascal_case());
+    let name = Ident::new(register_basename(r).to_pascal_case());
     let access = r.access.unwrap_or(Access::ReadWrite);
 
     match access {
@@ -599,7 +630,7 @@ fn gen_field_items_r(field: &svd::Field, bits_ty: &Ident) -> Vec<Tokens> {
 pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(format!("{}R", r.name.to_pascal_case()));
+    let name = Ident::new(format!("{}R", register_basename(r).to_pascal_case()));
     let bits_ty = r.size
         .or(d.size)
         .expect(&format!("{:#?} has no `size` field", r))
@@ -694,7 +725,7 @@ fn gen_field_items_w(field: &svd::Field, bits_ty: &Ident) -> Vec<Tokens> {
 pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(format!("{}W", r.name.to_pascal_case()));
+    let name = Ident::new(format!("{}W", register_basename(r).to_pascal_case()));
     let bits_ty = r.size
         .or(d.size)
         .expect(&format!("{:#?} has no `size` field", r))
