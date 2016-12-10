@@ -1,11 +1,11 @@
 [root]
 name = "svd2rust"
-version = "0.1.1"
+version = "0.1.3"
 dependencies = [
  "clap 2.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "inflections 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "svd-parser 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "svd-parser 0.1.3",
  "syn 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -65,8 +65,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "svd-parser"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+version = "0.1.3"
 dependencies = [
  "xmltree 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -145,7 +144,6 @@ dependencies = [
 "checksum libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)" = "408014cace30ee0f767b1c4517980646a573ec61a57957aeeabcac8ac0a02e8d"
 "checksum quote 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0b22ffb272d214bfc8b6c89ff856d0acb52f0cd6b85162243460c9291b93c56e"
 "checksum strsim 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "50c069df92e4b01425a8bf3576d5d417943a6a7272fbabaf5bd80b1aaa76442e"
-"checksum svd-parser 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "17a278c8bc26a599b2de0d6c86181d083a988e5bb60f7418f7b743f900b754ac"
 "checksum syn 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "96fed4e825d615b0ffd74dabb1dc4c5a078ab44e2c8004798f01510edf6cf515"
 "checksum term_size 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3f7f5f3f71b0040cecc71af239414c23fd3c73570f5ff54cf50e03cef637f2a0"
 "checksum unicode-segmentation 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b905d0fc2a1f0befd86b0e72e31d1787944efef9d38b9358a9e92a69757f7e3b"

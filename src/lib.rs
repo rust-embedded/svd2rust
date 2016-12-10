@@ -265,11 +265,16 @@ impl SanitizeName for String {
     fn sanitize(&self) -> String {
         match self.as_str() {
             "fn" => "fn_".to_owned(),
+            "in" => "in_".to_owned(),
             "match" => "match_".to_owned(),
             "mod" => "mod_".to_owned(),
             _ => self.to_owned(),
         }
     }
+}
+
+fn register_basename(r: &Register) -> String {
+    r.name.replace("%s", "")
 }
 
 #[doc(hidden)]
@@ -314,18 +319,43 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
                      register.address_offset,
                      respace(&register.description))[..];
 
-        let reg_ty = Ident::new(register.name.to_pascal_case());
-        let reg_name = Ident::new(register.name.to_snake_case().sanitize());
+        let reg_ty;
+        let reg_name;
+
+        match **register {
+            Register::Single(_) => {
+                reg_ty = Ident::new(register.name.to_pascal_case());
+                reg_name = Ident::new(register.name.to_snake_case().sanitize());
+            }
+            Register::Array(_, ref array_info) => {
+                let name = register_basename(register);
+                reg_ty = Ident::new(format!("[{}; {}]", name.to_pascal_case(), array_info.dim));
+                reg_name = Ident::new(name.to_snake_case().sanitize());
+            }
+        };
+
         fields.push(quote! {
             #[doc = #comment]
             pub #reg_name : #reg_ty
         });
 
-        offset = register.address_offset +
-                 register.size
-            .or(d.size)
-            .expect(&format!("{:#?} has no `size` field", register)) /
-                 8;
+        if let Register::Array(_, ref array_info) = **register {
+            // This cannot be `address_offset + dim * reg_size` because that
+            // would not allow for reserved areas inside the register array.
+            // It is always the case that
+            //
+            //    reg_size <= dim_increment
+            //
+            // and here we want to skip over the whole register array, not just
+            // the usable area, so we use `dim * dim_increment`.
+            offset = register.address_offset + array_info.dim * array_info.dim_increment;
+        } else {
+            let reg_size = register.size
+                                   .or(d.size)
+                                   .expect(&format!("{:#?} has no `size` field", register)) / 8;
+
+            offset = register.address_offset + reg_size;
+        }
     }
 
     let p_name = Ident::new(p.name.to_pascal_case());
@@ -348,26 +378,26 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
 
     for register in registers {
         items.extend(gen_register(register, d));
-        items.extend(gen_register_r(register, d));
-        items.extend(gen_register_w(register, d));
+        if let Some(ref fields) = register.fields {
+            if fields.len() > 0 {
+                items.extend(gen_register_r(register, d));
+                items.extend(gen_register_w(register, d));
+            }
+        }
     }
 
     items
 }
 
-#[doc(hidden)]
-pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
+fn gen_register_with_fields(r: &Register, fields: &[svd::Field],
+                            bits_ty: &Ident) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(r.name.to_pascal_case());
-    let bits_ty = r.size
-        .or(d.size)
-        .expect(&format!("{:#?} has no `size` field", r))
-        .to_ty();
+    let name = Ident::new(register_basename(r).to_pascal_case());
+    let name_r = Ident::new(format!("{}R", register_basename(r).to_pascal_case()));
+    let name_w = Ident::new(format!("{}W", register_basename(r).to_pascal_case()));
+
     let access = r.access.unwrap_or_else(|| {
-        let fields = r.fields
-            .as_ref()
-            .expect(&format!("{:#?} has no `fields` field", r));
         if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
             Access::ReadOnly
         } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
@@ -377,8 +407,6 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
         }
     });
 
-    let name_r = Ident::new(format!("{}R", r.name.to_pascal_case()));
-    let name_w = Ident::new(format!("{}W", r.name.to_pascal_case()));
     match access {
         Access::ReadOnly => {
             items.push(quote! {
@@ -459,11 +487,150 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
     items
 }
 
+fn gen_register_without_fields(r: &Register, bits_ty: &Ident) -> Vec<Tokens> {
+    let mut items = vec![];
+
+    let name = Ident::new(register_basename(r).to_pascal_case());
+    let access = r.access.unwrap_or(Access::ReadWrite);
+
+    match access {
+        Access::ReadOnly => {
+            items.push(quote! {
+                #[repr(C)]
+                pub struct #name {
+                    register: ::volatile_register::RO<#bits_ty>
+                }
+            });
+
+            items.push(quote! {
+                impl #name {
+                    pub fn read(&self) -> #bits_ty {
+                        self.register.read()
+                    }
+                }
+            });
+        }
+
+        Access::ReadWrite => {
+            items.push(quote! {
+                #[repr(C)]
+                pub struct #name {
+                    register: ::volatile_register::RW<#bits_ty>
+                }
+            });
+
+            items.push(quote! {
+                impl #name {
+                    pub fn read(&self) -> #bits_ty {
+                        self.register.read()
+                    }
+
+                    pub fn write(&mut self, value: #bits_ty) {
+                        self.register.write(value);
+                    }
+                }
+            });
+        }
+
+        Access::WriteOnly => {
+            items.push(quote! {
+                #[repr(C)]
+                pub struct #name {
+                    register: ::volatile_register::WO<#bits_ty>
+                }
+            });
+
+            items.push(quote! {
+                impl #name {
+                    pub fn write(&self, value: #bits_ty) {
+                        self.register.write(value);
+                    }
+                }
+            });
+        }
+
+        _ => unreachable!(),
+    }
+
+    items
+}
+
+#[doc(hidden)]
+pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
+
+    let bits_ty = r.size
+        .or(d.size)
+        .expect(&format!("{:#?} has no `size` field", r))
+        .to_ty();
+
+    match r.fields {
+        Some(ref fields) => {
+            assert!(fields.len() > 0);
+            gen_register_with_fields(r, fields, &bits_ty)
+        }
+        None => gen_register_without_fields(r, &bits_ty)
+    }
+}
+
+fn gen_field_items_r(field: &svd::Field, bits_ty: &Ident) -> Vec<Tokens> {
+    let mut items = vec![];
+
+    if let Some(Access::WriteOnly) = field.access {
+        return items;
+    }
+
+    let name = Ident::new(field.name.to_snake_case().sanitize());
+    let offset = field.bit_range.offset as u8;
+
+    let width = field.bit_range.width;
+
+    if let Some(description) = field.description.as_ref() {
+        let bits = if width == 1 {
+            format!("Bit {}", field.bit_range.offset)
+        } else {
+            format!("Bits {}:{}",
+                    field.bit_range.offset,
+                    field.bit_range.offset + width - 1)
+        };
+
+        let comment = &format!("{} - {}", bits, respace(description))[..];
+        items.push(quote! {
+            #[doc = #comment]
+        });
+    }
+
+    let item = if width == 1 {
+        quote! {
+            pub fn #name(&self) -> bool {
+                const OFFSET: u8 = #offset;
+
+                self.bits & (1 << OFFSET) != 0
+            }
+        }
+    } else {
+        let width_ty = width.to_ty();
+        let mask: u64 = (1 << width) - 1;
+        let mask = Lit::Int(mask, IntTy::Unsuffixed);
+
+        quote! {
+            pub fn #name(&self) -> #width_ty {
+                const MASK: #bits_ty = #mask;
+                const OFFSET: u8 = #offset;
+
+                ((self.bits >> OFFSET) & MASK) as #width_ty
+            }
+        }
+    };
+
+    items.push(item);
+    items
+}
+
 #[doc(hidden)]
 pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(format!("{}R", r.name.to_pascal_case()));
+    let name = Ident::new(format!("{}R", register_basename(r).to_pascal_case()));
     let bits_ty = r.size
         .or(d.size)
         .expect(&format!("{:#?} has no `size` field", r))
@@ -478,57 +645,10 @@ pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
 
     let mut impl_items = vec![];
 
-    for field in r.fields
-        .as_ref()
-        .expect(&format!("{:#?} has no `fields` field", r)) {
-        if let Some(Access::WriteOnly) = field.access {
-            continue;
+    if let Some(ref fields) = r.fields {
+        for field in fields {
+            impl_items.extend(gen_field_items_r(field, &bits_ty));
         }
-
-        let name = Ident::new(field.name.to_snake_case().sanitize());
-        let offset = field.bit_range.offset as u8;
-
-        let width = field.bit_range.width;
-
-        if let Some(description) = field.description.as_ref() {
-            let bits = if width == 1 {
-                format!("Bit {}", field.bit_range.offset)
-            } else {
-                format!("Bits {}:{}",
-                        field.bit_range.offset,
-                        field.bit_range.offset + width - 1)
-            };
-
-            let comment = &format!("{} - {}", bits, respace(description))[..];
-            impl_items.push(quote! {
-                #[doc = #comment]
-            });
-        }
-
-        let item = if width == 1 {
-            quote! {
-                pub fn #name(&self) -> bool {
-                    const OFFSET: u8 = #offset;
-
-                    self.bits & (1 << OFFSET) != 0
-                }
-            }
-        } else {
-            let width_ty = width.to_ty();
-            let mask: u64 = (1 << width) - 1;
-            let mask = Lit::Int(mask, IntTy::Unsuffixed);
-
-            quote! {
-                pub fn #name(&self) -> #width_ty {
-                    const MASK: #bits_ty = #mask;
-                    const OFFSET: u8 = #offset;
-
-                    ((self.bits >> OFFSET) & MASK) as #width_ty
-                }
-            }
-        };
-
-        impl_items.push(item);
     }
 
     items.push(quote! {
@@ -540,11 +660,72 @@ pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
     items
 }
 
+fn gen_field_items_w(field: &svd::Field, bits_ty: &Ident) -> Vec<Tokens> {
+    let mut items = vec![];
+
+    if let Some(Access::ReadOnly) = field.access {
+        return items;
+    }
+
+    let name = Ident::new(field.name.to_snake_case().sanitize());
+    let offset = field.bit_range.offset as u8;
+
+    let width = field.bit_range.width;
+
+    if let Some(description) = field.description.as_ref() {
+        let bits = if width == 1 {
+            format!("Bit {}", field.bit_range.offset)
+        } else {
+            format!("Bits {}:{}",
+                    field.bit_range.offset,
+                    field.bit_range.offset + width - 1)
+        };
+
+        let comment = &format!("{} - {}", bits, respace(description))[..];
+        items.push(quote! {
+            #[doc = #comment]
+        });
+    }
+
+    let item = if width == 1 {
+        quote! {
+            pub fn #name(&mut self, value: bool) -> &mut Self {
+                const OFFSET: u8 = #offset;
+
+                if value {
+                    self.bits |= 1 << OFFSET;
+                } else {
+                    self.bits &= !(1 << OFFSET);
+                }
+                self
+            }
+        }
+    } else {
+        let width_ty = width.to_ty();
+        let mask = (1 << width) - 1;
+        let mask = Lit::Int(mask, IntTy::Unsuffixed);
+
+        quote! {
+            pub fn #name(&mut self, value: #width_ty) -> &mut Self {
+                const OFFSET: u8 = #offset;
+                const MASK: #width_ty = #mask;
+
+                self.bits &= !((MASK as #bits_ty) << OFFSET);
+                self.bits |= ((value & MASK) as #bits_ty) << OFFSET;
+                self
+            }
+        }
+    };
+
+    items.push(item);
+    items
+}
+
 #[doc(hidden)]
 pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(format!("{}W", r.name.to_pascal_case()));
+    let name = Ident::new(format!("{}W", register_basename(r).to_pascal_case()));
     let bits_ty = r.size
         .or(d.size)
         .expect(&format!("{:#?} has no `size` field", r))
@@ -570,64 +751,10 @@ pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
         });
     }
 
-    for field in r.fields
-        .as_ref()
-        .expect(&format!("{:#?} has no `fields` field", r)) {
-        if let Some(Access::ReadOnly) = field.access {
-            continue;
+    if let Some(ref fields) = r.fields {
+        for field in fields {
+            impl_items.extend(gen_field_items_w(field, &bits_ty));
         }
-
-        let name = Ident::new(field.name.to_snake_case().sanitize());
-        let offset = field.bit_range.offset as u8;
-
-        let width = field.bit_range.width;
-
-        if let Some(description) = field.description.as_ref() {
-            let bits = if width == 1 {
-                format!("Bit {}", field.bit_range.offset)
-            } else {
-                format!("Bits {}:{}",
-                        field.bit_range.offset,
-                        field.bit_range.offset + width - 1)
-            };
-
-            let comment = &format!("{} - {}", bits, respace(description))[..];
-            impl_items.push(quote! {
-                #[doc = #comment]
-            });
-        }
-
-        let item = if width == 1 {
-            quote! {
-                pub fn #name(&mut self, value: bool) -> &mut Self {
-                    const OFFSET: u8 = #offset;
-
-                    if value {
-                        self.bits |= 1 << OFFSET;
-                    } else {
-                        self.bits &= !(1 << OFFSET);
-                    }
-                    self
-                }
-            }
-        } else {
-            let width_ty = width.to_ty();
-            let mask = (1 << width) - 1;
-            let mask = Lit::Int(mask, IntTy::Unsuffixed);
-
-            quote! {
-                pub fn #name(&mut self, value: #width_ty) -> &mut Self {
-                    const OFFSET: u8 = #offset;
-                    const MASK: #width_ty = #mask;
-
-                    self.bits &= !((MASK as #bits_ty) << OFFSET);
-                    self.bits |= ((value & MASK) as #bits_ty) << OFFSET;
-                    self
-                }
-            }
-        };
-
-        impl_items.push(item);
     }
 
     items.push(quote! {
