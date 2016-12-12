@@ -23,10 +23,12 @@ test_mode() {
     test_gen
     test_gen dbgmcu
     test_gen gpioa
+    test_gen gpioc
     test_gen i2c1
     test_gen rcc
     test_gen spi1
     test_gen tim2
+    test_gen tim3
     test_gen tim6
 }
 
