@@ -68,6 +68,8 @@ fn gen_peripheral_desc(p: &svd::Peripheral, def: &svd::Defaults) -> String {
 }
 
 fn merge(p: &svd::Peripheral, bp: &svd::Peripheral) -> svd::Peripheral {
+    assert!(p.registers.is_none() || bp.registers.is_none(), "Either {} registers or {} registers must be absent in SVD", p.name, bp.name);
+
     svd::Peripheral {
         name: p.name.clone(),
         base_address: p.base_address,
