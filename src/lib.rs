@@ -250,10 +250,25 @@ use std::io;
 use std::io::Write;
 
 use quote::Tokens;
-use syn::*;
+use syn::{Ident, IntTy, Lit};
 
 use inflections::Inflect;
-use svd::{Access, Defaults, Peripheral, Register};
+use svd::{Access, Defaults, Field, Peripheral, Register};
+
+/// Trait that sanitizes name avoiding rust keywords and the like.
+trait SanitizeName {
+    /// Sanitize a name; avoiding Rust keywords and the like.
+    fn sanitize(&self) -> String;
+}
+
+impl SanitizeName for String {
+    fn sanitize(&self) -> String {
+        match self.as_str() {
+            "mod" => "mod_".to_owned(),
+            _ => self.to_owned(),
+        }
+    }
+}
 
 /// Trait that sanitizes name avoiding rust keywords and the like.
 trait SanitizeName {
@@ -311,8 +326,8 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         }
 
         let comment = &format!("0x{:02x} - {}",
-                     register.address_offset,
-                     respace(&register.description))[..];
+                               register.address_offset,
+                               respace(&register.description))[..];
 
         let reg_ty = Ident::new(register.name.to_pascal_case());
         let reg_name = Ident::new(register.name.to_snake_case().sanitize());
@@ -324,8 +339,7 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         offset = register.address_offset +
                  register.size
             .or(d.size)
-            .expect(&format!("{:#?} has no `size` field", register)) /
-                 8;
+            .expect(&format!("{:#?} has no `size` field", register)) / 8;
     }
 
     let p_name = Ident::new(p.name.to_pascal_case());
@@ -456,6 +470,41 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
         _ => unreachable!(),
     }
 
+    // Create enumerated types for fields in register.
+    for field in r.fields.as_ref().expect(&format!("{:#?} has no `fields` field", r)) {
+        if field.enumerated_values.is_none() {
+            continue;
+        }
+
+        let enum_vals = field.enumerated_values.as_ref().unwrap();
+        let name = field.to_ty();
+
+        let keys = enum_vals.values
+            .iter()
+            .map(|x| Ident::new(x.name.sanitize().to_pascal_case()))
+            .collect::<Vec<_>>()
+            .into_iter();
+        let vals = enum_vals.values
+            .iter()
+            .map(|x| x.value)
+            .collect::<Vec<_>>()
+            .into_iter();
+
+        if field.description.is_some() {
+            let comment = field.description.as_ref();
+            items.push(quote! {
+                #[doc = #comment]
+            });
+        }
+        items.push(quote! {
+            #[derive(PartialEq)]
+            #[repr(u32)]
+            pub enum #name {
+                #(#keys = #vals),*
+            }
+        });
+    }
+
     items
 }
 
@@ -514,16 +563,44 @@ pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
                 }
             }
         } else {
-            let width_ty = width.to_ty();
+            let ty = field.to_ty();
             let mask: u64 = (1 << width) - 1;
             let mask = Lit::Int(mask, IntTy::Unsuffixed);
 
-            quote! {
-                pub fn #name(&self) -> #width_ty {
-                    const MASK: #bits_ty = #mask;
-                    const OFFSET: u8 = #offset;
+            if let Some(enum_vals) = field.enumerated_values.as_ref() {
+                let keys = enum_vals.values
+                    .iter()
+                    .map(|x| {
+                        Ident::new(ty.as_ref().to_owned() + "::" +
+                                   x.name.sanitize().to_pascal_case().as_ref())
+                    })
+                    .collect::<Vec<_>>()
+                    .into_iter();
+                let vals = enum_vals.values
+                    .iter()
+                    .map(|x| x.value)
+                    .collect::<Vec<_>>()
+                    .into_iter();
 
-                    ((self.bits >> OFFSET) & MASK) as #width_ty
+                quote! {
+                    pub fn #name(&self) -> #ty {
+                        const MASK: #bits_ty = #mask;
+                        const OFFSET: u8 = #offset;
+
+                        match ((self.bits >> OFFSET) & MASK) {
+                            _ => ::core::option::Option::None,
+                            #(#vals => ::core::option::Option::Some(#keys)),*
+                        }.unwrap()
+                    }
+                }
+            } else {
+                quote! {
+                    pub fn #name(&self) -> #ty {
+                        const MASK: #bits_ty = #mask;
+                        const OFFSET: u8 = #offset;
+
+                        ((self.bits >> OFFSET) & MASK) as #ty
+                    }
                 }
             }
         };
@@ -612,16 +689,17 @@ pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
             }
         } else {
             let width_ty = width.to_ty();
+            let ty = field.to_ty();
             let mask = (1 << width) - 1;
             let mask = Lit::Int(mask, IntTy::Unsuffixed);
 
             quote! {
-                pub fn #name(&mut self, value: #width_ty) -> &mut Self {
+                pub fn #name(&mut self, value: #ty) -> &mut Self {
                     const OFFSET: u8 = #offset;
                     const MASK: #width_ty = #mask;
 
                     self.bits &= !((MASK as #bits_ty) << OFFSET);
-                    self.bits |= ((value & MASK) as #bits_ty) << OFFSET;
+                    self.bits |= (((value as #width_ty) & MASK) as #bits_ty) << OFFSET;
                     self
                 }
             }
@@ -639,11 +717,38 @@ pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
     items
 }
 
-trait U32Ext {
+trait ToTy {
     fn to_ty(&self) -> Ident;
 }
 
-impl U32Ext for u32 {
+impl ToTy for Field {
+    fn to_ty(&self) -> Ident {
+        match self.enumerated_values.as_ref() {
+            Some(val) => {
+                Ident::new(if let Some(enum_name) = val.name.as_ref() {
+                    (self.name.to_owned() + "_" + enum_name).to_pascal_case()
+                } else {
+                    self.name.sanitize().to_owned().to_pascal_case()
+                })
+            }
+            None => {
+                match self.bit_range.width {
+                    1 => Ident::new("bool"),
+                    2...8 => Ident::new("u8"),
+                    9...16 => Ident::new("u16"),
+                    17...32 => Ident::new("u32"),
+                    33...64 => Ident::new("u64"),
+                    _ => {
+                        panic!("Unhandled bit-range: {} in Field.to_ty()",
+                               self.bit_range.width)
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl ToTy for u32 {
     fn to_ty(&self) -> Ident {
         match *self {
             1...8 => Ident::new("u8"),
