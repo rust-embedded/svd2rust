@@ -43,19 +43,29 @@ fn main() {
         Some(pattern) => {
             if let Some(peripheral) = find_peripheral(&d, |n| n == pattern)
                 .or_else(|| find_peripheral(&d, |n| n.contains(pattern))) {
-                if let Some(base_peripheral) = peripheral.derived_from.as_ref()
-                        .and_then(|bn| find_peripheral(&d, |n| n == bn.to_ascii_lowercase())) {
+                if let Some(base_peripheral) =
+                    peripheral.derived_from
+                        .as_ref()
+                        .and_then(|bn| {
+                            find_peripheral(&d,
+                                            |n| n == bn.to_ascii_lowercase())
+                        }) {
                     let merged_peripheral = merge(peripheral, base_peripheral);
-                    println!("{}", gen_peripheral_desc(&merged_peripheral, &d.defaults));
+                    println!("{}",
+                             gen_peripheral_desc(&merged_peripheral,
+                                                 &d.defaults));
                 } else {
-                    println!("{}", gen_peripheral_desc(peripheral, &d.defaults));
+                    println!("{}",
+                             gen_peripheral_desc(peripheral, &d.defaults));
                 }
             }
         }
     }
 }
 
-fn find_peripheral<F: Fn(&str) -> bool>(device: &svd::Device, matcher: F) -> Option<&svd::Peripheral> {
+fn find_peripheral<F: Fn(&str) -> bool>(device: &svd::Device,
+                                        matcher: F)
+                                        -> Option<&svd::Peripheral> {
     device.peripherals.iter().find(|x| matcher(&x.name.to_ascii_lowercase()))
 }
 
@@ -68,7 +78,10 @@ fn gen_peripheral_desc(p: &svd::Peripheral, def: &svd::Defaults) -> String {
 }
 
 fn merge(p: &svd::Peripheral, bp: &svd::Peripheral) -> svd::Peripheral {
-    assert!(p.registers.is_none() || bp.registers.is_none(), "Either {} registers or {} registers must be absent in SVD", p.name, bp.name);
+    assert!(p.registers.is_none() || bp.registers.is_none(),
+            "Either {} registers or {} registers must be absent in SVD",
+            p.name,
+            bp.name);
 
     svd::Peripheral {
         name: p.name.clone(),

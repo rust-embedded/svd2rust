@@ -274,7 +274,8 @@ impl SanitizeName for String {
 
 #[doc(hidden)]
 pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
-    assert!(p.derived_from.is_none(), "DerivedFrom not supported here (should be resolved earlier)");
+    assert!(p.derived_from.is_none(),
+            "DerivedFrom not supported here (should be resolved earlier)");
 
     let mut items = vec![];
     let mut fields = vec![];
@@ -559,7 +560,8 @@ pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
 
     let mut impl_items = vec![];
 
-    if let Some(reset_value) = r.reset_value
+    if let Some(reset_value) =
+        r.reset_value
             .or(d.reset_value)
             .map(|x| Lit::Int(x as u64, IntTy::Unsuffixed)) {
         impl_items.push(quote! {
