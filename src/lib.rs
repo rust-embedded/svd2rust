@@ -240,20 +240,23 @@
 
 #![recursion_limit = "128"]
 
+extern crate either;
 extern crate inflections;
 extern crate svd_parser as svd;
 #[macro_use]
 extern crate quote;
 extern crate syn;
 
-use std::io;
+use std::borrow::Cow;
 use std::io::Write;
+use std::io;
+use std::rc::Rc;
 
-use quote::Tokens;
-use syn::*;
-
+use either::Either;
 use inflections::Inflect;
-use svd::{Access, Defaults, Peripheral, Register};
+use quote::Tokens;
+use svd::{Access, Defaults, Peripheral, Register, RegisterInfo};
+use syn::*;
 
 /// Trait that sanitizes name avoiding rust keywords and the like.
 trait SanitizeName {
@@ -286,11 +289,8 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         .as_ref()
         .expect(&format!("{:#?} has no `registers` field", p));
 
-    let mut registers: Vec<&Register> = registers.iter().collect();
-    registers.sort_by_key(|x| x.address_offset);
-
-    for register in registers.iter() {
-        let pad = if let Some(pad) = register.address_offset
+    for register in expand(registers).iter() {
+        let pad = if let Some(pad) = register.offset
             .checked_sub(offset) {
             pad
         } else {
@@ -298,7 +298,7 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
                      "WARNING {} overlaps with another register at offset \
                       {}. Ignoring.",
                      register.name,
-                     register.address_offset)
+                     register.offset)
                 .ok();
             continue;
         };
@@ -313,20 +313,23 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         }
 
         let comment = &format!("0x{:02x} - {}",
-                     register.address_offset,
-                     respace(&register.description))[..];
+                     register.offset,
+                     respace(&register.info.description))[..];
 
-        let reg_ty = Ident::new(register.name.to_pascal_case());
-        let reg_name = Ident::new(register.name.to_snake_case().sanitize());
+        let reg_ty = match register.ty {
+            Either::Left(ref ty) => Ident::from(&**ty),
+            Either::Right(ref ty) => Ident::from(&***ty),
+        };
+        let reg_name = Ident::new(&*register.name);
         fields.push(quote! {
             #[doc = #comment]
             pub #reg_name : #reg_ty
         });
 
-        offset = register.address_offset +
-                 register.size
+        offset = register.offset +
+                 register.info.size
             .or(d.size)
-            .expect(&format!("{:#?} has no `size` field", register)) /
+            .expect(&format!("{:#?} has no `size` field", register.info)) /
                  8;
     }
 
@@ -357,11 +360,88 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
     items
 }
 
+struct ExpandedRegister<'a> {
+    info: &'a RegisterInfo,
+    name: String,
+    offset: u32,
+    ty: Either<String, Rc<String>>,
+}
+
+/// Takes a list of "registers", some of which may actually be register arrays,
+/// and turns it into a new *sorted* (by address offset) list of registers where
+/// the register arrays have been expanded.
+fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
+    let mut out = vec![];
+
+    for r in registers {
+        match *r {
+            Register::Single(ref info) => {
+                out.push(ExpandedRegister {
+                    info: info,
+                    name: info.name.to_snake_case().sanitize(),
+                    offset: info.address_offset,
+                    ty: Either::Left(info.name.to_pascal_case()),
+                })
+            }
+            Register::Array(ref info, ref array_info) => {
+                let has_brackets = info.name.contains("[%s]");
+
+                let ty = if has_brackets {
+                    info.name.replace("[%s]", "")
+                } else {
+                    info.name.replace("%s", "")
+                };
+
+                let ty = Rc::new(ty.to_pascal_case());
+
+                let indices = array_info.dim_index.as_ref().map(|v| Cow::from(&**v)).unwrap_or_else(|| {
+                    Cow::from((0..array_info.dim).map(|i| i.to_string()).collect::<Vec<_>>())
+                });
+
+                for (idx, i) in indices.iter().zip(0..) {
+                    let name = if has_brackets {
+                        info.name.replace("[%s]", idx)
+                    } else {
+                        info.name.replace("%s", idx)
+                    };
+
+                    let offset = info.address_offset + i * array_info.dim_increment;
+
+                    out.push(ExpandedRegister {
+                        info: info,
+                        name: name.to_snake_case().sanitize(),
+                        offset: offset,
+                        ty: Either::Right(ty.clone()),
+                    });
+                }
+            }
+        }
+    }
+
+    out.sort_by_key(|x| x.offset);
+
+    out
+}
+
+fn type_of(r: &Register) -> String {
+    let ty = match *r {
+        Register::Single(ref info) => Cow::from(&*info.name),
+        Register::Array(ref info, _) => if info.name.contains("[%s]") {
+            info.name.replace("[%s]", "").into()
+        } else {
+            info.name.replace("%s", "").into()
+        }
+    };
+
+    (&*ty).to_pascal_case()
+}
+
 #[doc(hidden)]
 pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(r.name.to_pascal_case());
+    let ty = type_of(r);
+    let name = Ident::new(&*ty);
     let bits_ty = r.size
         .or(d.size)
         .expect(&format!("{:#?} has no `size` field", r))
@@ -379,8 +459,8 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
         }
     });
 
-    let name_r = Ident::new(format!("{}R", r.name.to_pascal_case()));
-    let name_w = Ident::new(format!("{}W", r.name.to_pascal_case()));
+    let name_r = Ident::new(format!("{}R", ty));
+    let name_w = Ident::new(format!("{}W", ty));
     match access {
         Access::ReadOnly => {
             items.push(quote! {
@@ -465,7 +545,7 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
 pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(format!("{}R", r.name.to_pascal_case()));
+    let name = Ident::new(format!("{}R", type_of(r)));
     let bits_ty = r.size
         .or(d.size)
         .expect(&format!("{:#?} has no `size` field", r))
@@ -546,7 +626,7 @@ pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
 pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(format!("{}W", r.name.to_pascal_case()));
+    let name = Ident::new(format!("{}W", type_of(r)));
     let bits_ty = r.size
         .or(d.size)
         .expect(&format!("{:#?} has no `size` field", r))

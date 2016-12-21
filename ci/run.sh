@@ -2,7 +2,7 @@ set -ex
 
 test_gen() {
     echo 'extern crate volatile_register;' > $td/src/lib.rs
-    cargo run $flags --release -- -i $td/STM32F30x.svd $1 >> $td/src/lib.rs
+    cargo run $flags --release -- -i $td/$svd $1 >> $td/src/lib.rs
     cargo build $flags --manifest-path $td/Cargo.toml
 }
 
@@ -15,11 +15,16 @@ test_mode() {
          https://raw.githubusercontent.com/posborne/cmsis-svd/python-0.4/data/STMicro/STM32F30x.svd \
          > $td/STM32F30x.svd
 
+    curl -L \
+         https://raw.githubusercontent.com/posborne/cmsis-svd/python-0.4/data/Nordic/nrf51.svd \
+         > $td/nrf51.svd
+
     # test the library
     cargo build $flags
     cargo build $flags --release
 
     # test the generated code
+    svd=STM32F30x.svd
     test_gen
     test_gen dbgmcu
     test_gen gpioa
@@ -30,6 +35,10 @@ test_mode() {
     test_gen tim2
     test_gen tim3
     test_gen tim6
+
+    svd=nrf51.svd
+    test_gen
+    test_gen gpio
 }
 
 deploy_mode() {
