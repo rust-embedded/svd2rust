@@ -544,7 +544,7 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
 
             items.push(quote! {
                 impl #name {
-                    pub fn write<F>(&self, f: F)
+                    pub fn write<F>(&mut self, f: F)
                         where F: FnOnce(&mut #name_w) -> &mut #name_w,
                     {
                         let mut w = #name_w::reset_value();
