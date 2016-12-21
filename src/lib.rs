@@ -357,11 +357,13 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         let access = access(&register);
 
         items.extend(gen_register(register, d));
-        if access != Access::WriteOnly {
-            items.extend(gen_register_r(register, d));
-        }
-        if access != Access::ReadOnly {
-            items.extend(gen_register_w(register, d));
+        if let Some(ref fields) = register.fields {
+            if access != Access::WriteOnly {
+                items.extend(gen_register_r(register, d, fields));
+            }
+            if access != Access::ReadOnly {
+                items.extend(gen_register_w(register, d, fields));
+            }
         }
     }
 
@@ -454,13 +456,14 @@ fn type_of(r: &Register) -> String {
 
 fn access(r: &Register) -> Access {
     r.access.unwrap_or_else(|| {
-        let fields = r.fields
-            .as_ref()
-            .expect(&format!("{:#?} has no `fields` field", r));
-        if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
-            Access::ReadOnly
-        } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
-            Access::WriteOnly
+        if let Some(ref fields) = r.fields {
+            if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
+                Access::ReadOnly
+            } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
+                Access::WriteOnly
+            } else {
+                Access::ReadWrite
+            }
         } else {
             Access::ReadWrite
         }
@@ -479,8 +482,6 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
         .to_ty();
     let access = access(r);
 
-    let name_r = Ident::new(format!("{}R", ty));
-    let name_w = Ident::new(format!("{}W", ty));
     match access {
         Access::ReadOnly => {
             items.push(quote! {
@@ -489,16 +490,7 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
                     register: ::volatile_register::RO<#bits_ty>
                 }
             });
-
-            items.push(quote! {
-                impl #name {
-                    pub fn read(&self) -> #name_r {
-                        #name_r { bits: self.register.read() }
-                    }
-                }
-            });
         }
-
         Access::ReadWrite => {
             items.push(quote! {
                 #[repr(C)]
@@ -506,34 +498,7 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
                     register: ::volatile_register::RW<#bits_ty>
                 }
             });
-
-            items.push(quote! {
-                impl #name {
-                    pub fn modify<F>(&mut self, f: F)
-                        where for<'w> F: FnOnce(&#name_r, &'w mut #name_w) -> &'w mut #name_w,
-                    {
-                        let bits = self.register.read();
-                        let r = #name_r { bits: bits };
-                        let mut w = #name_w { bits: bits };
-                        f(&r, &mut w);
-                        self.register.write(w.bits);
-                    }
-
-                    pub fn read(&self) -> #name_r {
-                        #name_r { bits: self.register.read() }
-                    }
-
-                    pub fn write<F>(&mut self, f: F)
-                        where F: FnOnce(&mut #name_w) -> &mut #name_w,
-                    {
-                        let mut w = #name_w::reset_value();
-                        f(&mut w);
-                        self.register.write(w.bits);
-                    }
-                }
-            });
         }
-
         Access::WriteOnly => {
             items.push(quote! {
                 #[repr(C)]
@@ -541,28 +506,114 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
                     register: ::volatile_register::WO<#bits_ty>
                 }
             });
-
-            items.push(quote! {
-                impl #name {
-                    pub fn write<F>(&self, f: F)
-                        where F: FnOnce(&mut #name_w) -> &mut #name_w,
-                    {
-                        let mut w = #name_w::reset_value();
-                        f(&mut w);
-                        self.register.write(w.bits);
-                    }
-                }
-            });
         }
-
         _ => unreachable!(),
+    }
+
+    if r.fields.is_some() {
+        let name_r = Ident::new(format!("{}R", ty));
+        let name_w = Ident::new(format!("{}W", ty));
+        match access {
+            Access::ReadOnly => {
+                items.push(quote! {
+                    impl #name {
+                        pub fn read(&self) -> #name_r {
+                            #name_r { bits: self.register.read() }
+                        }
+                    }
+                });
+            }
+            Access::ReadWrite => {
+                items.push(quote! {
+                    impl #name {
+                        pub fn modify<F>(&mut self, f: F)
+                            where for<'w> F: FnOnce(&#name_r, &'w mut #name_w) -> &'w mut #name_w,
+                        {
+                            let bits = self.register.read();
+                            let r = #name_r { bits: bits };
+                            let mut w = #name_w { bits: bits };
+                            f(&r, &mut w);
+                            self.register.write(w.bits);
+                        }
+
+                        pub fn read(&self) -> #name_r {
+                            #name_r { bits: self.register.read() }
+                        }
+
+                        pub fn write<F>(&mut self, f: F)
+                            where F: FnOnce(&mut #name_w) -> &mut #name_w,
+                        {
+                            let mut w = #name_w::reset_value();
+                            f(&mut w);
+                            self.register.write(w.bits);
+                        }
+                    }
+                });
+            }
+
+            Access::WriteOnly => {
+                items.push(quote! {
+                    impl #name {
+                        pub fn write<F>(&self, f: F)
+                            where F: FnOnce(&mut #name_w) -> &mut #name_w,
+                        {
+                            let mut w = #name_w::reset_value();
+                            f(&mut w);
+                            self.register.write(w.bits);
+                        }
+                    }
+                });
+            }
+
+            _ => unreachable!(),
+        }
+    } else {
+        match access {
+            Access::ReadOnly => {
+                items.push(quote! {
+                    impl #name {
+                        pub fn read(&self) -> #bits_ty {
+                            self.register.read()
+                        }
+                    }
+                });
+            }
+            Access::ReadWrite => {
+                items.push(quote! {
+                    impl #name {
+                        pub fn read(&self) -> #bits_ty {
+                            self.register.read()
+                        }
+
+                        pub fn write(&mut self, value: #bits_ty) {
+                            self.register.write(value);
+                        }
+                    }
+                });
+            }
+
+            Access::WriteOnly => {
+                items.push(quote! {
+                    impl #name {
+                        pub fn write(&mut self, value: #bits_ty) {
+                            self.register.write(value);
+                        }
+                    }
+                });
+            }
+
+            _ => unreachable!(),
+        }
     }
 
     items
 }
 
 #[doc(hidden)]
-pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
+pub fn gen_register_r(r: &Register,
+                      d: &Defaults,
+                      fields: &[svd::Field])
+                      -> Vec<Tokens> {
     let mut items = vec![];
 
     let name = Ident::new(format!("{}R", type_of(r)));
@@ -580,9 +631,7 @@ pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
 
     let mut impl_items = vec![];
 
-    for field in r.fields
-        .as_ref()
-        .expect(&format!("{:#?} has no `fields` field", r)) {
+    for field in fields {
         if let Some(Access::WriteOnly) = field.access {
             continue;
         }
@@ -643,7 +692,10 @@ pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
 }
 
 #[doc(hidden)]
-pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
+pub fn gen_register_w(r: &Register,
+                      d: &Defaults,
+                      fields: &[svd::Field])
+                      -> Vec<Tokens> {
     let mut items = vec![];
 
     let name = Ident::new(format!("{}W", type_of(r)));
@@ -673,9 +725,7 @@ pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
         });
     }
 
-    for field in r.fields
-        .as_ref()
-        .expect(&format!("{:#?} has no `fields` field", r)) {
+    for field in fields {
         if let Some(Access::ReadOnly) = field.access {
             continue;
         }

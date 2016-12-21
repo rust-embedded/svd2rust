@@ -39,6 +39,7 @@ test_mode() {
     svd=nrf51.svd
     test_gen
     test_gen gpio
+    test_gen timer
 }
 
 deploy_mode() {
