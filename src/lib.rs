@@ -313,8 +313,9 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         }
 
         let comment = &format!("0x{:02x} - {}",
-                     register.offset,
-                     respace(&register.info.description))[..];
+                               register.offset,
+                               respace(&register.info
+                                   .description))[..];
 
         let reg_ty = match register.ty {
             Either::Left(ref ty) => Ident::from(&**ty),
@@ -327,7 +328,8 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         });
 
         offset = register.offset +
-                 register.info.size
+                 register.info
+            .size
             .or(d.size)
             .expect(&format!("{:#?} has no `size` field", register.info)) /
                  8;
@@ -400,9 +402,14 @@ fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
 
                 let ty = Rc::new(ty.to_pascal_case());
 
-                let indices = array_info.dim_index.as_ref().map(|v| Cow::from(&**v)).unwrap_or_else(|| {
-                    Cow::from((0..array_info.dim).map(|i| i.to_string()).collect::<Vec<_>>())
-                });
+                let indices = array_info.dim_index
+                    .as_ref()
+                    .map(|v| Cow::from(&**v))
+                    .unwrap_or_else(|| {
+                        Cow::from((0..array_info.dim)
+                            .map(|i| i.to_string())
+                            .collect::<Vec<_>>())
+                    });
 
                 for (idx, i) in indices.iter().zip(0..) {
                     let name = if has_brackets {
@@ -411,7 +418,8 @@ fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
                         info.name.replace("%s", idx)
                     };
 
-                    let offset = info.address_offset + i * array_info.dim_increment;
+                    let offset = info.address_offset +
+                                 i * array_info.dim_increment;
 
                     out.push(ExpandedRegister {
                         info: info,
@@ -432,10 +440,12 @@ fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
 fn type_of(r: &Register) -> String {
     let ty = match *r {
         Register::Single(ref info) => Cow::from(&*info.name),
-        Register::Array(ref info, _) => if info.name.contains("[%s]") {
-            info.name.replace("[%s]", "").into()
-        } else {
-            info.name.replace("%s", "").into()
+        Register::Array(ref info, _) => {
+            if info.name.contains("[%s]") {
+                info.name.replace("[%s]", "").into()
+            } else {
+                info.name.replace("%s", "").into()
+            }
         }
     };
 
