@@ -352,9 +352,15 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
     items.push(struct_);
 
     for register in registers {
+        let access = access(&register);
+
         items.extend(gen_register(register, d));
-        items.extend(gen_register_r(register, d));
-        items.extend(gen_register_w(register, d));
+        if access != Access::WriteOnly {
+            items.extend(gen_register_r(register, d));
+        }
+        if access != Access::ReadOnly {
+            items.extend(gen_register_w(register, d));
+        }
     }
 
     items
@@ -436,17 +442,8 @@ fn type_of(r: &Register) -> String {
     (&*ty).to_pascal_case()
 }
 
-#[doc(hidden)]
-pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
-    let mut items = vec![];
-
-    let ty = type_of(r);
-    let name = Ident::new(&*ty);
-    let bits_ty = r.size
-        .or(d.size)
-        .expect(&format!("{:#?} has no `size` field", r))
-        .to_ty();
-    let access = r.access.unwrap_or_else(|| {
+fn access(r: &Register) -> Access {
+    r.access.unwrap_or_else(|| {
         let fields = r.fields
             .as_ref()
             .expect(&format!("{:#?} has no `fields` field", r));
@@ -457,7 +454,20 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
         } else {
             Access::ReadWrite
         }
-    });
+    })
+}
+
+#[doc(hidden)]
+pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
+    let mut items = vec![];
+
+    let ty = type_of(r);
+    let name = Ident::new(&*ty);
+    let bits_ty = r.size
+        .or(d.size)
+        .expect(&format!("{:#?} has no `size` field", r))
+        .to_ty();
+    let access = access(r);
 
     let name_r = Ident::new(format!("{}R", ty));
     let name_w = Ident::new(format!("{}W", ty));
