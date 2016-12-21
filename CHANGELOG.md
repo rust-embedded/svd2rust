@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.3] - 2016-12-21
+
+### Added
+
+- Support for "register arrays".
+
+- Support for registers that have no declared "fields".
+
 ## [v0.1.2] - 2016-11-27
 
 ### Changed
@@ -45,6 +53,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.1.3...HEAD
+[v0.1.3]: https://github.com/japaric/svd2rust/compare/v0.1.2...v0.1.3
 [v0.1.2]: https://github.com/japaric/svd2rust/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/japaric/svd2rust/compare/v0.1.0...v0.1.1
