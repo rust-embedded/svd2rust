@@ -632,6 +632,12 @@ pub fn gen_register_r(r: &Register,
     let mut impl_items = vec![];
 
     for field in fields {
+        // Skip fields named RESERVED because, well, they are reserved so they
+        // shouldn't be modified/exposed
+        if field.name.to_lowercase() == "reserved" {
+            continue;
+        }
+
         if let Some(Access::WriteOnly) = field.access {
             continue;
         }
@@ -726,6 +732,11 @@ pub fn gen_register_w(r: &Register,
     }
 
     for field in fields {
+        // Skip fields named RESERVED. See `gen_register_r` for an explanation
+        if field.name.to_lowercase() == "reserved" {
+            continue;
+        }
+
         if let Some(Access::ReadOnly) = field.access {
             continue;
         }

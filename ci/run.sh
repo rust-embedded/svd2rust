@@ -19,6 +19,10 @@ test_mode() {
          https://raw.githubusercontent.com/posborne/cmsis-svd/python-0.4/data/Nordic/nrf51.svd \
          > $td/nrf51.svd
 
+    curl -L \
+         https://raw.githubusercontent.com/posborne/cmsis-svd/python-0.4/data/NXP/LPC43xx_svd_v5.svd \
+         > $td/LPC43xx_svd_v5.svd
+
     # test the library
     cargo build $flags
     cargo build $flags --release
@@ -36,10 +40,16 @@ test_mode() {
     test_gen tim3
     test_gen tim6
 
+    # Test register arrays
     svd=nrf51.svd
     test_gen
     test_gen gpio
     test_gen timer
+
+    # japaric/svd2rust#42
+    svd=LPC43xx_svd_v5.svd
+    test_gen
+    test_gen sct
 }
 
 deploy_mode() {
