@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.2.0] - 2016-12-28
+
+### Changed
+
+- [breaking-change] Bitfields named RESERVED are no longer exposed. They were
+  causing compilation errors because some registers have more than one bitfield
+  named RESERVED. This, in theory, can change the API surface of the generated
+  code given the same input SVD but I expect very little code to be affected
+  and, actually, those RESERVED bitfields shouldn't have been exposed anyway.
+
 ## [v0.1.3] - 2016-12-21
 
 ### Added
@@ -53,7 +63,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.2.0...HEAD
+[v0.2.0]: https://github.com/japaric/svd2rust/compare/v0.1.3...v0.2.0
 [v0.1.3]: https://github.com/japaric/svd2rust/compare/v0.1.2...v0.1.3
 [v0.1.2]: https://github.com/japaric/svd2rust/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/japaric/svd2rust/compare/v0.1.0...v0.1.1
