@@ -517,6 +517,10 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
             Access::ReadOnly => {
                 items.push(quote! {
                     impl #name {
+                        pub fn read_bits(&self) -> #bits_ty {
+                            self.register.read()
+                        }
+
                         pub fn read(&self) -> #name_r {
                             #name_r { bits: self.register.read() }
                         }
@@ -526,6 +530,22 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
             Access::ReadWrite => {
                 items.push(quote! {
                     impl #name {
+                        pub fn read_bits(&self) -> #bits_ty {
+                            self.register.read()
+                        }
+
+                        pub unsafe fn modify_bits<F>(&mut self, f: F)
+                            where F: FnOnce(&mut #bits_ty)
+                        {
+                            let mut bits = self.register.read();
+                            f(&mut bits);
+                            self.register.write(bits);
+                        }
+
+                        pub unsafe fn write_bits(&mut self, bits: #bits_ty) {
+                            self.register.write(bits);
+                        }
+
                         pub fn modify<F>(&mut self, f: F)
                             where for<'w> F: FnOnce(&#name_r, &'w mut #name_w) -> &'w mut #name_w,
                         {
@@ -554,6 +574,10 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
             Access::WriteOnly => {
                 items.push(quote! {
                     impl #name {
+                        pub unsafe fn write_bits(&mut self, bits: #bits_ty) {
+                            self.register.write(bits);
+                        }
+
                         pub fn write<F>(&self, f: F)
                             where F: FnOnce(&mut #name_w) -> &mut #name_w,
                         {
