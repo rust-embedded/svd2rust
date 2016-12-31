@@ -27,7 +27,7 @@ deploy:
   description: 'Windows release'
   artifact: /.*\.zip/
   auth_token:
-    secure: bQ29dEXeNG5VP2hQcWiZ1xsfmkGosteCDNeYu/cXTX4lOeghOp0qANpQXmGfal29
+    secure: 3hcvyH2P2zpMR2EzdPL/P/NdcaVs6VLKfUMLx6TiMnzEpr51StkuyDGzWq8CDSb0
   provider: GitHub
   on:
     RUST_VERSION: nightly
