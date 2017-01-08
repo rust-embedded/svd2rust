@@ -7,6 +7,13 @@ test_gen() {
 }
 
 main() {
+    cross build --target $TARGET
+    cross build --target $TARGET --release
+
+    if [ -n $DISABLE_TESTS ]; then
+        return
+    fi
+
     case $TRAVIS_OS_NAME in
         linux)
             td=$(mktemp -d)
@@ -34,10 +41,6 @@ main() {
     curl -L \
          https://raw.githubusercontent.com/posborne/cmsis-svd/python-0.4/data/NXP/LPC43xx_svd_v5.svd \
          > $td/LPC43xx_svd_v5.svd
-
-    # test the library
-    cross build --target $TARGET
-    cross build --target $TARGET --release
 
     # test the generated code
     svd=STM32F30x.svd
