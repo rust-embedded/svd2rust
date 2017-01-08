@@ -2,11 +2,20 @@ set -ex
 
 test_gen() {
     echo 'extern crate volatile_register;' > $td/src/lib.rs
-    cargo run $flags --release -- -i $td/$svd $1 >> $td/src/lib.rs
-    cargo build $flags --manifest-path $td/Cargo.toml
+    cargo run --target $TARGET --release -- -i $td/$svd $1 >> $td/src/lib.rs
+    cargo build --target $TARGET --manifest-path $td/Cargo.toml
 }
 
-test_mode() {
+main() {
+    case $TRAVIS_OS_NAME in
+        linux)
+            td=$(mktemp -d)
+            ;;
+        osx)
+            td=$(mktemp -d -t tmp)
+            ;;
+    esac
+
     # test crate
     cargo init --name foo $td
     echo 'volatile-register = "0.1.0"' >> $td/Cargo.toml
@@ -24,8 +33,8 @@ test_mode() {
          > $td/LPC43xx_svd_v5.svd
 
     # test the library
-    cargo build $flags
-    cargo build $flags --release
+    cargo build --target $TARGET
+    cargo build --target $TARGET --release
 
     # test the generated code
     svd=STM32F30x.svd
@@ -52,27 +61,6 @@ test_mode() {
     test_gen sct
 }
 
-deploy_mode() {
-    cargo rustc $flags --release --bin svd2rust -- -C lto
-}
-
-run() {
-    flags="--target $TARGET"
-
-    case $TRAVIS_OS_NAME in
-        linux)
-            td=$(mktemp -d)
-            ;;
-        osx)
-            td=$(mktemp -d -t tmp)
-            ;;
-    esac
-
-    if [ -z $TRAVIS_TAG ]; then
-        test_mode
-    else
-        deploy_mode
-    fi
-}
-
-run
+if [ -z $TRAVIS_TAG ]; then
+    main
+fi

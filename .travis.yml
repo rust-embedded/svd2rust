@@ -1,9 +1,9 @@
-cache: cargo
 dist: trusty
 language: rust
-rust: stable
 services: docker
 sudo: required
+
+rust: stable
 
 env:
   global:
@@ -12,50 +12,45 @@ env:
 
 matrix:
   include:
+    # Linux
+    - env: TARGET=i686-unknown-linux-gnu
+    - env: TARGET=i686-unknown-linux-musl
+    # - env: TARGET=x86_64-unknown-linux-gnu  # this is the default job
+    - env: TARGET=x86_64-unknown-linux-musl
+
     # OSX
     - env: TARGET=i686-apple-darwin
       os: osx
     - env: TARGET=x86_64-apple-darwin
       os: osx
 
-    # Linux
-    - env: TARGET=i686-unknown-linux-gnu
-    - env: TARGET=i686-unknown-linux-musl
-    - env: TARGET=x86_64-unknown-linux-musl
-
 install:
-  # `std for cross-compilation
-  - curl https://static.rust-lang.org/rustup.sh |
-    sh -s -- --add-target=$TARGET --disable-sudo -y --prefix=`rustc --print sysroot`
+  - sh ci/install.sh
+  - source ~/.cargo/env || true
 
 script:
-  - cargo generate-lockfile
-  - if [[ $TRAVIS_OS_NAME = linux ]]; then
-      sh ci/run-docker.sh $TARGET;
-    else
-      sh ci/run.sh;
-    fi
-  # Travis can't cache files that are not readable by "others"
-  - chmod -R a+r $HOME/.cargo
+  - bash ci/script.sh
 
 before_deploy:
-  - sh ci/package.sh $TARGET
+  - sh ci/before_deploy.sh
 
 deploy:
-  provider: releases
   api_key:
     secure: AohBNo0QBsXxxyHcmElV1lZ0TCz83ul/woA9OKOiK07fbcwMnG9XI5HFkQAj/gOdL/O6N8R7EqRjwyc39VSJ0YsX9cyKfrUWoFgTBjySFOfKTG8Fh2WRMhnJUYfocjW8QnVAkPY0KDaVMnyDzl35+Ak/QqbOKXCO6nvfYIBmEhaW6yuYJjnkNpsn3wF3VfDA7XjkMe+24oWe6AYC7aH/CM1qws5+/6kp6VJr1xTkzH+zgNwJNXWmuDWCrMDreYamDwZ4mb0xlWd22I36ZAYDZMe8vIS7Bzw3bIlp0r4li5kDmIFQD39ft7jdNmGxDMFsuSVAyZOvvjfWP4axXncJLvXS1ygCMW9XR7gy3pTg/JXzcj9rnldntHLb2vIcwsXfcy78a7O+N+F9CjrcAeLUCBO43bqrFuX1RKtqicLzEi1IZoj6qYVcVbucyrOKU1ABgnemMT+ukizKjHbK2n8YPq6REUw4kr7aLySFRtb/Y/oSruXe1Ne0/698ty4OPHA+cyYkuPP3Q+Gw+26WKWetzLum1ZwvPlHxb3sdYvE6/38n0jPL/zszZoX88K8wjTDoKZZSse+CB4iXIigV8u3wSrPsuGHwBiG2DNmeITcvmU4g6xHkhXhD4RVbdrD4XGGQuMATXN+yKDg2ggkqxqkJZ/JnL3VjoBM8SdeVdj/zwnQ=
   file_glob: true
   file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
-  # don't delete the target directory
-  skip_cleanup: true
   on:
     condition: $TRAVIS_RUST_VERSION = stable
     tags: true
+  provider: releases
+  skip_cleanup: true
+
+cache: cargo
+before_cache:
+  - chmod -R a+r $HOME/.cargo
 
 branches:
   only:
-    # Release tags
     - /^v\d+\.\d+\.\d+.*$/
     - auto
     - try
