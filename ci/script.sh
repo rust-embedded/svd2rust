@@ -2,10 +2,8 @@ set -ex
 
 test_gen() {
     echo 'extern crate volatile_register;' > $td/src/lib.rs
-    target/$TARGET/release/svd2rust -i $td/$svd $1 >> $td/src/lib.rs
-    pushd $td
-    cross build --target $TARGET
-    popd
+    cross run --target $TARGET --release -- -i $td/$svd $1 >> $td/src/lib.rs
+    cross build --manifest-path $td --target $TARGET
 }
 
 main() {
@@ -17,6 +15,9 @@ main() {
             td=$(mktemp -d -t tmp)
             ;;
     esac
+
+    mv $td .
+    td=$(basename $td)
 
     # test crate
     cross init --name foo $td
@@ -61,6 +62,8 @@ main() {
     svd=LPC43xx_svd_v5.svd
     test_gen
     test_gen sct
+
+    rm -rf $td
 }
 
 if [ -z $TRAVIS_TAG ]; then
