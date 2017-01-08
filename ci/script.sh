@@ -2,8 +2,10 @@ set -ex
 
 test_gen() {
     echo 'extern crate volatile_register;' > $td/src/lib.rs
-    cross run --target $TARGET --release -- -i $td/$svd $1 >> $td/src/lib.rs
-    cross build --target $TARGET --manifest-path $td/Cargo.toml
+    target/$TARGET/release/svd2rust -i $td/$svd $1 >> $td/src/lib.rs
+    pushd $td
+    cross build --target $TARGET
+    popd
 }
 
 main() {
