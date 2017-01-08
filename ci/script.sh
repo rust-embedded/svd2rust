@@ -2,8 +2,8 @@ set -ex
 
 test_gen() {
     echo 'extern crate volatile_register;' > $td/src/lib.rs
-    cargo run --target $TARGET --release -- -i $td/$svd $1 >> $td/src/lib.rs
-    cargo build --target $TARGET --manifest-path $td/Cargo.toml
+    cross run --target $TARGET --release -- -i $td/$svd $1 >> $td/src/lib.rs
+    cross build --target $TARGET --manifest-path $td/Cargo.toml
 }
 
 main() {
@@ -17,7 +17,7 @@ main() {
     esac
 
     # test crate
-    cargo init --name foo $td
+    cross init --name foo $td
     echo 'volatile-register = "0.1.0"' >> $td/Cargo.toml
 
     curl -L \
@@ -33,8 +33,8 @@ main() {
          > $td/LPC43xx_svd_v5.svd
 
     # test the library
-    cargo build --target $TARGET
-    cargo build --target $TARGET --release
+    cross build --target $TARGET
+    cross build --target $TARGET --release
 
     # test the generated code
     svd=STM32F30x.svd
