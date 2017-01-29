@@ -732,7 +732,6 @@ pub fn gen_register_r(r: &Register,
                                                     .to_pascal_case())));
             if base.is_none() {
                 let mut variants = vec![];
-                let mut j = 0;
                 let arms = (0..(1 << width))
                     .map(|i| {
                         let (variant, doc, reserved) = if let Some(evalue) =
@@ -745,8 +744,7 @@ pub fn gen_register_r(r: &Register,
 
                             (Cow::from(variant), doc, false)
                         } else {
-                            let variant = format!("_Reserved{:b}", j);
-                            j += 1;
+                            let variant = format!("_Reserved{:b}", i);
 
                             (Cow::from(variant), None, true)
                         };
