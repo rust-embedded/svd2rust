@@ -349,7 +349,8 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
                  register.info
             .size
             .or(d.size)
-            .expect(&format!("{:#?} has no `size` field", register.info)) / 8;
+            .expect(&format!("{:#?} has no `size` field", register.info)) /
+                 8;
     }
 
     let p_name = Ident::new(p.name.to_pascal_case());
@@ -437,7 +438,8 @@ fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
                         info.name.replace("%s", idx)
                     };
 
-                    let offset = info.address_offset + i * array_info.dim_increment;
+                    let offset = info.address_offset +
+                                 i * array_info.dim_increment;
 
                     out.push(ExpandedRegister {
                         info: info,
@@ -648,7 +650,10 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
 }
 
 #[doc(hidden)]
-pub fn gen_register_r(r: &Register, d: &Defaults, fields: &[svd::Field]) -> Vec<Tokens> {
+pub fn gen_register_r(r: &Register,
+                      d: &Defaults,
+                      fields: &[svd::Field])
+                      -> Vec<Tokens> {
     let mut items = vec![];
 
     let rname = type_of(r);
@@ -680,7 +685,6 @@ pub fn gen_register_r(r: &Register, d: &Defaults, fields: &[svd::Field]) -> Vec<
         }
 
         let name = Ident::new(field.name.to_snake_case().sanitize_ident());
-        let name_e = Ident::new(format!("{}R{}", rname, field.name.to_pascal_case()));
         let offset = field.bit_range.offset as u8;
 
         let width = field.bit_range.width;
@@ -704,73 +708,98 @@ pub fn gen_register_r(r: &Register, d: &Defaults, fields: &[svd::Field]) -> Vec<
         let mask = Lit::Int((1u64 << width) - 1, IntTy::Unsuffixed);
 
         let evalues = if field.enumerated_values.len() == 1 {
-            field.enumerated_values.first()
+            field.enumerated_values
+                .first()
+                .map(|evs| if let Some(ref base) = evs.derived_from {
+                    (evs, Some(base.to_pascal_case()))
+                } else {
+                    (evs, None)
+                })
         } else {
             field.enumerated_values
                 .iter()
-                .find(|ev| ev.usage == Some(Usage::Read) || ev.usage == Some(Usage::ReadWrite))
+                .find(|ev| {
+                    ev.usage == Some(Usage::Read) ||
+                    ev.usage == Some(Usage::ReadWrite)
+                })
+                .map(|evs| (evs, None))
         };
-        let item = if let Some(evalues) = evalues {
-            let mut variants = vec![];
-            let mut j = 0;
-            let arms = (0..(1 << width))
-                .map(|i| {
-                    let (variant, doc, reserved) = if let Some(evalue) = evalues.values
-                        .iter()
-                        .filter(|ev| ev.value == Some(i))
-                        .next() {
-                        let doc = evalue.description.as_ref().map(|s| &**s);
-                        let variant = &*evalue.name;
+        let item = if let Some((evalues, base)) = evalues {
+            let name_e = Ident::new(format!("{}R{}",
+                                            rname,
+                                            base.as_ref()
+                                                .unwrap_or(&field.name
+                                                    .to_pascal_case())));
+            if base.is_none() {
+                let mut variants = vec![];
+                let mut j = 0;
+                let arms = (0..(1 << width))
+                    .map(|i| {
+                        let (variant, doc, reserved) = if let Some(evalue) =
+                            evalues.values
+                                .iter()
+                                .filter(|ev| ev.value == Some(i))
+                                .next() {
+                            let doc = evalue.description.as_ref().map(|s| &**s);
+                            let variant = &*evalue.name;
 
-                        (Cow::from(variant), doc, false)
-                    } else {
-                        let variant = format!("_Reserved{:b}", j);
-                        j += 1;
+                            (Cow::from(variant), doc, false)
+                        } else {
+                            let variant = format!("_Reserved{:b}", j);
+                            j += 1;
 
-                        (Cow::from(variant), None, true)
-                    };
+                            (Cow::from(variant), None, true)
+                        };
 
-                    let variant = Ident::new(&*variant.sanitize_variant());
-                    if let Some(doc) = doc {
-                        let doc = &*doc;
+                        let variant = Ident::new(&*variant.sanitize_variant());
+                        if let Some(doc) = doc {
+                            let doc = &*doc;
 
-                        variants.push(quote! {
+                            variants.push(quote! {
                             #[doc = #doc]
                             #variant,
                         });
-                    } else if reserved {
-                        variants.push(quote! {
+                        } else if reserved {
+                            variants.push(quote! {
                             #[doc(hidden)]
                             #variant,
                         });
-                    } else {
-                        variants.push(quote! {
+                        } else {
+                            variants.push(quote! {
                             #variant,
                         });
-                    }
+                        }
 
-                    quote! {
+                        quote! {
                         #i => #name_e::#variant,
                     }
-                })
-                .collect::<Vec<_>>();
+                    })
+                    .collect::<Vec<_>>();
 
-            items.push(quote! {
-                #[derive(Clone, Copy, Eq, PartialEq)]
-                pub enum #name_e {
-                    #(#variants)*
-                }
-            });
+                items.push(quote! {
+                    #[derive(Clone, Copy, Eq, PartialEq)]
+                    pub enum #name_e {
+                        #(#variants)*
+                    }
+
+                    impl #name_e {
+                        #[inline(always)]
+                        fn from(value: #bits_ty) -> Self {
+                            match value {
+                                #(#arms)*
+                                _ => unreachable!(),
+                            }
+                        }
+                    }
+                });
+            }
 
             quote! {
                 pub fn #name(&self) -> #name_e {
                     const MASK: #bits_ty = #mask;
                     const OFFSET: u8 = #offset;
 
-                    match (self.bits >> OFFSET) & MASK {
-                        #(#arms)*
-                        _ => unreachable!(),
-                    }
+                    #name_e::from((self.bits >> OFFSET) & MASK)
                 }
             }
         } else if width == 1 {
@@ -805,7 +834,10 @@ pub fn gen_register_r(r: &Register, d: &Defaults, fields: &[svd::Field]) -> Vec<
 }
 
 #[doc(hidden)]
-pub fn gen_register_w(r: &Register, d: &Defaults, fields: &[svd::Field]) -> Vec<Tokens> {
+pub fn gen_register_w(r: &Register,
+                      d: &Defaults,
+                      fields: &[svd::Field])
+                      -> Vec<Tokens> {
     let mut items = vec![];
 
     let rname = type_of(r);
@@ -847,7 +879,6 @@ pub fn gen_register_w(r: &Register, d: &Defaults, fields: &[svd::Field]) -> Vec<
         }
 
         let name = Ident::new(field.name.to_snake_case().sanitize_ident());
-        let name_e = Ident::new(format!("{}W{}", rname, field.name.to_pascal_case()));
         let offset = field.bit_range.offset as u8;
 
         let width = field.bit_range.width;
@@ -870,53 +901,77 @@ pub fn gen_register_w(r: &Register, d: &Defaults, fields: &[svd::Field]) -> Vec<
         let mask = Lit::Int((1 << width) - 1, IntTy::Unsuffixed);
 
         let evalues = if field.enumerated_values.len() == 1 {
-            field.enumerated_values.first()
+            field.enumerated_values
+                .first()
+                .map(|evs| if let Some(ref base) = evs.derived_from {
+                    (evs, Some(base.to_pascal_case()))
+                } else {
+                    (evs, None)
+                })
         } else {
             field.enumerated_values
                 .iter()
-                .find(|ev| ev.usage == Some(Usage::Write) || ev.usage == Some(Usage::ReadWrite))
-        };
-        let item = if let Some(evalues) = evalues {
-            let mut variants = vec![];
-            let arms = evalues.values
-                .iter()
-                .map(|e| {
-                    let variant = Ident::new(&*e.name.sanitize_variant());
-                    if let Some(ref doc) = e.description {
-                        variants.push(quote! {
-                            #[doc = #doc]
-                            #variant,
-                        });
-                    } else {
-                        variants.push(quote! {
-                            #variant,
-                        });
-                    }
-
-                    let value = e.value;
-                    quote! {
-                        #name_e::#variant => #value,
-                    }
+                .find(|ev| {
+                    ev.usage == Some(Usage::Write) ||
+                    ev.usage == Some(Usage::ReadWrite)
                 })
-                .collect::<Vec<_>>();
+                .map(|evs| (evs, None))
+        };
+        let item = if let Some((evalues, base)) = evalues {
+            let name_e = Ident::new(format!("{}W{}",
+                                            rname,
+                                            base.as_ref()
+                                                .unwrap_or(&field.name
+                                                    .to_pascal_case())));
 
-            items.push(quote! {
-                #[derive(Clone, Copy, Eq, PartialEq)]
-                pub enum #name_e {
-                    #(#variants)*
-                }
-            });
+            if base.is_none() {
+                    let mut variants = vec![];
+                    let arms = evalues.values
+                        .iter()
+                        .map(|e| {
+                            let variant = Ident::new(&*e.name.sanitize_variant());
+                            if let Some(ref doc) = e.description {
+                                variants.push(quote! {
+                                    #[doc = #doc]
+                                    #variant,
+                                });
+                            } else {
+                                variants.push(quote! {
+                                    #variant,
+                                });
+                            }
+
+                            let value = e.value;
+                            quote! {
+                                #name_e::#variant => #value,
+                            }
+                        })
+                        .collect::<Vec<_>>();
+
+                items.push(quote! {
+                    #[derive(Clone, Copy, Eq, PartialEq)]
+                    pub enum #name_e {
+                        #(#variants)*
+                    }
+
+                    impl #name_e {
+                        #[inline(always)]
+                        fn bits(&self) -> #bits_ty {
+                            match *self {
+                                #(#arms)*
+                            }
+                        }
+                    }
+                });
+            }
 
             quote! {
                 pub fn #name(&mut self, value: #name_e) -> &mut Self {
                     const MASK: #bits_ty = #mask;
                     const OFFSET: u8 = #offset;
 
-                    let value = match value {
-                        #(#arms)*
-                    };
                     self.bits &= !((MASK as #bits_ty) << OFFSET);
-                    self.bits |= ((value & MASK) as #bits_ty) << OFFSET;
+                    self.bits |= value.bits() << OFFSET;
                     self
                 }
             }
