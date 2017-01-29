@@ -775,7 +775,7 @@ pub fn gen_register_r(r: &Register,
                     .collect::<Vec<_>>();
 
                 items.push(quote! {
-                    #[derive(Clone, Copy, Eq, PartialEq)]
+                    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
                     pub enum #name_e {
                         #(#variants)*
                     }
@@ -947,7 +947,7 @@ pub fn gen_register_w(r: &Register,
                         .collect::<Vec<_>>();
 
                 items.push(quote! {
-                    #[derive(Clone, Copy, Eq, PartialEq)]
+                    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
                     pub enum #name_e {
                         #(#variants)*
                     }
