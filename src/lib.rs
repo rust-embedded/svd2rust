@@ -255,23 +255,40 @@ use std::rc::Rc;
 use either::Either;
 use inflections::Inflect;
 use quote::Tokens;
-use svd::{Access, Defaults, Peripheral, Register, RegisterInfo};
+use svd::{Access, Defaults, Peripheral, Register, RegisterInfo, Usage};
 use syn::*;
 
 /// Trait that sanitizes name avoiding rust keywords and the like.
-trait SanitizeName {
+trait SanitizeIdent {
     /// Sanitize a name; avoiding Rust keywords and the like.
-    fn sanitize(&self) -> String;
+    fn sanitize_ident(&self) -> String;
 }
 
-impl SanitizeName for String {
-    fn sanitize(&self) -> String {
-        match self.as_str() {
+impl SanitizeIdent for str {
+    fn sanitize_ident(&self) -> String {
+        match self {
             "fn" => "fn_".to_owned(),
             "in" => "in_".to_owned(),
             "match" => "match_".to_owned(),
             "mod" => "mod_".to_owned(),
             _ => self.to_owned(),
+        }
+    }
+}
+
+/// Trait that sanitizes variant names
+trait SanitizeVariant {
+    /// Sanitize a name; avoiding Rust keywords and the like.
+    fn sanitize_variant(&self) -> Cow<str>;
+}
+
+impl SanitizeVariant for str {
+    fn sanitize_variant(&self) -> Cow<str> {
+        match self.chars().next().unwrap_or('\0') {
+            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
+                Cow::from(format!("_{}", self))
+            }
+            _ => Cow::from(self),
         }
     }
 }
@@ -315,7 +332,8 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         let comment = &format!("0x{:02x} - {}",
                                register.offset,
                                respace(&register.info
-                                   .description))[..];
+                                   .description))
+                           [..];
 
         let reg_ty = match register.ty {
             Either::Left(ref ty) => Ident::from(&**ty),
@@ -331,8 +349,7 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
                  register.info
             .size
             .or(d.size)
-            .expect(&format!("{:#?} has no `size` field", register.info)) /
-                 8;
+            .expect(&format!("{:#?} has no `size` field", register.info)) / 8;
     }
 
     let p_name = Ident::new(p.name.to_pascal_case());
@@ -388,7 +405,7 @@ fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
             Register::Single(ref info) => {
                 out.push(ExpandedRegister {
                     info: info,
-                    name: info.name.to_snake_case().sanitize(),
+                    name: info.name.to_snake_case().sanitize_ident(),
                     offset: info.address_offset,
                     ty: Either::Left(info.name.to_pascal_case()),
                 })
@@ -420,12 +437,11 @@ fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
                         info.name.replace("%s", idx)
                     };
 
-                    let offset = info.address_offset +
-                                 i * array_info.dim_increment;
+                    let offset = info.address_offset + i * array_info.dim_increment;
 
                     out.push(ExpandedRegister {
                         info: info,
-                        name: name.to_snake_case().sanitize(),
+                        name: name.to_snake_case().sanitize_ident(),
                         offset: offset,
                         ty: Either::Right(ty.clone()),
                     });
@@ -455,18 +471,16 @@ fn type_of(r: &Register) -> String {
 }
 
 fn access(r: &Register) -> Access {
-    r.access.unwrap_or_else(|| {
-        if let Some(ref fields) = r.fields {
-            if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
-                Access::ReadOnly
-            } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
-                Access::WriteOnly
-            } else {
-                Access::ReadWrite
-            }
+    r.access.unwrap_or_else(|| if let Some(ref fields) = r.fields {
+        if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
+            Access::ReadOnly
+        } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
+            Access::WriteOnly
         } else {
             Access::ReadWrite
         }
+    } else {
+        Access::ReadWrite
     })
 }
 
@@ -634,13 +648,11 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
 }
 
 #[doc(hidden)]
-pub fn gen_register_r(r: &Register,
-                      d: &Defaults,
-                      fields: &[svd::Field])
-                      -> Vec<Tokens> {
+pub fn gen_register_r(r: &Register, d: &Defaults, fields: &[svd::Field]) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(format!("{}R", type_of(r)));
+    let rname = type_of(r);
+    let rident = Ident::new(format!("{}R", rname));
     let bits_ty = r.size
         .or(d.size)
         .expect(&format!("{:#?} has no `size` field", r))
@@ -649,9 +661,10 @@ pub fn gen_register_r(r: &Register,
     items.push(quote! {
         #[derive(Clone, Copy)]
         #[repr(C)]
-        pub struct #name {
+        pub struct #rident {
             bits: #bits_ty,
-        }});
+        }
+    });
 
     let mut impl_items = vec![];
 
@@ -666,7 +679,8 @@ pub fn gen_register_r(r: &Register,
             continue;
         }
 
-        let name = Ident::new(field.name.to_snake_case().sanitize());
+        let name = Ident::new(field.name.to_snake_case().sanitize_ident());
+        let name_e = Ident::new(format!("{}R{}", rname, field.name.to_pascal_case()));
         let offset = field.bit_range.offset as u8;
 
         let width = field.bit_range.width;
@@ -686,7 +700,80 @@ pub fn gen_register_r(r: &Register,
             });
         }
 
-        let item = if width == 1 {
+        let width_ty = width.to_ty();
+        let mask = Lit::Int((1u64 << width) - 1, IntTy::Unsuffixed);
+
+        let evalues = if field.enumerated_values.len() == 1 {
+            field.enumerated_values.first()
+        } else {
+            field.enumerated_values
+                .iter()
+                .find(|ev| ev.usage == Some(Usage::Read) || ev.usage == Some(Usage::ReadWrite))
+        };
+        let item = if let Some(evalues) = evalues {
+            let mut variants = vec![];
+            let mut j = 0;
+            let arms = (0..(1 << width))
+                .map(|i| {
+                    let (variant, doc, reserved) = if let Some(evalue) = evalues.values
+                        .iter()
+                        .filter(|ev| ev.value == Some(i))
+                        .next() {
+                        let doc = evalue.description.as_ref().map(|s| &**s);
+                        let variant = &*evalue.name;
+
+                        (Cow::from(variant), doc, false)
+                    } else {
+                        let variant = format!("_Reserved{:b}", j);
+                        j += 1;
+
+                        (Cow::from(variant), None, true)
+                    };
+
+                    let variant = Ident::new(&*variant.sanitize_variant());
+                    if let Some(doc) = doc {
+                        let doc = &*doc;
+
+                        variants.push(quote! {
+                            #[doc = #doc]
+                            #variant,
+                        });
+                    } else if reserved {
+                        variants.push(quote! {
+                            #[doc(hidden)]
+                            #variant,
+                        });
+                    } else {
+                        variants.push(quote! {
+                            #variant,
+                        });
+                    }
+
+                    quote! {
+                        #i => #name_e::#variant,
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            items.push(quote! {
+                #[derive(Clone, Copy, Eq, PartialEq)]
+                pub enum #name_e {
+                    #(#variants)*
+                }
+            });
+
+            quote! {
+                pub fn #name(&self) -> #name_e {
+                    const MASK: #bits_ty = #mask;
+                    const OFFSET: u8 = #offset;
+
+                    match (self.bits >> OFFSET) & MASK {
+                        #(#arms)*
+                        _ => unreachable!(),
+                    }
+                }
+            }
+        } else if width == 1 {
             quote! {
                 pub fn #name(&self) -> bool {
                     const OFFSET: u8 = #offset;
@@ -695,10 +782,6 @@ pub fn gen_register_r(r: &Register,
                 }
             }
         } else {
-            let width_ty = width.to_ty();
-            let mask: u64 = (1 << width) - 1;
-            let mask = Lit::Int(mask, IntTy::Unsuffixed);
-
             quote! {
                 pub fn #name(&self) -> #width_ty {
                     const MASK: #bits_ty = #mask;
@@ -713,7 +796,7 @@ pub fn gen_register_r(r: &Register,
     }
 
     items.push(quote! {
-        impl #name {
+        impl #rident {
             #(#impl_items)*
         }
     });
@@ -722,13 +805,11 @@ pub fn gen_register_r(r: &Register,
 }
 
 #[doc(hidden)]
-pub fn gen_register_w(r: &Register,
-                      d: &Defaults,
-                      fields: &[svd::Field])
-                      -> Vec<Tokens> {
+pub fn gen_register_w(r: &Register, d: &Defaults, fields: &[svd::Field]) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(format!("{}W", type_of(r)));
+    let rname = type_of(r);
+    let wident = Ident::new(format!("{}W", rname));
     let bits_ty = r.size
         .or(d.size)
         .expect(&format!("{:#?} has no `size` field", r))
@@ -736,7 +817,7 @@ pub fn gen_register_w(r: &Register,
     items.push(quote! {
         #[derive(Clone, Copy)]
         #[repr(C)]
-        pub struct #name {
+        pub struct #wident {
             bits: #bits_ty,
         }
     });
@@ -750,7 +831,7 @@ pub fn gen_register_w(r: &Register,
         impl_items.push(quote! {
             /// Reset value
             pub fn reset_value() -> Self {
-                #name { bits: #reset_value }
+                #wident { bits: #reset_value }
             }
         });
     }
@@ -765,7 +846,8 @@ pub fn gen_register_w(r: &Register,
             continue;
         }
 
-        let name = Ident::new(field.name.to_snake_case().sanitize());
+        let name = Ident::new(field.name.to_snake_case().sanitize_ident());
+        let name_e = Ident::new(format!("{}W{}", rname, field.name.to_pascal_case()));
         let offset = field.bit_range.offset as u8;
 
         let width = field.bit_range.width;
@@ -785,7 +867,60 @@ pub fn gen_register_w(r: &Register,
             });
         }
 
-        let item = if width == 1 {
+        let mask = Lit::Int((1 << width) - 1, IntTy::Unsuffixed);
+
+        let evalues = if field.enumerated_values.len() == 1 {
+            field.enumerated_values.first()
+        } else {
+            field.enumerated_values
+                .iter()
+                .find(|ev| ev.usage == Some(Usage::Write) || ev.usage == Some(Usage::ReadWrite))
+        };
+        let item = if let Some(evalues) = evalues {
+            let mut variants = vec![];
+            let arms = evalues.values
+                .iter()
+                .map(|e| {
+                    let variant = Ident::new(&*e.name.sanitize_variant());
+                    if let Some(ref doc) = e.description {
+                        variants.push(quote! {
+                            #[doc = #doc]
+                            #variant,
+                        });
+                    } else {
+                        variants.push(quote! {
+                            #variant,
+                        });
+                    }
+
+                    let value = e.value;
+                    quote! {
+                        #name_e::#variant => #value,
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            items.push(quote! {
+                #[derive(Clone, Copy, Eq, PartialEq)]
+                pub enum #name_e {
+                    #(#variants)*
+                }
+            });
+
+            quote! {
+                pub fn #name(&mut self, value: #name_e) -> &mut Self {
+                    const MASK: #bits_ty = #mask;
+                    const OFFSET: u8 = #offset;
+
+                    let value = match value {
+                        #(#arms)*
+                    };
+                    self.bits &= !((MASK as #bits_ty) << OFFSET);
+                    self.bits |= ((value & MASK) as #bits_ty) << OFFSET;
+                    self
+                }
+            }
+        } else if width == 1 {
             quote! {
                 pub fn #name(&mut self, value: bool) -> &mut Self {
                     const OFFSET: u8 = #offset;
@@ -800,8 +935,6 @@ pub fn gen_register_w(r: &Register,
             }
         } else {
             let width_ty = width.to_ty();
-            let mask = (1 << width) - 1;
-            let mask = Lit::Int(mask, IntTy::Unsuffixed);
 
             quote! {
                 pub fn #name(&mut self, value: #width_ty) -> &mut Self {
@@ -819,7 +952,7 @@ pub fn gen_register_w(r: &Register,
     }
 
     items.push(quote! {
-        impl #name {
+        impl #wident {
             #(#impl_items)*
         }
     });
