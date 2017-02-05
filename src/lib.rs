@@ -261,17 +261,23 @@ use syn::*;
 /// Trait that sanitizes name avoiding rust keywords and the like.
 trait SanitizeName {
     /// Sanitize a name; avoiding Rust keywords and the like.
-    fn sanitize(&self) -> String;
+    fn sanitize(self) -> String;
 }
 
 impl SanitizeName for String {
-    fn sanitize(&self) -> String {
-        match self.as_str() {
-            "fn" => "fn_".to_owned(),
-            "in" => "in_".to_owned(),
-            "match" => "match_".to_owned(),
-            "mod" => "mod_".to_owned(),
-            _ => self.to_owned(),
+    fn sanitize(self) -> String {
+        const KEYWORDS: [&'static str; 52] =
+            ["abstract", "alignof", "as", "become", "box", "break", "const", "continue", "crate",
+             "do", "else", "enum", "extern", "false", "final", "fn", "for", "if", "impl", "in",
+             "let", "loop", "macro", "match", "mod", "move", "mut", "offsetof", "override",
+             "priv", "proc", "pub", "pure", "ref", "return", "Self", "self", "sizeof", "static",
+             "struct", "super", "trait", "true", "type", "typeof", "unsafe", "unsized", "use",
+             "virtual", "where", "while", "yield"];
+
+        if KEYWORDS.contains(&self.as_str()) {
+            self + "_"
+        } else {
+            self
         }
     }
 }
