@@ -346,6 +346,7 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
 
     let struct_ = quote! {
         #[repr(C)]
+        #[allow(dead_code)]
         pub struct #p_name {
             #(#fields),*
         }
@@ -517,10 +518,12 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
             Access::ReadOnly => {
                 items.push(quote! {
                     impl #name {
+                        #[allow(dead_code)]
                         pub fn read_bits(&self) -> #bits_ty {
                             self.register.read()
                         }
 
+                        #[allow(dead_code)]
                         pub fn read(&self) -> #name_r {
                             #name_r { bits: self.register.read() }
                         }
@@ -530,10 +533,12 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
             Access::ReadWrite => {
                 items.push(quote! {
                     impl #name {
+                        #[allow(dead_code)]
                         pub fn read_bits(&self) -> #bits_ty {
                             self.register.read()
                         }
 
+                        #[allow(dead_code)]
                         pub unsafe fn modify_bits<F>(&mut self, f: F)
                             where F: FnOnce(&mut #bits_ty)
                         {
@@ -542,10 +547,12 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
                             self.register.write(bits);
                         }
 
+                        #[allow(dead_code)]
                         pub unsafe fn write_bits(&mut self, bits: #bits_ty) {
                             self.register.write(bits);
                         }
 
+                        #[allow(dead_code)]
                         pub fn modify<F>(&mut self, f: F)
                             where for<'w> F: FnOnce(&#name_r, &'w mut #name_w) -> &'w mut #name_w,
                         {
@@ -556,10 +563,12 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
                             self.register.write(w.bits);
                         }
 
+                        #[allow(dead_code)]
                         pub fn read(&self) -> #name_r {
                             #name_r { bits: self.register.read() }
                         }
 
+                        #[allow(dead_code)]
                         pub fn write<F>(&mut self, f: F)
                             where F: FnOnce(&mut #name_w) -> &mut #name_w,
                         {
@@ -574,10 +583,12 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
             Access::WriteOnly => {
                 items.push(quote! {
                     impl #name {
+                        #[allow(dead_code)]
                         pub unsafe fn write_bits(&mut self, bits: #bits_ty) {
                             self.register.write(bits);
                         }
 
+                        #[allow(dead_code)]
                         pub fn write<F>(&self, f: F)
                             where F: FnOnce(&mut #name_w) -> &mut #name_w,
                         {
@@ -596,6 +607,7 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
             Access::ReadOnly => {
                 items.push(quote! {
                     impl #name {
+                        #[allow(dead_code)]
                         pub fn read(&self) -> #bits_ty {
                             self.register.read()
                         }
@@ -605,10 +617,12 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
             Access::ReadWrite => {
                 items.push(quote! {
                     impl #name {
+                        #[allow(dead_code)]
                         pub fn read(&self) -> #bits_ty {
                             self.register.read()
                         }
 
+                        #[allow(dead_code)]
                         pub fn write(&mut self, value: #bits_ty) {
                             self.register.write(value);
                         }
@@ -619,6 +633,7 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
             Access::WriteOnly => {
                 items.push(quote! {
                     impl #name {
+                        #[allow(dead_code)]
                         pub fn write(&mut self, value: #bits_ty) {
                             self.register.write(value);
                         }
@@ -688,7 +703,9 @@ pub fn gen_register_r(r: &Register,
 
         let item = if width == 1 {
             quote! {
+                #[allow(dead_code)]
                 pub fn #name(&self) -> bool {
+                    #[allow(dead_code)]
                     const OFFSET: u8 = #offset;
 
                     self.bits & (1 << OFFSET) != 0
@@ -700,8 +717,11 @@ pub fn gen_register_r(r: &Register,
             let mask = Lit::Int(mask, IntTy::Unsuffixed);
 
             quote! {
+                #[allow(dead_code)]
                 pub fn #name(&self) -> #width_ty {
+                    #[allow(dead_code)]
                     const MASK: #bits_ty = #mask;
+                    #[allow(dead_code)]
                     const OFFSET: u8 = #offset;
 
                     ((self.bits >> OFFSET) & MASK) as #width_ty
@@ -787,6 +807,7 @@ pub fn gen_register_w(r: &Register,
 
         let item = if width == 1 {
             quote! {
+                #[allow(dead_code)]
                 pub fn #name(&mut self, value: bool) -> &mut Self {
                     const OFFSET: u8 = #offset;
 
@@ -804,8 +825,11 @@ pub fn gen_register_w(r: &Register,
             let mask = Lit::Int(mask, IntTy::Unsuffixed);
 
             quote! {
+                #[allow(dead_code)]
                 pub fn #name(&mut self, value: #width_ty) -> &mut Self {
+                    #[allow(dead_code)]
                     const OFFSET: u8 = #offset;
+                    #[allow(dead_code)]
                     const MASK: #width_ty = #mask;
 
                     self.bits &= !((MASK as #bits_ty) << OFFSET);
