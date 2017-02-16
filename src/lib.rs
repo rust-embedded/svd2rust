@@ -925,9 +925,9 @@ pub fn gen_register(r: &Register,
                                 const OFFSET: u8 = #offset;
 
                                 self.register.bits &=
-                                    !(MASK << OFFSET) as #reg_ty;
+                                    !((MASK as #reg_ty) << OFFSET);
                                 self.register.bits |=
-                                    ((bits & MASK) << OFFSET) as #reg_ty;
+                                    ((bits & MASK) as #reg_ty) << OFFSET;
                                 self.register
                             }
                         });
@@ -939,9 +939,9 @@ pub fn gen_register(r: &Register,
                                 const OFFSET: u8 = #offset;
 
                                 self.register.bits &=
-                                    !(MASK << OFFSET) as #reg_ty;
+                                    !((MASK as #reg_ty) << OFFSET);
                                 self.register.bits |=
-                                    ((bits & MASK) << OFFSET) as #reg_ty;
+                                    ((bits & MASK) as #reg_ty) << OFFSET;
                                 self.register
                             }
                         });
