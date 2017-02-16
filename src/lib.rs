@@ -860,6 +860,7 @@ pub fn gen_register(r: &Register,
 
                 let mut proxy_items = vec![];
 
+                let mut bits_is_safe = false;
                 if let Some((evs, base)) =
                     lookup(&field.enumerated_values,
                            fields,
@@ -916,36 +917,7 @@ pub fn gen_register(r: &Register,
                     // `bits` can be safe when enumeratedValues covers all the
                     // possible values of the bitfield or, IOW, when there are
                     // no reserved bit patterns.
-                    let bits_is_safe = variants.len() == 1 << width;
-
-                    if bits_is_safe {
-                        proxy_items.push(quote! {
-                            pub fn bits(self, bits: #field_ty) -> &'a mut W {
-                                const MASK: #field_ty = #mask;
-                                const OFFSET: u8 = #offset;
-
-                                self.register.bits &=
-                                    !((MASK as #reg_ty) << OFFSET);
-                                self.register.bits |=
-                                    ((bits & MASK) as #reg_ty) << OFFSET;
-                                self.register
-                            }
-                        });
-                    } else {
-                        proxy_items.push(quote! {
-                            pub unsafe fn bits(self,
-                                               bits: #field_ty) -> &'a mut W {
-                                const MASK: #field_ty = #mask;
-                                const OFFSET: u8 = #offset;
-
-                                self.register.bits &=
-                                    !((MASK as #reg_ty) << OFFSET);
-                                self.register.bits |=
-                                    ((bits & MASK) as #reg_ty) << OFFSET;
-                                self.register
-                            }
-                        });
-                    }
+                    bits_is_safe = variants.len() == 1 << width;
 
                     if base.is_none() {
                         let variants_pc = variants.iter().map(|v| &v.pc);
@@ -1006,6 +978,36 @@ pub fn gen_register(r: &Register,
                         });
                     }
                 }
+
+                if bits_is_safe {
+                    proxy_items.push(quote! {
+                        pub fn bits(self, bits: #field_ty) -> &'a mut W {
+                            const MASK: #field_ty = #mask;
+                            const OFFSET: u8 = #offset;
+
+                            self.register.bits &=
+                                !((MASK as #reg_ty) << OFFSET);
+                            self.register.bits |=
+                                ((bits & MASK) as #reg_ty) << OFFSET;
+                            self.register
+                        }
+                    });
+                } else {
+                    proxy_items.push(quote! {
+                        pub unsafe fn bits(self,
+                                            bits: #field_ty) -> &'a mut W {
+                            const MASK: #field_ty = #mask;
+                            const OFFSET: u8 = #offset;
+
+                            self.register.bits &=
+                                !((MASK as #reg_ty) << OFFSET);
+                            self.register.bits |=
+                                ((bits & MASK) as #reg_ty) << OFFSET;
+                            self.register
+                        }
+                    });
+                }
+
 
                 mod_items.push(quote! {
                     impl<'a> #proxy<'a> {
