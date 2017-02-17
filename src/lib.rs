@@ -256,8 +256,8 @@ use std::rc::Rc;
 use either::Either;
 use inflections::Inflect;
 use quote::Tokens;
-use svd::{Access, Defaults, EnumeratedValues, Field, Peripheral, Register,
-          RegisterInfo, Usage};
+use svd::{Access, BitRange, Defaults, EnumeratedValues, Field, Peripheral,
+          Register, RegisterInfo, Usage};
 use syn::*;
 
 trait ToSanitizedPascalCase {
@@ -415,21 +415,19 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
 
     let p_name = Ident::new(&*p.name.to_sanitized_pascal_case());
 
-    if let Some(description) = p.description.as_ref() {
-        let comment = &respace(description)[..];
-        items.push(quote! {
-            #[doc = #comment]
-        });
-    }
+    let doc = p.description
+        .as_ref()
+        .map(|s| respace(s))
+        .unwrap_or_else(|| "Peripheral".to_owned());
+    items.push(quote! {
+        #![doc = #doc]
 
-    let struct_ = quote! {
+        /// Register block
         #[repr(C)]
         pub struct #p_name {
             #(#fields),*
         }
-    };
-
-    items.push(struct_);
+    });
 
     for register in registers {
         items.extend(gen_register(register, d, registers));
@@ -553,9 +551,11 @@ pub fn gen_register(r: &Register,
         .to_ty();
     let access = access(r);
 
+    let doc = respace(&r.description);
     match access {
         Access::ReadOnly => {
             items.push(quote! {
+                #[doc = #doc]
                 #[repr(C)]
                 pub struct #name_pc {
                     register: ::volatile_register::RO<#reg_ty>
@@ -564,6 +564,7 @@ pub fn gen_register(r: &Register,
         }
         Access::ReadWrite => {
             items.push(quote! {
+                #[doc = #doc]
                 #[repr(C)]
                 pub struct #name_pc {
                     register: ::volatile_register::RW<#reg_ty>
@@ -572,6 +573,7 @@ pub fn gen_register(r: &Register,
         }
         Access::WriteOnly => {
             items.push(quote! {
+                #[doc = #doc]
                 #[repr(C)]
                 pub struct #name_pc {
                     register: ::volatile_register::WO<#reg_ty>
@@ -587,6 +589,7 @@ pub fn gen_register(r: &Register,
     let mut w_impl_items = vec![];
     if access == Access::ReadWrite {
         impl_items.push(quote! {
+            /// Modifies the contents of the register
             pub fn modify<F>(&mut self, f: F)
                 where for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W,
             {
@@ -601,18 +604,21 @@ pub fn gen_register(r: &Register,
 
     if access == Access::ReadOnly || access == Access::ReadWrite {
         impl_items.push(quote! {
+            /// Reads the contents of the register
             pub fn read(&self) -> R {
                 R { bits: self.register.read() }
             }
         });
 
         mod_items.push(quote! {
+            /// Value read from the register
             pub struct R {
                 bits: #reg_ty,
             }
         });
 
         r_impl_items.push(quote! {
+            /// Value of the register as raw bits
             pub fn bits(&self) -> #reg_ty {
                 self.bits
             }
@@ -621,6 +627,7 @@ pub fn gen_register(r: &Register,
 
     if access == Access::WriteOnly || access == Access::ReadWrite {
         impl_items.push(quote! {
+            /// Writes to the register
             pub fn write<F>(&mut self, f: F)
                 where F: FnOnce(&mut W) -> &mut W,
             {
@@ -631,6 +638,7 @@ pub fn gen_register(r: &Register,
         });
 
         mod_items.push(quote! {
+            /// Value to write to the register
             pub struct W {
                 bits: #reg_ty,
             }
@@ -641,7 +649,7 @@ pub fn gen_register(r: &Register,
                 .or(d.reset_value)
                 .map(|x| Lit::Int(x as u64, IntTy::Unsuffixed)) {
             w_impl_items.push(quote! {
-                /// Reset value
+                /// Reset value of the register
                 pub fn reset_value() -> W {
                     W { bits: #reset_value }
                 }
@@ -649,6 +657,7 @@ pub fn gen_register(r: &Register,
         }
 
         w_impl_items.push(quote! {
+            /// Writes raw `bits` to the register
             pub unsafe fn bits(&mut self, bits: #reg_ty) -> &mut Self {
                 self.bits = bits;
                 self
@@ -699,28 +708,42 @@ pub fn gen_register(r: &Register,
                            all_registers,
                            Usage::Read) {
                     struct Variant {
+                        doc: Cow<'static, str>,
+                        pc: Ident,
                         // `None` indicates a reserved variant
                         sc: Option<Ident>,
-                        pc: Ident,
                         value: u64,
                     }
 
                     let variants = (0..1 << width)
-                        .map(|i| if let Some(ev) = evs.values
-                            .iter()
-                            .find(|ev| ev.value == Some(i)) {
-                            let sc = Ident::new(&*ev.name.to_snake_case());
-                            Variant {
-                                sc: Some(sc),
-                                pc: Ident::new(&*ev.name
-                                    .to_sanitized_pascal_case()),
-                                value: u64::from(i),
-                            }
-                        } else {
-                            Variant {
-                                sc: None,
-                                pc: Ident::new(format!("_Reserved{:b}", i)),
-                                value: u64::from(i),
+                        .map(|i| {
+                            let value = u64::from(i);
+                            if let Some(ev) = evs.values
+                                .iter()
+                                .find(|ev| ev.value == Some(i)) {
+                                let sc = Ident::new(&*ev.name.to_snake_case());
+                                let doc = Cow::from(ev.description
+                                    .clone()
+                                    .unwrap_or_else(|| {
+                                        format!("A possible value of \
+                                                 the field `{}`",
+                                                sc)
+                                    }));
+
+                                Variant {
+                                    doc: doc,
+                                    pc: Ident::new(&*ev.name
+                                        .to_sanitized_pascal_case()),
+                                    sc: Some(sc),
+                                    value: value,
+                                }
+                            } else {
+                                Variant {
+                                    doc: Cow::from("Reserved"),
+                                    pc: Ident::new(format!("_Reserved{:b}", i)),
+                                    sc: None,
+                                    value: value,
+                                }
                             }
                         })
                         .collect::<Vec<_>>();
@@ -753,17 +776,25 @@ pub fn gen_register(r: &Register,
                         }
                     }
 
+                    let doc = field_doc(field.bit_range,
+                                        field.description.as_ref());
                     r_impl_items.push(quote! {
+                        #[doc = #doc]
                         pub fn #field_name(&self) -> #enum_name {
                             #enum_name::_from(self.#_field_name())
                         }
                     });
 
                     if base.is_none() {
+                        let doc = format!("Possible values of the field `{}`",
+                                          field_name);
+                        let variants_doc = variants.iter().map(|v| &*v.doc);
                         mod_items.push(quote! {
+                            #[doc = #doc]
                             #[derive(Clone, Copy, Debug, PartialEq)]
                             pub enum #enum_name {
-                                #(#variants_pc),*
+                                #(#[doc = #variants_doc]
+                                  #variants_pc),*
                             }
                         });
 
@@ -780,6 +811,7 @@ pub fn gen_register(r: &Register,
                                 }
                             });
                         enum_items.push(quote! {
+                            /// Value of the field as raw bits
                             pub fn bits(&self) -> #field_ty {
                                 match *self {
                                     #(#arms),*
@@ -798,6 +830,7 @@ pub fn gen_register(r: &Register,
                             });
 
                         enum_items.push(quote! {
+                            #[allow(missing_docs)]
                             #[doc(hidden)]
                             #[inline(always)]
                             pub fn _from(bits: #field_ty) -> #enum_name {
@@ -816,7 +849,12 @@ pub fn gen_register(r: &Register,
                                     Ident::new(&*format!("is_{}", sc))
                                 };
 
+                                let doc = format!("Check if \
+                                                   the value of the field \
+                                                   is `{}`",
+                                                  pc);
                                 enum_items.push(quote! {
+                                    #[doc = #doc]
                                     pub fn #is_variant(&self) -> bool {
                                         *self == #enum_name::#pc
                                     }
@@ -831,9 +869,30 @@ pub fn gen_register(r: &Register,
                         });
                     }
                 } else {
+                    let name = Ident::new(&*format!("{}R",
+                                            field.name
+                                            .to_sanitized_pascal_case()));
+                    let doc = format!("Value of the field {}", field.name);
+                    mod_items.push(quote! {
+                        #[doc = #doc]
+                        pub struct #name {
+                            bits: #field_ty,
+                        }
+
+                        impl #name {
+                            /// Value of the field as raw bits
+                            pub fn bits(&self) -> #field_ty {
+                                self.bits
+                            }
+                        }
+                    });
+
+                    let doc = format!("Returns the value of the field {}",
+                                      field.name);
                     r_impl_items.push(quote! {
-                        pub fn #field_name(&self) -> #field_ty {
-                            self.#_field_name()
+                        #[doc = #doc]
+                        pub fn #field_name(&self) -> #name {
+                            #name { bits: self.#_field_name() }
                         }
                     });
                 }
@@ -873,6 +932,7 @@ pub fn gen_register(r: &Register,
                            all_registers,
                            Usage::Write) {
                     struct Variant {
+                        doc: String,
                         pc: Ident,
                         sc: Ident,
                         value: u64,
@@ -904,20 +964,28 @@ pub fn gen_register(r: &Register,
                         }
                     }
 
-                    let variants = evs.values
-                        .iter()
-                        .map(|ev| {
-                            Variant {
-                                pc: Ident::new(&*ev.name
-                                    .to_sanitized_pascal_case()),
-                                sc: Ident::new(&*ev.name
-                                    .to_sanitized_snake_case()),
+                    let variants =
+                        evs.values
+                            .iter()
+                            .map(|ev| {
                                 // TODO better error message
-                                value: u64::from(ev.value
-                                    .expect("no value in EnumeratedValue")),
-                            }
-                        })
-                        .collect::<Vec<_>>();
+                                let value = u64::from(ev.value
+                                    .expect("no value in EnumeratedValue"));
+
+                                Variant {
+                                    doc: ev.description
+                                        .clone()
+                                        .unwrap_or_else(|| {
+                                            format!("`{:b}`", value)
+                                        }),
+                                    pc: Ident::new(&*ev.name
+                                        .to_sanitized_pascal_case()),
+                                    sc: Ident::new(&*ev.name
+                                        .to_sanitized_snake_case()),
+                                    value: value,
+                                }
+                            })
+                            .collect::<Vec<_>>();
 
                     // Whether the `bits` method should be `unsafe`.
                     // `bits` can be safe when enumeratedValues covers all
@@ -927,9 +995,17 @@ pub fn gen_register(r: &Register,
 
                     if base.is_none() {
                         let variants_pc = variants.iter().map(|v| &v.pc);
+                        let doc = {
+                            format!("Values that can be written \
+                                     to the field `{}`",
+                                    field_name_sc)
+                        };
+                        let variants_doc = variants.iter().map(|v| &*v.doc);
                         mod_items.push(quote! {
+                            #[doc = #doc]
                             pub enum #enum_name {
-                                #(#variants_pc),*
+                                #(#[doc = #variants_doc]
+                                  #variants_pc),*
                             }
                         });
 
@@ -957,6 +1033,7 @@ pub fn gen_register(r: &Register,
 
                     if bits_is_safe {
                         proxy_items.push(quote! {
+                            /// Writes `variant` to the field
                             pub fn variant(self,
                                         variant: #enum_name) -> &'a mut W {
                                 self.bits(variant._bits())
@@ -964,6 +1041,7 @@ pub fn gen_register(r: &Register,
                         });
                     } else {
                         proxy_items.push(quote! {
+                            /// Writes `variant` to the field
                             pub fn variant(self,
                                         variant: #enum_name) -> &'a mut W {
                                 unsafe {
@@ -977,7 +1055,9 @@ pub fn gen_register(r: &Register,
                         let pc = &v.pc;
                         let sc = &v.sc;
 
+                        let doc = respace(&v.doc);
                         proxy_items.push(quote! {
+                            #[doc = #doc]
                             pub fn #sc(self) -> &'a mut W {
                                 self.variant(#enum_name::#pc)
                             }
@@ -987,6 +1067,7 @@ pub fn gen_register(r: &Register,
 
                 if bits_is_safe {
                     proxy_items.push(quote! {
+                        /// Writes raw `bits` to the field
                         pub fn bits(self, bits: #field_ty) -> &'a mut W {
                             const MASK: #field_ty = #mask;
                             const OFFSET: u8 = #offset;
@@ -1000,6 +1081,7 @@ pub fn gen_register(r: &Register,
                     });
                 } else {
                     proxy_items.push(quote! {
+                        /// Writes raw `bits` to the field
                         pub unsafe fn bits(self,
                                             bits: #field_ty) -> &'a mut W {
                             const MASK: #field_ty = #mask;
@@ -1021,7 +1103,10 @@ pub fn gen_register(r: &Register,
                     }
                 });
 
+                let doc = field_doc(field.bit_range,
+                                    field.description.as_ref());
                 w_impl_items.push(quote! {
+                    #[doc = #doc]
                     pub fn #field_name_sc(&mut self) -> #proxy {
                         #proxy {
                             register: self,
@@ -1048,7 +1133,9 @@ pub fn gen_register(r: &Register,
         });
     }
 
+    let doc = respace(&r.description);
     items.push(quote! {
+        #[doc = #doc]
         pub mod #name_sc {
             #(#mod_items)*
         }
@@ -1103,6 +1190,24 @@ fn lookup<'a>(evs: &'a [EnumeratedValues],
                 (evs, None)
             }
         })
+}
+
+fn field_doc(bit_range: BitRange, doc: Option<&String>) -> String {
+    let BitRange { offset, width } = bit_range;
+
+    if let Some(doc) = doc {
+        if width == 1 {
+            format!("Bit {} - {}", offset, doc)
+        } else {
+            format!("Bits {}:{} - {}", offset, offset + width - 1, doc)
+        }
+    } else {
+        if width == 1 {
+            format!("Bit {}", offset)
+        } else {
+            format!("Bits {}:{}", offset, offset + width - 1)
+        }
+    }
 }
 
 struct Base<'a> {
