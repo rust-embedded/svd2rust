@@ -688,7 +688,7 @@ pub fn gen_register(r: &Register,
                                                        field.name
                                                            .to_snake_case()));
                 let width = field.bit_range.width;
-                let mask = Lit::Int((1u64 << width - 1), IntTy::Unsuffixed);
+                let mask = Lit::Int((1u64 << width) - 1, IntTy::Unsuffixed);
                 let offset = Lit::Int(u64::from(field.bit_range.offset),
                                       IntTy::Unsuffixed);
                 let field_ty = width.to_ty();
@@ -908,7 +908,7 @@ pub fn gen_register(r: &Register,
                 let field_name_sc = Ident::new(&*field.name
                     .to_sanitized_snake_case());
                 let width = field.bit_range.width;
-                let mask = Lit::Int((1u64 << width - 1), IntTy::Unsuffixed);
+                let mask = Lit::Int((1u64 << width) - 1, IntTy::Unsuffixed);
                 let offset = Lit::Int(u64::from(field.bit_range.offset),
                                       IntTy::Unsuffixed);
                 let field_ty = width.to_ty();
