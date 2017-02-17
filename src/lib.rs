@@ -1023,7 +1023,10 @@ pub fn gen_register(r: &Register,
 
                         mod_items.push(quote! {
                             impl #enum_name {
-                                fn _bits(&self) -> #field_ty {
+                                #[allow(missing_docs)]
+                                #[doc(hidden)]
+                                #[inline(always)]
+                                pub fn _bits(&self) -> #field_ty {
                                     match *self {
                                         #(#arms),*
                                     }
