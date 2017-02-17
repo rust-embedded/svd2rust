@@ -70,7 +70,7 @@ fn find_peripheral<F: Fn(&str) -> bool>(device: &svd::Device,
 }
 
 fn gen_peripheral_desc(p: &svd::Peripheral, def: &svd::Defaults) -> String {
-    svd2rust::gen_peripheral(p, &def)
+    svd2rust::gen_peripheral(p, def)
         .iter()
         .map(|i| i.to_string())
         .collect::<Vec<_>>()

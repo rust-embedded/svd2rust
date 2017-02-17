@@ -366,7 +366,7 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         .as_ref()
         .expect(&format!("{:#?} has no `registers` field", p));
 
-    for register in expand(registers).iter() {
+    for register in &expand(registers) {
         let pad = if let Some(pad) = register.offset
             .checked_sub(offset) {
             pad
@@ -534,6 +534,7 @@ fn access(r: &Register) -> Access {
     })
 }
 
+#[cfg_attr(feature = "cargo-clippy", allow(cyclomatic_complexity))]
 #[doc(hidden)]
 pub fn gen_register(r: &Register,
                     d: &Defaults,
@@ -1201,12 +1202,10 @@ fn field_doc(bit_range: BitRange, doc: Option<&String>) -> String {
         } else {
             format!("Bits {}:{} - {}", offset, offset + width - 1, doc)
         }
+    } else if width == 1 {
+        format!("Bit {}", offset)
     } else {
-        if width == 1 {
-            format!("Bit {}", offset)
-        } else {
-            format!("Bits {}:{}", offset, offset + width - 1)
-        }
+        format!("Bits {}:{}", offset, offset + width - 1)
     }
 }
 
