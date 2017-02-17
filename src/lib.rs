@@ -669,6 +669,10 @@ pub fn gen_register(r: &Register,
 
         if access == Access::ReadOnly || access == Access::ReadWrite {
             for field in fields {
+                if field.access == Some(Access::WriteOnly) {
+                    continue;
+                }
+
                 let field_name = Ident::new(&*field.name
                     .to_sanitized_snake_case());
                 let _field_name = Ident::new(&*format!("_{}",
@@ -838,6 +842,10 @@ pub fn gen_register(r: &Register,
 
         if access == Access::WriteOnly || access == Access::ReadWrite {
             for field in fields {
+                if field.access == Some(Access::ReadOnly) {
+                    continue;
+                }
+
                 let field_name_sc = Ident::new(&*field.name
                     .to_sanitized_snake_case());
                 let width = field.bit_range.width;
