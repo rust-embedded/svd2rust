@@ -581,65 +581,93 @@ pub fn gen_register(r: &Register,
         _ => unreachable!(),
     }
 
-    if let Some(ref fields) = r.fields {
-        let mut reexported = HashSet::new();
-        let mut mod_items = vec![];
-        let mut impl_items = vec![];
+    let mut mod_items = vec![];
+    let mut impl_items = vec![];
+    let mut r_impl_items = vec![];
+    let mut w_impl_items = vec![];
+    if access == Access::ReadWrite {
+        impl_items.push(quote! {
+            pub fn modify<F>(&mut self, f: F)
+                where for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W,
+            {
+                let bits = self.register.read();
+                let r = R { bits: bits };
+                let mut w = W { bits: bits };
+                f(&r, &mut w);
+                self.register.write(w.bits);
+            }
+        });
+    }
 
-        if access == Access::ReadWrite {
-            impl_items.push(quote! {
-                pub fn modify<F>(&mut self, f: F)
-                    where for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W,
-                {
-                    let bits = self.register.read();
-                    let r = R { bits: bits };
-                    let mut w = W { bits: bits };
-                    f(&r, &mut w);
-                    self.register.write(w.bits);
-                }
-            });
-        }
-
-        if access == Access::ReadOnly || access == Access::ReadWrite {
-            impl_items.push(quote! {
-                pub fn read(&self) -> R {
-                    R { bits: self.register.read() }
-                }
-            });
-        }
-
-        if access == Access::WriteOnly || access == Access::ReadWrite {
-            impl_items.push(quote! {
-                pub fn write<F>(&mut self, f: F)
-                    where F: FnOnce(&mut W) -> &mut W,
-                {
-                    let mut w = W::reset_value();
-                    f(&mut w);
-                    self.register.write(w.bits);
-                }
-            });
-        }
-
-        mod_items.push(quote! {
-            impl super::#name_pc {
-                #(#impl_items)*
+    if access == Access::ReadOnly || access == Access::ReadWrite {
+        impl_items.push(quote! {
+            pub fn read(&self) -> R {
+                R { bits: self.register.read() }
             }
         });
 
+        mod_items.push(quote! {
+            pub struct R {
+                bits: #reg_ty,
+            }
+        });
+
+        r_impl_items.push(quote! {
+            pub fn bits(&self) -> #reg_ty {
+                self.bits
+            }
+        });
+    }
+
+    if access == Access::WriteOnly || access == Access::ReadWrite {
+        impl_items.push(quote! {
+            pub fn write<F>(&mut self, f: F)
+                where F: FnOnce(&mut W) -> &mut W,
+            {
+                let mut w = W::reset_value();
+                f(&mut w);
+                self.register.write(w.bits);
+            }
+        });
+
+        mod_items.push(quote! {
+            pub struct W {
+                bits: #reg_ty,
+            }
+        });
+
+        if let Some(reset_value) =
+            r.reset_value
+                .or(d.reset_value)
+                .map(|x| Lit::Int(x as u64, IntTy::Unsuffixed)) {
+            w_impl_items.push(quote! {
+                /// Reset value
+                pub fn reset_value() -> W {
+                    W { bits: #reset_value }
+                }
+            });
+        }
+
+        w_impl_items.push(quote! {
+            pub unsafe fn bits(&mut self, bits: #reg_ty) -> &mut Self {
+                self.bits = bits;
+                self
+            }
+        });
+    }
+
+    mod_items.push(quote! {
+        impl super::#name_pc {
+            #(#impl_items)*
+        }
+    });
+
+    let fields = r.fields.as_ref().map(|fs| &**fs).unwrap_or(&[]);
+
+    if !fields.is_empty() {
+        let mut reexported = HashSet::new();
+
         if access == Access::ReadOnly || access == Access::ReadWrite {
-            mod_items.push(quote! {
-                pub struct R {
-                    bits: #reg_ty,
-                }
-            });
-
-            let mut impl_items = vec![];
-            impl_items.push(quote! {
-                pub fn bits(&self) -> #reg_ty {
-                    self.bits
-                }
-            });
-
             for field in fields {
                 let field_name = Ident::new(&*field.name
                     .to_sanitized_snake_case());
@@ -652,7 +680,7 @@ pub fn gen_register(r: &Register,
                                       IntTy::Unsuffixed);
                 let field_ty = width.to_ty();
 
-                impl_items.push(quote! {
+                r_impl_items.push(quote! {
                     fn #_field_name(&self) -> #field_ty {
                         const MASK: #field_ty = #mask;
                         const OFFSET: u8 = #offset;
@@ -721,7 +749,7 @@ pub fn gen_register(r: &Register,
                         }
                     }
 
-                    impl_items.push(quote! {
+                    r_impl_items.push(quote! {
                         pub fn #field_name(&self) -> #enum_name {
                             #enum_name::_from(self.#_field_name())
                         }
@@ -744,8 +772,8 @@ pub fn gen_register(r: &Register,
                                 let pc = &v.pc;
 
                                 quote! {
-                                #enum_name::#pc => #value
-                            }
+                                    #enum_name::#pc => #value
+                                }
                             });
                         enum_items.push(quote! {
                             pub fn bits(&self) -> #field_ty {
@@ -761,8 +789,8 @@ pub fn gen_register(r: &Register,
                                 let pc = &v.pc;
 
                                 quote! {
-                                #i => #enum_name::#pc
-                            }
+                                    #i => #enum_name::#pc
+                                }
                             });
 
                         enum_items.push(quote! {
@@ -780,14 +808,15 @@ pub fn gen_register(r: &Register,
                             if let Some(ref sc) = v.sc {
                                 let pc = &v.pc;
 
-                                let is_variant = Ident::new(&*format!("is_{}",
-                                                                      sc));
+                                let is_variant = {
+                                    Ident::new(&*format!("is_{}", sc))
+                                };
 
                                 enum_items.push(quote! {
                                     pub fn #is_variant(&self) -> bool {
                                         *self == #enum_name::#pc
                                     }
-                                })
+                                });
                             }
                         }
 
@@ -798,48 +827,16 @@ pub fn gen_register(r: &Register,
                         });
                     }
                 } else {
-                    impl_items.push(quote! {
+                    r_impl_items.push(quote! {
                         pub fn #field_name(&self) -> #field_ty {
                             self.#_field_name()
                         }
                     });
                 }
             }
-
-            mod_items.push(quote! {
-                impl R {
-                    #(#impl_items)*
-                }
-            });
         }
 
         if access == Access::WriteOnly || access == Access::ReadWrite {
-            mod_items.push(quote! {
-                pub struct W {
-                    bits: #reg_ty,
-                }
-            });
-
-            let mut impl_items = vec![];
-            if let Some(reset_value) =
-                r.reset_value
-                    .or(d.reset_value)
-                    .map(|x| Lit::Int(x as u64, IntTy::Unsuffixed)) {
-                impl_items.push(quote! {
-                    /// Reset value
-                    pub fn reset_value() -> W {
-                        W { bits: #reset_value }
-                    }
-                });
-            }
-
-            impl_items.push(quote! {
-                pub unsafe fn bits(&mut self, bits: #reg_ty) -> &mut Self {
-                    self.bits = bits;
-                    self
-                }
-            });
-
             for field in fields {
                 let field_name_sc = Ident::new(&*field.name
                     .to_sanitized_snake_case());
@@ -849,7 +846,8 @@ pub fn gen_register(r: &Register,
                                       IntTy::Unsuffixed);
                 let field_ty = width.to_ty();
                 let proxy = Ident::new(&*format!("_{}W",
-                                                 field.name.to_pascal_case()));
+                                                 field.name
+                                                     .to_pascal_case()));
 
                 mod_items.push(quote! {
                     /// Proxy
@@ -891,8 +889,8 @@ pub fn gen_register(r: &Register,
 
                         if !reexported.contains(&enum_name) {
                             mod_items.push(quote! {
-                                    pub use super::#register::#enum_name;
-                                });
+                                pub use super::#register::#enum_name;
+                            });
 
                             reexported.insert(enum_name.clone());
                         }
@@ -914,9 +912,9 @@ pub fn gen_register(r: &Register,
                         .collect::<Vec<_>>();
 
                     // Whether the `bits` method should be `unsafe`.
-                    // `bits` can be safe when enumeratedValues covers all the
-                    // possible values of the bitfield or, IOW, when there are
-                    // no reserved bit patterns.
+                    // `bits` can be safe when enumeratedValues covers all
+                    // the possible values of the bitfield or, IOW, when
+                    // there are no reserved bit patterns.
                     bits_is_safe = variants.len() == 1 << width;
 
                     if base.is_none() {
@@ -952,14 +950,14 @@ pub fn gen_register(r: &Register,
                     if bits_is_safe {
                         proxy_items.push(quote! {
                             pub fn variant(self,
-                                           variant: #enum_name) -> &'a mut W {
+                                        variant: #enum_name) -> &'a mut W {
                                 self.bits(variant._bits())
                             }
                         });
                     } else {
                         proxy_items.push(quote! {
                             pub fn variant(self,
-                                           variant: #enum_name) -> &'a mut W {
+                                        variant: #enum_name) -> &'a mut W {
                                 unsafe {
                                     self.bits(variant._bits())
                                 }
@@ -1015,7 +1013,7 @@ pub fn gen_register(r: &Register,
                     }
                 });
 
-                impl_items.push(quote! {
+                w_impl_items.push(quote! {
                     pub fn #field_name_sc(&mut self) -> #proxy {
                         #proxy {
                             register: self,
@@ -1023,50 +1021,30 @@ pub fn gen_register(r: &Register,
                     }
                 });
             }
-
-            mod_items.push(quote! {
-                impl W {
-                    #(#impl_items)*
-                }
-            });
         }
+    }
 
-        items.push(quote! {
-            pub mod #name_sc {
-                #(#mod_items)*
-            }
-        });
-    } else {
-        let mut impl_items = vec![];
-
-        match access {
-            Access::ReadOnly | Access::ReadWrite => {
-                impl_items.push(quote! {
-                    pub fn read(&self) -> #reg_ty {
-                        self.register.read()
-                    }
-                });
-            }
-            _ => {}
-        }
-
-        match access {
-            Access::ReadOnly | Access::ReadWrite => {
-                impl_items.push(quote! {
-                    pub fn write(&mut self, value: #reg_ty) {
-                        self.register.write(value);
-                    }
-                });
-            }
-            _ => {}
-        }
-
-        items.push(quote! {
-            impl #name_pc {
-                #(#impl_items)*
+    if access == Access::ReadOnly || access == Access::ReadWrite {
+        mod_items.push(quote! {
+            impl R {
+                #(#r_impl_items)*
             }
         });
     }
+
+    if access == Access::WriteOnly || access == Access::ReadWrite {
+        mod_items.push(quote! {
+            impl W {
+                #(#w_impl_items)*
+            }
+        });
+    }
+
+    items.push(quote! {
+        pub mod #name_sc {
+            #(#mod_items)*
+        }
+    });
 
     items
 }
