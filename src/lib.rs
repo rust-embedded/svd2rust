@@ -1200,6 +1200,8 @@ fn field_doc(bit_range: BitRange, doc: Option<&String>) -> String {
     let BitRange { offset, width } = bit_range;
 
     if let Some(doc) = doc {
+        let doc = respace(doc);
+
         if width == 1 {
             format!("Bit {} - {}", offset, doc)
         } else {
