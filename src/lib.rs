@@ -30,8 +30,10 @@
 //!
 //! ```
 //! $ svd2rust -i STM32F30x.svd rcc | head
-//! /// Reset and clock control
-//! #[repr(C)]
+//! //! Reset and clock control
+//!
+//! /// Register block
+//! # [ repr ( C ) ]
 //! pub struct Rcc {
 //!     /// 0x00 - Clock control register
 //!     pub cr: Cr,
@@ -44,14 +46,14 @@
 //!
 //! # API
 //!
-//! The `svd2rust` generates the following API for each peripheral:
+//! `svd2rust` generates the following API for each peripheral:
 //!
 //! ## Register block
 //!
 //! A register block "definition" as a `struct`. Example below:
 //!
 //! ``` rust
-//! /// Inter-integrated circuit
+//! /// Register block
 //! #[repr(C)]
 //! pub struct I2c1 {
 //!     /// 0x00 - Control register 1
@@ -80,7 +82,7 @@
 //! ```
 //!
 //! The user has to "instantiate" this definition for each peripheral the
-//! microcontroller has. They have two choices:
+//! microcontroller has. There are two alternatives:
 //!
 //! - `static` variables. Example below:
 //!
@@ -88,6 +90,7 @@
 //! extern "C" {
 //!     // I2C1 can be accessed in read-write mode
 //!     pub static mut I2C1: I2c;
+//!
 //!     // whereas I2C2 can only be accessed in "read-only" mode
 //!     pub static I2C1: I2c;
 //! }
@@ -136,20 +139,23 @@
 //!
 //! This is signature of each of these methods:
 //!
-//! (using the `CR2` register as an example)
+//! (using `I2C`'s `CR2` register as an example)
 //!
 //! ``` rust
 //! impl Cr2 {
+//!     /// Modifies the contents of the register
 //!     pub fn modify<F>(&mut self, f: F)
-//!         where for<'w> F: FnOnce(&Cr2R, &'w mut Cr2W) -> &'w mut Cr2W
+//!         where for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W
 //!     {
 //!         ..
 //!     }
 //!
-//!     pub fn read(&self) -> Cr2R { .. }
+//!     /// Reads the contents of the register
+//!     pub fn read(&self) -> R { .. }
 //!
+//!     /// Writes to the register
 //!     pub fn write<F>(&mut self, f: F)
-//!         where F: FnOnce(&mut Cr2W) -> &mut Cr2W,
+//!         where F: FnOnce(&mut W) -> &mut W,
 //!     {
 //!         ..
 //!     }
@@ -157,17 +163,18 @@
 //! ```
 //!
 //! The `read` method "reads" the register using a **single**, volatile `LDR`
-//! instruction and returns a proxy `Cr2R` struct that allows access to only the
+//! instruction and returns a proxy `R` struct that allows access to only the
 //! readable bits (i.e. not to the reserved or write-only bits) of the `CR2`
 //! register:
 //!
 //! ``` rust
-//! impl Cr2R {
+//! /// Value read from the register
+//! impl R {
 //!     /// Bit 0 - Slave address bit 0 (master mode)
-//!     pub fn sadd0(&self) -> bool { .. }
+//!     pub fn sadd0(&self) -> Sadd0R { .. }
 //!
 //!     /// Bits 1:7 - Slave address bit 7:1 (master mode)
-//!     pub fn sadd1(&self) -> u8 { .. }
+//!     pub fn sadd1(&self) -> Sadd1R { .. }
 //!
 //!     (..)
 //! }
@@ -177,20 +184,20 @@
 //!
 //! ``` rust
 //! // is the SADD0 bit of the CR2 register set?
-//! if i2c1.c2r.read().sadd0() {
-//!     // something
+//! if i2c1.c2r.read().sadd0().bits() == 1 {
+//!     // yes
 //! } else {
-//!     // something else
+//!     // no
 //! }
 //! ```
 //!
-//! The `write` method writes some value to the register using a **single**,
-//! volatile `STR` instruction. This method involves a `Cr2W` struct that only
-//! allows constructing valid states of the `CR2` register.
+//! On the other hand, the `write` method writes some value to the register
+//! using a **single**, volatile `STR` instruction. This method involves a `W`
+//! struct that only allows constructing valid states of the `CR2` register.
 //!
-//! The only constructor that `Cr2W` provides is `reset_value` which returns the
-//! value of the `CR2` register after a reset. The rest of `Cr2W` methods are
-//! "builder-like" and can be used to set or reset the writable bits of the
+//! The only constructor that `W` provides is `reset_value` which returns the
+//! value of the `CR2` register after a reset. The rest of `W` methods are
+//! "builder-like" and can be used to modify the writable bitfields of the
 //! `CR2` register.
 //!
 //! ``` rust
@@ -201,41 +208,119 @@
 //!     }
 //!
 //!     /// Bits 1:7 - Slave address bit 7:1 (master mode)
-//!     pub fn sadd1(&mut self, value: u8) -> &mut Self { .. }
+//!     pub fn sadd1(&mut self) -> _Sadd1W { .. }
 //!
 //!     /// Bit 0 - Slave address bit 0 (master mode)
-//!     pub fn sadd0(&mut self, value: bool) -> &mut Self { .. }
+//!     pub fn sadd0(&mut self) -> _Sadd0 { .. }
 //! }
 //! ```
 //!
-//! The `write` method takes a closure with signature `&mut Cr2W -> &mut Cr2W`.
-//! If the "identity closure", `|w| w`, is passed then `write` method will set
+//! The `write` method takes a closure with signature `(&mut W) -> &mut W`. If
+//! the "identity closure", `|w| w`, is passed then the `write` method will set
 //! the `CR2` register to its reset value. Otherwise, the closure specifies how
-//! that reset value will be modified *before* it's written to `CR2`.
+//! the reset value will be modified *before* it's written to `CR2`.
 //!
 //! Usage looks like this:
 //!
 //! ``` rust
-//! // Write to CR2, its reset value (`0x0000_0000`) but with its SADD0 and
-//! // SADD1 fields set to `true` and `0b0011110` respectively
-//! i2c1.cr2.write(|w| w.sadd0(true).sadd1(0b0011110));
+//! // Starting from the reset value, `0x0000_0000`, change the bitfields SADD0
+//! // and SADD1 to `1` and `0b0011110` respectively and write that to the
+//! // register CR2.
+//! i2c1.cr2.write(|w| unsafe { w.sadd0().bits(1).sadd1().bits(0b0011110) });
+//! // NOTE ^ unsafe because you could be writing a reserved bit pattern into
+//! // the register. The SVD doesn't provide enough information to check that's
+//! // not the case.
+//!
+//! // NOTE The argument to `bits` will be *masked* before writing it to the
+//! // bitfield. This makes it impossible to write, for example, `6` to a 2-bit
+//! // field; instead, `6 & 3` (i.e. `2`) will be written to the bitfield.
 //! ```
 //!
 //! Finally, the `modify` method performs a **single** read-modify-write
-//! operation that involves reading (`LDR`) the register, modifying the fetched
-//! value and then writing (`STR`) the modified value to the register. This
-//! method accepts a closure that specifies how the `CR2` register will be
-//! modified (the `w` argument) and also provides access to the state of the
-//! register before it's modified (the `r` argument).
+//! operation that involves **one** read (`LDR`) to the register, modifying the
+//! value and then a **single** write (`STR`) of the modified value to the
+//! register. This method accepts a closure that specifies how the CR2 register
+//! will be modified (the `w` argument) and also provides access to the state of
+//! the register before it's modified (the `r` argument).
 //!
 //! Usage looks like this:
 //!
 //! ``` rust
 //! // Set the START bit to 1 while KEEPING the state of the other bits intact
-//! i2c1.cr2.modify(|_, w| w.start(true));
+//! i2c1.cr2.modify(|_, w| unsafe { w.start().bits(1) });
 //!
-//! // TOGGLE the STOP bit
-//! i2c1.cr2.modify(|r, w| w.stop(!r.stop()));
+//! // TOGGLE the STOP bit, all the other bits will remain untouched
+//! i2c1.cr2.modify(|r, w| w.stop().bits(r.stop().bits() ^ 1));
+//! ```
+//!
+//! # enumeratedValues
+//!
+//! If your SVD uses the `<enumeratedValues>` feature, then the API will be
+//! *extended* to provide even more type safety. This extension is backward
+//! compatible with the original version so you could "upgrade" your SVD by
+//! adding, yourself, `<enumeratedValues>` to it and then use `svd2rust` to
+//! re-generate a better API that doesn't break the existing code that uses
+//! that API.
+//!
+//! The new `read` API returns an enum that you can match:
+//!
+//! ```
+//! match gpioa.dir.read().pin0() {
+//!     gpio::dir::DirR::Input => { .. },
+//!     gpio::dir::DirR::Output => { .. },
+//! }
+//! ```
+//!
+//! or test for equality
+//!
+//! ```
+//! if gpioa.dir.read().pin0() == gpio::dir::DirR::Input {
+//!     ..
+//! }
+//! ```
+//!
+//! It also provides convenience methods to check for a specific variant without
+//! having to import the enum:
+//!
+//! ```
+//! if gpioa.dir.read().pin0().is_input() {
+//!     ..
+//! }
+//!
+//! if gpioa.dir.read().pin0().is_output() {
+//!     ..
+//! }
+//! ```
+//!
+//! The original `bits` method is available as well:
+//!
+//! ```
+//! if gpioa.dir.read().pin0().bits() == 0 {
+//!     ..
+//! }
+//! ```
+//!
+//! And the new `write` API provides similar additions as well: `variant` lets
+//! you pick the value to write from an `enum`eration of the possible ones:
+//!
+//! ```
+//! // enum DirW { Input, Output }
+//! gpioa.dir.write(|w| w.pin0().variant(gpio::dir::DirW::Output));
+//! ```
+//!
+//! There are convenience methods to pick one of the variants without having to
+//! import the enum:
+//!
+//! ```
+//! gpioa.dir.write(|w| w.pin0().output());
+//! ```
+//!
+//! The `bits` method is still available but will become safe if it's impossible to
+//! write a reserved bit pattern into the register
+//!
+//! ```
+//! // safe because there are only two options: `0` or `1`
+//! gpioa.dir.write(|w| w.pin0().bits(1));
 //! ```
 
 #![recursion_limit = "128"]
