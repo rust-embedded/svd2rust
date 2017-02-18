@@ -315,8 +315,8 @@
 //! gpioa.dir.write(|w| w.pin0().output());
 //! ```
 //!
-//! The `bits` method is still available but will become safe if it's impossible to
-//! write a reserved bit pattern into the register
+//! The `bits` method is still available but will become safe if it's impossible
+//! to write a reserved bit pattern into the register
 //!
 //! ```
 //! // safe because there are only two options: `0` or `1`
@@ -345,6 +345,10 @@ use svd::{Access, BitRange, Defaults, EnumeratedValues, Field, Peripheral,
           Register, RegisterInfo, Usage};
 use syn::*;
 
+/// List of chars that some vendors use in their peripheral/field names but
+/// that are not valid in Rust ident
+const BLACKLIST_CHARS: &[char] = &['(', ')'];
+
 trait ToSanitizedPascalCase {
     fn to_sanitized_pascal_case(&self) -> Cow<str>;
 }
@@ -356,72 +360,75 @@ trait ToSanitizedSnakeCase {
 impl ToSanitizedSnakeCase for str {
     fn to_sanitized_snake_case(&self) -> Cow<str> {
         macro_rules! keywords {
-            ($($kw:ident),+,) => {
-                Cow::from(match &self.to_lowercase()[..] {
+            ($s:expr, $($kw:ident),+,) => {
+                Cow::from(match &$s.to_lowercase()[..] {
                     $(stringify!($kw) => concat!(stringify!($kw), "_")),+,
-                    _ => return Cow::from(self.to_snake_case())
+                    _ => return Cow::from($s.to_snake_case())
                 })
             }
         }
 
-        match self.chars().next().unwrap_or('\0') {
+        let s = self.replace(BLACKLIST_CHARS, "");
+
+        match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", self.to_snake_case()))
+                Cow::from(format!("_{}", s.to_snake_case()))
             }
             _ => {
-                keywords!{
-                abstract,
-                alignof,
-                as,
-                become,
-                box,
-                break,
-                const,
-                continue,
-                crate,
-                do,
-                else,
-                enum,
-                extern,
-                false,
-                final,
-                fn,
-                for,
-                if,
-                impl,
-                in,
-                let,
-                loop,
-                macro,
-                match,
-                mod,
-                move,
-                mut,
-                offsetof,
-                override,
-                priv,
-                proc,
-                pub,
-                pure,
-                ref,
-                return,
-                self,
-                sizeof,
-                static,
-                struct,
-                super,
-                trait,
-                true,
-                type,
-                typeof,
-                unsafe,
-                unsized,
-                use,
-                virtual,
-                where,
-                while,
-                yield,
-            }
+                keywords! {
+                    s,
+                    abstract,
+                    alignof,
+                    as,
+                    become,
+                    box,
+                    break,
+                    const,
+                    continue,
+                    crate,
+                    do,
+                    else,
+                    enum,
+                    extern,
+                    false,
+                    final,
+                    fn,
+                    for,
+                    if,
+                    impl,
+                    in,
+                    let,
+                    loop,
+                    macro,
+                    match,
+                    mod,
+                    move,
+                    mut,
+                    offsetof,
+                    override,
+                    priv,
+                    proc,
+                    pub,
+                    pure,
+                    ref,
+                    return,
+                    self,
+                    sizeof,
+                    static,
+                    struct,
+                    super,
+                    trait,
+                    true,
+                    type,
+                    typeof,
+                    unsafe,
+                    unsized,
+                    use,
+                    virtual,
+                    where,
+                    while,
+                    yield,
+                }
             }
         }
     }
@@ -429,11 +436,13 @@ impl ToSanitizedSnakeCase for str {
 
 impl ToSanitizedPascalCase for str {
     fn to_sanitized_pascal_case(&self) -> Cow<str> {
-        match self.chars().next().unwrap_or('\0') {
+        let s = self.replace(BLACKLIST_CHARS, "");
+
+        match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", self.to_pascal_case()))
+                Cow::from(format!("_{}", s.to_pascal_case()))
             }
-            _ => Cow::from(self.to_pascal_case()),
+            _ => Cow::from(s.to_pascal_case()),
         }
     }
 }
@@ -770,9 +779,11 @@ pub fn gen_register(r: &Register,
 
                 let field_name = Ident::new(&*field.name
                     .to_sanitized_snake_case());
-                let _field_name = Ident::new(&*format!("_{}",
-                                                       field.name
-                                                           .to_snake_case()));
+                let _field_name =
+                    Ident::new(&*format!("_{}",
+                                         field.name
+                                             .replace(BLACKLIST_CHARS, "")
+                                             .to_snake_case()));
                 let width = field.bit_range.width;
                 let mask = Lit::Int((1u64 << width) - 1, IntTy::Unsuffixed);
                 let offset = Lit::Int(u64::from(field.bit_range.offset),
@@ -807,7 +818,9 @@ pub fn gen_register(r: &Register,
                             if let Some(ev) = evs.values
                                 .iter()
                                 .find(|ev| ev.value == Some(i)) {
-                                let sc = Ident::new(&*ev.name.to_snake_case());
+                                let sc = Ident::new(&*ev.name
+                                    .replace(BLACKLIST_CHARS, "")
+                                    .to_snake_case());
                                 let doc = Cow::from(ev.description
                                     .clone()
                                     .unwrap_or_else(|| {
