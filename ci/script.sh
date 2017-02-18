@@ -1,14 +1,14 @@
 set -ex
 
 test_gen() {
-    cargo run --target $TARGET --release -- -i $td/$svd $1 > $td/src/lib.rs
+    target/$TARGET/release/svd2rust -i $td/$svd $1 > $td/src/lib.rs
     echo 'extern crate volatile_register;' >> $td/src/lib.rs
-    cargo build --manifest-path $td/Cargo.toml --target $TARGET
+    cargo build --manifest-path $td/Cargo.toml
 }
 
 main() {
-    cargo build --target $TARGET
-    cargo build --target $TARGET --release
+    cross build --target $TARGET
+    cross build --target $TARGET --release
 
     if [ ! -z $DISABLE_TESTS ]; then
         return
@@ -24,7 +24,7 @@ main() {
     esac
 
     # test crate
-    cargo init --name foo $td
+    cross init --name foo $td
     echo 'volatile-register = "0.1.0"' >> $td/Cargo.toml
 
     curl -L \
