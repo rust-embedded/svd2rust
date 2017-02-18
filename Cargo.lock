@@ -1,6 +1,6 @@
 [root]
 name = "svd2rust"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "clap 2.19.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "either 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
