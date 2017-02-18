@@ -888,8 +888,8 @@ pub fn gen_register(r: &Register,
                         }
                     });
 
-                    let doc = format!("Returns the value of the field {}",
-                                      field.name);
+                    let doc = field_doc(field.bit_range,
+                                        field.description.as_ref());
                     r_impl_items.push(quote! {
                         #[doc = #doc]
                         pub fn #field_name(&self) -> #name {
