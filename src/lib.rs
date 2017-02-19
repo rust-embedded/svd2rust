@@ -779,8 +779,7 @@ pub fn gen_register(r: &Register,
 
                 let field_name = Ident::new(&*field.name
                     .to_sanitized_snake_case());
-                let _field_name =
-                    Ident::new(&*format!("_{}",
+                let _field_name = Ident::new(&*format!("_{}",
                                          field.name
                                              .replace(BLACKLIST_CHARS, "")
                                              .to_snake_case()));
@@ -1244,6 +1243,96 @@ pub fn gen_register(r: &Register,
     });
 
     items
+}
+
+pub fn gen_interrupts(peripherals: &[Peripheral]) -> Tokens {
+    let mut interrupts = peripherals.iter()
+        .flat_map(|p| p.interrupt.iter())
+        .collect::<Vec<_>>();
+
+    interrupts.sort_by_key(|i| i.value);
+    interrupts.dedup_by_key(|i| i.value);
+
+    let mut fields = vec![];
+    let mut exprs = vec![];
+    let mut variants = vec![];
+    let mut arms = vec![];
+
+    // Current position in the vector table
+    let mut pos = 0;
+    // Counter for reserved blocks
+    let mut res = 0;
+    for interrupt in &interrupts {
+        if pos < interrupt.value {
+            let name = Ident::new(&*format!("_reserved{}", res));
+            res += 1;
+            let n = Lit::Int(u64::from(interrupt.value - pos),
+                             IntTy::Unsuffixed);
+
+            fields.push(quote! {
+                /// Reserved spot in the vector table
+                #name: [Reserved; #n],
+            });
+
+            exprs.push(quote! {
+                #name: [Reserved::Vector; #n],
+            });
+        }
+
+        let name = Ident::new(&*interrupt.name.to_sanitized_snake_case());
+        let doc = interrupt.description
+            .as_ref()
+            .map(|s| respace(s))
+            .unwrap_or_else(|| interrupt.name.clone());
+        fields.push(quote! {
+            #[doc = #doc]
+            pub #name: Handler,
+        });
+
+        exprs.push(quote! {
+            #name: exceptions::default_handler,
+        });
+
+        let name = Ident::new(&*interrupt.name.to_sanitized_pascal_case());
+        variants.push(quote! {
+            #[doc = #doc]
+            #name,
+        });
+
+        let value = Lit::Int(u64::from(interrupt.value), IntTy::Unsuffixed);
+        arms.push(quote! {
+            Interrupt::#name => #value,
+        });
+
+        pos = interrupt.value + 1;
+    }
+
+    quote! {
+        /// Interrupt handlers
+        #[repr(C)]
+        pub struct Interrupts {
+            #(#fields)*
+        }
+
+        /// Default interrupt handlers
+        pub const DEFAULT_HANDLERS: Interrupts = Interrupts {
+            #(#exprs)*
+        };
+
+        /// Interrupts
+        pub enum Interrupt {
+            #(#variants)*
+        }
+
+        impl Interrupt {
+            /// Interrupt number
+            pub fn nr(&self) -> u8 {
+                match *self {
+                    #(#arms)*
+                }
+            }
+        }
+    }
 }
 
 fn lookup<'a>(evs: &'a [EnumeratedValues],

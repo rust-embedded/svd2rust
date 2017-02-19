@@ -14,5 +14,5 @@ clap = "2.14.0"
 either = "1.0.2"
 inflections = "1.0.0"
 quote = "0.3.3"
-svd-parser = "0.3.0"
+svd-parser = { git = "https://github.com/japaric/svd", branch = "interrupt" }
 syn = "0.9"
