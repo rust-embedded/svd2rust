@@ -1262,6 +1262,7 @@ pub fn gen_interrupts(peripherals: &[Peripheral]) -> Tokens {
     let mut pos = 0;
     // Counter for reserved blocks
     let mut res = 0;
+    let mut uses_reserved = false;
     for interrupt in &interrupts {
         if pos < interrupt.value {
             let name = Ident::new(&*format!("_reserved{}", res));
@@ -1269,6 +1270,7 @@ pub fn gen_interrupts(peripherals: &[Peripheral]) -> Tokens {
             let n = Lit::Int(u64::from(interrupt.value - pos),
                              IntTy::Unsuffixed);
 
+            uses_reserved = true;
             fields.push(quote! {
                 /// Reserved spot in the vector table
                 #name: [Reserved; #n],
@@ -1290,7 +1292,7 @@ pub fn gen_interrupts(peripherals: &[Peripheral]) -> Tokens {
         });
 
         exprs.push(quote! {
-            #name: exceptions::default_handler,
+            #name: exception::default_handler,
         });
 
         let name = Ident::new(&*interrupt.name.to_sanitized_pascal_case());
@@ -1307,15 +1309,34 @@ pub fn gen_interrupts(peripherals: &[Peripheral]) -> Tokens {
         pos = interrupt.value + 1;
     }
 
-    quote! {
+    let mut items = vec![];
+
+    items.push(quote! {
+        //! Interrupts
+
+        use cortex_m::exception;
+        use cortex_m::interrupt::Nr;
+    });
+
+    if uses_reserved {
+        items.push(quote! {
+            use cortex_m::{Handler, Reserved};
+        });
+    } else {
+        items.push(quote! {
+            use cortex_m::Handler;
+        });
+    }
+
+    items.push(quote! {
         /// Interrupt handlers
         #[repr(C)]
-        pub struct Interrupts {
+        pub struct Handlers {
             #(#fields)*
         }
 
         /// Default interrupt handlers
-        pub const DEFAULT_HANDLERS: Interrupts = Interrupts {
+        pub const DEFAULT_HANDLERS: Handlers = Handlers {
             #(#exprs)*
         };
 
@@ -1324,14 +1345,17 @@ pub fn gen_interrupts(peripherals: &[Peripheral]) -> Tokens {
             #(#variants)*
         }
 
-        impl Interrupt {
-            /// Interrupt number
-            pub fn nr(&self) -> u8 {
+        unsafe impl Nr for Interrupt {
+            fn nr(&self) -> u8 {
                 match *self {
                     #(#arms)*
                 }
             }
         }
+    });
+
+    quote! {
+        #(#items)*
     }
 }
 
