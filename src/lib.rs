@@ -1273,11 +1273,11 @@ pub fn gen_interrupts(peripherals: &[Peripheral]) -> Tokens {
             uses_reserved = true;
             fields.push(quote! {
                 /// Reserved spot in the vector table
-                #name: [Reserved; #n],
+                pub #name: [Reserved; #n],
             });
 
             exprs.push(quote! {
-                #name: [Reserved::Vector; #n],
+                pub #name: [Reserved::Vector; #n],
             });
         }
 
