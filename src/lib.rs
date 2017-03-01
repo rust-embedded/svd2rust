@@ -456,13 +456,14 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
     let mut fields = vec![];
     let mut offset = 0;
     let mut i = 0;
-    let registers = p.registers
-        .as_ref()
-        .expect(&format!("{:#?} has no `registers` field", p));
+    let registers =
+        p.registers
+            .as_ref()
+            .expect(&format!("Peripheral {} has no `registers` field", p.name));
 
     for register in &expand(registers) {
         let pad = if let Some(pad) = register.offset
-            .checked_sub(offset) {
+               .checked_sub(offset) {
             pad
         } else {
             writeln!(io::stderr(),
@@ -470,7 +471,7 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
                       {}. Ignoring.",
                      register.name,
                      register.offset)
-                .ok();
+                    .ok();
             continue;
         };
 
@@ -486,7 +487,7 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         let comment = &format!("0x{:02x} - {}",
                                register.offset,
                                respace(&register.info
-                                   .description))
+                                            .description))
                            [..];
 
         let reg_ty = match register.ty {
@@ -501,10 +502,11 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
 
         offset = register.offset +
                  register.info
-            .size
-            .or(d.size)
-            .expect(&format!("{:#?} has no `size` field", register.info)) /
-                 8;
+                     .size
+                     .or(d.size)
+                     .expect(&format!("Register {}.{} has no `size` field",
+                                      p.name,
+                                      register.name)) / 8;
     }
 
     let p_name = Ident::new(&*p.name.to_sanitized_pascal_case());
@@ -571,8 +573,8 @@ fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
                     .map(|v| Cow::from(&**v))
                     .unwrap_or_else(|| {
                         Cow::from((0..array_info.dim)
-                            .map(|i| i.to_string())
-                            .collect::<Vec<_>>())
+                                      .map(|i| i.to_string())
+                                      .collect::<Vec<_>>())
                     });
 
                 for (idx, i) in indices.iter().zip(0..) {
@@ -586,11 +588,12 @@ fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
                                  i * array_info.dim_increment;
 
                     out.push(ExpandedRegister {
-                        info: info,
-                        name: name.to_sanitized_snake_case().into_owned(),
-                        offset: offset,
-                        ty: Either::Right(ty.clone()),
-                    });
+                                 info: info,
+                                 name: name.to_sanitized_snake_case()
+                                     .into_owned(),
+                                 offset: offset,
+                                 ty: Either::Right(ty.clone()),
+                             });
                 }
             }
         }
@@ -616,16 +619,21 @@ fn name_of(r: &Register) -> Cow<str> {
 
 fn access(r: &Register) -> Access {
     r.access.unwrap_or_else(|| if let Some(ref fields) = r.fields {
-        if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
-            Access::ReadOnly
-        } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
+                                if fields.iter().all(|f| {
+                                                         f.access ==
+                                                         Some(Access::ReadOnly)
+                                                     }) {
+                                    Access::ReadOnly
+                                } else if fields.iter().all(|f| {
+                                        f.access == Some(Access::WriteOnly)
+                                    }) {
             Access::WriteOnly
         } else {
             Access::ReadWrite
         }
-    } else {
-        Access::ReadWrite
-    })
+                            } else {
+                                Access::ReadWrite
+                            })
 }
 
 #[cfg_attr(feature = "cargo-clippy", allow(cyclomatic_complexity))]
@@ -642,7 +650,7 @@ pub fn gen_register(r: &Register,
 
     let reg_ty = r.size
         .or(d.size)
-        .expect(&format!("{:#?} has no `size` field", r))
+        .expect(&format!("Register {} has no `size` field", r.name))
         .to_ty();
     let access = access(r);
 
@@ -777,10 +785,10 @@ pub fn gen_register(r: &Register,
                     continue;
                 }
 
-                let field_name = Ident::new(&*field.name
-                    .to_sanitized_snake_case());
-                let _field_name =
-                    Ident::new(&*format!("_{}",
+                let field_name =
+                    Ident::new(&*field.name
+                                     .to_sanitized_snake_case());
+                let _field_name = Ident::new(&*format!("_{}",
                                          field.name
                                              .replace(BLACKLIST_CHARS, "")
                                              .to_snake_case()));
@@ -815,9 +823,10 @@ pub fn gen_register(r: &Register,
                     let variants = (0..1 << width)
                         .map(|i| {
                             let value = u64::from(i);
-                            if let Some(ev) = evs.values
-                                .iter()
-                                .find(|ev| ev.value == Some(i)) {
+                            if let Some(ev) =
+                                evs.values
+                                    .iter()
+                                    .find(|ev| ev.value == Some(i)) {
                                 let sc = Ident::new(&*ev.name
                                     .replace(BLACKLIST_CHARS, "")
                                     .to_snake_case());
@@ -861,8 +870,9 @@ pub fn gen_register(r: &Register,
                                                  .to_sanitized_pascal_case()))
                     };
 
-                    if let Some(register) = base.as_ref()
-                        .and_then(|base| base.register) {
+                    if let Some(register) =
+                        base.as_ref()
+                            .and_then(|base| base.register) {
                         let register =
                             Ident::new(&*register.to_sanitized_snake_case());
 
@@ -1004,8 +1014,9 @@ pub fn gen_register(r: &Register,
                     continue;
                 }
 
-                let field_name_sc = Ident::new(&*field.name
-                    .to_sanitized_snake_case());
+                let field_name_sc =
+                    Ident::new(&*field.name
+                                     .to_sanitized_snake_case());
                 let width = field.bit_range.width;
                 let mask = Lit::Int((1u64 << width) - 1, IntTy::Unsuffixed);
                 let offset = Lit::Int(u64::from(field.bit_range.offset),
@@ -1049,8 +1060,9 @@ pub fn gen_register(r: &Register,
                                                  .to_sanitized_pascal_case()))
                     };
 
-                    if let Some(register) = base.as_ref()
-                        .and_then(|base| base.register) {
+                    if let Some(register) =
+                        base.as_ref()
+                            .and_then(|base| base.register) {
                         let register =
                             Ident::new(&*register.to_sanitized_snake_case());
 
@@ -1063,15 +1075,18 @@ pub fn gen_register(r: &Register,
                         }
                     }
 
-                    let variants =
-                        evs.values
-                            .iter()
-                            .map(|ev| {
-                                // TODO better error message
-                                let value = u64::from(ev.value
-                                    .expect("no value in EnumeratedValue"));
+                    let variants = evs.values
+                        .iter()
+                        .map(|ev| {
+                            let value =
+                                u64::from(ev.value
+                                              .expect(&format!("no value in \
+                                                      EnumeratedValue in \
+                                                      {}.{}",
+                                                     r.name,
+                                                     field.name)));
 
-                                Variant {
+                            Variant {
                                     doc: ev.description
                                         .clone()
                                         .unwrap_or_else(|| {
@@ -1083,8 +1098,8 @@ pub fn gen_register(r: &Register,
                                         .to_sanitized_snake_case()),
                                     value: value,
                                 }
-                            })
-                            .collect::<Vec<_>>();
+                        })
+                        .collect::<Vec<_>>();
 
                     // Whether the `bits` method should be `unsafe`.
                     // `bits` can be safe when enumeratedValues covers all
@@ -1261,15 +1276,19 @@ fn lookup<'a>(evs: &'a [EnumeratedValues],
                 let mut parts = base.split('.');
 
                 let (register, fields, field) = match (parts.next(),
-                                                       parts.next()) {
+                       parts.next()) {
                     (Some(register), Some(field)) => {
-                        // TODO better error message
                         let fields = all_registers.iter()
                             .find(|r| r.name == register)
-                            .expect("couldn't find register")
+                            .expect(&format!("couldn't find register {} \
+                                              requested by 'derivedFrom=\
+                                              \"{}\"'",
+                                             register,
+                                             base))
                             .fields
                             .as_ref()
-                            .expect("no fields");
+                            .expect(&format!("register {} has no fields",
+                                             register));
 
                         (Some(register), &fields[..], field)
                     }
@@ -1277,17 +1296,23 @@ fn lookup<'a>(evs: &'a [EnumeratedValues],
                     _ => unreachable!(),
                 };
 
-                // TODO better error message
-                let evs = fields.iter()
-                    .flat_map(|f| f.enumerated_values.iter())
-                    .find(|evs| evs.name.as_ref().map(|s| &**s) == Some(field))
-                    .expect("");
+                let evs =
+                    fields.iter()
+                        .flat_map(|f| f.enumerated_values.iter())
+                        .find(|evs| {
+                            evs.name.as_ref().map(|s| &**s) == Some(field)
+                        })
+                        .expect(&format!("couldn't find field {} in {}",
+                                     field,
+                                     register.map(|r| {
+                                         format!("register {}", r)
+                                     }).unwrap_or("this register".to_owned())));
 
                 (evs,
                  Some(Base {
-                     register: register,
-                     field: field,
-                 }))
+                          register: register,
+                          field: field,
+                      }))
             } else {
                 (evs, None)
             }
