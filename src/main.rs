@@ -34,11 +34,7 @@ fn main() {
     let d = svd::parse(xml);
     match matches.value_of("peripheral") {
         None => {
-            for peripheral in &d.peripherals {
-                println!("const {}: usize = 0x{:08x};",
-                         peripheral.name,
-                         peripheral.base_address);
-            }
+            println!("{}", svd2rust::gen_interrupts(&d.peripherals));
         }
         Some(pattern) => {
             if let Some(peripheral) = find_peripheral(&d, |n| n == pattern)
@@ -83,13 +79,15 @@ fn merge(p: &svd::Peripheral, bp: &svd::Peripheral) -> svd::Peripheral {
             p.name,
             bp.name);
 
+    let mut interrupts = bp.interrupt.clone();
+    interrupts.extend(p.interrupt.iter().cloned());
     svd::Peripheral {
         name: p.name.clone(),
         base_address: p.base_address,
         derived_from: None,
         group_name: p.group_name.clone().or_else(|| bp.group_name.clone()),
         description: p.description.clone().or_else(|| bp.description.clone()),
-        interrupt: p.interrupt.clone().or_else(|| bp.interrupt.clone()),
+        interrupt: interrupts,
         registers: p.registers.clone().or_else(|| bp.registers.clone()),
     }
 }
