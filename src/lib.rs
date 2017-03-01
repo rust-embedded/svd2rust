@@ -1346,6 +1346,7 @@ pub fn gen_interrupts(peripherals: &[Peripheral]) -> Tokens {
         }
 
         unsafe impl Nr for Interrupt {
+            #[inline(always)]
             fn nr(&self) -> u8 {
                 match *self {
                     #(#arms)*
