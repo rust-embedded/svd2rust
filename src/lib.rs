@@ -1263,6 +1263,15 @@ pub fn gen_interrupts(peripherals: &[Peripheral]) -> Tokens {
     // Counter for reserved blocks
     let mut res = 0;
     let mut uses_reserved = false;
+    let mut items = vec![quote! {
+        //! Interrupts
+
+        pub use cortex_m::interrupt::free;
+
+        use cortex_m::ctxt::Token;
+        use cortex_m::exception;
+        use cortex_m::interrupt::Nr;
+    }];
     for interrupt in &interrupts {
         if pos < interrupt.value {
             let name = Ident::new(&*format!("_reserved{}", res));
@@ -1282,20 +1291,27 @@ pub fn gen_interrupts(peripherals: &[Peripheral]) -> Tokens {
         }
 
         let name = Ident::new(&*interrupt.name.to_sanitized_snake_case());
+        let name_pc = interrupt.name.to_sanitized_pascal_case();
+        let ctxt = Ident::new(&*format!("{}Ctxt", name_pc));
         let doc = interrupt.description
             .as_ref()
             .map(|s| respace(s))
             .unwrap_or_else(|| interrupt.name.clone());
         fields.push(quote! {
             #[doc = #doc]
-            pub #name: Handler,
+            pub #name: unsafe extern "C" fn(&#ctxt),
+        });
+
+        items.push(quote! {
+            pub struct #ctxt { _0: () }
+            unsafe impl Token for #ctxt {}
         });
 
         exprs.push(quote! {
             #name: exception::default_handler,
         });
 
-        let name = Ident::new(&*interrupt.name.to_sanitized_pascal_case());
+        let name = Ident::new(&*name_pc);
         variants.push(quote! {
             #[doc = #doc]
             #name,
@@ -1309,22 +1325,9 @@ pub fn gen_interrupts(peripherals: &[Peripheral]) -> Tokens {
         pos = interrupt.value + 1;
     }
 
-    let mut items = vec![];
-
-    items.push(quote! {
-        //! Interrupts
-
-        use cortex_m::exception;
-        use cortex_m::interrupt::Nr;
-    });
-
     if uses_reserved {
         items.push(quote! {
-            use cortex_m::{Handler, Reserved};
-        });
-    } else {
-        items.push(quote! {
-            use cortex_m::Handler;
+            use cortex_m::Reserved;
         });
     }
 
