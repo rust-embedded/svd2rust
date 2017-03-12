@@ -89,7 +89,7 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
             .unwrap_or_else(|| interrupt.name.clone());
         fields.push(quote! {
             #[doc = #description]
-            pub #name: unsafe extern "C" fn(#name_pc),
+            pub #name: extern "C" fn(#name_pc),
         });
 
         mod_items.push(quote! {
