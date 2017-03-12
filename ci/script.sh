@@ -31,6 +31,7 @@ main() {
     echo 'vcell = "0.1.0"' >> $td/Cargo.toml
 
     test_svd Nordic nrf51
+    test_svd STMicro STM32F100xx
     test_svd STMicro STM32F103xx
     test_svd STMicro STM32F30x
 
