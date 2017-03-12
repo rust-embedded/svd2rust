@@ -46,7 +46,8 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
         .map(|i| (i.value, i))
         .collect::<HashMap<_, _>>();
 
-    let interrupts = interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
+    let mut interrupts = interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
+    interrupts.sort_by_key(|i| i.value);
 
     let mut fields = vec![];
     let mut exprs = vec![];
