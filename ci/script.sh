@@ -27,7 +27,7 @@ main() {
 
     # test crate
     cargo init --name foo $td
-    echo 'cortex-m = { git = "https://github.com/japaric/cortex-m", branch = "ng" }' >> $td/Cargo.toml
+    echo 'cortex-m = "0.2.0"' >> $td/Cargo.toml
     echo 'vcell = "0.1.0"' >> $td/Cargo.toml
 
     test_svd Nordic nrf51
