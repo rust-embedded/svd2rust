@@ -46,7 +46,8 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
         .map(|i| (i.value, i))
         .collect::<HashMap<_, _>>();
 
-    let mut interrupts = interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
+    let mut interrupts =
+        interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
     interrupts.sort_by_key(|i| i.value);
 
     let mut fields = vec![];
@@ -84,10 +85,13 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
 
         let name = Ident::new(&*interrupt.name.to_sanitized_snake_case());
         let name_pc = Ident::new(interrupt.name.to_sanitized_pascal_case());
-        let description = interrupt.description
-            .as_ref()
-            .map(|s| util::respace(s))
-            .unwrap_or_else(|| interrupt.name.clone());
+        let description =
+            format!("{} - {}",
+                    interrupt.value,
+                    interrupt.description
+                        .as_ref()
+                        .map(|s| util::respace(s))
+                        .unwrap_or_else(|| interrupt.name.clone()));
         fields.push(quote! {
             #[doc = #description]
             pub #name: extern "C" fn(#name_pc),
