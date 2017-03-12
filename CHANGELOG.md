@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Support for whole device generation
+
+### Changed
+
+- [breaking-change] The CLI have been totally changed. There's only one option
+  now: whole device generation.
+
 ## [v0.3.0] - 2017-02-18
 
 ### Changed
