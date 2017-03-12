@@ -1,6 +1,14 @@
-//! Generate Rust register maps (`struct`s) from SVD files
+//! Peripheral API generator from [CMSIS-SVD] files
 //!
-//! # [Changelog](https://github.com/japaric/svd2rust/blob/master/CHANGELOG.md)
+//! [CMSIS-SVD]: http://www.keil.com/pack/doc/CMSIS/SVD/html/index.html
+//!
+//! A SVD file is an XML file that describes the hardware features of a
+//! microcontroller. In particular, it list all the peripherals available to the
+//! device, where the registers associated to each device are located in memory
+//! and what's the function of each register.
+//!
+//! `svd2rust` is a command line tool that transforms SVD files into crates that
+//! expose a type safe API to access the peripherals of the device.
 //!
 //! # Installation
 //!
@@ -10,122 +18,111 @@
 //!
 //! # Usage
 //!
-//! - Get the start/base address of each peripheral's register block.
-//!
 //! ```
-//! $ svd2rust -i STM32F30x.svd
-//! const GPIOA: usize = 0x48000000;
-//! const GPIOB: usize = 0x48000400;
-//! const GPIOC: usize = 0x48000800;
-//! const GPIOD: usize = 0x48000c00;
-//! const GPIOE: usize = 0x48001000;
-//! const GPIOF: usize = 0x48001400;
-//! const TSC: usize = 0x40024000;
-//! const CRC: usize = 0x40023000;
-//! const Flash: usize = 0x40022000;
-//! const RCC: usize = 0x40021000;
-//! ```
+//! $ svd2rust -i STM32F30x.svd | tee src/lib.rs
+//! //! Peripheral access API for STM32F30X microcontrollers (generated using svd2rust v0.4.0)
 //!
-//! - Generate a register map for a single peripheral.
+//! #![deny(missing_docs)]
+//! #![deny(warnings)]
+//! #![feature(const_fn)]
+//! #![no_std]
 //!
-//! ```
-//! $ svd2rust -i STM32F30x.svd rcc | head
-//! //! Reset and clock control
+//! extern crate cortex_m;
+//! extern crate vcell;
+//!
+//! use cortex_m::peripheral::Peripheral;
+//!
+//! /// Interrupts
+//! pub mod interrupt {
+//!     ..
+//! }
+//!
+//! /// General-purpose I/Os
+//! pub const GPIOA: Peripheral<Gpioa> = unsafe { Peripheral::new(1207959552) };
+//!
+//! /// General-purpose I/Os
+//! pub mod gpioa {
+//!     pub struct RegisterBlock {
+//!         /// GPIO port mode register
+//!         pub moder: Moder,
+//!         ..
+//!     }
+//!     ..
+//! }
+//!
+//! pub use gpioa::RegisterBlock as Gpioa;
+//!
+//! /// General-purpose I/Os
+//! pub const GPIOB: Peripheral<Gpiob> = unsafe { Peripheral::new(1207960576) };
+//!
+//! /// General-purpose I/Os
+//! pub mod gpiob {
+//!     ..
+//! }
+//!
+//! pub use gpiob::RegisterBlock as Gpiob;
+//!
+//! /// GPIOC
+//! pub const GPIOC: Peripheral<Gpioc> = unsafe { Peripheral::new(1207961600) };
 //!
 //! /// Register block
-//! # [ repr ( C ) ]
-//! pub struct Rcc {
-//!     /// 0x00 - Clock control register
-//!     pub cr: Cr,
-//!     /// 0x04 - Clock configuration register (RCC_CFGR)
-//!     pub cfgr: Cfgr,
-//!     /// 0x08 - Clock interrupt register (RCC_CIR)
-//!     pub cir: Cir,
-//!     /// 0x0c - APB2 peripheral reset register (RCC_APB2RSTR)
+//! pub type Gpioc = Gpiob;
+//! ..
 //! ```
 //!
-//! # API
+//! # Dependencies
 //!
-//! `svd2rust` generates the following API for each peripheral:
+//! The generated API depends on:
 //!
-//! ## Register block
+//! - [`cortex-m`](https://crates.io/crates/cortex-m) v0.2.x
+//! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
 //!
-//! A register block "definition" as a `struct`. Example below:
+//! # Peripheral API
 //!
-//! ``` rust
-//! /// Register block
-//! #[repr(C)]
-//! pub struct I2c1 {
-//!     /// 0x00 - Control register 1
-//!     pub cr1: Cr1,
-//!     /// 0x04 - Control register 2
-//!     pub cr2: Cr2,
-//!     /// 0x08 - Own address register 1
-//!     pub oar1: Oar1,
-//!     /// 0x0c - Own address register 2
-//!     pub oar2: Oar2,
-//!     /// 0x10 - Timing register
-//!     pub timingr: Timingr,
-//!     /// 0x14 - Status register 1
-//!     pub timeoutr: Timeoutr,
-//!     /// 0x18 - Interrupt and Status register
-//!     pub isr: Isr,
-//!     /// 0x1c - Interrupt clear register
-//!     pub icr: Icr,
-//!     /// 0x20 - PEC register
-//!     pub pecr: Pecr,
-//!     /// 0x24 - Receive data register
-//!     pub rxdr: Rxdr,
-//!     /// 0x28 - Transmit data register
-//!     pub txdr: Txdr,
+//! In the root of the generated API, you'll find all the device peripherals as
+//! `const`ant `struct`s. You can access the register block behind the
+//! peripheral using either of these two methods:
+//!
+//! - `get()` for `unsafe`, unsynchronized access to the peripheral, or
+//!
+//! - `borrow()` which grants you exclusive access to the peripheral but can
+//!   only be used within a critical section (`interrupt::free`).
+//!
+//! The register block is basically a `struct` where each field represents a
+//! register.
+//!
+//! ```
+//! /// Inter-integrated circuit
+//! pub mod i2C1
+//!     /// Register block
+//!     pub struct RegisterBlock {
+//!         /// 0x00 - Control register 1
+//!         pub cr1: Cr1,
+//!         /// 0x04 - Control register 2
+//!         pub cr2: Cr2,
+//!         /// 0x08 - Own address register 1
+//!         pub oar1: Oar1,
+//!         /// 0x0c - Own address register 2
+//!         pub oar2: Oar2,
+//!         /// 0x10 - Timing register
+//!         pub timingr: Timingr,
+//!         /// Status register 1
+//!         pub timeoutr: Timeoutr,
+//!         /// Interrupt and Status register
+//!         pub isr: Isr,
+//!         /// 0x1c - Interrupt clear register
+//!         pub icr: Icr,
+//!         /// 0x20 - PEC register
+//!         pub pecr: Pecr,
+//!         /// 0x24 - Receive data register
+//!         pub rxdr: Rxdr,
+//!         /// 0x28 - Transmit data register
+//!         pub txdr: Txdr,
+//!     }
 //! }
 //! ```
 //!
-//! The user has to "instantiate" this definition for each peripheral the
-//! microcontroller has. There are two alternatives:
-//!
-//! - `static` variables. Example below:
-//!
-//! ``` rust
-//! extern "C" {
-//!     // I2C1 can be accessed in read-write mode
-//!     pub static mut I2C1: I2c;
-//!
-//!     // whereas I2C2 can only be accessed in "read-only" mode
-//!     pub static I2C1: I2c;
-//! }
-//! ```
-//!
-//! here the addresses of these register blocks must be provided by a linker
-//! script:
-//!
-//! ``` ld
-//! /* layout.ld */
-//! I2C1 = 0x40005400;
-//! I2C2 = 0x40005800;
-//! ```
-//!
-//! This has the side effect that the `I2C1` and `I2C2` symbols get "taken" so
-//! no other C/Rust symbol (`static`, `function`, etc.) can have the same name.
-//!
-//! - "constructor" functions. Example below:
-//!
-//! ``` rust
-//! // Base addresses of the register blocks. These are private.
-//! const I2C1: usize = 0x40005400;
-//! const I2C2: usize = 0x40005800;
-//!
-//! // NOTE(unsafe) hands out aliased `&mut-` references
-//! pub unsafe fn i2c1() -> &'static mut I2C {
-//!     unsafe { &mut *(I2C1 as *mut I2c) }
-//! }
-//!
-//! pub fn i2c2() -> &'static I2C {
-//!     unsafe { &*(I2C2 as *const I2c) }
-//! }
-//! ```
-//!
-//! ## `read` / `modify` / `write`
+//! # `read` / `modify` / `write` API
 //!
 //! Each register in the register block, e.g. the `cr1` field in the `I2c`
 //! struct, exposes a combination of the `read`, `modify` and `write` methods.
@@ -145,7 +142,8 @@
 //! impl Cr2 {
 //!     /// Modifies the contents of the register
 //!     pub fn modify<F>(&mut self, f: F)
-//!         where for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W
+//!     where
+//!         for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W
 //!     {
 //!         ..
 //!     }
@@ -155,7 +153,8 @@
 //!
 //!     /// Writes to the register
 //!     pub fn write<F>(&mut self, f: F)
-//!         where F: FnOnce(&mut W) -> &mut W,
+//!     where
+//!         F: FnOnce(&mut W) -> &mut W,
 //!     {
 //!         ..
 //!     }
@@ -228,8 +227,8 @@
 //! // register CR2.
 //! i2c1.cr2.write(|w| unsafe { w.sadd0().bits(1).sadd1().bits(0b0011110) });
 //! // NOTE ^ unsafe because you could be writing a reserved bit pattern into
-//! // the register. The SVD doesn't provide enough information to check that's
-//! // not the case.
+//! // the register. In this case, the SVD doesn't provide enough information to
+//! // check whether that's the case.
 //!
 //! // NOTE The argument to `bits` will be *masked* before writing it to the
 //! // bitfield. This makes it impossible to write, for example, `6` to a 2-bit
@@ -266,15 +265,15 @@
 //!
 //! ```
 //! match gpioa.dir.read().pin0() {
-//!     gpio::dir::DirR::Input => { .. },
-//!     gpio::dir::DirR::Output => { .. },
+//!     gpioa::dir::Pin0R::Input => { .. },
+//!     gpioa::dir::Pin0R::Output => { .. },
 //! }
 //! ```
 //!
 //! or test for equality
 //!
 //! ```
-//! if gpioa.dir.read().pin0() == gpio::dir::DirR::Input {
+//! if gpioa.dir.read().pin0() == gpio::dir::Pin0R::Input {
 //!     ..
 //! }
 //! ```
@@ -305,7 +304,7 @@
 //!
 //! ```
 //! // enum DirW { Input, Output }
-//! gpioa.dir.write(|w| w.pin0().variant(gpio::dir::DirW::Output));
+//! gpioa.dir.write(|w| w.pin0().variant(gpio::dir::Pin0W::Output));
 //! ```
 //!
 //! There are convenience methods to pick one of the variants without having to
@@ -322,1041 +321,88 @@
 //! // safe because there are only two options: `0` or `1`
 //! gpioa.dir.write(|w| w.pin0().bits(1));
 //! ```
-
-#![recursion_limit = "128"]
-
-extern crate either;
-extern crate inflections;
-extern crate svd_parser as svd;
-#[macro_use]
-extern crate quote;
-extern crate syn;
-
-use std::borrow::Cow;
-use std::collections::HashSet;
-use std::io::Write;
-use std::io;
-use std::rc::Rc;
-
-use either::Either;
-use inflections::Inflect;
-use quote::Tokens;
-use svd::{Access, BitRange, Defaults, EnumeratedValues, Field, Peripheral,
-          Register, RegisterInfo, Usage};
-use syn::*;
-
-/// List of chars that some vendors use in their peripheral/field names but
-/// that are not valid in Rust ident
-const BLACKLIST_CHARS: &'static [char] = &['(', ')'];
-
-trait ToSanitizedPascalCase {
-    fn to_sanitized_pascal_case(&self) -> Cow<str>;
-}
-
-trait ToSanitizedSnakeCase {
-    fn to_sanitized_snake_case(&self) -> Cow<str>;
-}
-
-impl ToSanitizedSnakeCase for str {
-    fn to_sanitized_snake_case(&self) -> Cow<str> {
-        macro_rules! keywords {
-            ($s:expr, $($kw:ident),+,) => {
-                Cow::from(match &$s.to_lowercase()[..] {
-                    $(stringify!($kw) => concat!(stringify!($kw), "_")),+,
-                    _ => return Cow::from($s.to_snake_case())
-                })
-            }
-        }
-
-        let s = self.replace(BLACKLIST_CHARS, "");
-
-        match s.chars().next().unwrap_or('\0') {
-            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_snake_case()))
-            }
-            _ => {
-                keywords! {
-                    s,
-                    abstract,
-                    alignof,
-                    as,
-                    become,
-                    box,
-                    break,
-                    const,
-                    continue,
-                    crate,
-                    do,
-                    else,
-                    enum,
-                    extern,
-                    false,
-                    final,
-                    fn,
-                    for,
-                    if,
-                    impl,
-                    in,
-                    let,
-                    loop,
-                    macro,
-                    match,
-                    mod,
-                    move,
-                    mut,
-                    offsetof,
-                    override,
-                    priv,
-                    proc,
-                    pub,
-                    pure,
-                    ref,
-                    return,
-                    self,
-                    sizeof,
-                    static,
-                    struct,
-                    super,
-                    trait,
-                    true,
-                    type,
-                    typeof,
-                    unsafe,
-                    unsized,
-                    use,
-                    virtual,
-                    where,
-                    while,
-                    yield,
-                }
-            }
-        }
-    }
-}
-
-impl ToSanitizedPascalCase for str {
-    fn to_sanitized_pascal_case(&self) -> Cow<str> {
-        let s = self.replace(BLACKLIST_CHARS, "");
-
-        match s.chars().next().unwrap_or('\0') {
-            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_pascal_case()))
-            }
-            _ => Cow::from(s.to_pascal_case()),
-        }
-    }
-}
-
-#[doc(hidden)]
-pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
-    assert!(p.derived_from.is_none(),
-            "DerivedFrom not supported here (should be resolved earlier)");
-
-    let mut items = vec![];
-    let mut fields = vec![];
-    let mut offset = 0;
-    let mut i = 0;
-    let registers =
-        p.registers
-            .as_ref()
-            .expect(&format!("Peripheral {} has no `registers` field", p.name));
-
-    for register in &expand(registers) {
-        let pad = if let Some(pad) = register.offset
-               .checked_sub(offset) {
-            pad
-        } else {
-            writeln!(io::stderr(),
-                     "WARNING {} overlaps with another register at offset \
-                      {}. Ignoring.",
-                     register.name,
-                     register.offset)
-                    .ok();
-            continue;
-        };
-
-        if pad != 0 {
-            let name = Ident::new(format!("_reserved{}", i));
-            let pad = pad as usize;
-            fields.push(quote! {
-                #name : [u8; #pad]
-            });
-            i += 1;
-        }
-
-        let comment = &format!("0x{:02x} - {}",
-                               register.offset,
-                               respace(&register.info
-                                            .description))
-                           [..];
-
-        let reg_ty = match register.ty {
-            Either::Left(ref ty) => Ident::from(&**ty),
-            Either::Right(ref ty) => Ident::from(&***ty),
-        };
-        let reg_name = Ident::new(&*register.name.to_sanitized_snake_case());
-        fields.push(quote! {
-            #[doc = #comment]
-            pub #reg_name : #reg_ty
-        });
-
-        offset = register.offset +
-                 register.info
-                     .size
-                     .or(d.size)
-                     .expect(&format!("Register {}.{} has no `size` field",
-                                      p.name,
-                                      register.name)) / 8;
-    }
-
-    let p_name = Ident::new(&*p.name.to_sanitized_pascal_case());
-
-    let doc = p.description
-        .as_ref()
-        .map(|s| respace(s))
-        .unwrap_or_else(|| "Peripheral".to_owned());
-    items.push(quote! {
-        #![doc = #doc]
-
-        /// Register block
-        #[repr(C)]
-        pub struct #p_name {
-            #(#fields),*
-        }
-    });
-
-    for register in registers {
-        items.extend(gen_register(register, d, registers));
-    }
-
-    items
-}
-
-struct ExpandedRegister<'a> {
-    info: &'a RegisterInfo,
-    name: String,
-    offset: u32,
-    ty: Either<String, Rc<String>>,
-}
-
-/// Takes a list of "registers", some of which may actually be register arrays,
-/// and turns it into a new *sorted* (by address offset) list of registers where
-/// the register arrays have been expanded.
-fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
-    let mut out = vec![];
-
-    for r in registers {
-        match *r {
-            Register::Single(ref info) => {
-                out.push(ExpandedRegister {
-                    info: info,
-                    name: info.name.to_sanitized_snake_case().into_owned(),
-                    offset: info.address_offset,
-                    ty: Either::Left(info.name
-                        .to_sanitized_pascal_case()
-                        .into_owned()),
-                })
-            }
-            Register::Array(ref info, ref array_info) => {
-                let has_brackets = info.name.contains("[%s]");
-
-                let ty = if has_brackets {
-                    info.name.replace("[%s]", "")
-                } else {
-                    info.name.replace("%s", "")
-                };
-
-                let ty = Rc::new(ty.to_sanitized_pascal_case().into_owned());
-
-                let indices = array_info.dim_index
-                    .as_ref()
-                    .map(|v| Cow::from(&**v))
-                    .unwrap_or_else(|| {
-                        Cow::from((0..array_info.dim)
-                                      .map(|i| i.to_string())
-                                      .collect::<Vec<_>>())
-                    });
-
-                for (idx, i) in indices.iter().zip(0..) {
-                    let name = if has_brackets {
-                        info.name.replace("[%s]", idx)
-                    } else {
-                        info.name.replace("%s", idx)
-                    };
-
-                    let offset = info.address_offset +
-                                 i * array_info.dim_increment;
-
-                    out.push(ExpandedRegister {
-                                 info: info,
-                                 name: name.to_sanitized_snake_case()
-                                     .into_owned(),
-                                 offset: offset,
-                                 ty: Either::Right(ty.clone()),
-                             });
-                }
-            }
-        }
-    }
-
-    out.sort_by_key(|x| x.offset);
-
-    out
-}
-
-fn name_of(r: &Register) -> Cow<str> {
-    match *r {
-        Register::Single(ref info) => Cow::from(&*info.name),
-        Register::Array(ref info, _) => {
-            if info.name.contains("[%s]") {
-                info.name.replace("[%s]", "").into()
-            } else {
-                info.name.replace("%s", "").into()
-            }
-        }
-    }
-}
-
-fn access(r: &Register) -> Access {
-    r.access.unwrap_or_else(|| if let Some(ref fields) = r.fields {
-                                if fields.iter().all(|f| {
-                                                         f.access ==
-                                                         Some(Access::ReadOnly)
-                                                     }) {
-                                    Access::ReadOnly
-                                } else if fields.iter().all(|f| {
-                                        f.access == Some(Access::WriteOnly)
-                                    }) {
-            Access::WriteOnly
-        } else {
-            Access::ReadWrite
-        }
-                            } else {
-                                Access::ReadWrite
-                            })
-}
-
-#[cfg_attr(feature = "cargo-clippy", allow(cyclomatic_complexity))]
-#[doc(hidden)]
-pub fn gen_register(r: &Register,
-                    d: &Defaults,
-                    all_registers: &[Register])
-                    -> Vec<Tokens> {
-    let mut items = vec![];
-
-    let name = name_of(r);
-    let name_pc = Ident::new(&*name.to_sanitized_pascal_case());
-    let name_sc = Ident::new(&*name.to_sanitized_snake_case());
-
-    let reg_ty = r.size
-        .or(d.size)
-        .expect(&format!("Register {} has no `size` field", r.name))
-        .to_ty();
-    let access = access(r);
-
-    let doc = respace(&r.description);
-    match access {
-        Access::ReadOnly => {
-            items.push(quote! {
-                #[doc = #doc]
-                #[repr(C)]
-                pub struct #name_pc {
-                    register: ::volatile_register::RO<#reg_ty>
-                }
-            });
-        }
-        Access::ReadWrite => {
-            items.push(quote! {
-                #[doc = #doc]
-                #[repr(C)]
-                pub struct #name_pc {
-                    register: ::volatile_register::RW<#reg_ty>
-                }
-            });
-        }
-        Access::WriteOnly => {
-            items.push(quote! {
-                #[doc = #doc]
-                #[repr(C)]
-                pub struct #name_pc {
-                    register: ::volatile_register::WO<#reg_ty>
-                }
-            });
-        }
-        _ => unreachable!(),
-    }
-
-    let mut mod_items = vec![];
-    let mut impl_items = vec![];
-    let mut r_impl_items = vec![];
-    let mut w_impl_items = vec![];
-    if access == Access::ReadWrite {
-        impl_items.push(quote! {
-            /// Modifies the contents of the register
-            pub fn modify<F>(&mut self, f: F)
-                where for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W,
-            {
-                let bits = self.register.read();
-                let r = R { bits: bits };
-                let mut w = W { bits: bits };
-                f(&r, &mut w);
-                self.register.write(w.bits);
-            }
-        });
-    }
-
-    if access == Access::ReadOnly || access == Access::ReadWrite {
-        impl_items.push(quote! {
-            /// Reads the contents of the register
-            pub fn read(&self) -> R {
-                R { bits: self.register.read() }
-            }
-        });
-
-        mod_items.push(quote! {
-            /// Value read from the register
-            pub struct R {
-                bits: #reg_ty,
-            }
-        });
-
-        r_impl_items.push(quote! {
-            /// Value of the register as raw bits
-            pub fn bits(&self) -> #reg_ty {
-                self.bits
-            }
-        });
-    }
-
-    if access == Access::WriteOnly || access == Access::ReadWrite {
-        impl_items.push(quote! {
-            /// Writes to the register
-            pub fn write<F>(&mut self, f: F)
-                where F: FnOnce(&mut W) -> &mut W,
-            {
-                let mut w = W::reset_value();
-                f(&mut w);
-                self.register.write(w.bits);
-            }
-        });
-
-        mod_items.push(quote! {
-            /// Value to write to the register
-            pub struct W {
-                bits: #reg_ty,
-            }
-        });
-
-        if let Some(reset_value) =
-            r.reset_value
-                .or(d.reset_value)
-                .map(|x| Lit::Int(x as u64, IntTy::Unsuffixed)) {
-            w_impl_items.push(quote! {
-                /// Reset value of the register
-                pub fn reset_value() -> W {
-                    W { bits: #reset_value }
-                }
-            });
-        }
-
-        w_impl_items.push(quote! {
-            /// Writes raw `bits` to the register
-            pub unsafe fn bits(&mut self, bits: #reg_ty) -> &mut Self {
-                self.bits = bits;
-                self
-            }
-        });
-    }
-
-    mod_items.push(quote! {
-        impl super::#name_pc {
-            #(#impl_items)*
-        }
-    });
-
-    let fields = r.fields.as_ref().map(|fs| &**fs).unwrap_or(&[]);
-
-    if !fields.is_empty() {
-        let mut reexported = HashSet::new();
-
-        if access == Access::ReadOnly || access == Access::ReadWrite {
-            for field in fields {
-                if field.access == Some(Access::WriteOnly) {
-                    continue;
-                }
-
-                let field_name =
-                    Ident::new(&*field.name
-                                     .to_sanitized_snake_case());
-                let _field_name = Ident::new(&*format!("_{}",
-                                         field.name
-                                             .replace(BLACKLIST_CHARS, "")
-                                             .to_snake_case()));
-                let width = field.bit_range.width;
-                let mask = Lit::Int((1u64 << width) - 1, IntTy::Unsuffixed);
-                let offset = Lit::Int(u64::from(field.bit_range.offset),
-                                      IntTy::Unsuffixed);
-                let field_ty = width.to_ty();
-
-                r_impl_items.push(quote! {
-                    fn #_field_name(&self) -> #field_ty {
-                        const MASK: #field_ty = #mask;
-                        const OFFSET: u8 = #offset;
-
-                        ((self.bits >> OFFSET) & MASK as #reg_ty) as #field_ty
-                    }
-                });
-
-                if let Some((evs, base)) =
-                    lookup(&field.enumerated_values,
-                           fields,
-                           all_registers,
-                           Usage::Read) {
-                    struct Variant {
-                        doc: Cow<'static, str>,
-                        pc: Ident,
-                        // `None` indicates a reserved variant
-                        sc: Option<Ident>,
-                        value: u64,
-                    }
-
-                    let variants = (0..1 << width)
-                        .map(|i| {
-                            let value = u64::from(i);
-                            if let Some(ev) =
-                                evs.values
-                                    .iter()
-                                    .find(|ev| ev.value == Some(i)) {
-                                let sc = Ident::new(&*ev.name
-                                    .replace(BLACKLIST_CHARS, "")
-                                    .to_snake_case());
-                                let doc = Cow::from(ev.description
-                                    .clone()
-                                    .unwrap_or_else(|| {
-                                        format!("A possible value of \
-                                                 the field `{}`",
-                                                sc)
-                                    }));
-
-                                Variant {
-                                    doc: doc,
-                                    pc: Ident::new(&*ev.name
-                                        .to_sanitized_pascal_case()),
-                                    sc: Some(sc),
-                                    value: value,
-                                }
-                            } else {
-                                Variant {
-                                    doc: Cow::from("Reserved"),
-                                    pc: Ident::new(format!("_Reserved{:b}", i)),
-                                    sc: None,
-                                    value: value,
-                                }
-                            }
-                        })
-                        .collect::<Vec<_>>();
-
-                    let variants_pc = variants.iter().map(|v| &v.pc);
-
-                    let enum_name = if let Some(ref base) = base {
-                        Ident::new(&*format!("{}R",
-                                             base.field
-                                                 .to_sanitized_pascal_case()))
-                    } else {
-                        Ident::new(&*format!("{}R",
-                                             evs.name
-                                                 .as_ref()
-                                                 .unwrap_or(&field.name)
-                                                 .to_sanitized_pascal_case()))
-                    };
-
-                    if let Some(register) =
-                        base.as_ref()
-                            .and_then(|base| base.register) {
-                        let register =
-                            Ident::new(&*register.to_sanitized_snake_case());
-
-                        if !reexported.contains(&enum_name) {
-                            mod_items.push(quote! {
-                                pub use super::#register::#enum_name;
-                            });
-
-                            reexported.insert(enum_name.clone());
-                        }
-                    }
-
-                    let doc = field_doc(field.bit_range,
-                                        field.description.as_ref());
-                    r_impl_items.push(quote! {
-                        #[doc = #doc]
-                        pub fn #field_name(&self) -> #enum_name {
-                            #enum_name::_from(self.#_field_name())
-                        }
-                    });
-
-                    if base.is_none() {
-                        let doc = format!("Possible values of the field `{}`",
-                                          field_name);
-                        let variants_doc = variants.iter().map(|v| &*v.doc);
-                        mod_items.push(quote! {
-                            #[doc = #doc]
-                            #[derive(Clone, Copy, Debug, PartialEq)]
-                            pub enum #enum_name {
-                                #(#[doc = #variants_doc]
-                                  #variants_pc),*
-                            }
-                        });
-
-                        let mut enum_items = vec![];
-
-                        let arms = variants.iter()
-                            .map(|v| {
-                                let value = Lit::Int(v.value,
-                                                     IntTy::Unsuffixed);
-                                let pc = &v.pc;
-
-                                quote! {
-                                    #enum_name::#pc => #value
-                                }
-                            });
-                        enum_items.push(quote! {
-                            /// Value of the field as raw bits
-                            pub fn bits(&self) -> #field_ty {
-                                match *self {
-                                    #(#arms),*
-                                }
-                            }
-                        });
-
-                        let arms = variants.iter()
-                            .map(|v| {
-                                let i = Lit::Int(v.value, IntTy::Unsuffixed);
-                                let pc = &v.pc;
-
-                                quote! {
-                                    #i => #enum_name::#pc
-                                }
-                            });
-
-                        enum_items.push(quote! {
-                            #[allow(missing_docs)]
-                            #[doc(hidden)]
-                            #[inline(always)]
-                            pub fn _from(bits: #field_ty) -> #enum_name {
-                                match bits {
-                                    #(#arms),*,
-                                    _ => unreachable!(),
-                                }
-                            }
-                        });
-
-                        for v in &variants {
-                            if let Some(ref sc) = v.sc {
-                                let pc = &v.pc;
-
-                                let is_variant = {
-                                    Ident::new(&*format!("is_{}", sc))
-                                };
-
-                                let doc = format!("Check if \
-                                                   the value of the field \
-                                                   is `{}`",
-                                                  pc);
-                                enum_items.push(quote! {
-                                    #[doc = #doc]
-                                    pub fn #is_variant(&self) -> bool {
-                                        *self == #enum_name::#pc
-                                    }
-                                });
-                            }
-                        }
-
-                        mod_items.push(quote! {
-                            impl #enum_name {
-                                #(#enum_items)*
-                            }
-                        });
-                    }
-                } else {
-                    let name = Ident::new(&*format!("{}R",
-                                            field.name
-                                            .to_sanitized_pascal_case()));
-                    let doc = format!("Value of the field {}", field.name);
-                    mod_items.push(quote! {
-                        #[doc = #doc]
-                        pub struct #name {
-                            bits: #field_ty,
-                        }
-
-                        impl #name {
-                            /// Value of the field as raw bits
-                            pub fn bits(&self) -> #field_ty {
-                                self.bits
-                            }
-                        }
-                    });
-
-                    let doc = field_doc(field.bit_range,
-                                        field.description.as_ref());
-                    r_impl_items.push(quote! {
-                        #[doc = #doc]
-                        pub fn #field_name(&self) -> #name {
-                            #name { bits: self.#_field_name() }
-                        }
-                    });
-                }
-            }
-        }
-
-        if access == Access::WriteOnly || access == Access::ReadWrite {
-            for field in fields {
-                if field.access == Some(Access::ReadOnly) {
-                    continue;
-                }
-
-                let field_name_sc =
-                    Ident::new(&*field.name
-                                     .to_sanitized_snake_case());
-                let width = field.bit_range.width;
-                let mask = Lit::Int((1u64 << width) - 1, IntTy::Unsuffixed);
-                let offset = Lit::Int(u64::from(field.bit_range.offset),
-                                      IntTy::Unsuffixed);
-                let field_ty = width.to_ty();
-                let proxy = Ident::new(&*format!("_{}W",
-                                                 field.name
-                                                     .to_pascal_case()));
-
-                mod_items.push(quote! {
-                    /// Proxy
-                    pub struct #proxy<'a> {
-                        register: &'a mut W,
-                    }
-                });
-
-                let mut proxy_items = vec![];
-
-                let mut bits_is_safe = false;
-                if let Some((evs, base)) =
-                    lookup(&field.enumerated_values,
-                           fields,
-                           all_registers,
-                           Usage::Write) {
-                    struct Variant {
-                        doc: String,
-                        pc: Ident,
-                        sc: Ident,
-                        value: u64,
-                    }
-
-                    let enum_name = if let Some(ref base) = base {
-                        Ident::new(&*format!("{}W",
-                                             base.field
-                                                 .to_sanitized_pascal_case()))
-                    } else {
-                        Ident::new(&*format!("{}W",
-                                             evs.name
-                                                 .as_ref()
-                                                 .unwrap_or(&field.name)
-                                                 .to_sanitized_pascal_case()))
-                    };
-
-                    if let Some(register) =
-                        base.as_ref()
-                            .and_then(|base| base.register) {
-                        let register =
-                            Ident::new(&*register.to_sanitized_snake_case());
-
-                        if !reexported.contains(&enum_name) {
-                            mod_items.push(quote! {
-                                pub use super::#register::#enum_name;
-                            });
-
-                            reexported.insert(enum_name.clone());
-                        }
-                    }
-
-                    let variants = evs.values
-                        .iter()
-                        .map(|ev| {
-                            let value =
-                                u64::from(ev.value
-                                              .expect(&format!("no value in \
-                                                      EnumeratedValue in \
-                                                      {}.{}",
-                                                     r.name,
-                                                     field.name)));
-
-                            Variant {
-                                    doc: ev.description
-                                        .clone()
-                                        .unwrap_or_else(|| {
-                                            format!("`{:b}`", value)
-                                        }),
-                                    pc: Ident::new(&*ev.name
-                                        .to_sanitized_pascal_case()),
-                                    sc: Ident::new(&*ev.name
-                                        .to_sanitized_snake_case()),
-                                    value: value,
-                                }
-                        })
-                        .collect::<Vec<_>>();
-
-                    // Whether the `bits` method should be `unsafe`.
-                    // `bits` can be safe when enumeratedValues covers all
-                    // the possible values of the bitfield or, IOW, when
-                    // there are no reserved bit patterns.
-                    bits_is_safe = variants.len() == 1 << width;
-
-                    if base.is_none() {
-                        let variants_pc = variants.iter().map(|v| &v.pc);
-                        let doc = {
-                            format!("Values that can be written \
-                                     to the field `{}`",
-                                    field_name_sc)
-                        };
-                        let variants_doc = variants.iter().map(|v| &*v.doc);
-                        mod_items.push(quote! {
-                            #[doc = #doc]
-                            pub enum #enum_name {
-                                #(#[doc = #variants_doc]
-                                  #variants_pc),*
-                            }
-                        });
-
-                        let arms = variants.iter()
-                            .map(|v| {
-                                let pc = &v.pc;
-                                let value = Lit::Int(v.value,
-                                                     IntTy::Unsuffixed);
-
-                                quote! {
-                                    #enum_name::#pc => #value
-                                }
-                            });
-
-                        mod_items.push(quote! {
-                            impl #enum_name {
-                                #[allow(missing_docs)]
-                                #[doc(hidden)]
-                                #[inline(always)]
-                                pub fn _bits(&self) -> #field_ty {
-                                    match *self {
-                                        #(#arms),*
-                                    }
-                                }
-                            }
-                        });
-                    }
-
-                    if bits_is_safe {
-                        proxy_items.push(quote! {
-                            /// Writes `variant` to the field
-                            pub fn variant(self,
-                                        variant: #enum_name) -> &'a mut W {
-                                self.bits(variant._bits())
-                            }
-                        });
-                    } else {
-                        proxy_items.push(quote! {
-                            /// Writes `variant` to the field
-                            pub fn variant(self,
-                                        variant: #enum_name) -> &'a mut W {
-                                unsafe {
-                                    self.bits(variant._bits())
-                                }
-                            }
-                        });
-                    }
-
-                    for v in &variants {
-                        let pc = &v.pc;
-                        let sc = &v.sc;
-
-                        let doc = respace(&v.doc);
-                        proxy_items.push(quote! {
-                            #[doc = #doc]
-                            pub fn #sc(self) -> &'a mut W {
-                                self.variant(#enum_name::#pc)
-                            }
-                        });
-                    }
-                }
-
-                if bits_is_safe {
-                    proxy_items.push(quote! {
-                        /// Writes raw `bits` to the field
-                        pub fn bits(self, bits: #field_ty) -> &'a mut W {
-                            const MASK: #field_ty = #mask;
-                            const OFFSET: u8 = #offset;
-
-                            self.register.bits &=
-                                !((MASK as #reg_ty) << OFFSET);
-                            self.register.bits |=
-                                ((bits & MASK) as #reg_ty) << OFFSET;
-                            self.register
-                        }
-                    });
-                } else {
-                    proxy_items.push(quote! {
-                        /// Writes raw `bits` to the field
-                        pub unsafe fn bits(self,
-                                            bits: #field_ty) -> &'a mut W {
-                            const MASK: #field_ty = #mask;
-                            const OFFSET: u8 = #offset;
-
-                            self.register.bits &=
-                                !((MASK as #reg_ty) << OFFSET);
-                            self.register.bits |=
-                                ((bits & MASK) as #reg_ty) << OFFSET;
-                            self.register
-                        }
-                    });
-                }
-
-
-                mod_items.push(quote! {
-                    impl<'a> #proxy<'a> {
-                        #(#proxy_items)*
-                    }
-                });
-
-                let doc = field_doc(field.bit_range,
-                                    field.description.as_ref());
-                w_impl_items.push(quote! {
-                    #[doc = #doc]
-                    pub fn #field_name_sc(&mut self) -> #proxy {
-                        #proxy {
-                            register: self,
-                        }
-                    }
-                });
-            }
-        }
-    }
-
-    if access == Access::ReadOnly || access == Access::ReadWrite {
-        mod_items.push(quote! {
-            impl R {
-                #(#r_impl_items)*
-            }
-        });
-    }
-
-    if access == Access::WriteOnly || access == Access::ReadWrite {
-        mod_items.push(quote! {
-            impl W {
-                #(#w_impl_items)*
-            }
-        });
-    }
-
-    let doc = respace(&r.description);
-    items.push(quote! {
-        #[doc = #doc]
-        pub mod #name_sc {
-            #(#mod_items)*
-        }
-    });
-
-    items
-}
-
-fn lookup<'a>(evs: &'a [EnumeratedValues],
-              fields: &'a [Field],
-              all_registers: &'a [Register],
-              usage: Usage)
-              -> Option<(&'a EnumeratedValues, Option<Base<'a>>)> {
-    match evs.first() {
-            Some(head) if evs.len() == 1 => Some(head),
-            None => None,
-            _ => evs.iter().find(|ev| ev.usage == Some(usage)),
-        }
-        .map(|evs| {
-            if let Some(ref base) = evs.derived_from {
-                let mut parts = base.split('.');
-
-                let (register, fields, field) = match (parts.next(),
-                       parts.next()) {
-                    (Some(register), Some(field)) => {
-                        let fields = all_registers.iter()
-                            .find(|r| r.name == register)
-                            .expect(&format!("couldn't find register {} \
-                                              requested by 'derivedFrom=\
-                                              \"{}\"'",
-                                             register,
-                                             base))
-                            .fields
-                            .as_ref()
-                            .expect(&format!("register {} has no fields",
-                                             register));
-
-                        (Some(register), &fields[..], field)
-                    }
-                    (Some(field), None) => (None, fields, field),
-                    _ => unreachable!(),
-                };
-
-                let evs =
-                    fields.iter()
-                        .flat_map(|f| f.enumerated_values.iter())
-                        .find(|evs| {
-                            evs.name.as_ref().map(|s| &**s) == Some(field)
-                        })
-                        .expect(&format!("couldn't find field {} in {}",
-                                     field,
-                                     register.map(|r| {
-                                         format!("register {}", r)
-                                     }).unwrap_or("this register".to_owned())));
-
-                (evs,
-                 Some(Base {
-                          register: register,
-                          field: field,
-                      }))
-            } else {
-                (evs, None)
-            }
-        })
-}
-
-fn field_doc(bit_range: BitRange, doc: Option<&String>) -> String {
-    let BitRange { offset, width } = bit_range;
-
-    if let Some(doc) = doc {
-        let doc = respace(doc);
-
-        if width == 1 {
-            format!("Bit {} - {}", offset, doc)
-        } else {
-            format!("Bits {}:{} - {}", offset, offset + width - 1, doc)
-        }
-    } else if width == 1 {
-        format!("Bit {}", offset)
-    } else {
-        format!("Bits {}:{}", offset, offset + width - 1)
-    }
-}
-
-struct Base<'a> {
-    register: Option<&'a str>,
-    field: &'a str,
-}
-
-trait U32Ext {
-    fn to_ty(&self) -> Ident;
-}
-
-impl U32Ext for u32 {
-    fn to_ty(&self) -> Ident {
-        match *self {
-            1...8 => Ident::new("u8"),
-            9...16 => Ident::new("u16"),
-            17...32 => Ident::new("u32"),
-            _ => panic!("{}.to_ty()", *self),
-        }
-    }
-}
-
-fn respace(s: &str) -> String {
-    s.split_whitespace().collect::<Vec<_>>().join(" ")
-}
+//!
+//! # Interrupt API
+//!
+//! SVD files also describe the interrupts available to the device. Binary output
+//! wise, the interrupt handlers must be stored in the vector table region of
+//! Flash memory. `svd2rust` provides an API to easily "register" interrupt
+//! handlers.
+//!
+//! ```
+//! /// Interrupts
+//! pub mod interrupt {
+//!     /// Interrupt handlers
+//!     pub struct Handlers {
+//!         /// Window Watchdog interrupt
+//!         pub wwdg: unsafe extern "C" fn(Wwdg),
+//!         /// PVD through EXTI line detection interrupt
+//!         pub pvd: unsafe extern "C" fn(Pvd),
+//!         ..
+//!     }
+//!
+//!     pub const DEFAULT_HANDLERS: Handlers = Handlers {
+//!         wwdg: exception::default_handler,
+//!         pvd: exception::default_handler,
+//!         ..
+//!     };
+//! }
+//! ```
+//!
+//! This `Handlers` API then can be used in applications to register the
+//! interrupt handlers:
+//!
+//! ```
+//! fn main() { .. }
+//!
+//! // My interrupt handler
+//! extern "C" fn tim7(_: interrupt::Tim7) { .. }
+//!
+//! #[no_mangle]
+//! pub static _INTERRUPT: interrupt::Handlers = interrupt::Handlers {
+//!     tim7: tim7, ..interrupt::DEFAULT_HANDLERS
+//! }
+//! ```
+//!
+//! This requires some linker script support:
+//!
+//! ```
+//! SECTIONS
+//! {
+//!     .text ORIGIN(FLASH) :
+//!     {
+//!         /* Vector table */
+//!         LONG(ORIGIN(RAM) + LENGTH(RAM));  /* Initial SP value */
+//!         LONG(__reset + 1);  /* Reset handler */
+//!
+//!         KEEP(*(.rodata._EXCEPTIONS));  /* exception handlers */
+//!         KEEP(*(.rodata._INTERRUPTS));  /* interrupt handlers */
+//!         ..
+//!     }
+//!     ..
+//! }
+//! ```
+//!
+//! The generated API also includes an `Interrupt` enum
+//!
+//! ```
+//! pub mod interrupt {
+//!     /// Enumeration of all the interrupts
+//!     pub enum Interrupt {
+//!         Wwdg,
+//!         Pvd,
+//!         ..
+//!     }
+//! }
+//! ```
+//!
+//! that can be used with `cortex-m`'s NVIC API:
+//!
+//! ```
+//! interrupt::free(|cs| {
+//!     NVIC.borrow(&cs).enable(Interrupt::Tim3);
+//!     NVIC.borrow(&cs).enable(Interrupt::Tim7);
+//! });
+//! ```
+
+// NOTE This file is for documentation only
