@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{self, Write};
 
 use cast::u64;
@@ -40,11 +41,12 @@ pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
 
 /// Generates code for `src/interrupt.rs`
 pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
-    let mut interrupts =
-        peripherals.iter().flat_map(|p| p.interrupt.iter()).collect::<Vec<_>>();
+    let interrupts = peripherals.iter()
+        .flat_map(|p| p.interrupt.iter())
+        .map(|i| (i.value, i))
+        .collect::<HashMap<_, _>>();
 
-    interrupts.sort_by_key(|i| i.value);
-    interrupts.dedup_by_key(|i| i.value);
+    let interrupts = interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
 
     let mut fields = vec![];
     let mut exprs = vec![];
@@ -492,12 +494,12 @@ pub fn fields(
                 description.push_str(&*util::respace(d));
             }
             Ok(F {
-                   _pc_w,
-                   _sc,
-                   description,
-                   pc_r,
-                   pc_w,
-                   width,
+                   _pc_w: _pc_w,
+                   _sc: _sc,
+                   description: description,
+                   pc_r: pc_r,
+                   pc_w: pc_w,
+                   width: width,
                    access: f.access,
                    evs: &f.enumerated_values,
                    sc: Ident::new(&*sc),
@@ -560,11 +562,11 @@ pub fn fields(
                                     ev.name)
                         })?);
                         Ok(Variant {
-                            description,
-                            sc,
+                            description: description,
+                            sc: sc,
                             pc: Ident::new(&*ev.name
                                            .to_sanitized_pascal_case()),
-                            value,
+                            value: value,
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;

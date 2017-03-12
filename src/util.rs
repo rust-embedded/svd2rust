@@ -374,7 +374,7 @@ fn lookup_in_register<'r>
             if matches.len() == 1 {
                 return Ok((evs,
                            Some(Base {
-                                    field,
+                                    field: field,
                                     register: None,
                                 })));
             } else {
