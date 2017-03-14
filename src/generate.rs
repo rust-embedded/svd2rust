@@ -27,6 +27,8 @@ pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
         extern crate cortex_m;
         extern crate vcell;
 
+        use core::ops::Deref;
+
         use cortex_m::peripheral::Peripheral;
     });
 
@@ -180,10 +182,18 @@ pub fn peripheral(
 
     if let Some(base) = p.derived_from.as_ref() {
         // TODO Verify that base exists
-        let base_pc = Ident::new(&*base.to_sanitized_pascal_case());
+        let base_sc = Ident::new(&*base.to_sanitized_snake_case());
         items.push(quote! {
             /// Register block
-            pub type #name_pc = #base_pc;
+            pub struct #name_pc { register_block: #base_sc::RegisterBlock }
+
+            impl Deref for #name_pc {
+                type Target = #base_sc::RegisterBlock;
+
+                fn deref(&self) -> &#base_sc::RegisterBlock {
+                    &self.register_block
+                }
+            }
         });
 
         // TODO We don't handle inheritance style `derivedFrom`, we should raise
@@ -223,7 +233,16 @@ pub fn peripheral(
             #(#mod_items)*
         }
 
-        pub use #name_sc::RegisterBlock as #name_pc;
+        #[doc = #description]
+        pub struct #name_pc { register_block: #name_sc::RegisterBlock }
+
+        impl Deref for #name_pc {
+            type Target = #name_sc::RegisterBlock;
+
+            fn deref(&self) -> &#name_sc::RegisterBlock {
+                &self.register_block
+            }
+        }
     });
 
     Ok(())
