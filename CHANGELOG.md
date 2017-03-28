@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [v0.5.0] - 2017-03-27
+
+### Changed
+
+- [breaking change] each peripheral instance now has its own type. Direct use
+  of the instances will continue working but function calls whose arguments
+  include a peripheral instance will likely break.
 
 ## [v0.4.0] - 2017-03-12
 
