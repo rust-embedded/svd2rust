@@ -821,14 +821,20 @@ pub fn fields(
                             #[doc = #pc_w_doc]
                             pub type #pc_w = super::#mod_::#base_pc_w;
                         });
+
+                        quote! {
+                            super::#mod_::#base_pc_w
+                        }
                     } else {
                         mod_items.push(quote! {
                             #[doc = #pc_w_doc]
                             pub type #pc_w = #base_pc_w;
                         });
-                    }
 
-                    base_pc_w
+                        quote! {
+                            #base_pc_w
+                        }
+                    }
                 });
 
                 let variants = evs.values
@@ -907,14 +913,23 @@ pub fn fields(
                     let sc = &v.sc;
 
                     let doc = util::respace(&v.doc);
-                    let enum_ = base_pc_w.as_ref().unwrap_or(&pc_w);
-                    proxy_items.push(quote! {
-                        #[doc = #doc]
-                        #[inline(always)]
-                        pub fn #sc(self) -> &'a mut W {
-                            self.variant(#enum_::#pc)
-                        }
-                    });
+                    if let Some(enum_) = base_pc_w.as_ref() {
+                        proxy_items.push(quote! {
+                            #[doc = #doc]
+                            #[inline(always)]
+                            pub fn #sc(self) -> &'a mut W {
+                                self.variant(#enum_::#pc)
+                            }
+                        });
+                    } else {
+                        proxy_items.push(quote! {
+                            #[doc = #doc]
+                            #[inline(always)]
+                            pub fn #sc(self) -> &'a mut W {
+                                self.variant(#pc_w::#pc)
+                            }
+                        });
+                    }
                 }
             }
 

@@ -225,7 +225,7 @@ pub fn unsuffixed(n: u64) -> Lit {
     Lit::Int(n, IntTy::Unsuffixed)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Base<'a> {
     pub register: Option<&'a str>,
     pub field: &'a str,
