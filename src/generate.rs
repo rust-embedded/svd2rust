@@ -98,10 +98,17 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
             pub #name_pc: extern "C" fn(#name_pc),
         });
 
+        let value = util::unsuffixed(u64(interrupt.value));
         mod_items.push(quote! {
             #[doc = #description]
             pub struct #name_pc { _0: () }
             unsafe impl Context for #name_pc {}
+            unsafe impl Nr for #name_pc {
+                #[inline(always)]
+                fn nr(&self) -> u8 {
+                    #value
+                }
+            }
         });
 
         exprs.push(quote! {
@@ -113,7 +120,6 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
             #name_pc,
         });
 
-        let value = util::unsuffixed(u64(interrupt.value));
         arms.push(quote! {
             Interrupt::#name_pc => #value,
         });

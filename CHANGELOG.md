@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Interrupt tokens now implement the `Nr` trait
+
 ### Changed
 
 - [breaking change] the fields of the interrupt::Handlers struct has been
