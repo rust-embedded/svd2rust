@@ -19,7 +19,7 @@
 //! # Usage
 //!
 //! ```
-//! $ svd2rust -i STM32F30x.svd | tee src/lib.rs
+//! $ svd2rust -i STM32F30x.svd | rustfmt | tee src/lib.rs
 //! //! Peripheral access API for STM32F30X microcontrollers (generated using svd2rust v0.4.0)
 //!
 //! #![deny(missing_docs)]

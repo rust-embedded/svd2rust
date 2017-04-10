@@ -85,7 +85,6 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
             });
         }
 
-        let name = Ident::new(&*interrupt.name.to_sanitized_snake_case());
         let name_pc = Ident::new(interrupt.name.to_sanitized_pascal_case());
         let description =
             format!("{} - {}",
@@ -96,7 +95,7 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
                         .unwrap_or_else(|| interrupt.name.clone()));
         fields.push(quote! {
             #[doc = #description]
-            pub #name: extern "C" fn(#name_pc),
+            pub #name_pc: extern "C" fn(#name_pc),
         });
 
         mod_items.push(quote! {
@@ -106,7 +105,7 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
         });
 
         exprs.push(quote! {
-            #name: exception::default_handler,
+            #name_pc: exception::default_handler,
         });
 
         variants.push(quote! {
@@ -130,6 +129,7 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
 
     mod_items.push(quote! {
         /// Interrupt handlers
+        #[allow(non_snake_case)]
         #[repr(C)]
         pub struct Handlers {
             #(#fields)*

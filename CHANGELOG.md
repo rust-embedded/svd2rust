@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- [breaking change] the fields of the interrupt::Handlers struct has been
+  changed to PascalCase.
+
 ## [v0.5.1] - 2017-04-01
 
 ### Fixed
