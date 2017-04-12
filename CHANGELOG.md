@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.6.0] - 2017-04-11
+
 ### Added
 
 - Interrupt tokens now implement the `Nr` trait
@@ -113,7 +115,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.6.0...HEAD
+[v0.6.0]: https://github.com/japaric/svd2rust/compare/v0.5.1...v0.6.0
 [v0.5.1]: https://github.com/japaric/svd2rust/compare/v0.5.0...v0.5.1
 [v0.5.0]: https://github.com/japaric/svd2rust/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/japaric/svd2rust/compare/v0.3.0...v0.4.0
