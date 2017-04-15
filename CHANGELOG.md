@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.6.1] - 2017-04-15
+
+### Fixed
+
+- Add `#[repr(C)]` to the `RegisterBlock` structs. Vanilla structs are not
+  guaranteed to preserve the order of their fields as declared now that the
+  field reordering optimization has landed.
+
 ## [v0.6.0] - 2017-04-11
 
 ### Added
@@ -115,7 +123,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.6.1...HEAD
+[v0.6.1]: https://github.com/japaric/svd2rust/compare/v0.6.0...v0.6.1
 [v0.6.0]: https://github.com/japaric/svd2rust/compare/v0.5.1...v0.6.0
 [v0.5.1]: https://github.com/japaric/svd2rust/compare/v0.5.0...v0.5.1
 [v0.5.0]: https://github.com/japaric/svd2rust/compare/v0.4.0...v0.5.0
