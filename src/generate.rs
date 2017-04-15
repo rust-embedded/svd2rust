@@ -309,6 +309,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
 
     Ok(quote! {
         /// Register block
+        #[repr(C)]
         pub struct RegisterBlock {
             #(#fields)*
         }
