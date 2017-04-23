@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.6.2] - 2017-04-23
+
 ### Changed
 
 - `W.bits` is now safe if <WriteConstraint> indicates that it's valid to write
@@ -128,7 +130,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.6.2...HEAD
+[v0.6.2]: https://github.com/japaric/svd2rust/compare/v0.6.1...v0.6.2
 [v0.6.1]: https://github.com/japaric/svd2rust/compare/v0.6.0...v0.6.1
 [v0.6.0]: https://github.com/japaric/svd2rust/compare/v0.5.1...v0.6.0
 [v0.5.1]: https://github.com/japaric/svd2rust/compare/v0.5.0...v0.5.1
