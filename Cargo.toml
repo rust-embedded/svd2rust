@@ -16,9 +16,5 @@ either = "1.0.3"
 error-chain = "0.10.0"
 inflections = "1.0.0"
 quote = "0.3.15"
-# svd-parser = "0.4.0"
+svd-parser = "0.5.0"
 syn = "0.11.9"
-
-[dependencies.svd-parser]
-git = "https://github.com/japaric/svd"
-branch = "follow-up"
