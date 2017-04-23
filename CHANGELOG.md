@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- `W.bits` is now safe if <WriteConstraint> indicates that it's valid to write
+  any value in the full range of the bitfield.
+
 ## [v0.6.1] - 2017-04-15
 
 ### Fixed
