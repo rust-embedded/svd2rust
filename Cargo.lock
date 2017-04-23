@@ -8,7 +8,7 @@ dependencies = [
  "error-chain 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "inflections 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "svd-parser 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "svd-parser 0.5.0 (git+https://github.com/japaric/svd?branch=follow-up)",
  "syn 0.11.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -133,8 +133,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "svd-parser"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+version = "0.5.0"
+source = "git+https://github.com/japaric/svd?branch=follow-up#1bab96d64182ea7b220d0465cbd08abc0007cb15"
 dependencies = [
  "xmltree 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -231,7 +231,7 @@ dependencies = [
 "checksum quote 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)" = "7a6e920b65c65f10b2ae65c831a81a073a89edd28c7cce89475bff467ab4167a"
 "checksum rustc-demangle 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "3058a43ada2c2d0b92b3ae38007a2d0fa5e9db971be260e0171408a4ff471c95"
 "checksum strsim 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b4d15c810519a91cf877e7e36e63fe068815c678181439f2f29e2562147c3694"
-"checksum svd-parser 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "da887daecd2aff2b7473cd097998431bd9e4e368209c45ba7305d5fed101c21a"
+"checksum svd-parser 0.5.0 (git+https://github.com/japaric/svd?branch=follow-up)" = "<none>"
 "checksum syn 0.11.9 (registry+https://github.com/rust-lang/crates.io-index)" = "480c834701caba3548aa991e54677281be3a5414a9d09ddbdf4ed74a569a9d19"
 "checksum synom 0.11.3 (registry+https://github.com/rust-lang/crates.io-index)" = "a393066ed9010ebaed60b9eafa373d4b1baac186dd7e008555b0f702b51945b6"
 "checksum term_size 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "07b6c1ac5b3fffd75073276bca1ceed01f67a28537097a2a9539e116e50fb21a"

@@ -5,7 +5,7 @@ use cast::u64;
 use either::Either;
 use quote::Tokens;
 use svd::{Access, BitRange, Defaults, Device, EnumeratedValues, Field,
-          Peripheral, Register, Usage};
+          Peripheral, Register, Usage, WriteConstraint};
 use syn::{Ident, Lit};
 
 use errors::*;
@@ -504,6 +504,7 @@ pub fn fields(
         sc: Ident,
         ty: Ident,
         width: u32,
+        write_constraint: Option<&'a WriteConstraint>,
     }
 
     impl<'a> F<'a> {
@@ -538,6 +539,7 @@ pub fn fields(
                    name: &f.name,
                    offset: util::unsuffixed(u64(f.bit_range.offset)),
                    ty: width.to_ty()?,
+                   write_constraint: f.write_constraint.as_ref(),
                })
         }
     }
@@ -793,6 +795,19 @@ pub fn fields(
             let mut proxy_items = vec![];
 
             let mut safety = Some(Ident::new("unsafe"));
+            if let Some(write_constraint) = f.write_constraint {
+                match *write_constraint {
+                    WriteConstraint::Range(ref range) => {
+                        if range.min == 0 &&
+                            range.max == (1 << f.width) - 1 {
+                            // the SVD has acknowledged that it's safe to write
+                            // any value that can fit in the bitfield
+                            safety = None;
+                        }
+                    },
+                    _ => {}
+                }
+            }
             let fty = &f.ty;
             let offset = &f.offset;
             let mask = &f.mask;
