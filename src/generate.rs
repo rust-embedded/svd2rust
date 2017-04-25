@@ -38,7 +38,36 @@ pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
 
     ::generate::interrupt(&d.peripherals, items);
 
+    const CORE_PERIPHERALS: &'static [&'static str] = &[
+        "CPUID",
+        "DCB",
+        "DWT",
+        "FPB",
+        "FPU",
+        "ITM",
+        "MPU",
+        "NVIC",
+        "SCB",
+        "SYST",
+        "TPIU",
+    ];
+
+    for p in CORE_PERIPHERALS {
+        let ty_ = Ident::new(p.to_sanitized_pascal_case());
+        let p = Ident::new(*p);
+
+        items.push(quote! {
+            pub use cortex_m::peripheral::#ty_;
+            pub use cortex_m::peripheral::#p;
+        });
+    }
+
     for p in &d.peripherals {
+        if CORE_PERIPHERALS.contains(&&*p.name.to_uppercase()) {
+            // Core peripherals are handled above
+            continue;
+        }
+
         ::generate::peripheral(p, items, &d.defaults)?;
     }
 
