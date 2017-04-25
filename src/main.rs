@@ -27,15 +27,20 @@ fn run() -> Result<()> {
 
     let matches = App::new("svd2rust")
         .about("Generate a Rust API from SVD files")
-        .arg(Arg::with_name("input")
-                 .help("Input SVD file")
-                 .required(true)
-                 .short("i")
-                 .takes_value(true)
-                 .value_name("FILE"))
-        .version(concat!(env!("CARGO_PKG_VERSION"),
-                         include_str!(concat!(env!("OUT_DIR"),
-                                              "/commit-info.txt"))))
+        .arg(
+            Arg::with_name("input")
+                .help("Input SVD file")
+                .required(true)
+                .short("i")
+                .takes_value(true)
+                .value_name("FILE"),
+        )
+        .version(
+            concat!(
+                env!("CARGO_PKG_VERSION"),
+                include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
+            ),
+        )
         .get_matches();
 
     let xml = &mut String::new();
@@ -49,10 +54,12 @@ fn run() -> Result<()> {
     let mut items = vec![];
     generate::device(&device, &mut items)?;
 
-    println!("{}",
-             quote! {
-                 #(#items)*
-             });
+    println!(
+        "{}",
+        quote! {
+            #(#items)*
+        }
+    );
 
     Ok(())
 }
@@ -73,8 +80,10 @@ fn main() {
         if let Some(backtrace) = e.backtrace() {
             writeln!(stderr, "backtrace: {:?}", backtrace).ok();
         } else {
-            writeln!(stderr,
-                     "note: run with `RUST_BACKTRACE=1` for a backtrace")
+            writeln!(
+                stderr,
+                "note: run with `RUST_BACKTRACE=1` for a backtrace"
+            )
                     .ok();
         }
 
