@@ -12,7 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - [breaking-change]. svd2rust no longer generates an API for core peripherals
-  like NVIC. Instead, it just re-exports the cortex-m crate's API.
+  like NVIC. Instead, it just re-exports the cortex-m crate's API. Re-generating
+  a crate with this new svd2rust may cause breaking changes in the API of core
+  peripherals like NVIC and ITM if and only if the SVD contained information
+  about those peripherals in the first place.
 
 ## [v0.6.2] - 2017-04-23
 
