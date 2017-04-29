@@ -9,7 +9,8 @@ use svd::{Access, BitRange, Defaults, Device, EnumeratedValues, Field,
 use syn::{Ident, Lit};
 
 use errors::*;
-use util::{self, ToSanitizedPascalCase, ToSanitizedSnakeCase, U32Ext};
+use util::{self, ToSanitizedPascalCase, ToSanitizedSnakeCase,
+           ToSanitizedUpperCase, U32Ext};
 
 /// Whole device generation
 pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
@@ -24,6 +25,7 @@ pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
             #![doc = #doc]
             #![deny(missing_docs)]
             #![deny(warnings)]
+            #![allow(non_camel_case_types)]
             #![feature(const_fn)]
             #![no_std]
 
@@ -127,7 +129,7 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
             );
         }
 
-        let name_pc = Ident::new(interrupt.name.to_sanitized_pascal_case());
+        let name_pc = Ident::new(interrupt.name.to_sanitized_upper_case());
         let description = format!(
             "{} - {}",
             interrupt.value,
@@ -237,7 +239,7 @@ pub fn peripheral(
     defaults: &Defaults,
 ) -> Result<()> {
     let name = Ident::new(&*p.name.to_uppercase());
-    let name_pc = Ident::new(&*p.name.to_sanitized_pascal_case());
+    let name_pc = Ident::new(&*p.name.to_sanitized_upper_case());
     let address = util::unsuffixed(u64(p.base_address));
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
@@ -413,7 +415,7 @@ pub fn register(
 ) -> Result<()> {
     let access = util::access_of(register);
     let name = util::name_of(register);
-    let name_pc = Ident::new(&*name.to_sanitized_pascal_case());
+    let name_pc = Ident::new(&*name.to_sanitized_upper_case());
     let name_sc = Ident::new(&*name.to_sanitized_snake_case());
     let rsize = register.size
         .or(defs.size)
@@ -637,7 +639,7 @@ pub fn fields(
         fn from(f: &'a Field) -> Result<Self> {
             let BitRange { offset, width } = f.bit_range;
             let sc = f.name.to_sanitized_snake_case();
-            let pc = f.name.to_sanitized_pascal_case();
+            let pc = f.name.to_sanitized_upper_case();
             let pc_r = Ident::new(&*format!("{}R", pc));
             let pc_w = Ident::new(&*format!("{}W", pc));
             let _pc_w = Ident::new(&*format!("_{}W", pc));
@@ -726,7 +728,7 @@ pub fn fields(
                             description: description,
                             sc: sc,
                             pc: Ident::new(&*ev.name
-                                           .to_sanitized_pascal_case()),
+                                           .to_sanitized_upper_case()),
                             value: value,
                         })
                     })
@@ -734,7 +736,7 @@ pub fn fields(
 
                 let pc_r = &f.pc_r;
                 if let Some(ref base) = base {
-                    let pc = base.field.to_sanitized_pascal_case();
+                    let pc = base.field.to_sanitized_upper_case();
                     let base_pc_r = Ident::new(&*format!("{}R", pc));
                     let description =
                         format!("Possible values of the field `{}`", f.name);
@@ -988,7 +990,7 @@ pub fn fields(
                 let base_pc_w = base.as_ref()
                     .map(
                         |base| {
-                            let pc = base.field.to_sanitized_pascal_case();
+                            let pc = base.field.to_sanitized_upper_case();
                             let base_pc_w = Ident::new(&*format!("{}W", pc));
 
                             if let Some(ref register) = base.register {
@@ -1036,7 +1038,7 @@ pub fn fields(
                                     format!("`{:b}`", value)
                                 }),
                             pc: Ident::new(&*ev.name
-                                           .to_sanitized_pascal_case()),
+                                           .to_sanitized_upper_case()),
                             sc: Ident::new(&*ev.name
                                            .to_sanitized_snake_case()),
                             value: value,
