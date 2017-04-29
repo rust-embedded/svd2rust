@@ -219,14 +219,16 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
         },
     );
 
-    items.push(
-        quote! {
-            /// Interrupts
-            pub mod interrupt {
-                #(#mod_items)*
-            }
-        },
-    );
+    if interrupts.len() > 0 {
+        items.push(
+            quote! {
+                /// Interrupts
+                pub mod interrupt {
+                    #(#mod_items)*
+                }
+            },
+        );
+    }
 }
 
 pub fn peripheral(
