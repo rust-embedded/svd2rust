@@ -518,6 +518,18 @@ pub fn register(
         );
     }
 
+    if access == Access::ReadWrite {
+        reg_impl_items.push(
+            quote! {
+                /// Writes the reset value to the register
+                #[inline(always)]
+                pub fn reset(&self) {
+                    self.write(|w| w)
+                }
+            }
+        )
+    }
+
     mod_items.push(
         quote! {
             impl super::#name_pc {
