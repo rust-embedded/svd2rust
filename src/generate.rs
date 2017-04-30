@@ -392,6 +392,18 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
     )
 }
 
+fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Ident> {
+    match write_constraint {
+        Some(&WriteConstraint::Range(ref range))
+            if range.min as u64 == 0 && range.max as u64 == (1u64 << width) - 1 => {
+                // the SVD has acknowledged that it's safe to write
+                // any value that can fit in the field
+                None
+            }
+        _ => Some(Ident::new("unsafe"))
+    }
+}
+
 pub fn register(
     register: &Register,
     all_registers: &[Register],
@@ -403,14 +415,16 @@ pub fn register(
     let name = util::name_of(register);
     let name_pc = Ident::new(&*name.to_sanitized_pascal_case());
     let name_sc = Ident::new(&*name.to_sanitized_snake_case());
-    let rty = register.size
+    let rsize = register.size
         .or(defs.size)
         .ok_or_else(|| {
                         format!("Register {} has no `size` field",
                                 register.name)
-                    })?
-        .to_ty()?;
+                    })?;
+    let rty = rsize.to_ty()?;
     let description = util::respace(&register.description);
+
+    let unsafety = unsafety(register.write_constraint.as_ref(), rsize);
 
     let mut mod_items = vec![];
     let mut reg_impl_items = vec![];
@@ -510,7 +524,7 @@ pub fn register(
 
                 /// Writes raw bits to the register
                 #[inline(always)]
-                pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
+                pub #unsafety fn bits(&mut self, bits: #rty) -> &mut Self {
                     self.bits = bits;
                     self
                 }
@@ -944,19 +958,7 @@ pub fn fields(
 
             let mut proxy_items = vec![];
 
-            let mut safety = Some(Ident::new("unsafe"));
-            if let Some(write_constraint) = f.write_constraint {
-                match *write_constraint {
-                    WriteConstraint::Range(ref range) => {
-                        if range.min as u64 == 0 && range.max as u64 == (1u64 << f.width) - 1 {
-                            // the SVD has acknowledged that it's safe to write
-                            // any value that can fit in the bitfield
-                            safety = None;
-                        }
-                    }
-                    _ => {}
-                }
-            }
+            let mut unsafety = unsafety(f.write_constraint, f.width);
             let fty = &f.ty;
             let offset = &f.offset;
             let mask = &f.mask;
@@ -1044,7 +1046,7 @@ pub fn fields(
                     .collect::<Result<Vec<_>>>()?;
 
                 if variants.len() == 1 << f.width {
-                    safety = None;
+                    unsafety = None;
                 }
 
                 if base.is_none() {
@@ -1095,7 +1097,7 @@ pub fn fields(
                         /// Writes `variant` to the field
                         #[inline(always)]
                         pub fn variant(self, variant: #pc_w) -> &'a mut W {
-                            #safety {
+                            #unsafety {
                                 self.bits(variant._bits())
                             }
                         }
@@ -1135,7 +1137,7 @@ pub fn fields(
                 quote! {
                     /// Writes raw bits to the field
                     #[inline(always)]
-                    pub #safety fn bits(self, bits: #fty) -> &'a mut W {
+                    pub #unsafety fn bits(self, bits: #fty) -> &'a mut W {
                         const MASK: #fty = #mask;
                         const OFFSET: u8 = #offset;
 
