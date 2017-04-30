@@ -183,7 +183,7 @@
 //!
 //! ``` rust
 //! // is the SADD0 bit of the CR2 register set?
-//! if i2c1.c2r.read().sadd0().bits() == 1 {
+//! if i2c1.c2r.read().sadd0().bit() {
 //!     // yes
 //! } else {
 //!     // no
@@ -225,7 +225,7 @@
 //! // Starting from the reset value, `0x0000_0000`, change the bitfields SADD0
 //! // and SADD1 to `1` and `0b0011110` respectively and write that to the
 //! // register CR2.
-//! i2c1.cr2.write(|w| unsafe { w.sadd0().bits(1).sadd1().bits(0b0011110) });
+//! i2c1.cr2.write(|w| unsafe { w.sadd0().bit(true).sadd1().bits(0b0011110) });
 //! // NOTE ^ unsafe because you could be writing a reserved bit pattern into
 //! // the register. In this case, the SVD doesn't provide enough information to
 //! // check whether that's the case.
@@ -246,10 +246,10 @@
 //!
 //! ``` rust
 //! // Set the START bit to 1 while KEEPING the state of the other bits intact
-//! i2c1.cr2.modify(|_, w| unsafe { w.start().bits(1) });
+//! i2c1.cr2.modify(|_, w| unsafe { w.start().bit(true) });
 //!
 //! // TOGGLE the STOP bit, all the other bits will remain untouched
-//! i2c1.cr2.modify(|r, w| w.stop().bits(r.stop().bits() ^ 1));
+//! i2c1.cr2.modify(|r, w| w.stop().bit(!r.stop().bit()));
 //! ```
 //!
 //! # enumeratedValues
@@ -314,12 +314,12 @@
 //! gpioa.dir.write(|w| w.pin0().output());
 //! ```
 //!
-//! The `bits` method is still available but will become safe if it's impossible
-//! to write a reserved bit pattern into the register
+//! The `bits` (or `bit`) method is still available but will become safe if it's
+//! impossible to write a reserved bit pattern into the register:
 //!
 //! ```
 //! // safe because there are only two options: `0` or `1`
-//! gpioa.dir.write(|w| w.pin0().bits(1));
+//! gpioa.dir.write(|w| w.pin0().bit(true));
 //! ```
 //!
 //! # Interrupt API
