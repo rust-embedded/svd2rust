@@ -274,10 +274,8 @@ pub fn peripheral(
 
     let registers = p.registers
         .as_ref()
-        .ok_or_else(|| {
-                        format!("Peripheral {} has no <registers> fields",
-                                p.name)
-                    })?;
+        .map(|x| x.as_ref())
+        .unwrap_or(&[][..]);
 
     // No `struct RegisterBlock` can be generated
     if registers.is_empty() {
