@@ -948,7 +948,7 @@ pub fn fields(
             if let Some(write_constraint) = f.write_constraint {
                 match *write_constraint {
                     WriteConstraint::Range(ref range) => {
-                        if range.min == 0 && range.max == (1 << f.width) - 1 {
+                        if range.min as u64 == 0 && range.max as u64 == (1u64 << f.width) - 1 {
                             // the SVD has acknowledged that it's safe to write
                             // any value that can fit in the bitfield
                             safety = None;
