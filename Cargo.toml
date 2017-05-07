@@ -1,13 +1,14 @@
 [package]
-authors = ["Jorge Aparicio <japaricious@gmail.com>"]
+authors = ["Jorge Aparicio <jorge@japaric.io>"]
 build = "build.rs"
+categories = ["command-line-utilities", "embedded", "no-std"]
 description = "Generate Rust register maps (`struct`s) from SVD files"
 documentation = "https://github.com/japaric/svd2rust#svd2rust"
 keywords = ["arm", "cortex-m", "register", "map", "generator"]
 license = "MIT OR Apache-2.0"
 name = "svd2rust"
 repository = "https://github.com/japaric/svd2rust"
-version = "0.7.0"
+version = "0.7.1"
 
 [dependencies]
 cast = "0.2.0"

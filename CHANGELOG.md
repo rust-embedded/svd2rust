@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.7.1] - 2017-05-07
+
+### Added
+
+- A `.reset()` method, as a shorthand for "write the reset value to this
+  register".
+
+### Changed
+
+- Make writing raw bits to a register safe if the SVD indicates so through the
+  <WriteConstraint> element.
+
+- Do not reject peripherals without registers.
+
+### Fixed
+
+- Code generation when the SVD file contains no information about interrupts.
+
 ## [v0.7.0] - 2017-04-25
 
 ### Changed
@@ -140,7 +158,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.7.1...HEAD
+[v0.7.1]: https://github.com/japaric/svd2rust/compare/v0.7.0...v0.7.1
 [v0.7.0]: https://github.com/japaric/svd2rust/compare/v0.6.2...v0.7.0
 [v0.6.2]: https://github.com/japaric/svd2rust/compare/v0.6.1...v0.6.2
 [v0.6.1]: https://github.com/japaric/svd2rust/compare/v0.6.0...v0.6.1
