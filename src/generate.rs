@@ -25,6 +25,7 @@ pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
             #![deny(missing_docs)]
             #![deny(warnings)]
             #![feature(const_fn)]
+            #![feature(optin_builtin_traits)]
             #![no_std]
 
             extern crate cortex_m;
@@ -156,6 +157,7 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
                         #value
                     }
                 }
+                impl !Send for #name_pc {}
             },
         );
 

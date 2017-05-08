@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.7.2] - 2017-05-08
+
+### Fixed
+
+- Mark interrupt tokens as `!Send`. This is required to fully fix the memory
+  unsafety bug reported in japaric/cortex-m#27.
+
 ## [v0.7.1] - 2017-05-07
 
 ### Added
