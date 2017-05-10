@@ -555,9 +555,14 @@ pub fn register(
     );
 
     if let Some(fields) = register.fields.as_ref() {
+        // filter out all reserved fields, as we should not generate code for them
+        let fields:Vec<Field> = fields.clone().into_iter()
+            .filter(|field| field.name.to_lowercase() != "reserved")
+            .collect();
+
         if !fields.is_empty() {
             ::generate::fields(
-                fields,
+                &fields,
                 register,
                 all_registers,
                 peripheral,
@@ -712,6 +717,8 @@ pub fn fields(
                 let has_reserved_variant = evs.values.len() != (1 << f.width);
                 let variants = evs.values
                     .iter()
+                    // filter out all reserved variants, as we should not generate code for them
+                    .filter(|field| field.name.to_lowercase() != "reserved")
                     .map(|ev| {
                         let sc =
                             Ident::new(&*ev.name.to_sanitized_snake_case());
@@ -1025,6 +1032,8 @@ pub fn fields(
 
                 let variants = evs.values
                     .iter()
+                    // filter out all reserved variants, as we should not generate code for them
+                    .filter(|field| field.name.to_lowercase() != "reserved")
                     .map(
                         |ev| {
                             let value = u64(ev.value.ok_or_else(|| {
