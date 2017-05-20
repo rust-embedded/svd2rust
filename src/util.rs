@@ -235,6 +235,18 @@ pub fn unsuffixed(n: u64) -> Lit {
     Lit::Int(n, IntTy::Unsuffixed)
 }
 
+pub fn unsuffixed_or_bool(n: u64, width: u32) -> Lit {
+    if width == 1 {
+        if n == 0 {
+            Lit::Bool(false)
+        } else {
+            Lit::Bool(true)
+        }
+    } else {
+        unsuffixed(n)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Base<'a> {
     pub register: Option<&'a str>,
@@ -427,24 +439,45 @@ fn lookup_in_register<'r>
 
 pub trait U32Ext {
     fn to_ty(&self) -> Result<Ident>;
+    fn to_ty_width(&self) -> Result<u32>;
 }
 
 impl U32Ext for u32 {
     fn to_ty(&self) -> Result<Ident> {
         Ok(
             match *self {
-                1...8 => Ident::new("u8"),
+                1 => Ident::new("bool"),
+                2...8 => Ident::new("u8"),
                 9...16 => Ident::new("u16"),
                 17...32 => Ident::new("u32"),
                 _ => {
                     Err(
                         format!(
-                            "can't convert {} bits into a Rust integer type",
+                            "can't convert {} bits into a Rust integral type",
                             *self
                         ),
                     )?
                 }
             },
+        )
+    }
+
+    fn to_ty_width(&self) -> Result<u32> {
+        Ok(
+            match *self {
+                1 => 1,
+                2...8 => 8,
+                9...16 => 16,
+                17...32 => 32,
+                _ => {
+                    Err(
+                        format!(
+                            "can't convert {} bits into a Rust integral type width",
+                            *self
+                        ),
+                    )?
+                }
+            }
         )
     }
 }

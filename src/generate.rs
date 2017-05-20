@@ -402,6 +402,12 @@ fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Id
                 // any value that can fit in the field
                 None
             }
+        None if width == 1 => {
+            // the field is one bit wide, so we assume it's legal to write
+            // either value into it or it wouldn't exist; despite that
+            // if a writeConstraint exists then respect it
+            None
+        }
         _ => Some(Ident::new("unsafe"))
     }
 }
@@ -635,6 +641,7 @@ pub fn fields(
         pc_r: Ident,
         pc_w: Ident,
         sc: Ident,
+        bits: Ident,
         ty: Ident,
         width: u32,
         write_constraint: Option<&'a WriteConstraint>,
@@ -649,6 +656,11 @@ pub fn fields(
             let pc_w = Ident::new(&*format!("{}W", pc));
             let _pc_w = Ident::new(&*format!("_{}W", pc));
             let _sc = Ident::new(&*format!("_{}", sc));
+            let bits = if width == 1 {
+                Ident::new("bit")
+            } else {
+                Ident::new("bits")
+            };
             let mut description = if width == 1 {
                 format!("Bit {}", offset)
             } else {
@@ -665,11 +677,12 @@ pub fn fields(
                     description: description,
                     pc_r: pc_r,
                     pc_w: pc_w,
+                    bits: bits,
                     width: width,
                     access: f.access,
                     evs: &f.enumerated_values,
                     sc: Ident::new(&*sc),
-                    mask: util::unsuffixed((1 << width) - 1),
+                    mask: util::unsuffixed_or_bool((1 << width) - 1, width),
                     name: &f.name,
                     offset: util::unsuffixed(u64(f.bit_range.offset)),
                     ty: width.to_ty()?,
@@ -688,14 +701,20 @@ pub fn fields(
                 continue;
             }
 
+            let bits = &f.bits;
             let mask = &f.mask;
             let offset = &f.offset;
             let fty = &f.ty;
-            let bits = quote! {
+            let cast = if f.width == 1 {
+                quote! { != 0 }
+            } else {
+                quote! { as #fty }
+            };
+            let value = quote! {
                 const MASK: #fty = #mask;
                 const OFFSET: u8 = #offset;
 
-                ((self.bits >> OFFSET) & MASK as #rty) as #fty
+                ((self.bits >> OFFSET) & MASK as #rty) #cast
             };
 
             if let Some((evs, base)) =
@@ -775,7 +794,7 @@ pub fn fields(
                         #[doc = #description]
                         #[inline(always)]
                         pub fn #sc(&self) -> #pc_r {
-                            #pc_r::_from({ #bits })
+                            #pc_r::_from({ #value })
                         }
                     },
                 );
@@ -821,7 +840,7 @@ pub fn fields(
                         .iter()
                         .map(
                             |v| {
-                                let value = util::unsuffixed(v.value);
+                                let value = util::unsuffixed_or_bool(v.value, f.width);
                                 let pc = &v.pc;
 
                                 quote! {
@@ -841,7 +860,7 @@ pub fn fields(
                         quote! {
                             /// Value of the field as raw bits
                             #[inline(always)]
-                            pub fn bits(&self) -> #fty {
+                            pub fn #bits(&self) -> #fty {
                                 match *self {
                                     #(#arms),*
                                 }
@@ -853,7 +872,7 @@ pub fn fields(
                         .iter()
                         .map(
                             |v| {
-                                let i = util::unsuffixed(v.value);
+                                let i = util::unsuffixed_or_bool(v.value, f.width);
                                 let pc = &v.pc;
 
                                 quote! {
@@ -869,7 +888,7 @@ pub fn fields(
                                 i => #pc_r::_Reserved(i)
                             },
                         );
-                    } else {
+                    } else if 1 << f.width.to_ty_width()? != variants.len() {
                         arms.push(
                             quote! {
                                 _ => unreachable!()
@@ -882,8 +901,8 @@ pub fn fields(
                             #[allow(missing_docs)]
                             #[doc(hidden)]
                             #[inline(always)]
-                            pub fn _from(bits: #fty) -> #pc_r {
-                                match bits {
+                            pub fn _from(value: #fty) -> #pc_r {
+                                match value {
                                     #(#arms),*,
                                 }
                             }
@@ -932,7 +951,7 @@ pub fn fields(
                         #[doc = #description]
                         #[inline(always)]
                         pub fn #sc(&self) -> #pc_r {
-                            let bits = { # bits };
+                            let bits = { #value };
                             #pc_r { bits }
                         }
                     },
@@ -948,7 +967,7 @@ pub fn fields(
                         impl #pc_r {
                             /// Value of the field as raw bits
                             #[inline(always)]
-                            pub fn bits(&self) -> #fty {
+                            pub fn #bits(&self) -> #fty {
                                 self.bits
                             }
                         }
@@ -968,9 +987,11 @@ pub fn fields(
             let mut proxy_items = vec![];
 
             let mut unsafety = unsafety(f.write_constraint, f.width);
+            let bits = &f.bits;
             let fty = &f.ty;
             let offset = &f.offset;
             let mask = &f.mask;
+            let width = f.width;
 
             if let Some((evs, base)) =
                 util::lookup(
@@ -1078,7 +1099,7 @@ pub fn fields(
                         .map(
                             |v| {
                                 let pc = &v.pc;
-                                let value = util::unsuffixed(v.value);
+                                let value = util::unsuffixed_or_bool(v.value, f.width);
 
                                 quote! {
                                     #pc_w::#pc => #value
@@ -1109,7 +1130,7 @@ pub fn fields(
                         #[inline(always)]
                         pub fn variant(self, variant: #pc_w) -> &'a mut W {
                             #unsafety {
-                                self.bits(variant._bits())
+                                self.#bits(variant._bits())
                             }
                         }
                     },
@@ -1142,18 +1163,32 @@ pub fn fields(
                         );
                     }
                 }
+            } else if width == 1 {
+                proxy_items.push(
+                    quote! {
+                        /// Sets the field bit
+                        pub fn set(self) -> &'a mut W {
+                            self.bit(true)
+                        }
+
+                        /// Clears the field bit
+                        pub fn clear(self) -> &'a mut W {
+                            self.bit(false)
+                        }
+                    }
+                );
             }
 
             proxy_items.push(
                 quote! {
                     /// Writes raw bits to the field
                     #[inline(always)]
-                    pub #unsafety fn bits(self, bits: #fty) -> &'a mut W {
+                    pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
                         const MASK: #fty = #mask;
                         const OFFSET: u8 = #offset;
 
                         self.w.bits &= !((MASK as #rty) << OFFSET);
-                        self.w.bits |= ((bits & MASK) as #rty) << OFFSET;
+                        self.w.bits |= ((value & MASK) as #rty) << OFFSET;
                         self.w
                     }
                 },
