@@ -260,6 +260,7 @@ pub fn lookup<'a>
     register: &'a Register,
     all_registers: &'a [Register],
     peripheral: &'a Peripheral,
+    all_peripherals: &'a [Peripheral],
     usage: Usage,
 ) -> Result<Option<(&'a EnumeratedValues, Option<Base<'a>>)>> {
     let evs = evs.iter()
@@ -267,8 +268,17 @@ pub fn lookup<'a>
             |evs| if let Some(ref base) = evs.derived_from {
                 let mut parts = base.split('.');
 
-                match (parts.next(), parts.next(), parts.next()) {
-                    (Some(base_register), Some(base_field), Some(base_evs)) => {
+                match (parts.next(), parts.next(), parts.next(), parts.next()) {
+                    (Some(base_peripheral), Some(base_register), Some(base_field), Some(base_evs)) => {
+                        lookup_in_peripherals(
+                            base_peripheral,
+                            base_register,
+                            base_field,
+                            base_evs,
+                            all_peripherals,
+                        )
+                    }
+                    (Some(base_register), Some(base_field), Some(base_evs), None) => {
                         lookup_in_peripheral(
                             base_register,
                             base_field,
@@ -277,10 +287,10 @@ pub fn lookup<'a>
                             peripheral,
                         )
                     }
-                    (Some(base_field), Some(base_evs), None) => {
+                    (Some(base_field), Some(base_evs), None, None) => {
                         lookup_in_fields(base_evs, base_field, fields, register)
                     }
-                    (Some(base_evs), None, None) => {
+                    (Some(base_evs), None, None, None) => {
                         lookup_in_register(base_evs, register)
                     }
                     _ => unreachable!(),
@@ -436,6 +446,33 @@ fn lookup_in_register<'r>
         }
     }
 }
+
+fn lookup_in_peripherals<'p>
+(
+    base_peripheral: &'p str,
+    base_register: &'p str,
+    base_field: &str,
+    base_evs: &str,
+    all_peripherals: &'p [Peripheral],
+) -> Result<(&'p EnumeratedValues, Option<Base<'p>>)> {
+    if let Some(peripheral) = all_peripherals
+        .iter()
+        .find(|p| { p.name == base_peripheral }) {
+        let all_registers = peripheral.registers
+            .as_ref()
+            .map(|x| x.as_ref())
+            .unwrap_or(&[][..]);
+        lookup_in_peripheral(base_register, base_field, base_evs, all_registers, peripheral)
+    } else {
+        Err(
+            format!(
+                "No peripheral {}",
+                base_peripheral
+            ),
+        )?
+    }
+}
+
 
 pub trait U32Ext {
     fn to_ty(&self) -> Result<Ident>;
