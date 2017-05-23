@@ -69,7 +69,7 @@ pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
             continue;
         }
 
-        ::generate::peripheral(p, items, &d.defaults)?;
+        ::generate::peripheral(p, &d.peripherals, items, &d.defaults)?;
     }
 
     Ok(())
@@ -235,6 +235,7 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
 
 pub fn peripheral(
     p: &Peripheral,
+    all_peripherals: &[Peripheral],
     items: &mut Vec<Tokens>,
     defaults: &Defaults,
 ) -> Result<()> {
@@ -290,7 +291,7 @@ pub fn peripheral(
     mod_items.push(::generate::register_block(registers, defaults)?);
 
     for register in registers {
-        ::generate::register(register, registers, p, defaults, &mut mod_items)?;
+        ::generate::register(register, registers, p, all_peripherals, defaults, &mut mod_items)?;
     }
 
     let name_sc = Ident::new(&*p.name.to_sanitized_snake_case());
@@ -416,6 +417,7 @@ pub fn register(
     register: &Register,
     all_registers: &[Register],
     peripheral: &Peripheral,
+    all_peripherals: &[Peripheral],
     defs: &Defaults,
     items: &mut Vec<Tokens>,
 ) -> Result<()> {
@@ -572,6 +574,7 @@ pub fn register(
                 register,
                 all_registers,
                 peripheral,
+                all_peripherals,
                 &rty,
                 access,
                 &mut mod_items,
@@ -623,6 +626,7 @@ pub fn fields(
     parent: &Register,
     all_registers: &[Register],
     peripheral: &Peripheral,
+    all_peripherals: &[Peripheral],
     rty: &Ident,
     access: Access,
     mod_items: &mut Vec<Tokens>,
@@ -724,6 +728,7 @@ pub fn fields(
                     parent,
                     all_registers,
                     peripheral,
+                    all_peripherals,
                     Usage::Read,
                 )? {
                 struct Variant<'a> {
@@ -767,7 +772,19 @@ pub fn fields(
                     let description =
                         format!("Possible values of the field `{}`", f.name);
 
-                    if let Some(ref register) = base.register {
+                    if let (Some(ref peripheral), Some(ref register)) = (base.peripheral, base.register) {
+                        let pmod_ = peripheral.to_sanitized_snake_case();
+                        let rmod_ = register.to_sanitized_snake_case();
+                        let pmod_ = Ident::new(&*pmod_);
+                        let rmod_ = Ident::new(&*rmod_);
+
+                        mod_items.push(
+                            quote! {
+                                #[doc = #description]
+                                pub type #pc_r = ::#pmod_::#rmod_::#base_pc_r;
+                            },
+                        );
+                    } else if let Some(ref register) = base.register {
                         let mod_ = register.to_sanitized_snake_case();
                         let mod_ = Ident::new(&*mod_);
 
@@ -1037,6 +1054,7 @@ pub fn fields(
                     parent,
                     all_registers,
                     peripheral,
+                    all_peripherals,
                     Usage::Write,
                 )? {
                 struct Variant {
@@ -1058,7 +1076,24 @@ pub fn fields(
                             let pc = base.field.to_sanitized_pascal_case();
                             let base_pc_w = Ident::new(&*format!("{}W", pc));
 
-                            if let Some(ref register) = base.register {
+                            if let (Some(ref peripheral), Some(ref register)) = (base.peripheral, base.register) {
+                                let pmod_ = peripheral.to_sanitized_snake_case();
+                                let rmod_ = register.to_sanitized_snake_case();
+                                let pmod_ = Ident::new(&*pmod_);
+                                let rmod_ = Ident::new(&*rmod_);
+
+                                mod_items.push(
+                                    quote! {
+                                        #[doc = #pc_w_doc]
+                                        pub type #pc_w =
+                                            ::#pmod_::#rmod_::#base_pc_w;
+                                    },
+                                );
+
+                                quote! {
+                                    ::#pmod_::#rmod_::#base_pc_w
+                                }
+                            } else if let Some(ref register) = base.register {
                                 let mod_ = register.to_sanitized_snake_case();
                                 let mod_ = Ident::new(&*mod_);
 

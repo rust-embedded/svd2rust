@@ -249,6 +249,7 @@ pub fn unsuffixed_or_bool(n: u64, width: u32) -> Lit {
 
 #[derive(Clone, Debug)]
 pub struct Base<'a> {
+    pub peripheral: Option<&'a str>,
     pub register: Option<&'a str>,
     pub field: &'a str,
 }
@@ -260,6 +261,7 @@ pub fn lookup<'a>
     register: &'a Register,
     all_registers: &'a [Register],
     peripheral: &'a Peripheral,
+    all_peripherals: &'a [Peripheral],
     usage: Usage,
 ) -> Result<Option<(&'a EnumeratedValues, Option<Base<'a>>)>> {
     let evs = evs.iter()
@@ -267,9 +269,19 @@ pub fn lookup<'a>
             |evs| if let Some(ref base) = evs.derived_from {
                 let mut parts = base.split('.');
 
-                match (parts.next(), parts.next(), parts.next()) {
-                    (Some(base_register), Some(base_field), Some(base_evs)) => {
+                match (parts.next(), parts.next(), parts.next(), parts.next()) {
+                    (Some(base_peripheral), Some(base_register), Some(base_field), Some(base_evs)) => {
+                        lookup_in_peripherals(
+                            base_peripheral,
+                            base_register,
+                            base_field,
+                            base_evs,
+                            all_peripherals,
+                        )
+                    }
+                    (Some(base_register), Some(base_field), Some(base_evs), None) => {
                         lookup_in_peripheral(
+                            None,
                             base_register,
                             base_field,
                             base_evs,
@@ -277,10 +289,10 @@ pub fn lookup<'a>
                             peripheral,
                         )
                     }
-                    (Some(base_field), Some(base_evs), None) => {
+                    (Some(base_field), Some(base_evs), None, None) => {
                         lookup_in_fields(base_evs, base_field, fields, register)
                     }
-                    (Some(base_evs), None, None) => {
+                    (Some(base_evs), None, None, None) => {
                         lookup_in_register(base_evs, register)
                     }
                     _ => unreachable!(),
@@ -307,7 +319,7 @@ fn lookup_in_fields<'f>(
     register: &Register,
 ) -> Result<(&'f EnumeratedValues, Option<Base<'f>>)> {
     if let Some(base_field) = fields.iter().find(|f| f.name == base_field) {
-        return lookup_in_field(base_evs, None, base_field);
+        return lookup_in_field(base_evs, None, None, base_field);
     } else {
         Err(
             format!(
@@ -321,6 +333,7 @@ fn lookup_in_fields<'f>(
 
 fn lookup_in_peripheral<'p>
     (
+    base_peripheral: Option<&'p str>,
     base_register: &'p str,
     base_field: &str,
     base_evs: &str,
@@ -339,7 +352,7 @@ fn lookup_in_peripheral<'p>
                .unwrap_or(&[])
                .iter()
                .find(|f| f.name == base_field) {
-            lookup_in_field(base_evs, Some(base_register), field)
+            lookup_in_field(base_evs, Some(base_register), base_peripheral, field)
         } else {
             Err(
                 format!(
@@ -363,6 +376,7 @@ fn lookup_in_peripheral<'p>
 fn lookup_in_field<'f>(
     base_evs: &str,
     base_register: Option<&'f str>,
+    base_peripheral: Option<&'f str>,
     field: &'f Field,
 ) -> Result<(&'f EnumeratedValues, Option<Base<'f>>)> {
     for evs in &field.enumerated_values {
@@ -373,6 +387,7 @@ fn lookup_in_field<'f>(
                     Base {
                         field: &field.name,
                         register: base_register,
+                        peripheral: base_peripheral,
                     },
                 ))),
             );
@@ -416,6 +431,7 @@ fn lookup_in_register<'r>
                         Base {
                             field: field,
                             register: None,
+                            peripheral: None
                         },
                     )),
                 );
@@ -436,6 +452,40 @@ fn lookup_in_register<'r>
         }
     }
 }
+
+fn lookup_in_peripherals<'p>
+(
+    base_peripheral: &'p str,
+    base_register: &'p str,
+    base_field: &str,
+    base_evs: &str,
+    all_peripherals: &'p [Peripheral],
+) -> Result<(&'p EnumeratedValues, Option<Base<'p>>)> {
+    if let Some(peripheral) = all_peripherals
+        .iter()
+        .find(|p| { p.name == base_peripheral }) {
+        let all_registers = peripheral.registers
+            .as_ref()
+            .map(|x| x.as_ref())
+            .unwrap_or(&[][..]);
+        lookup_in_peripheral(
+            Some(base_peripheral),
+            base_register,
+            base_field,
+            base_evs,
+            all_registers,
+            peripheral
+        )
+    } else {
+        Err(
+            format!(
+                "No peripheral {}",
+                base_peripheral
+            ),
+        )?
+    }
+}
+
 
 pub trait U32Ext {
     fn to_ty(&self) -> Result<Ident>;
