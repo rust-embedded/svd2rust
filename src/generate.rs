@@ -856,6 +856,23 @@ pub fn fields(
                             },
                         );
                     }
+
+                    if f.width == 1 {
+                        enum_items.push(quote! {
+                            /// Returns `true` if the bit is clear (0)
+                            #[inline(always)]
+                            pub fn is_clear(&self) -> bool {
+                                !self.#bits()
+                            }
+
+                            /// Returns `true` if the bit is set (1)
+                            #[inline(always)]
+                            pub fn is_set(&self) -> bool {
+                                self.#bits()
+                            }
+                        });
+                    }
+
                     enum_items.push(
                         quote! {
                             /// Value of the field as raw bits
@@ -957,6 +974,30 @@ pub fn fields(
                     },
                 );
 
+                let mut pc_r_impl_items = vec![quote! {
+                    /// Value of the field as raw bits
+                    #[inline(always)]
+                    pub fn #bits(&self) -> #fty {
+                        self.bits
+                    }
+                }];
+
+                if f.width == 1 {
+                    pc_r_impl_items.push(quote! {
+                        /// Returns `true` if the bit is clear (0)
+                        #[inline(always)]
+                        pub fn is_clear(&self) -> bool {
+                            !self.#bits()
+                        }
+
+                        /// Returns `true` if the bit is set (1)
+                        #[inline(always)]
+                        pub fn is_set(&self) -> bool {
+                            self.#bits()
+                        }
+                    });
+                }
+
                 mod_items.push(
                     quote! {
                         /// Value of the field
@@ -965,11 +1006,7 @@ pub fn fields(
                         }
 
                         impl #pc_r {
-                            /// Value of the field as raw bits
-                            #[inline(always)]
-                            pub fn #bits(&self) -> #fty {
-                                self.bits
-                            }
+                            #(#pc_r_impl_items)*
                         }
                     },
                 );
