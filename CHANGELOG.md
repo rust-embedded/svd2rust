@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.8.0] - 2017-05-29
+
+### Added
+
+- `derivedFrom` between peripherals. That means that `<enumeratedValues
+  derivedFrom="peripheral.register.field.enumeratedValue">` will now work.
+
+### Changed
+
+- [breaking-change]. The API of 1-bit fields has been changed to work with
+  `bool` instead of with `u8`.
+
+Old API
+
+``` rust
+// Read
+if peripheral.register.read().field().bits() == 1 { /* something */}
+
+// Write
+peripheral.register.write(|w| unsafe { w.field().bits(1) });
+```
+
+New API
+
+``` rust
+// Read
+if peripheral.register.read().field().bit() { /* something */}
+// OR
+if peripheral.register.read().field().is_set() { /* something */}
+
+// Write. Note that this operation is now safe
+peripheral.register.write(|w| w.field().bit(true));
+// OR
+peripheral.register.write(|w| w.field().set());
+```
+### Fixed
+
+- Don't generate code for reserved bit-fields as we shouldn't expose an API to
+  modify those fields.
+
 ## [v0.7.2] - 2017-05-08
 
 ### Fixed
@@ -165,7 +205,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.8.0...HEAD
+[v0.8.0]: https://github.com/japaric/svd2rust/compare/v0.7.2...v0.8.0
 [v0.7.2]: https://github.com/japaric/svd2rust/compare/v0.7.1...v0.7.2
 [v0.7.1]: https://github.com/japaric/svd2rust/compare/v0.7.0...v0.7.1
 [v0.7.0]: https://github.com/japaric/svd2rust/compare/v0.6.2...v0.7.0
