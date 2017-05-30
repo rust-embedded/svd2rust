@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.8.1] - 2017-05-30
+
+### Changed
+
+- The generated crate's documentation now points to svd2rust's documentation
+  about the peripheral API.
+
 ## [v0.8.0] - 2017-05-29
 
 ### Added
@@ -205,7 +212,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.8.1...HEAD
+[v0.8.1]: https://github.com/japaric/svd2rust/compare/v0.8.0...v0.8.1
 [v0.8.0]: https://github.com/japaric/svd2rust/compare/v0.7.2...v0.8.0
 [v0.7.2]: https://github.com/japaric/svd2rust/compare/v0.7.1...v0.7.2
 [v0.7.1]: https://github.com/japaric/svd2rust/compare/v0.7.0...v0.7.1

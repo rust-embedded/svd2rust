@@ -14,8 +14,10 @@ use util::{self, ToSanitizedPascalCase, ToSanitizedSnakeCase, U32Ext};
 /// Whole device generation
 pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
     let doc = format!(
-        "Peripheral access API for {} microcontrollers \
-         (generated using svd2rust v{})",
+        "Peripheral access API for {0} microcontrollers \
+         (generated using svd2rust v{1})\n\n\
+         You can find an overview of the API [here].\n\n\
+         [here]: https://docs.rs/svd2rust/{1}/svd2rust/#peripheral-api",
         d.name.to_uppercase(),
         env!("CARGO_PKG_VERSION")
     );
