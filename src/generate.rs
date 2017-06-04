@@ -949,6 +949,10 @@ pub fn fields(
                         let pc = &v.pc;
                         let sc = &v.sc;
 
+                        if f.width == 1 && (sc == "clear" || sc == "set") {
+                            continue;
+                        }
+
                         let is_variant = if sc.as_ref().starts_with("_") {
                             Ident::new(&*format!("is{}", sc))
                         } else {
