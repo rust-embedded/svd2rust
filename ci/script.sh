@@ -450,8 +450,7 @@ main() {
             # test_svd SIM3L1x8_SVD
             # test_svd SIM3U1x4_SVD
             # test_svd SIM3U1x6_SVD
-
-            test_svd SIM3U1x7_SVD
+            # test_svd SIM3U1x7_SVD
         ;;
 
         Spansion)
