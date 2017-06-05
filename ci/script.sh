@@ -102,7 +102,7 @@ main() {
             # test_svd ATSAMA5D34
             # test_svd ATSAMA5D35
 
-            # FIXME(???) "failed to resolve. Use of undeclared type or module `sercom0`"
+            # FIXME(#107) "failed to resolve. Use of undeclared type or module `sercom0`"
             # test_svd ATSAMD21E15A
             # test_svd ATSAMD21E16A
             # test_svd ATSAMD21E17A
