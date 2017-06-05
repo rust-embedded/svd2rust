@@ -17,6 +17,10 @@ pub trait ToSanitizedPascalCase {
     fn to_sanitized_pascal_case(&self) -> Cow<str>;
 }
 
+pub trait ToSanitizedUpperCase {
+    fn to_sanitized_upper_case(&self) -> Cow<str>;
+}
+
 pub trait ToSanitizedSnakeCase {
     fn to_sanitized_snake_case(&self) -> Cow<str>;
 }
@@ -98,6 +102,19 @@ impl ToSanitizedSnakeCase for str {
     }
 }
 
+impl ToSanitizedUpperCase for str {
+    fn to_sanitized_upper_case(&self) -> Cow<str> {
+        let s = self.replace(BLACKLIST_CHARS, "");
+
+        match s.chars().next().unwrap_or('\0') {
+            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
+                Cow::from(format!("_{}", s.to_upper_case()))
+            }
+            _ => Cow::from(s.to_upper_case()),
+        }
+    }
+}
+
 impl ToSanitizedPascalCase for str {
     fn to_sanitized_pascal_case(&self) -> Cow<str> {
         let s = self.replace(BLACKLIST_CHARS, "");
@@ -138,7 +155,7 @@ pub fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
                         offset: info.address_offset,
                         ty: Either::Left(
                             info.name
-                                .to_sanitized_pascal_case()
+                                .to_sanitized_upper_case()
                                 .into_owned(),
                         ),
                     },
@@ -153,7 +170,7 @@ pub fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
                     info.name.replace("%s", "")
                 };
 
-                let ty = Rc::new(ty.to_sanitized_pascal_case().into_owned());
+                let ty = Rc::new(ty.to_sanitized_upper_case().into_owned());
 
                 let indices = array_info
                     .dim_index

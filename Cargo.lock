@@ -6,7 +6,7 @@ dependencies = [
  "clap 2.20.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "either 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "inflections 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "inflections 1.0.0 (git+https://github.com/whitequark/inflections)",
  "quote 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "svd-parser 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "syn 0.11.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -100,7 +100,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "inflections"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/whitequark/inflections#9e524b59017a9e764abde074a1efa2b74f65fac0"
 
 [[package]]
 name = "kernel32-sys"
@@ -225,7 +225,7 @@ dependencies = [
 "checksum either 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "63f94a35a9ca0d4178e85f0250373f2cea55c5d603e6993778d68a99b3d8071c"
 "checksum error-chain 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d9435d864e017c3c6afeac1654189b06cdb491cf2ff73dbf0d73b0f292f42ff8"
 "checksum gcc 0.3.43 (registry+https://github.com/rust-lang/crates.io-index)" = "c07c758b972368e703a562686adb39125707cc1ef3399da8c019fc6c2498a75d"
-"checksum inflections 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a825932b96cd7361036ec60126ded8524c618eb8dd0256575f482009a89cf8e5"
+"checksum inflections 1.0.0 (git+https://github.com/whitequark/inflections)" = "<none>"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 "checksum libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)" = "88ee81885f9f04bff991e306fea7c1c60a5f0f9e409e99f6b40e3311a3363135"
 "checksum quote 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)" = "7a6e920b65c65f10b2ae65c831a81a073a89edd28c7cce89475bff467ab4167a"
