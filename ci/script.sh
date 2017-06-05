@@ -101,8 +101,6 @@ main() {
 
             # FIXME(???) "failed to resolve. Use of undeclared type or module `sercom0`"
             # test_svd ATSAMD21E15A
-
-            # FIXME(???) "failed to resolve. Use of undeclared type or module `sercom0`"
             # test_svd ATSAMD21E16A
             # test_svd ATSAMD21E17A
             # test_svd ATSAMD21E18A
@@ -121,74 +119,113 @@ main() {
         ;;
 
         Freescale)
+            # BAD-SVD bad enumeratedValue value
+            # test_svd MKV56F20
+            # test_svd MKV56F22
+            # test_svd MKV56F24
+            # test_svd MKV58F20
+            # test_svd MKV58F22
+            # test_svd MKV58F24
+
+            # OK
+            # NOTE it would take too long to test all these so we only test half
+            test_svd MK02F12810
+            # test_svd MK10D10
+            test_svd MK10D5
+            # test_svd MK10D7
+            test_svd MK10DZ10
+            # test_svd MK10F12
+            test_svd MK11D5
+            # test_svd MK11D5WS
+            test_svd MK11DA5
+            # test_svd MK12D5
+            test_svd MK20D10
+            # test_svd MK20D5
+            test_svd MK20D7
+            # test_svd MK20DZ10
+            test_svd MK20F12
+            # test_svd MK21D5
+            test_svd MK21D5WS
+            # test_svd MK21DA5
+            test_svd MK21F12
+            # test_svd MK21FA12
+            test_svd MK22D5
+            # test_svd MK22F12
+            test_svd MK22F12810
+            # test_svd MK22F25612
+            test_svd MK22F51212
+            # test_svd MK22FA12
+            test_svd MK24F12
+            # test_svd MK24F25612
+            test_svd MK26F18
+            # test_svd MK30D10
+            test_svd MK30D7
+            # test_svd MK30DZ10
+            test_svd MK40D10
+            # test_svd MK40D7
+            test_svd MK40DZ10
+            # test_svd MK50D10
+            test_svd MK50D7
+            # test_svd MK50DZ10
+            test_svd MK51D10
+            # test_svd MK51D7
+            test_svd MK51DZ10
+            # test_svd MK52D10
+            test_svd MK52DZ10
+            # test_svd MK53D10
+            test_svd MK53DZ10
+            # test_svd MK60D10
+            test_svd MK60DZ10
+            # test_svd MK60F15
+            test_svd MK63F12
+            # test_svd MK64F12
+            test_svd MK65F18
+            # test_svd MK66F18
+            test_svd MK80F25615
+            # test_svd MK81F25615
+            test_svd MK82F25615
+            # test_svd MKE14F16
+            test_svd MKE14Z7
+            # test_svd MKE15Z7
+            test_svd MKE16F16
+            # test_svd MKE18F16
+            test_svd MKL28T7_CORE0
+            # test_svd MKL28T7_CORE1
+            test_svd MKL28Z7
+            # test_svd MKL81Z7
+            test_svd MKL82Z7
+            # test_svd MKS22F12
+            test_svd MKV10Z1287
+            # test_svd MKV10Z7
+            test_svd MKV11Z7
+            # test_svd MKV30F12810
+            test_svd MKV31F12810
+            # test_svd MKV31F25612
+            test_svd MKV31F51212
+            # test_svd MKV40F15
+            test_svd MKV42F16
+            # test_svd MKV43F15
+            test_svd MKV44F15
+            # test_svd MKV44F16
+            test_svd MKV45F15
+            # test_svd MKV46F15
+            test_svd MKV46F16
+            # test_svd MKW20Z4
+            test_svd MKW21D5
+            # test_svd MKW21Z4
+            test_svd MKW22D5
+            # test_svd MKW24D5
+            test_svd MKW30Z4
+            # test_svd MKW31Z4
+            test_svd MKW40Z4
+            # test_svd MKW41Z4
+
             # FIXME(#105) "error[E0428]: a type named `NOT_USEDR` has already been defined in this module"
             # test_svd MK61F15
             # test_svd MK61F15WS
             # test_svd MK70F12
             # test_svd MK70F15
             # test_svd MK70F15WS
-
-            # OK
-            # test_svd MK02F12810
-            # test_svd MK10D10
-            # test_svd MK10D5
-            # test_svd MK10D7
-            # test_svd MK10DZ10
-            # test_svd MK10F12
-            # test_svd MK11D5
-            # test_svd MK11D5WS
-            # test_svd MK11DA5
-            # test_svd MK12D5
-            # test_svd MK20D10
-            # test_svd MK20D5
-            # test_svd MK20D7
-            # test_svd MK20DZ10
-            # test_svd MK20F12
-            # test_svd MK21D5
-            # test_svd MK21D5WS
-            # test_svd MK21DA5
-            # test_svd MK21F12
-            # test_svd MK21FA12
-            # test_svd MK22D5
-            # test_svd MK22F12810
-            # test_svd MK22F12
-            # test_svd MK22F25612
-            # test_svd MK22F51212
-            # test_svd MK22FA12
-            # test_svd MK24F12
-            # test_svd MK24F25612
-            # test_svd MK26F18
-            # test_svd MK30D10
-            # test_svd MK30D7
-            # test_svd MK30DZ10
-            # test_svd MK40D10
-            # test_svd MK40D7
-            # test_svd MK40DZ10
-            # test_svd MK50D10
-            # test_svd MK50D7
-            # test_svd MK50DZ10
-            # test_svd MK51D10
-            # test_svd MK51D7
-            # test_svd MK51DZ10
-            # test_svd MK52D10
-            # test_svd MK52DZ10
-            # test_svd MK53D10
-            # test_svd MK53DZ10
-            # test_svd MK60D10
-
-            # TODO remove
-            set +e
-
-            # OK
-            # test_svd MK60DZ10
-            # test_svd MK60F15
-            # test_svd MK63F12
-            # test_svd MK64F12
-            # test_svd MK65F18
-            # test_svd MK66F18
-            # test_svd MK80F25615
-            # test_svd MK81F25615
-            # test_svd MK82F25615
 
             # FIXME(#92) "duplicate definitions with name `bits`"
             # test_svd MKE02Z2
@@ -223,60 +260,14 @@ main() {
             # test_svd MKM33ZA5
             # test_svd MKM34Z7
             # test_svd MKM34ZA5
-
-            # OK
-            # test_svd MKE14F16
-            # test_svd MKE14Z7
-            # test_svd MKE15Z7
-            # test_svd MKE16F16
-            # test_svd MKE18F16
-            # test_svd MKL28T7_CORE0
-            # test_svd MKL28T7_CORE1
-            # test_svd MKL28Z7
-            # test_svd MKL81Z7
-            # test_svd MKL82Z7
-            # test_svd MKS22F12
-            # test_svd MKV10Z1287
-            # test_svd MKV10Z7
-            # test_svd MKV11Z7
-            # test_svd MKV30F12810
-            # test_svd MKV31F12810
-            # test_svd MKV31F25612
-            # test_svd MKV31F51212
-            # test_svd MKV40F15
-            # test_svd MKV42F16
-            # test_svd MKV43F15
-            # test_svd MKV44F15
-            # test_svd MKV44F16
-            # test_svd MKV45F15
-
-            test_svd MKV46F15
-            test_svd MKV46F16
-            test_svd MKV56F20
-            test_svd MKV56F22
-            test_svd MKV56F24
-            test_svd MKV58F20
-            test_svd MKV58F22
-            test_svd MKV58F24
-            test_svd MKW01Z4
-            test_svd MKW20Z4
-            test_svd MKW21D5
-            test_svd MKW21Z4
-            test_svd MKW22D5
-            test_svd MKW24D5
-            test_svd MKW30Z4
-            test_svd MKW31Z4
-            test_svd MKW40Z4
-            test_svd MKW41Z4
-            test_svd SKEAZ1284
-            test_svd SKEAZN642
-            test_svd SKEAZN84
-
-            set -e
-            exit 1
+            # test_svd MKW01Z4
+            # test_svd SKEAZ1284
+            # test_svd SKEAZN642
+            # test_svd SKEAZN84
         ;;
 
         Fujitsu)
+            # OK
             test_svd MB9AF10xN
             test_svd MB9AF10xR
             test_svd MB9AF11xK
@@ -380,37 +371,27 @@ main() {
         ;;
 
         Holtek)
+            # OK
             test_svd ht32f125x
             test_svd ht32f175x
             test_svd ht32f275x
         ;;
 
         Nordic)
-            test_svd nrf51
-
             # BAD-SVD two enumeratedValues have the same value
             # test_svd nrf52
+
+            # OK
+            test_svd nrf51
         ;;
 
         Nuvoton)
+            # OK
             test_svd M051_Series
             test_svd NUC100_Series
         ;;
 
         NXP)
-            # FIXME(???) "expected identifier, found `_`"
-            # test_svd LPC1102_4_v4
-
-            test_svd LPC11Axxv0.6
-
-            # FIXME(???) "a type named `RESERVED_` has already been defined in this enum"
-            # test_svd LPC11Cxx_v9
-
-            # FIXME(???) "expected one of `(`, `,`, `=`, `{`, or `}`, found `.``)`"
-            # test_svd LPC11D14_svd_v4
-
-            test_svd LPC11E6x_v0.8
-
             # BAD-SVD two enumeratedValues have the same name
             # test_svd LPC11Exx_v5
             # test_svd LPC11Uxx_v7
@@ -420,23 +401,28 @@ main() {
             # test_svd LPC15xx_v0.7
             # test_svd LPC800_v0.3
 
-            # FIXME(???) "expected one of `(`, `,`, `=`, `{`, or `}`, found `.``)`"
-            # test_svd LPC13xx_svd_v1
-
-            test_svd LPC176x5x_v0.2
-
             # BAD-SVD missing resetValue
             # test_svd LPC178x_7x
             # test_svd LPC178x_7x_v0.8
             # test_svd LPC408x_7x_v0.7
 
-            # FIXME(???) "expected one of `(`, `,`, `=`, `{`, or `}`, found `.``)`"
-            # test_svd LPC18xx_svd_v18
-
-            # FIXME(???) "expected one of `(`, `,`, `=`, `{`, or `}`, found `.``)`"
-            # test_svd LPC43xx_svd_v5
-
+            # OK
+            test_svd LPC11Axxv0.6
+            test_svd LPC11E6x_v0.8
+            test_svd LPC176x5x_v0.2
             test_svd LPC5410x_v0.4
+
+            # FIXME(???) "expected identifier, found `_`"
+            # test_svd LPC1102_4_v4
+
+            # FIXME(???) "a type named `RESERVED_` has already been defined in this enum"
+            # test_svd LPC11Cxx_v9
+
+            # FIXME(???) "expected one of `(`, `,`, `=`, `{`, or `}`, found `.``)`"
+            # test_svd LPC11D14_svd_v4
+            # test_svd LPC13xx_svd_v1
+            # test_svd LPC18xx_svd_v18
+            # test_svd LPC43xx_svd_v5
         ;;
 
         SiliconLabs)
@@ -454,6 +440,25 @@ main() {
         ;;
 
         Spansion)
+            # OK
+            test_svd MB9AF12xK
+            test_svd MB9AF12xL
+            test_svd MB9AF42xK
+            test_svd MB9AF42xL
+            test_svd MB9BF12xJ
+            test_svd MB9BF12xS
+            test_svd MB9BF12xT
+            test_svd MB9BF16xx
+            test_svd MB9BF32xS
+            test_svd MB9BF32xT
+            test_svd MB9BF36xx
+            test_svd MB9BF42xS
+            test_svd MB9BF42xT
+            test_svd MB9BF46xx
+            test_svd MB9BF52xS
+            test_svd MB9BF52xT
+            test_svd MB9BF56xx
+
             # FIXME(#102) "binary operation `>>` cannot be applied to type `bool`"
             # test_svd MB9AF10xN
             # test_svd MB9AF10xR
@@ -526,34 +531,10 @@ main() {
             # test_svd MB9BF61xT
             # test_svd MB9BFD1xS
             # test_svd MB9BFD1xT
-
-            test_svd MB9AF12xK
-            test_svd MB9AF12xL
-            test_svd MB9AF42xK
-            test_svd MB9AF42xL
-            test_svd MB9BF12xJ
-            test_svd MB9BF12xS
-            test_svd MB9BF12xT
-            test_svd MB9BF16xx
-            test_svd MB9BF32xS
-            test_svd MB9BF32xT
-            test_svd MB9BF36xx
-            test_svd MB9BF42xS
-            test_svd MB9BF42xT
-            test_svd MB9BF46xx
-            test_svd MB9BF52xS
-            test_svd MB9BF52xT
-            test_svd MB9BF56xx
         ;;
 
         STMicro)
-            # FIXME(???) "field is never used: `register`"
-            # test_svd STM32L051x
-            # test_svd STM32L052x
-            # test_svd STM32L053x
-            # test_svd STM32L062x
-            # test_svd STM32L063x
-
+            # OK
             test_svd STM32F030
             test_svd STM32F031x
             test_svd STM32F042x
@@ -593,6 +574,13 @@ main() {
             test_svd STM32L1xx
             test_svd STM32L4x6
             test_svd STM32W108
+
+            # FIXME(???) "field is never used: `register`"
+            # test_svd STM32L051x
+            # test_svd STM32L052x
+            # test_svd STM32L053x
+            # test_svd STM32L062x
+            # test_svd STM32L063x
         ;;
 
         Toshiba)
@@ -603,6 +591,7 @@ main() {
             # test_svd M369
             # test_svd M36B
 
+            # OK
             test_svd M061
         ;;
     esac
