@@ -46,7 +46,8 @@ main() {
 
     test_svd Nuvoton M051_Series
 
-    test_svd SiliconLabs SIM3C1x4_SVD
+    # FIXME
+    # test_svd SiliconLabs SIM3C1x4_SVD
 
     test_svd Spansion MB9AF10xN
 
