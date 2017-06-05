@@ -10,6 +10,10 @@ env:
 
 matrix:
   include:
+    # Nightly, for testing
+    - env: TARGET=x86_64-unknown-linux-gnu
+      rust: nightly
+
     # Linux
     - env: TARGET=i686-unknown-linux-gnu DISABLE_TESTS=1
     - env: TARGET=i686-unknown-linux-musl DISABLE_TESTS=1
@@ -21,10 +25,6 @@ matrix:
       os: osx
     - env: TARGET=x86_64-apple-darwin DISABLE_TESTS=1
       os: osx
-
-    # Nightly, for testing
-    - env: TARGET=x86_64-unknown-linux-gnu
-      rust: nightly
 
 install:
   - sh ci/install.sh
