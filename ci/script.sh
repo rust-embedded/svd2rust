@@ -30,10 +30,33 @@ main() {
     echo 'cortex-m = "0.2.0"' >> $td/Cargo.toml
     echo 'vcell = "0.1.0"' >> $td/Cargo.toml
 
+    test_svd Atmel AT91SAM9CN11
+
+    test_svd Freescale MK81F25615
+
+    test_svd Fujitsu MB9AF10xN
+
+    test_svd Holtek ht32f125x
+
     test_svd Nordic nrf51
+
+    # FIXME
+    # test_svd NXP LPC43xx_svd_v5.svd
+
+    test_svd Nuvoton M051_Series
+
+    test_svd SiliconLabs SIM3C1x4_SVD
+
+    test_svd Spansion MB9AF10xN
+
     test_svd STMicro STM32F100xx
     test_svd STMicro STM32F103xx
     test_svd STMicro STM32F30x
+
+    # FIXME
+    # test_svd TexasInstrument TM4C1230C3PM
+
+    test_svd Toshiba M061
 
     rm -rf $td
 }
