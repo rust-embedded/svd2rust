@@ -9,7 +9,7 @@ test_svd() {
 }
 
 main() {
-    cross check --target $TARGET
+    cross build --target $TARGET
 
     if [ ! -z $DISABLE_TESTS ]; then
         return
