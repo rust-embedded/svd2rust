@@ -49,7 +49,8 @@ main() {
     # FIXME
     # test_svd SiliconLabs SIM3C1x4_SVD
 
-    test_svd Spansion MB9AF10xN
+    # FIXME #102
+    # test_svd Spansion MB9AF10xN
 
     test_svd STMicro STM32F100xx
     test_svd STMicro STM32F103xx
