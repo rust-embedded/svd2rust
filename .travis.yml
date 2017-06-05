@@ -28,7 +28,6 @@ matrix:
 
 install:
   - sh ci/install.sh
-  - source ~/.cargo/env || true
 
 script:
   - bash ci/script.sh

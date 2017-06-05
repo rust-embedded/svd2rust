@@ -9,12 +9,13 @@ test_svd() {
 }
 
 main() {
-    cross build --target $TARGET
-    cross build --target $TARGET --release
+    cross check --target $TARGET
 
     if [ ! -z $DISABLE_TESTS ]; then
         return
     fi
+
+    cross build --target $TARGET --release
 
     case $TRAVIS_OS_NAME in
         linux)
