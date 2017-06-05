@@ -2,10 +2,13 @@ set -ex
 set -o pipefail
 
 test_svd() {
-    curl -L \
-         https://raw.githubusercontent.com/posborne/cmsis-svd/python-0.4/data/$VENDOR/${1}.svd \
-         > $td/${1}.svd
-    # we care about errors in svd2rust, but not about errors / warnings in rustfmt
+    (
+        cd $td &&
+            curl -LO \
+                 https://raw.githubusercontent.com/posborne/cmsis-svd/python-0.4/data/$VENDOR/${1}.svd
+    )
+
+    # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
     target/$TARGET/release/svd2rust -i $td/${1}.svd | ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
 
     cargo check --manifest-path $td/Cargo.toml
@@ -405,9 +408,9 @@ main() {
             # test_svd LPC178x_7x
             # test_svd LPC178x_7x_v0.8
             # test_svd LPC408x_7x_v0.7
+            # test_svd LPC11Axxv0.6
 
             # OK
-            test_svd LPC11Axxv0.6
             test_svd LPC11E6x_v0.8
             test_svd LPC176x5x_v0.2
             test_svd LPC5410x_v0.4
