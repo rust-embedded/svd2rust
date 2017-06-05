@@ -5,7 +5,7 @@ test_svd() {
          https://raw.githubusercontent.com/posborne/cmsis-svd/python-0.4/data/$1/${2}.svd \
          > $td/${2}.svd
     target/$TARGET/release/svd2rust -i $td/${2}.svd > $td/src/lib.rs
-    cargo build --manifest-path $td/Cargo.toml
+    cargo check --manifest-path $td/Cargo.toml
 }
 
 main() {
