@@ -21,6 +21,8 @@ matrix:
       rust: nightly
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Nordic
       rust: nightly
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Nuvoton
+      rust: nightly
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=NXP
       rust: nightly
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=SiliconLabs

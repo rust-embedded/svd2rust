@@ -1,12 +1,10 @@
 set -ex
 
 main() {
-    local target=
+    local sort=
     if [ $TRAVIS_OS_NAME = linux ]; then
-        target=x86_64-unknown-linux-gnu
         sort=sort
     else
-        target=x86_64-apple-darwin
         sort=gsort
     fi
 
@@ -19,8 +17,15 @@ main() {
         sh -s -- \
            --force \
            --git japaric/cross \
-           --tag $tag \
-           --target $target
+           --tag $tag
+
+    if [ ! -z $VENDOR ]; then
+        curl -LSfs https://japaric.github.io/trust/install.sh | \
+            sh -s -- \
+               --force \
+               --git japaric/rustfmt-bin \
+               --tag v0.8.4-20170605
+    fi
 }
 
 main
