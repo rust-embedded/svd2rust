@@ -435,6 +435,13 @@ pub fn register(
                         format!("Register {} has no `size` field",
                                 register.name)
                     })?;
+    let rsize = if rsize < 8 {
+        8
+    } else if rsize.is_power_of_two() {
+        rsize
+    } else {
+        rsize.next_power_of_two()
+    };
     let rty = rsize.to_ty()?;
     let description = util::respace(&register.description);
 
