@@ -401,7 +401,7 @@ main() {
             # FIXME(???) "expected identifier, found `_`"
             # test_svd LPC1102_4_v4
 
-            test_svd LPC11Axxv0
+            test_svd LPC11Axxv0.6
 
             # FIXME(???) "a type named `RESERVED_` has already been defined in this enum"
             # test_svd LPC11Cxx_v9
@@ -409,7 +409,7 @@ main() {
             # FIXME(???) "expected one of `(`, `,`, `=`, `{`, or `}`, found `.``)`"
             # test_svd LPC11D14_svd_v4
 
-            test_svd LPC11E6x_v0
+            test_svd LPC11E6x_v0.8
 
             # BAD-SVD two enumeratedValues have the same name
             # test_svd LPC11Exx_v5
