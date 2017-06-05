@@ -22,6 +22,7 @@ main() {
     if [ ! -z $VENDOR ]; then
         curl -LSfs https://japaric.github.io/trust/install.sh | \
             sh -s -- \
+               --crate rustfmt \
                --force \
                --git japaric/rustfmt-bin \
                --tag v0.8.4-20170605
