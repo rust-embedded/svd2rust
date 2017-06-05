@@ -596,12 +596,14 @@ main() {
         ;;
 
         Toshiba)
+            # BAD-SVD resetValue is bigger than the register size
+            # test_svd M365
+            # test_svd M367
+            # test_svd M368
+            # test_svd M369
+            # test_svd M36B
+
             test_svd M061
-            test_svd M365
-            test_svd M367
-            test_svd M368
-            test_svd M369
-            test_svd M36B
         ;;
     esac
 
