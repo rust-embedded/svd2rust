@@ -1,10 +1,13 @@
 set -ex
+set -o pipefail
 
 test_svd() {
     curl -L \
          https://raw.githubusercontent.com/posborne/cmsis-svd/python-0.4/data/$VENDOR/${1}.svd \
          > $td/${1}.svd
-    target/$TARGET/release/svd2rust -i $td/${1}.svd | rustfmt 2>/dev/null > $td/src/lib.rs
+    # we care about errors in svd2rust, but not about errors / warnings in rustfmt
+    target/$TARGET/release/svd2rust -i $td/${1}.svd | ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
+
     cargo check --manifest-path $td/Cargo.toml
 }
 
@@ -121,6 +124,9 @@ main() {
             # FIXME(#105) "error[E0428]: a type named `NOT_USEDR` has already been defined in this module"
             # test_svd MK61F15
             # test_svd MK61F15WS
+            # test_svd MK70F12
+            # test_svd MK70F15
+            # test_svd MK70F15WS
 
             # OK
             # test_svd MK02F12810
@@ -173,75 +179,77 @@ main() {
             # TODO remove
             set +e
 
-            test_svd MK60DZ10
-            test_svd MK60F15
+            # OK
+            # test_svd MK60DZ10
+            # test_svd MK60F15
+            # test_svd MK63F12
+            # test_svd MK64F12
+            # test_svd MK65F18
+            # test_svd MK66F18
+            # test_svd MK80F25615
+            # test_svd MK81F25615
+            # test_svd MK82F25615
 
-            test_svd MK63F12
-            test_svd MK64F12
-            test_svd MK65F18
-            test_svd MK66F18
-            test_svd MK70F12
-            test_svd MK70F15
-            test_svd MK70F15WS
-            test_svd MK80F25615
-            test_svd MK81F25615
-            test_svd MK82F25615
-            test_svd MKE02Z2
-            test_svd MKE02Z4
-            test_svd MKE04Z1284
-            test_svd MKE04Z4
-            test_svd MKE06Z4
-            test_svd MKE14D7
-            test_svd MKE14F16
-            test_svd MKE14Z7
-            test_svd MKE15D7
-            test_svd MKE15Z7
-            test_svd MKE16F16
-            test_svd MKE18F16
-            test_svd MKL02Z4
-            test_svd MKL03Z4
-            test_svd MKL04Z4
-            test_svd MKL05Z4
-            test_svd MKL13Z644
-            test_svd MKL14Z4
-            test_svd MKL15Z4
-            test_svd MKL16Z4
-            test_svd MKL17Z4
-            test_svd MKL17Z644
-            test_svd MKL24Z4
-            test_svd MKL25Z4
-            test_svd MKL26Z4
-            test_svd MKL27Z4
-            test_svd MKL27Z644
-            test_svd MKL28T7_CORE0
-            test_svd MKL28T7_CORE1
-            test_svd MKL28Z7
-            test_svd MKL33Z4
-            test_svd MKL33Z644
-            test_svd MKL34Z4
-            test_svd MKL36Z4
-            test_svd MKL43Z4
-            test_svd MKL46Z4
-            test_svd MKL81Z7
-            test_svd MKL82Z7
-            test_svd MKM14ZA5
-            test_svd MKM33ZA5
-            test_svd MKM34Z7
-            test_svd MKM34ZA5
-            test_svd MKS22F12
-            test_svd MKV10Z1287
-            test_svd MKV10Z7
-            test_svd MKV11Z7
-            test_svd MKV30F12810
-            test_svd MKV31F12810
-            test_svd MKV31F25612
-            test_svd MKV31F51212
-            test_svd MKV40F15
-            test_svd MKV42F16
-            test_svd MKV43F15
-            test_svd MKV44F15
-            test_svd MKV44F16
-            test_svd MKV45F15
+            # FIXME(#92) "duplicate definitions with name `bits`"
+            # test_svd MKE02Z2
+            # test_svd MKE02Z4
+            # test_svd MKE04Z1284
+            # test_svd MKE04Z4
+            # test_svd MKE06Z4
+            # test_svd MKE14D7
+            # test_svd MKE15D7
+            # test_svd MKL02Z4
+            # test_svd MKL03Z4
+            # test_svd MKL04Z4
+            # test_svd MKL05Z4
+            # test_svd MKL13Z644
+            # test_svd MKL14Z4
+            # test_svd MKL15Z4
+            # test_svd MKL16Z4
+            # test_svd MKL17Z4
+            # test_svd MKL17Z644
+            # test_svd MKL24Z4
+            # test_svd MKL25Z4
+            # test_svd MKL26Z4
+            # test_svd MKL27Z4
+            # test_svd MKL27Z644
+            # test_svd MKL33Z4
+            # test_svd MKL33Z644
+            # test_svd MKL34Z4
+            # test_svd MKL36Z4
+            # test_svd MKL43Z4
+            # test_svd MKL46Z4
+            # test_svd MKM14ZA5
+            # test_svd MKM33ZA5
+            # test_svd MKM34Z7
+            # test_svd MKM34ZA5
+
+            # OK
+            # test_svd MKE14F16
+            # test_svd MKE14Z7
+            # test_svd MKE15Z7
+            # test_svd MKE16F16
+            # test_svd MKE18F16
+            # test_svd MKL28T7_CORE0
+            # test_svd MKL28T7_CORE1
+            # test_svd MKL28Z7
+            # test_svd MKL81Z7
+            # test_svd MKL82Z7
+            # test_svd MKS22F12
+            # test_svd MKV10Z1287
+            # test_svd MKV10Z7
+            # test_svd MKV11Z7
+            # test_svd MKV30F12810
+            # test_svd MKV31F12810
+            # test_svd MKV31F25612
+            # test_svd MKV31F51212
+            # test_svd MKV40F15
+            # test_svd MKV42F16
+            # test_svd MKV43F15
+            # test_svd MKV44F15
+            # test_svd MKV44F16
+            # test_svd MKV45F15
+
             test_svd MKV46F15
             test_svd MKV46F16
             test_svd MKV56F20
