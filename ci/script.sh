@@ -130,6 +130,13 @@ main() {
             # test_svd MKV58F22
             # test_svd MKV58F24
 
+            # BAD-SVD field names are equivalent when case is ignored
+            # test_svd MK61F15
+            # test_svd MK61F15WS
+            # test_svd MK70F12
+            # test_svd MK70F15
+            # test_svd MK70F15WS
+
             # OK
             # NOTE it would take too long to test all these so we only test half
             test_svd MK02F12810
@@ -222,13 +229,6 @@ main() {
             test_svd MKW31Z4
             # test_svd MKW40Z4
             # test_svd MKW41Z4
-
-            # FIXME(#105) "error[E0428]: a type named `NOT_USEDR` has already been defined in this module"
-            # test_svd MK61F15
-            # test_svd MK61F15WS
-            # test_svd MK70F12
-            # test_svd MK70F15
-            # test_svd MK70F15WS
 
             # FIXME(#92) "duplicate definitions with name `bits`"
             # test_svd MKE02Z2
