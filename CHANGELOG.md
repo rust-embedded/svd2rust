@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-## [v0.9.0] - 2017-06-05
+## [v0.9.1] - 2017-06-05
+
+### Fixed
+
+- The type of core peripheral register blocks has been changed to uppercase to
+  match the device specific ones.
+
+## [v0.9.0] - 2017-06-05 - YANKED
 
 ### Changed
 
