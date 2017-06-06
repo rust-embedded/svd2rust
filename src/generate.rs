@@ -889,13 +889,13 @@ pub fn fields(
                         enum_items.push(quote! {
                             /// Returns `true` if the bit is clear (0)
                             #[inline(always)]
-                            pub fn is_clear(&self) -> bool {
+                            pub fn is_bit_clear(&self) -> bool {
                                 !self.#bits()
                             }
 
                             /// Returns `true` if the bit is set (1)
                             #[inline(always)]
-                            pub fn is_set(&self) -> bool {
+                            pub fn is_bit_set(&self) -> bool {
                                 self.#bits()
                             }
                         });
@@ -1014,13 +1014,13 @@ pub fn fields(
                     pc_r_impl_items.push(quote! {
                         /// Returns `true` if the bit is clear (0)
                         #[inline(always)]
-                        pub fn is_clear(&self) -> bool {
+                        pub fn is_bit_clear(&self) -> bool {
                             !self.#bits()
                         }
 
                         /// Returns `true` if the bit is set (1)
                         #[inline(always)]
-                        pub fn is_set(&self) -> bool {
+                        pub fn is_bit_set(&self) -> bool {
                             self.#bits()
                         }
                     });
@@ -1246,16 +1246,18 @@ pub fn fields(
                         );
                     }
                 }
-            } else if width == 1 {
+            }
+
+            if width == 1 {
                 proxy_items.push(
                     quote! {
                         /// Sets the field bit
-                        pub fn set(self) -> &'a mut W {
+                        pub fn set_bit(self) -> &'a mut W {
                             self.bit(true)
                         }
 
                         /// Clears the field bit
-                        pub fn clear(self) -> &'a mut W {
+                        pub fn clear_bit(self) -> &'a mut W {
                             self.bit(false)
                         }
                     }
