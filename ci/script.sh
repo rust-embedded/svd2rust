@@ -134,93 +134,93 @@ main() {
             # NOTE it would take too long to test all these so we only test half
             test_svd MK02F12810
             # test_svd MK10D10
-            test_svd MK10D5
-            # test_svd MK10D7
-            test_svd MK10DZ10
+            # test_svd MK10D5
+            test_svd MK10D7
+            # test_svd MK10DZ10
             # test_svd MK10F12
             test_svd MK11D5
             # test_svd MK11D5WS
-            test_svd MK11DA5
-            # test_svd MK12D5
-            test_svd MK20D10
+            # test_svd MK11DA5
+            test_svd MK12D5
+            # test_svd MK20D10
             # test_svd MK20D5
             test_svd MK20D7
             # test_svd MK20DZ10
-            test_svd MK20F12
-            # test_svd MK21D5
-            test_svd MK21D5WS
+            # test_svd MK20F12
+            test_svd MK21D5
+            # test_svd MK21D5WS
             # test_svd MK21DA5
             test_svd MK21F12
             # test_svd MK21FA12
-            test_svd MK22D5
-            # test_svd MK22F12
-            test_svd MK22F12810
+            # test_svd MK22D5
+            test_svd MK22F12
+            # test_svd MK22F12810
             # test_svd MK22F25612
             test_svd MK22F51212
             # test_svd MK22FA12
-            test_svd MK24F12
-            # test_svd MK24F25612
-            test_svd MK26F18
+            # test_svd MK24F12
+            test_svd MK24F25612
+            # test_svd MK26F18
             # test_svd MK30D10
             test_svd MK30D7
             # test_svd MK30DZ10
-            test_svd MK40D10
-            # test_svd MK40D7
-            test_svd MK40DZ10
+            # test_svd MK40D10
+            test_svd MK40D7
+            # test_svd MK40DZ10
             # test_svd MK50D10
             test_svd MK50D7
             # test_svd MK50DZ10
-            test_svd MK51D10
-            # test_svd MK51D7
-            test_svd MK51DZ10
+            # test_svd MK51D10
+            test_svd MK51D7
+            # test_svd MK51DZ10
             # test_svd MK52D10
             test_svd MK52DZ10
             # test_svd MK53D10
-            test_svd MK53DZ10
-            # test_svd MK60D10
-            test_svd MK60DZ10
+            # test_svd MK53DZ10
+            test_svd MK60D10
+            # test_svd MK60DZ10
             # test_svd MK60F15
             test_svd MK63F12
             # test_svd MK64F12
-            test_svd MK65F18
-            # test_svd MK66F18
-            test_svd MK80F25615
+            # test_svd MK65F18
+            test_svd MK66F18
+            # test_svd MK80F25615
             # test_svd MK81F25615
             test_svd MK82F25615
             # test_svd MKE14F16
-            test_svd MKE14Z7
-            # test_svd MKE15Z7
-            test_svd MKE16F16
+            # test_svd MKE14Z7
+            test_svd MKE15Z7
+            # test_svd MKE16F16
             # test_svd MKE18F16
             test_svd MKL28T7_CORE0
             # test_svd MKL28T7_CORE1
-            test_svd MKL28Z7
-            # test_svd MKL81Z7
-            test_svd MKL82Z7
+            # test_svd MKL28Z7
+            test_svd MKL81Z7
+            # test_svd MKL82Z7
             # test_svd MKS22F12
             test_svd MKV10Z1287
             # test_svd MKV10Z7
-            test_svd MKV11Z7
-            # test_svd MKV30F12810
-            test_svd MKV31F12810
+            # test_svd MKV11Z7
+            test_svd MKV30F12810
+            # test_svd MKV31F12810
             # test_svd MKV31F25612
             test_svd MKV31F51212
             # test_svd MKV40F15
-            test_svd MKV42F16
-            # test_svd MKV43F15
-            test_svd MKV44F15
+            # test_svd MKV42F16
+            test_svd MKV43F15
+            # test_svd MKV44F15
             # test_svd MKV44F16
             test_svd MKV45F15
             # test_svd MKV46F15
-            test_svd MKV46F16
-            # test_svd MKW20Z4
-            test_svd MKW21D5
+            # test_svd MKV46F16
+            test_svd MKW20Z4
+            # test_svd MKW21D5
             # test_svd MKW21Z4
             test_svd MKW22D5
             # test_svd MKW24D5
-            test_svd MKW30Z4
-            # test_svd MKW31Z4
-            test_svd MKW40Z4
+            # test_svd MKW30Z4
+            test_svd MKW31Z4
+            # test_svd MKW40Z4
             # test_svd MKW41Z4
 
             # FIXME(#105) "error[E0428]: a type named `NOT_USEDR` has already been defined in this module"
