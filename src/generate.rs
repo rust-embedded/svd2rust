@@ -62,7 +62,7 @@ pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
         let p = Ident::new(*p);
 
         items.push(quote! {
-            pub use cortex_m::peripheral::#ty_;
+            pub use cortex_m::peripheral::#ty_ as #p;
             pub use cortex_m::peripheral::#p;
         });
     }
