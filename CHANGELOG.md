@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.9.0] - 2017-06-05
+
+### Changed
+
+- [breaking-change] the types of peripherals, register and bitfields are now
+  normalized to uppercase, instead of CamelCase. It was not possible to use
+  CamelCase without running into problems like `A_22_5` and `A_2_25` mapping to
+  the same identifier `A225`.
+
+### Fixed
+
+- Code generation when the size of register was declared as being 1 bit by the
+  SVD file.
+
 ## [v0.8.1] - 2017-05-30
 
 ### Changed
@@ -212,7 +226,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.9.0...HEAD
+[v0.9.0]: https://github.com/japaric/svd2rust/compare/v0.8.1...v0.9.0
 [v0.8.1]: https://github.com/japaric/svd2rust/compare/v0.8.0...v0.8.1
 [v0.8.0]: https://github.com/japaric/svd2rust/compare/v0.7.2...v0.8.0
 [v0.7.2]: https://github.com/japaric/svd2rust/compare/v0.7.1...v0.7.2
