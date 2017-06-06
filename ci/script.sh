@@ -579,7 +579,7 @@ main() {
             test_svd STM32L4x6
             test_svd STM32W108
 
-            # FIXME(???) "field is never used: `register`"
+            # FIXME(#91) "field is never used: `register`"
             # test_svd STM32L051x
             # test_svd STM32L052x
             # test_svd STM32L053x
