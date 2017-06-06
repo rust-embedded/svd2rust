@@ -403,6 +403,9 @@ main() {
             # test_svd LPC13Uxx_v1
             # test_svd LPC15xx_v0.7
             # test_svd LPC800_v0.3
+            # test_svd LPC11E6x_v0.8
+            # test_svd LPC176x5x_v0.2
+            # test_svd LPC11Cxx_v9
 
             # BAD-SVD missing resetValue
             # test_svd LPC178x_7x
@@ -410,22 +413,20 @@ main() {
             # test_svd LPC408x_7x_v0.7
             # test_svd LPC11Axxv0.6
 
-            # OK
-            test_svd LPC11E6x_v0.8
-            test_svd LPC176x5x_v0.2
-            test_svd LPC5410x_v0.4
 
-            # FIXME(???) "expected identifier, found `_`"
-            # test_svd LPC1102_4_v4
-
-            # FIXME(???) "a type named `RESERVED_` has already been defined in this enum"
-            # test_svd LPC11Cxx_v9
-
-            # FIXME(???) "expected one of `(`, `,`, `=`, `{`, or `}`, found `.``)`"
+            # BAD-SVD bad identifier: contains a '.'
             # test_svd LPC11D14_svd_v4
             # test_svd LPC13xx_svd_v1
+
+            # BAD-SVD bad identifier: contains a '/'
             # test_svd LPC18xx_svd_v18
             # test_svd LPC43xx_svd_v5
+
+            # BAD-SVD uses the identifier '_' to name a reserved bitfield value
+            # test_svd LPC1102_4_v4
+
+            # FIXME(#99) "duplicate definitions with name `is_set`"
+            # test_svd LPC5410x_v0.4
         ;;
 
         SiliconLabs)
