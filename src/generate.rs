@@ -529,11 +529,8 @@ pub fn register(
 
         let rv = register.reset_value
             .or(defs.reset_value)
-            .map(|rv| util::unsuffixed(u64(rv)))
-            .ok_or_else(|| {
-                            format!("Register {} has no reset value",
-                                    register.name)
-                        })?;
+            .or(Some(0))
+            .map(|rv| util::unsuffixed(u64(rv)));
 
         w_impl_items.push(
             quote! {
