@@ -96,8 +96,6 @@ impl ToSanitizedSnakeCase for str {
                     where,
                     while,
                     yield,
-                    bit_set,
-                    bit_clear,
                     set_bit,
                     clear_bit,
                     bit,

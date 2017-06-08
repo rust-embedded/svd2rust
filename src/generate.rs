@@ -889,13 +889,13 @@ pub fn fields(
                         enum_items.push(quote! {
                             /// Returns `true` if the bit is clear (0)
                             #[inline(always)]
-                            pub fn is_bit_clear(&self) -> bool {
+                            pub fn bit_is_clear(&self) -> bool {
                                 !self.#bits()
                             }
 
                             /// Returns `true` if the bit is set (1)
                             #[inline(always)]
-                            pub fn is_bit_set(&self) -> bool {
+                            pub fn bit_is_set(&self) -> bool {
                                 self.#bits()
                             }
                         });
@@ -1014,13 +1014,13 @@ pub fn fields(
                     pc_r_impl_items.push(quote! {
                         /// Returns `true` if the bit is clear (0)
                         #[inline(always)]
-                        pub fn is_bit_clear(&self) -> bool {
+                        pub fn bit_is_clear(&self) -> bool {
                             !self.#bits()
                         }
 
                         /// Returns `true` if the bit is set (1)
                         #[inline(always)]
-                        pub fn is_bit_set(&self) -> bool {
+                        pub fn bit_is_set(&self) -> bool {
                             self.#bits()
                         }
                     });
