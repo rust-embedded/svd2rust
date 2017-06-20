@@ -41,6 +41,11 @@ pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
         },
     );
 
+    let generate_core_peripherals = match d.cpu {
+        Some(ref cpu) => cpu.is_cortex_m(),
+        None => true,   // assume has Cortex M peripherals by default
+    };
+
     ::generate::interrupt(&d.peripherals, items);
 
     const CORE_PERIPHERALS: &'static [&'static str] = &[
@@ -57,18 +62,20 @@ pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
         "TPIU",
     ];
 
-    for p in CORE_PERIPHERALS {
-        let ty_ = Ident::new(p.to_sanitized_pascal_case());
-        let p = Ident::new(*p);
+    if generate_core_peripherals {
+        for p in CORE_PERIPHERALS {
+            let ty_ = Ident::new(p.to_sanitized_pascal_case());
+            let p = Ident::new(*p);
 
-        items.push(quote! {
-            pub use cortex_m::peripheral::#ty_ as #p;
-            pub use cortex_m::peripheral::#p;
-        });
+            items.push(quote! {
+                pub use cortex_m::peripheral::#ty_ as #p;
+                pub use cortex_m::peripheral::#p;
+            });
+        }
     }
 
     for p in &d.peripherals {
-        if CORE_PERIPHERALS.contains(&&*p.name.to_uppercase()) {
+        if generate_core_peripherals && CORE_PERIPHERALS.contains(&&*p.name.to_uppercase()) {
             // Core peripherals are handled above
             continue;
         }
