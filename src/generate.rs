@@ -29,7 +29,7 @@ pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
             #![deny(warnings)]
             #![allow(non_camel_case_types)]
             #![feature(const_fn)]
-            #![feature(optin_builtin_traits)]
+            #![feature(used)]
             #![no_std]
 
             extern crate cortex_m;
@@ -93,46 +93,25 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
         .collect::<Vec<_>>();
     interrupts.sort_by_key(|i| i.value);
 
-    let mut fields = vec![];
-    let mut exprs = vec![];
-    let mut variants = vec![];
     let mut arms = vec![];
+    let mut elements = vec![];
+    let mut names = vec![];
+    let mut variants = vec![];
 
     // Current position in the vector table
     let mut pos = 0;
-    // Counter for reserved blocks
-    let mut res = 0;
-    let mut uses_reserved = false;
     let mut mod_items = vec![];
     mod_items.push(
         quote! {
-            use cortex_m::ctxt::Context;
-            use cortex_m::exception;
             use cortex_m::interrupt::Nr;
         },
     );
     for interrupt in &interrupts {
-        if pos < interrupt.value {
-            let name = Ident::new(&*format!("_reserved{}", res));
-            res += 1;
-            let n = util::unsuffixed(u64(interrupt.value - pos));
-
-            uses_reserved = true;
-            fields.push(
-                quote! {
-                    /// Reserved spot in the vector table
-                    pub #name: [Reserved; #n],
-                },
-            );
-
-            exprs.push(
-                quote! {
-                    #name: [Reserved::Vector; #n],
-                },
-            );
+        while pos < interrupt.value {
+            elements.push(quote!(None));
         }
 
-        let name_pc = Ident::new(interrupt.name.to_sanitized_upper_case());
+        let name_uc = Ident::new(interrupt.name.to_sanitized_upper_case());
         let description = format!(
             "{} - {}",
             interrupt.value,
@@ -142,72 +121,39 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
                 .map(|s| util::respace(s))
                 .unwrap_or_else(|| interrupt.name.clone())
         );
-        fields.push(
-            quote! {
-                #[doc = #description]
-                pub #name_pc: extern "C" fn(#name_pc),
-            },
-        );
 
         let value = util::unsuffixed(u64(interrupt.value));
-        mod_items.push(
-            quote! {
-                #[doc = #description]
-                pub struct #name_pc { _0: () }
-                unsafe impl Context for #name_pc {}
-                unsafe impl Nr for #name_pc {
-                    #[inline(always)]
-                    fn nr(&self) -> u8 {
-                        #value
-                    }
-                }
-                impl !Send for #name_pc {}
-            },
-        );
-
-        exprs.push(
-            quote! {
-                #name_pc: exception::default_handler,
-            },
-        );
 
         variants.push(
             quote! {
                 #[doc = #description]
-                #name_pc,
+                #name_uc,
             },
         );
 
         arms.push(
             quote! {
-                Interrupt::#name_pc => #value,
+                Interrupt::#name_uc => #value,
             },
         );
 
+        elements.push(quote!(Some(#name_uc)));
+        names.push(name_uc);
         pos = interrupt.value + 1;
     }
 
-    if uses_reserved {
-        mod_items.push(
-            quote! {
-                use cortex_m::Reserved;
-            },
-        );
-    }
-
+    let n = util::unsuffixed(u64(pos));
     mod_items.push(
         quote! {
-            /// Interrupt handlers
-            #[allow(non_snake_case)]
-            #[repr(C)]
-            pub struct Handlers {
-                #(#fields)*
+            extern "C" {
+                #(fn #names();)*
             }
 
-            /// Default interrupt handlers
-            pub const DEFAULT_HANDLERS: Handlers = Handlers {
-                #(#exprs)*
-            };
+            #[link_section = ".vector_table.interrupts"]
+            #[used]
+            static INTERRUPTS: [Option<unsafe extern "C" fn()>; #n] = [
+                #(#elements,)*
+            ];
 
             /// Enumeration of all the interrupts
             pub enum Interrupt {
@@ -219,6 +165,52 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
                 fn nr(&self) -> u8 {
                     match *self {
                         #(#arms)*
+                    }
+                }
+            }
+
+            #[macro_export]
+            macro_rules! interrupt {
+                ($NAME:ident, $f:ident, local: {
+                    $($lvar:ident:$lty:ident = $lval:expr;)*
+                }) => {
+                    #[allow(non_snake_case)]
+                    mod $NAME {
+                        pub struct Locals {
+                            $(
+                                pub $lvar: $lty,
+                            )*
+                        }
+                    }
+
+                    #[allow(non_snake_case)]
+                    #[no_mangle]
+                    pub extern "C" fn $NAME() {
+                        // check that the handler exists
+                        let _ = $crate::interrupt::Interrupt::$NAME;
+
+                        static mut LOCALS: self::$NAME::Locals =
+                            self::$NAME::Locals {
+                                $(
+                                    $lvar: $lval,
+                                )*
+                            };
+
+                        // type checking
+                        let f: fn(&mut self::$NAME::Locals) = $f;
+                        f(unsafe { &mut LOCALS });
+                    }
+                };
+                ($NAME:ident, $f:ident) => {
+                    #[allow(non_snake_case)]
+                    #[no_mangle]
+                    pub extern "C" fn $NAME() {
+                        // check that the handler exists
+                        let _ = $crate::interrupt::Interrupt::$NAME;
+
+                        // type checking
+                        let f: fn() = $f;
+                        f();
                     }
                 }
             }
