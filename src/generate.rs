@@ -149,9 +149,10 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
                 #(fn #names();)*
             }
 
+            #[doc(hidden)]
             #[link_section = ".vector_table.interrupts"]
-            #[used]
-            static INTERRUPTS: [Option<unsafe extern "C" fn()>; #n] = [
+            #[no_mangle]
+            pub static INTERRUPTS: [Option<unsafe extern "C" fn()>; #n] = [
                 #(#elements,)*
             ];
 
