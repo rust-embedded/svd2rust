@@ -28,7 +28,11 @@ pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
             #![deny(missing_docs)]
             #![deny(warnings)]
             #![allow(non_camel_case_types)]
+            #![feature(asm)]
+            #![feature(core_intrinsics)]
             #![feature(const_fn)]
+            #![feature(linkage)]
+            #![feature(naked_functions)]
             #![feature(used)]
             #![no_std]
 
@@ -145,9 +149,19 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
     let n = util::unsuffixed(u64(pos));
     mod_items.push(
         quote! {
-            extern "C" {
-                #(fn #names();)*
-            }
+            #(
+                #[allow(non_snake_case)]
+                #[allow(private_no_mangle_fns)]
+                #[linkage = "weak"]
+                #[naked]
+                #[no_mangle]
+                extern "C" fn #names() {
+                    unsafe {
+                        asm!("b DEFAULT_HANDLER");
+                        ::core::intrinsics::unreachable()
+                    }
+                }
+            )*
 
             #[doc(hidden)]
             #[link_section = ".vector_table.interrupts"]
