@@ -9,8 +9,7 @@ use svd::{Access, BitRange, Defaults, Device, EnumeratedValues, Field,
 use syn::{Ident, Lit};
 
 use errors::*;
-use util::{self, ToSanitizedPascalCase, ToSanitizedSnakeCase,
-           ToSanitizedUpperCase, U32Ext};
+use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
 
 /// Whole device generation
 pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
@@ -62,11 +61,9 @@ pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
     ];
 
     for p in CORE_PERIPHERALS {
-        let ty_ = Ident::new(p.to_sanitized_pascal_case());
         let p = Ident::new(*p);
 
         items.push(quote! {
-            pub use cortex_m::peripheral::#ty_ as #p;
             pub use cortex_m::peripheral::#p;
         });
     }
@@ -157,16 +154,16 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
                 #[no_mangle]
                 extern "C" fn #names() {
                     unsafe {
-                        asm!("b DEFAULT_HANDLER");
+                        asm!("b DEFAULT_HANDLER" :::: "volatile");
                         ::core::intrinsics::unreachable()
                     }
                 }
             )*
 
-            #[doc(hidden)]
             #[link_section = ".vector_table.interrupts"]
             #[no_mangle]
-            pub static INTERRUPTS: [Option<unsafe extern "C" fn()>; #n] = [
+            #[used]
+            static INTERRUPTS: [Option<extern "C" fn()>; #n] = [
                 #(#elements,)*
             ];
 
