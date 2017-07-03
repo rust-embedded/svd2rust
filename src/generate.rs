@@ -197,7 +197,7 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
                 }) => {
                     #[allow(non_snake_case)]
                     mod $NAME {
-                        pub struct Locals {
+                        pub struct Local {
                             $(
                                 pub $lvar: $lty,
                             )*
@@ -210,16 +210,16 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
                         // check that the handler exists
                         let _ = $crate::interrupt::Interrupt::$NAME;
 
-                        static mut LOCALS: self::$NAME::Locals =
-                            self::$NAME::Locals {
+                        static mut LOCAL: self::$NAME::Local =
+                            self::$NAME::Local {
                                 $(
                                     $lvar: $lval,
                                 )*
                             };
 
                         // type checking
-                        let f: fn(&mut self::$NAME::Locals) = $f;
-                        f(unsafe { &mut LOCALS });
+                        let f: fn(&mut self::$NAME::Local) = $f;
+                        f(unsafe { &mut LOCAL });
                     }
                 };
                 ($NAME:ident, $f:ident) => {
