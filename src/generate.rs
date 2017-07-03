@@ -23,19 +23,23 @@ pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
     );
     items.push(
         quote! {
+            #![cfg_attr(feature = "rt", feature(asm))]
+            #![cfg_attr(feature = "rt", feature(core_intrinsics))]
+            #![cfg_attr(feature = "rt", feature(linkage))]
+            #![cfg_attr(feature = "rt", feature(macro_reexport))]
+            #![cfg_attr(feature = "rt", feature(naked_functions))]
+            #![cfg_attr(feature = "rt", feature(used))]
             #![doc = #doc]
             #![deny(missing_docs)]
             #![deny(warnings)]
             #![allow(non_camel_case_types)]
-            #![feature(asm)]
-            #![feature(core_intrinsics)]
             #![feature(const_fn)]
-            #![feature(linkage)]
-            #![feature(naked_functions)]
-            #![feature(used)]
             #![no_std]
 
             extern crate cortex_m;
+            #[macro_reexport(default_handler, exception)]
+            #[cfg(feature = "rt")]
+            extern crate cortex_m_rt;
             extern crate vcell;
 
             use core::ops::Deref;
@@ -149,6 +153,7 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
             #(
                 #[allow(non_snake_case)]
                 #[allow(private_no_mangle_fns)]
+                #[cfg(feature = "rt")]
                 #[linkage = "weak"]
                 #[naked]
                 #[no_mangle]
@@ -160,10 +165,13 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
                 }
             )*
 
+            #[allow(private_no_mangle_statics)]
+            #[cfg(feature = "rt")]
+            #[doc(hidden)]
             #[link_section = ".vector_table.interrupts"]
             #[no_mangle]
             #[used]
-            static INTERRUPTS: [Option<extern "C" fn()>; #n] = [
+            pub static INTERRUPTS: [Option<extern "C" fn()>; #n] = [
                 #(#elements,)*
             ];
 
@@ -181,6 +189,7 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
                 }
             }
 
+            #[cfg(feature = "rt")]
             #[macro_export]
             macro_rules! interrupt {
                 ($NAME:ident, $f:ident, local: {
@@ -232,7 +241,9 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
     if interrupts.len() > 0 {
         items.push(
             quote! {
-                /// Interrupts
+                pub use interrupt::Interrupt;
+
+                #[doc(hidden)]
                 pub mod interrupt {
                     #(#mod_items)*
                 }

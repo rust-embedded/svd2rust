@@ -20,14 +20,14 @@
 //!
 //! ```
 //! $ svd2rust -i STM32F30x.svd | rustfmt | tee src/lib.rs
-//! //! Peripheral access API for STM32F30X microcontrollers (generated using svd2rust v0.4.0)
+//! //! Peripheral access API for STM32F30X microcontrollers (generated using svd2rust v0.11.0)
 //!
 //! #![deny(missing_docs)]
 //! #![deny(warnings)]
-//! #![feature(const_fn)]
 //! #![no_std]
 //!
 //! extern crate cortex_m;
+//! extern crate cortex_m_rt;
 //! extern crate vcell;
 //!
 //! use cortex_m::peripheral::Peripheral;
@@ -38,43 +38,49 @@
 //! }
 //!
 //! /// General-purpose I/Os
-//! pub const GPIOA: Peripheral<Gpioa> = unsafe { Peripheral::new(1207959552) };
+//! pub const GPIOA: Peripheral<GPIOA> = unsafe { Peripheral::new(1207959552) };
 //!
 //! /// General-purpose I/Os
 //! pub mod gpioa {
 //!     pub struct RegisterBlock {
 //!         /// GPIO port mode register
-//!         pub moder: Moder,
+//!         pub moder: MODER,
 //!         ..
 //!     }
 //!     ..
 //! }
 //!
-//! pub use gpioa::RegisterBlock as Gpioa;
+//! pub struct GPIOA {
+//!     register_block: gpioa::RegisterBlock,
+//! }
 //!
 //! /// General-purpose I/Os
-//! pub const GPIOB: Peripheral<Gpiob> = unsafe { Peripheral::new(1207960576) };
+//! pub const GPIOB: Peripheral<GPIOB> = unsafe { Peripheral::new(1207960576) };
 //!
 //! /// General-purpose I/Os
 //! pub mod gpiob {
 //!     ..
 //! }
 //!
-//! pub use gpiob::RegisterBlock as Gpiob;
+//! pub struct GPIOB {
+//!     register_block: gpiob::RegisterBlock,
+//! }
 //!
 //! /// GPIOC
-//! pub const GPIOC: Peripheral<Gpioc> = unsafe { Peripheral::new(1207961600) };
+//! pub const GPIOC: Peripheral<GPIOC> = unsafe { Peripheral::new(1207961600) };
 //!
 //! /// Register block
-//! pub type Gpioc = Gpiob;
-//! ..
+//! pub type GPIOC = GPIOB;
+//!
+//! // ..
 //! ```
 //!
 //! # Dependencies
 //!
-//! The generated API depends on:
+//! The generated crate depends on:
 //!
-//! - [`cortex-m`](https://crates.io/crates/cortex-m) v0.2.x
+//! - [`cortex-m-rt`](https://crates.io/crates/cortex-m-rt) v0.3.x
+//! - [`cortex-m`](https://crates.io/crates/cortex-m) v0.3.x
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
 //!
 //! # Peripheral API
@@ -93,38 +99,38 @@
 //!
 //! ```
 //! /// Inter-integrated circuit
-//! pub mod i2C1
+//! pub mod i2c1 {
 //!     /// Register block
 //!     pub struct RegisterBlock {
 //!         /// 0x00 - Control register 1
-//!         pub cr1: Cr1,
+//!         pub cr1: CR1,
 //!         /// 0x04 - Control register 2
-//!         pub cr2: Cr2,
+//!         pub cr2: CR2,
 //!         /// 0x08 - Own address register 1
-//!         pub oar1: Oar1,
+//!         pub oar1: OAR1,
 //!         /// 0x0c - Own address register 2
-//!         pub oar2: Oar2,
+//!         pub oar2: OAR2,
 //!         /// 0x10 - Timing register
-//!         pub timingr: Timingr,
+//!         pub timingr: TIMINGR,
 //!         /// Status register 1
-//!         pub timeoutr: Timeoutr,
+//!         pub timeoutr: TIMEOUTR,
 //!         /// Interrupt and Status register
-//!         pub isr: Isr,
+//!         pub isr: ISR,
 //!         /// 0x1c - Interrupt clear register
-//!         pub icr: Icr,
+//!         pub icr: ICR,
 //!         /// 0x20 - PEC register
-//!         pub pecr: Pecr,
+//!         pub pecr: PECR,
 //!         /// 0x24 - Receive data register
-//!         pub rxdr: Rxdr,
+//!         pub rxdr: RXDR,
 //!         /// 0x28 - Transmit data register
-//!         pub txdr: Txdr,
+//!         pub txdr: TXDR,
 //!     }
 //! }
 //! ```
 //!
 //! # `read` / `modify` / `write` API
 //!
-//! Each register in the register block, e.g. the `cr1` field in the `I2c`
+//! Each register in the register block, e.g. the `cr1` field in the `I2C`
 //! struct, exposes a combination of the `read`, `modify` and `write` methods.
 //! Which methods exposes each register depends on whether the register is
 //! read-only, read-write or write-only:
@@ -139,7 +145,7 @@
 //! (using `I2C`'s `CR2` register as an example)
 //!
 //! ``` rust
-//! impl Cr2 {
+//! impl CR2 {
 //!     /// Modifies the contents of the register
 //!     pub fn modify<F>(&mut self, f: F)
 //!     where
@@ -170,10 +176,10 @@
 //! /// Value read from the register
 //! impl R {
 //!     /// Bit 0 - Slave address bit 0 (master mode)
-//!     pub fn sadd0(&self) -> Sadd0R { .. }
+//!     pub fn sadd0(&self) -> SADD0R { .. }
 //!
 //!     /// Bits 1:7 - Slave address bit 7:1 (master mode)
-//!     pub fn sadd1(&self) -> Sadd1R { .. }
+//!     pub fn sadd1(&self) -> SADD1R { .. }
 //!
 //!     (..)
 //! }
@@ -200,17 +206,17 @@
 //! `CR2` register.
 //!
 //! ``` rust
-//! impl Cr2W {
+//! impl CR2W {
 //!     /// Reset value
 //!     pub fn reset_value() -> Self {
-//!         Cr2W { bits: 0 }
+//!         CR2W { bits: 0 }
 //!     }
 //!
 //!     /// Bits 1:7 - Slave address bit 7:1 (master mode)
-//!     pub fn sadd1(&mut self) -> _Sadd1W { .. }
+//!     pub fn sadd1(&mut self) -> _SADD1W { .. }
 //!
 //!     /// Bit 0 - Slave address bit 0 (master mode)
-//!     pub fn sadd0(&mut self) -> _Sadd0 { .. }
+//!     pub fn sadd0(&mut self) -> SADD0R { .. }
 //! }
 //! ```
 //!
@@ -265,15 +271,15 @@
 //!
 //! ```
 //! match gpioa.dir.read().pin0() {
-//!     gpioa::dir::Pin0R::Input => { .. },
-//!     gpioa::dir::Pin0R::Output => { .. },
+//!     gpioa::dir::PIN0R::Input => { .. },
+//!     gpioa::dir::PIN0R::Output => { .. },
 //! }
 //! ```
 //!
 //! or test for equality
 //!
 //! ```
-//! if gpioa.dir.read().pin0() == gpio::dir::Pin0R::Input {
+//! if gpioa.dir.read().pin0() == gpio::dir::PIN0R::Input {
 //!     ..
 //! }
 //! ```
@@ -303,8 +309,8 @@
 //! you pick the value to write from an `enum`eration of the possible ones:
 //!
 //! ```
-//! // enum DirW { Input, Output }
-//! gpioa.dir.write(|w| w.pin0().variant(gpio::dir::Pin0W::Output));
+//! // enum DIRW { Input, Output }
+//! gpioa.dir.write(|w| w.pin0().variant(gpio::dir::PIN0W::Output));
 //! ```
 //!
 //! There are convenience methods to pick one of the variants without having to
@@ -324,85 +330,73 @@
 //!
 //! # Interrupt API
 //!
-//! SVD files also describe the interrupts available to the device. Binary output
-//! wise, the interrupt handlers must be stored in the vector table region of
-//! Flash memory. `svd2rust` provides an API to easily "register" interrupt
-//! handlers.
+//! SVD files also describe the device interrupts. svd2rust generated crates
+//! expose an enumeration of the device interrupts as an `Interrupt` `enum` in
+//! the root of the crate. This `enum` can be used with the `cortex-m` crate
+//! `NVIC` API.
 //!
 //! ```
-//! /// Interrupts
-//! pub mod interrupt {
-//!     /// Interrupt handlers
-//!     pub struct Handlers {
-//!         /// Window Watchdog interrupt
-//!         pub wwdg: unsafe extern "C" fn(Wwdg),
-//!         /// PVD through EXTI line detection interrupt
-//!         pub pvd: unsafe extern "C" fn(Pvd),
-//!         ..
-//!     }
+//! extern crate cortex_m;
 //!
-//!     pub const DEFAULT_HANDLERS: Handlers = Handlers {
-//!         wwdg: exception::default_handler,
-//!         pvd: exception::default_handler,
-//!         ..
-//!     };
-//! }
-//! ```
+//! use cortex_m::interrupt;
+//! use cortex_m::peripheral::NVIC;
 //!
-//! This `Handlers` API then can be used in applications to register the
-//! interrupt handlers:
-//!
-//! ```
-//! fn main() { .. }
-//!
-//! // My interrupt handler
-//! extern "C" fn tim7(_: interrupt::Tim7) { .. }
-//!
-//! #[no_mangle]
-//! pub static _INTERRUPT: interrupt::Handlers = interrupt::Handlers {
-//!     tim7: tim7, ..interrupt::DEFAULT_HANDLERS
-//! }
-//! ```
-//!
-//! This requires some linker script support:
-//!
-//! ```
-//! SECTIONS
-//! {
-//!     .text ORIGIN(FLASH) :
-//!     {
-//!         /* Vector table */
-//!         LONG(ORIGIN(RAM) + LENGTH(RAM));  /* Initial SP value */
-//!         LONG(__reset + 1);  /* Reset handler */
-//!
-//!         KEEP(*(.rodata._EXCEPTIONS));  /* exception handlers */
-//!         KEEP(*(.rodata._INTERRUPTS));  /* interrupt handlers */
-//!         ..
-//!     }
-//!     ..
-//! }
-//! ```
-//!
-//! The generated API also includes an `Interrupt` enum
-//!
-//! ```
-//! pub mod interrupt {
-//!     /// Enumeration of all the interrupts
-//!     pub enum Interrupt {
-//!         Wwdg,
-//!         Pvd,
-//!         ..
-//!     }
-//! }
-//! ```
-//!
-//! that can be used with `cortex-m`'s NVIC API:
-//!
-//! ```
 //! interrupt::free(|cs| {
-//!     NVIC.borrow(&cs).enable(Interrupt::Tim3);
-//!     NVIC.borrow(&cs).enable(Interrupt::Tim7);
+//!     let nvic = NVIC.borrow(cs);
+//!
+//!     nvic.enable(Interrupt::TIM2);
+//!     nvic.enable(Interrupt::TIM3);
 //! });
 //! ```
+//!
+//! ## the "rt" feature
+//!
+//! If the "rt" Cargo feature of the svd2rust generated crate is enabled the
+//! crate will populate the part of the vector table that contains the interrupt
+//! vectors and provide an [`interrupt!`](macro.interrupt.html) macro that can
+//! be used to register interrupt handlers.
 
 // NOTE This file is for documentation only
+
+/// Assigns a handler to an interrupt
+///
+/// This macro takes two arguments: the name of an interrupt and the path to the
+/// function that will be used as the handler of that interrupt. That function
+/// must have signature `fn()`.
+///
+/// Optionally a third argument may be used to declare static variables local to
+/// this interrupt handler. The handler will have exclusive access to these
+/// variables on each invocation. If the third argument is used then the
+/// signature of the handler function must be `fn(&mut $NAME::Local)` where
+/// `$NAME` is the first argument passed to the macro.
+///
+/// # Example
+///
+/// ``` ignore
+/// interrupt!(TIM2, periodic);
+///
+/// fn periodic() {
+///     print!(".");
+/// }
+///
+/// interrupt!(TIM3, tick, local: {
+///     tick: bool = false;
+/// });
+///
+/// fn tick(local: &mut TIM3::Local) {
+///     local.tick = !local.tick;
+///
+///     if local.tick {
+///         println!("Tick");
+///     } else {
+///         println!("Tock");
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! interrupt {
+    ($NAME:ident, $body:path) => {};
+    ($NAME:ident, $body:path, local: {
+        $($lvar:ident: $lty:ty = $lval:expr;)+
+    }) => {};
+}
