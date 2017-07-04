@@ -48,6 +48,15 @@ pub fn device(d: &Device, items: &mut Vec<Tokens>) -> Result<()> {
         },
     );
 
+    if let Some(cpu) = d.cpu.as_ref() {
+        let bits = util::unsuffixed(cpu.nvic_priority_bits as u64);
+
+        items.push(quote! {
+            /// Number available in the NVIC for configuring priority
+            pub const NVIC_PRIO_BITS: u8 = #bits;
+        });
+    }
+
     ::generate::interrupt(&d.peripherals, items);
 
     const CORE_PERIPHERALS: &'static [&'static str] = &[
