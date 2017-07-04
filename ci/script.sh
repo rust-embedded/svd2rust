@@ -34,7 +34,8 @@ main() {
 
     # test crate
     cargo init --name foo $td
-    echo 'cortex-m = "0.2.0"' >> $td/Cargo.toml
+    echo 'cortex-m = { git = "https://github.com/japaric/cortex-m" }' >> $td/Cargo.toml
+    echo 'cortex-m-rt = { git = "https://github.com/japaric/cortex-m-rt" }' >> $td/Cargo.toml
     echo 'vcell = "0.1.0"' >> $td/Cargo.toml
 
     case $VENDOR in
