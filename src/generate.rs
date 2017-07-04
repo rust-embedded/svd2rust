@@ -123,7 +123,9 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
     for interrupt in &interrupts {
         while pos < interrupt.value {
             elements.push(quote!(None));
+            pos += 1;
         }
+        pos += 1;
 
         let name_uc = Ident::new(interrupt.name.to_sanitized_upper_case());
         let description = format!(
@@ -153,7 +155,6 @@ pub fn interrupt(peripherals: &[Peripheral], items: &mut Vec<Tokens>) {
 
         elements.push(quote!(Some(#name_uc)));
         names.push(name_uc);
-        pos = interrupt.value + 1;
     }
 
     let n = util::unsuffixed(u64(pos));
