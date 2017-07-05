@@ -542,18 +542,29 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
         }
         
         fields.push( util::register_to_rust(&register) );
-
-        offset =
-            register.address_offset
-            +
-            register
-            .size
-            .or(defs.size)
-            .ok_or_else(
-            || {
-                format!("Register {} has no `size` field", register.name)
-            },
-        )? / 8;
+        
+        offset = match register {
+            Register::Single(ref _into) => register.address_offset
+                +
+                register
+                .size
+                .or(defs.size)
+                .ok_or_else(
+                    || {
+                        format!("Register {} has no `size` field", register.name)
+                    },
+                )? / 8,
+            Register::Array(ref _into, ref array_info) => register.address_offset
+                +
+                register
+                .size
+                .or(defs.size)
+                .ok_or_else(
+                    || {
+                        format!("Register {} has no `size` field", register.name)
+                    },
+                )? * array_info.dim / 8,
+        };
     }
 
     Ok(quote! {
