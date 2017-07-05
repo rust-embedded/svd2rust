@@ -1,9 +1,7 @@
 use std::borrow::Cow;
-use std::rc::Rc;
 
-use either::Either;
 use inflections::Inflect;
-use svd::{Access, EnumeratedValues, Field, Peripheral, Register, RegisterInfo,
+use svd::{Access, EnumeratedValues, Field, Peripheral, Register,
           Usage};
 use syn::{Ident, IntTy, Lit};
 
@@ -136,44 +134,16 @@ pub fn respace(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-pub struct ExpandedRegister<'a> {
-    pub info: &'a RegisterInfo,
-    pub name: String,
-    pub offset: u32,
-    pub ty: Either<String, Rc<String>>,
-}
-
 /// Takes a list of "registers", some of which may actually be register arrays,
 /// and turn in into alist of registers where the register arrays have been expanded.
-pub fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
+pub fn expand(registers: &[Register]) -> Vec<Register> {
     let mut out = vec![];
 
     for r in registers {
         match *r {
-            Register::Single(ref info) => {
-                out.push(
-                    ExpandedRegister {
-                        info: info,
-                        name: info.name.to_sanitized_snake_case().into_owned(),
-                        offset: info.address_offset,
-                        ty: Either::Left(
-                            info.name
-                                .to_sanitized_upper_case()
-                                .into_owned(),
-                        ),
-                    },
-                )
-            }
+            Register::Single(ref _info) => out.push( r.clone() ),
             Register::Array(ref info, ref array_info) => {
                 let has_brackets = info.name.contains("[%s]");
-
-                let ty = if has_brackets {
-                    info.name.replace("[%s]", "")
-                } else {
-                    info.name.replace("%s", "")
-                };
-
-                let ty = Rc::new(ty.to_sanitized_upper_case().into_owned());
 
                 let indices = array_info
                     .dim_index
@@ -191,21 +161,20 @@ pub fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
 
                 for (idx, i) in indices.iter().zip(0..) {
                     let name = if has_brackets {
-                        info.name.replace("[%s]", idx)
+                        info.name.replace("[%s]", format!("[{}]", idx).as_str())
                     } else {
-                        info.name.replace("%s", idx)
+                        info.name.replace("%s", format!("[{}]", idx).as_str())
                     };
 
                     let offset = info.address_offset +
                                  i * array_info.dim_increment;
 
+                    let mut expanded_info = info.clone();
+                    expanded_info.name = name;
+                    expanded_info.address_offset = offset;
+                    
                     out.push(
-                        ExpandedRegister {
-                            info: info,
-                            name: name.to_sanitized_snake_case().into_owned(),
-                            offset: offset,
-                            ty: Either::Right(ty.clone()),
-                        },
+                        Register::Single(expanded_info)
                     );
                 }
             }
@@ -216,8 +185,8 @@ pub fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
 }
 
 
-pub fn sort_by_offset<'a>(mut registers: Vec<ExpandedRegister<'a>>) -> Vec<ExpandedRegister<'a>> {
-    registers.sort_by_key(|x| x.offset);
+pub fn sort_by_offset(mut registers: Vec<Register>) -> Vec<Register> {
+    registers.sort_by_key(|x| x.address_offset);
     return registers;
 }
 

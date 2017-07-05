@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::io::{self, Write};
 
 use cast::u64;
-use either::Either;
 use quote::Tokens;
 use svd::{Access, BitRange, Defaults, Device, EnumeratedValues, Field,
           Peripheral, Register, Usage, WriteConstraint};
@@ -468,7 +467,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
     // offset from the base address, in bytes
     let mut offset = 0;
     for register in util::sort_by_offset(util::expand(registers)) {
-        let pad = if let Some(pad) = register.offset.checked_sub(offset) {
+        let pad = if let Some(pad) = register.address_offset.checked_sub(offset) {
             pad
         } else {
             writeln!(
@@ -476,7 +475,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
                 "WARNING {} overlaps with another register at offset {}. \
                  Ignoring.",
                 register.name,
-                register.offset
+                register.address_offset
             ).ok();
             continue;
         };
@@ -492,27 +491,27 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
 
         let comment = &format!(
             "0x{:02x} - {}",
-            register.offset,
-            util::respace(&register.info.description)
+            register.address_offset,
+            util::respace(&register.description)
         )
             [..];
 
-        let rty = match register.ty {
-            Either::Left(ref ty) => Ident::from(&**ty),
-            Either::Right(ref ty) => Ident::from(&***ty),
-        };
-        let reg_name = Ident::new(&*register.name.to_sanitized_snake_case());
-        fields.push(quote! {
-            #[doc = #comment]
-            pub #reg_name : #rty,
-        });
+        let rty = Ident::new(register.name.split('[').next().unwrap().to_sanitized_upper_case());
+        let reg_name = Ident::new(register.name.to_sanitized_snake_case());
+        
+        fields.push(
+            quote! {
+                #[doc = #comment]
+                pub #reg_name : #rty,
+            });
 
-        offset = register.offset +
-                 register
-                     .info
-                     .size
-                     .or(defs.size)
-                     .ok_or_else(
+        offset =
+            register.address_offset
+            +
+            register
+            .size
+            .or(defs.size)
+            .ok_or_else(
             || {
                 format!("Register {} has no `size` field", register.name)
             },
