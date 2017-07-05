@@ -10,6 +10,7 @@ extern crate inflections;
 extern crate quote;
 extern crate svd_parser as svd;
 extern crate syn;
+extern crate regex;
 
 mod errors;
 mod generate;

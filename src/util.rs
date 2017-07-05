@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use regex::Regex;
 use inflections::Inflect;
 use svd::{Access, EnumeratedValues, Field, Peripheral, Register,
           Usage};
@@ -145,8 +146,10 @@ pub fn register_to_rust(register: &Register) -> Tokens {
             )
                 [..];
 
-            let rty = Ident::new(register.name.split('[').next().unwrap().to_sanitized_upper_case());
-            let reg_name = Ident::new(register.name.to_sanitized_snake_case());
+            let array_index_match = Regex::new(r"%s\((?P<i>[ a-zA-Z0-9]*)\)").unwrap();
+            //println!("{}", register.name.as_str());
+            let rty = Ident::new(array_index_match.replace_all(register.name.as_str(), "").to_sanitized_upper_case());
+            let reg_name = Ident::new(array_index_match.replace_all(register.name.as_str(), "$i").to_sanitized_snake_case());
 
             quote! {
                 #[doc = #comment]
@@ -219,9 +222,9 @@ pub fn expand(register: &Register) -> Vec<Register> {
 
             for (idx, i) in indices.iter().zip(0..) {
                 let name = if has_brackets {
-                    info.name.replace("[%s]", format!("[{}]", idx).as_str())
+                    info.name.replace("[%s]", format!("%s({})", idx).as_str())
                 } else {
-                    info.name.replace("%s", format!("[{}]", idx).as_str())
+                    info.name.replace("%s", format!("%s({})", idx).as_str())
                 };
 
                 let offset = info.address_offset +
