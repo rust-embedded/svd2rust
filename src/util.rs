@@ -159,47 +159,45 @@ pub fn register_to_rust(register: &Register) -> Tokens {
 
 /// Takes a list of "registers", some of which may actually be register arrays,
 /// and turn in into alist of registers where the register arrays have been expanded.
-pub fn expand(registers: &[Register]) -> Vec<Register> {
+pub fn expand(register: &Register) -> Vec<Register> {
     let mut out = vec![];
 
-    for r in registers {
-        match *r {
-            Register::Single(ref _info) => out.push( r.clone() ),
-            Register::Array(ref info, ref array_info) => {
-                let has_brackets = info.name.contains("[%s]");
+    match *register {
+        Register::Single(ref _info) => out.push( register.clone() ),
+        Register::Array(ref info, ref array_info) => {
+            let has_brackets = info.name.contains("[%s]");
 
-                let indices = array_info
-                    .dim_index
-                    .as_ref()
-                    .map(|v| Cow::from(&**v))
-                    .unwrap_or_else(
-                        || {
-                            Cow::from(
-                                (0..array_info.dim)
-                                    .map(|i| i.to_string())
-                                    .collect::<Vec<_>>(),
-                            )
-                        },
-                    );
+            let indices = array_info
+                .dim_index
+                .as_ref()
+                .map(|v| Cow::from(&**v))
+                .unwrap_or_else(
+                    || {
+                        Cow::from(
+                            (0..array_info.dim)
+                                .map(|i| i.to_string())
+                                .collect::<Vec<_>>(),
+                        )
+                    },
+                );
 
-                for (idx, i) in indices.iter().zip(0..) {
-                    let name = if has_brackets {
-                        info.name.replace("[%s]", format!("[{}]", idx).as_str())
-                    } else {
-                        info.name.replace("%s", format!("[{}]", idx).as_str())
-                    };
+            for (idx, i) in indices.iter().zip(0..) {
+                let name = if has_brackets {
+                    info.name.replace("[%s]", format!("[{}]", idx).as_str())
+                } else {
+                    info.name.replace("%s", format!("[{}]", idx).as_str())
+                };
 
-                    let offset = info.address_offset +
-                                 i * array_info.dim_increment;
+                let offset = info.address_offset +
+                    i * array_info.dim_increment;
 
-                    let mut expanded_info = info.clone();
-                    expanded_info.name = name;
-                    expanded_info.address_offset = offset;
-                    
-                    out.push(
-                        Register::Single(expanded_info)
-                    );
-                }
+                let mut expanded_info = info.clone();
+                expanded_info.name = name;
+                expanded_info.address_offset = offset;
+                
+                out.push(
+                    Register::Single(expanded_info)
+                );
             }
         }
     }

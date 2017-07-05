@@ -466,7 +466,25 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
     let mut i = 0;
     // offset from the base address, in bytes
     let mut offset = 0;
-    for register in util::sort_by_offset(util::expand(registers)) {
+    let mut registers_expanded = vec![];
+
+    for register in registers {
+        match *register {
+            Register::Single(ref _into) => registers_expanded.push(register.clone()),
+            Register::Array(ref _into, ref array_info) => {
+                let array_convertable = false; // TODO: write this condition
+
+                if array_convertable {
+                    registers_expanded.push(register.clone());
+                } else {
+                    registers_expanded.append(&mut util::expand(register));
+                }
+            },
+        }
+    }
+
+    
+    for register in util::sort_by_offset(registers_expanded) {
         let pad = if let Some(pad) = register.address_offset.checked_sub(offset) {
             pad
         } else {
