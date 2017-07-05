@@ -472,7 +472,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
         match *register {
             Register::Single(ref _into) => registers_expanded.push(register.clone()),
             Register::Array(ref _into, ref array_info) => {
-                let array_convertable = if let Some(ref indexes) = array_info.dim_index {
+                let index_convertible = if let Some(ref indexes) = array_info.dim_index {
                     let mut index_iter = indexes.iter();
                     let mut previous = 0;
 
@@ -483,15 +483,15 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
                                                                         })
                     };
 
-                    let mut array_convertable_temp = match get_number_option(index_iter.next()) {
+                    let mut index_convertible_temp = match get_number_option(index_iter.next()) {
                         Some(0) => true,
                         _ => false,
                     };
                     
                     for element in index_iter {
-                        if !array_convertable_temp { break; }
+                        if !index_convertible_temp { break; }
 
-                        array_convertable_temp = match get_number_option(Some(element)) {
+                        index_convertible_temp = match get_number_option(Some(element)) {
                             Some(i) => i == previous+1,
                             _ => false,
                         };
@@ -502,13 +502,16 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
                         };
                     }
                     
-                    array_convertable_temp
+                    index_convertible_temp
                 } else {
                     false
                 };
-                
 
-                if array_convertable {
+                let packed_registers = array_info.dim_increment == 4;
+                
+                let array_convertible = index_convertible && packed_registers;
+
+                if array_convertible {
                     registers_expanded.push(register.clone());
                 } else {
                     registers_expanded.append(&mut util::expand(register));
