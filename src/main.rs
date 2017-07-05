@@ -22,6 +22,24 @@ use clap::{App, Arg};
 
 use errors::*;
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum Target {
+    CortexM,
+    Msp430,
+    None,
+}
+
+impl Target {
+    fn parse(s: &str) -> Result<Self> {
+        Ok(match s {
+            "cortex-m" => Target::CortexM,
+            "msp430" => Target::Msp430,
+            "none" => Target::None,
+            _ => bail!("unknown target {}", s),
+        })
+    }
+}
+
 fn run() -> Result<()> {
     use std::io::Read;
 
@@ -35,13 +53,23 @@ fn run() -> Result<()> {
                 .takes_value(true)
                 .value_name("FILE"),
         )
-        .version(
-            concat!(
-                env!("CARGO_PKG_VERSION"),
-                include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
-            ),
+        .arg(
+            Arg::with_name("target")
+                .long("target")
+                .help("Target architecture")
+                .takes_value(true)
+                .value_name("ARCH"),
         )
+        .version(concat!(
+            env!("CARGO_PKG_VERSION"),
+            include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
+        ))
         .get_matches();
+
+    let target = matches
+        .value_of("target")
+        .map(|s| Target::parse(s))
+        .unwrap_or(Ok(Target::CortexM))?;
 
     let xml = &mut String::new();
     File::open(matches.value_of("input").unwrap())
@@ -52,7 +80,7 @@ fn run() -> Result<()> {
     let device = svd::parse(xml);
 
     let mut items = vec![];
-    generate::device(&device, &mut items)?;
+    generate::device(&device, &target, &mut items)?;
 
     println!(
         "{}",
@@ -83,8 +111,7 @@ fn main() {
             writeln!(
                 stderr,
                 "note: run with `RUST_BACKTRACE=1` for a backtrace"
-            )
-                    .ok();
+            ).ok();
         }
 
         process::exit(1);
