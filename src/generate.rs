@@ -472,7 +472,41 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
         match *register {
             Register::Single(ref _into) => registers_expanded.push(register.clone()),
             Register::Array(ref _into, ref array_info) => {
-                let array_convertable = false; // TODO: write this condition
+                let array_convertable = if let Some(ref indexes) = array_info.dim_index {
+                    let mut index_iter = indexes.iter();
+                    let mut previous = 0;
+
+                    let get_number_option = |element_option: Option<&String>| -> Option<usize> {element_option
+                                                                        .and_then(|element| match element.parse::<usize>() {
+                                                                            Ok(i) => Some(i),
+                                                                            _ => None,
+                                                                        })
+                    };
+
+                    let mut array_convertable_temp = match get_number_option(index_iter.next()) {
+                        Some(0) => true,
+                        _ => false,
+                    };
+                    
+                    for element in index_iter {
+                        if !array_convertable_temp { break; }
+
+                        array_convertable_temp = match get_number_option(Some(element)) {
+                            Some(i) => i == previous+1,
+                            _ => false,
+                        };
+
+                        previous = match get_number_option(Some(element)) {
+                            Some(i) => i,
+                            _ => {break;},
+                        };
+                    }
+                    
+                    array_convertable_temp
+                } else {
+                    false
+                };
+                
 
                 if array_convertable {
                     registers_expanded.push(register.clone());
