@@ -144,8 +144,7 @@ pub struct ExpandedRegister<'a> {
 }
 
 /// Takes a list of "registers", some of which may actually be register arrays,
-/// and turns it into a new *sorted* (by address offset) list of registers where
-/// the register arrays have been expanded.
+/// and turn in into alist of registers where the register arrays have been expanded.
 pub fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
     let mut out = vec![];
 
@@ -213,9 +212,13 @@ pub fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
         }
     }
 
-    out.sort_by_key(|x| x.offset);
-
     out
+}
+
+
+pub fn sort_by_offset<'a>(mut registers: Vec<ExpandedRegister<'a>>) -> Vec<ExpandedRegister<'a>> {
+    registers.sort_by_key(|x| x.offset);
+    return registers;
 }
 
 pub fn name_of(register: &Register) -> Cow<str> {

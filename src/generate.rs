@@ -467,7 +467,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
     let mut i = 0;
     // offset from the base address, in bytes
     let mut offset = 0;
-    for register in util::expand(registers) {
+    for register in util::sort_by_offset(util::expand(registers)) {
         let pad = if let Some(pad) = register.offset.checked_sub(offset) {
             pad
         } else {
