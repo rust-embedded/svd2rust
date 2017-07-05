@@ -153,9 +153,45 @@ pub fn register_to_rust(register: &Register) -> Tokens {
                 pub #reg_name : #rty,
             }
         },
-        Register::Array(ref info, ref array_info) => unimplemented!(),
+        Register::Array(ref info, ref array_info) => {
+            let has_brackets = info.name.contains("[%s]");
+            
+            let comment = &format!(
+                "0x{:02x} - {} [{}]",
+                register.address_offset,
+                respace(&register.description),
+                array_info.dim,
+            )
+                [..];
+
+            let rty = Ident::from({
+                let name = if has_brackets {
+                    info.name.replace("[%s]", "")
+                } else {
+                    info.name.replace("%s", "")
+                };
+                name.to_sanitized_upper_case().into_owned()
+            });
+
+            let reg_name = Ident::from({
+                let name = if has_brackets {
+                    info.name.replace("[%s]", "")
+                } else {
+                    info.name.replace("%s", "")
+                };
+                name.to_sanitized_snake_case().into_owned()
+            });
+
+            let length = Ident::from(array_info.dim.to_string());
+
+            quote! {
+                #[doc = #comment]
+                pub #reg_name : [#rty; #length],
+            }
+        },
     }
 }
+
 
 /// Takes a list of "registers", some of which may actually be register arrays,
 /// and turn in into alist of registers where the register arrays have been expanded.
