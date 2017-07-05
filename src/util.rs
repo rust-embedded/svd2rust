@@ -4,6 +4,7 @@ use inflections::Inflect;
 use svd::{Access, EnumeratedValues, Field, Peripheral, Register,
           Usage};
 use syn::{Ident, IntTy, Lit};
+use quote::Tokens;
 
 use errors::*;
 
@@ -132,6 +133,28 @@ impl ToSanitizedPascalCase for str {
 
 pub fn respace(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+pub fn register_to_rust(register: &Register) -> Tokens {
+    match *register {
+        Register::Single(ref _info) => {
+            let comment = &format!(
+                "0x{:02x} - {}",
+                register.address_offset,
+                respace(&register.description)
+            )
+                [..];
+
+            let rty = Ident::new(register.name.split('[').next().unwrap().to_sanitized_upper_case());
+            let reg_name = Ident::new(register.name.to_sanitized_snake_case());
+
+            quote! {
+                #[doc = #comment]
+                pub #reg_name : #rty,
+            }
+        },
+        Register::Array(ref info, ref array_info) => unimplemented!(),
+    }
 }
 
 /// Takes a list of "registers", some of which may actually be register arrays,

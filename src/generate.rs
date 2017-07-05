@@ -488,22 +488,8 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
             });
             i += 1;
         }
-
-        let comment = &format!(
-            "0x{:02x} - {}",
-            register.address_offset,
-            util::respace(&register.description)
-        )
-            [..];
-
-        let rty = Ident::new(register.name.split('[').next().unwrap().to_sanitized_upper_case());
-        let reg_name = Ident::new(register.name.to_sanitized_snake_case());
         
-        fields.push(
-            quote! {
-                #[doc = #comment]
-                pub #reg_name : #rty,
-            });
+        fields.push( util::register_to_rust(&register) );
 
         offset =
             register.address_offset
