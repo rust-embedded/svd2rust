@@ -92,7 +92,7 @@ pub fn device(
 
     ::generate::interrupt(target, &d.peripherals, items);
 
-    const CORE_PERIPHERALS: &'static [&'static str] = &[
+    const CORE_PERIPHERALS: &[&str] = &[
         "CPUID",
         "DCB",
         "DWT",
@@ -106,13 +106,21 @@ pub fn device(
         "TPIU",
     ];
 
+    let mut fields = vec![];
+    let mut exprs = vec![];
     if *target == Target::CortexM {
         for p in CORE_PERIPHERALS {
-            let p = Ident::new(*p);
+            let id = Ident::new(*p);
 
             items.push(quote! {
-                pub use cortex_m::peripheral::#p;
+                pub use cortex_m::peripheral::#id;
             });
+
+            fields.push(quote! {
+                #[doc = #p]
+                pub #id: &'a #id
+            });
+            exprs.push(quote!(#id: &*#id.get()));
         }
     }
 
@@ -125,7 +133,31 @@ pub fn device(
         }
 
         ::generate::peripheral(p, &d.peripherals, items, &d.defaults)?;
+        let p = &*p.name;
+        let id = Ident::new(&*p);
+        fields.push(quote! {
+            #[doc = #p]
+            pub #id: &'a #id
+        });
+        exprs.push(quote!(#id: &*#id.get()));
     }
+
+    items.push(quote! {
+        /// All the peripherals
+        #[allow(non_snake_case)]
+        pub struct Peripherals<'a> {
+            #(#fields,)*
+        }
+
+        impl<'a> Peripherals<'a> {
+            /// Grants access to all the peripherals
+            pub unsafe fn all() -> Self {
+                Peripherals {
+                    #(#exprs,)*
+                }
+            }
+        }
+    });
 
     Ok(())
 }
