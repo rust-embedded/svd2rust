@@ -475,7 +475,8 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
     // offset from the base address, in bytes
     let mut offset = 0;
     let mut registers_expanded = vec![];
-    
+
+    // If svd register arrays can't be converted to rust arrays (non sequential adresses, non numeral indexes, or not containing all elements from 0 to size) they will be expanded
     for register in registers {
         let register_size = register.size.or(defs.size)
             .ok_or_else(
