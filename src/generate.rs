@@ -73,12 +73,12 @@ pub fn device(
     }
 
     items.push(quote! {
-        extern crate mcu;
+        extern crate bare_metal;
         extern crate vcell;
 
         use core::ops::Deref;
 
-        use mcu::Peripheral;
+        use bare_metal::Peripheral;
     });
 
     if let Some(cpu) = d.cpu.as_ref() {
@@ -155,7 +155,7 @@ pub fn interrupt(
     let mut pos = 0;
     let mut mod_items = vec![];
     mod_items.push(quote! {
-            use mcu::Nr;
+            use bare_metal::Nr;
         });
     for interrupt in &interrupts {
         while pos < interrupt.value {
