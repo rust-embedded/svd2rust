@@ -582,7 +582,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
         register.field.to_tokens(&mut fields);
         Ident::new(",").to_tokens(&mut fields);
         
-        offset = register.offset + register.size/8;
+        offset = register.offset + register.size/BITS_PER_BYTE;
     }
 
     Ok(quote! {
