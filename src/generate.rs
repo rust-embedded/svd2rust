@@ -9,7 +9,7 @@ use syn;
 use syn::{Ident, Lit};
 
 use errors::*;
-use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
+use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext, BITS_PER_BYTE};
 use Target;
 
 /// Whole device generation

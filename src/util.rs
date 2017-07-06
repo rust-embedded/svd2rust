@@ -9,6 +9,8 @@ use syn::{Ident, IntTy, Lit};
 
 use errors::*;
 
+pub const BITS_PER_BYTE: u32 = 8;
+
 /// List of chars that some vendors use in their peripheral/field names but
 /// that are not valid in Rust ident
 const BLACKLIST_CHARS: &'static [char] = &['(', ')', '[', ']'];
