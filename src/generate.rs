@@ -494,6 +494,8 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
                 }
             ),
             Register::Array(ref info, ref array_info) => {
+                let sequential_adresses = register_size == array_info.dim_increment*BITS_PER_BYTE;
+                
                 let index_convertible = if let Some(ref indexes) = array_info.dim_index {
                     let mut index_iter = indexes.iter();
                     let mut previous = 0;
@@ -529,9 +531,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
                     false
                 };
 
-                let packed_registers = array_info.dim_increment == 4;
-                
-                let array_convertible = index_convertible && packed_registers;
+                let array_convertible = index_convertible && sequential_adresses;
 
                 if array_convertible {
                     registers_expanded.push(
