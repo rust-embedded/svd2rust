@@ -495,43 +495,24 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
             ),
             Register::Array(ref info, ref array_info) => {
                 let sequential_adresses = register_size == array_info.dim_increment*BITS_PER_BYTE;
+
+                let numeral_indexes = array_info.dim_index.clone()
+                    .ok_or_else( || format!("Register {} has no `dim_index` field", register.name))?
+                    .iter()
+                    .all(|element| element.parse::<usize>().is_ok());
                 
-                let index_convertible = if let Some(ref indexes) = array_info.dim_index {
-                    let mut index_iter = indexes.iter();
-                    let mut previous = 0;
-
-                    let get_number_option = |element_option: Option<&String>| -> Option<usize> {element_option
-                                                                        .and_then(|element| match element.parse::<usize>() {
-                                                                            Ok(i) => Some(i),
-                                                                            _ => None,
-                                                                        })
-                    };
-
-                    let mut index_convertible_temp = match get_number_option(index_iter.next()) {
-                        Some(0) => true,
-                        _ => false,
-                    };
-                    
-                    for element in index_iter {
-                        if !index_convertible_temp { break; }
-
-                        index_convertible_temp = match get_number_option(Some(element)) {
-                            Some(i) => i == previous+1,
-                            _ => false,
-                        };
-
-                        previous = match get_number_option(Some(element)) {
-                            Some(i) => i,
-                            _ => {break;},
-                        };
-                    }
-                    
-                    index_convertible_temp
+                let sequential_indexes = if numeral_indexes && sequential_adresses {
+                    array_info.dim_index.clone()
+                        .unwrap()
+                        .iter()
+                        .map(|element| element.parse::<u32>().unwrap())
+                        .collect::<Vec<u32>>()
+                        .eq(&(0..array_info.dim).collect::<Vec<u32>>())
                 } else {
                     false
                 };
 
-                let array_convertible = index_convertible && sequential_adresses;
+                let array_convertible = sequential_indexes && numeral_indexes && sequential_adresses;
 
                 if array_convertible {
                     registers_expanded.push(
