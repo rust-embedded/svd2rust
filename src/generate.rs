@@ -475,19 +475,21 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
     // offset from the base address, in bytes
     let mut offset = 0;
     let mut registers_expanded = vec![];
-
+    
     for register in registers {
+        let register_size = register.size.or(defs.size)
+            .ok_or_else(
+                || {
+                    format!("Register {} has no `size` field", register.name)
+                },)?;
+        
         match *register {
             Register::Single(ref info) => registers_expanded.push(
                 RegisterBlockField{
                     field: util::convert_svd_register(register),
                     description: Ident::from(info.description.clone()),
                     offset: info.address_offset,
-                    size: info.size.or(defs.size)
-                        .ok_or_else(
-                            || {
-                                format!("Register {} has no `size` field", register.name)
-                            },)?,
+                    size: register_size,
                 }
             ),
             Register::Array(ref info, ref array_info) => {
@@ -536,12 +538,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
                             field: util::convert_svd_register(&register),
                             description: Ident::from(info.description.clone()),
                             offset: info.address_offset,
-                            size: info.size.or(defs.size)
-                                .ok_or_else(
-                                    || {
-                                        format!("Register {} has no `size` field", register.name)
-                                    },)?
-                            * array_info.dim,
+                            size: register_size * array_info.dim,
                         });                                    
                 } else {
                     let mut field_num = 0;
@@ -551,11 +548,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
                                 field: field.clone(),
                                 description: Ident::from(info.description.clone()),
                                 offset: info.address_offset + field_num * array_info.dim_increment,
-                                size: info.size.or(defs.size)
-                                    .ok_or_else(
-                                        || {
-                                            format!("Register {} has no `size` field", register.name)
-                                        },)?
+                                size: register_size,
                             });
                         field_num += 1;
                     }
