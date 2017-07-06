@@ -2,9 +2,10 @@ use std::collections::HashMap;
 use std::io::{self, Write};
 
 use cast::u64;
-use quote::Tokens;
+use quote::{Tokens, ToTokens};
 use svd::{Access, BitRange, Defaults, Device, EnumeratedValues, Field,
           Peripheral, Register, Usage, WriteConstraint};
+use syn;
 use syn::{Ident, Lit};
 
 use errors::*;
@@ -460,8 +461,15 @@ pub fn peripheral(
     Ok(())
 }
 
+struct RegisterBlockField {
+    field: syn::Field,
+    description: Ident,
+    offset: u32,
+    size: u32,
+}
+
 fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
-    let mut fields = vec![];
+    let mut fields = Tokens::new();
     // enumeration of reserved fields
     let mut i = 0;
     // offset from the base address, in bytes
@@ -470,8 +478,19 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
 
     for register in registers {
         match *register {
-            Register::Single(ref _into) => registers_expanded.push(register.clone()),
-            Register::Array(ref _into, ref array_info) => {
+            Register::Single(ref info) => registers_expanded.push(
+                RegisterBlockField{
+                    field: util::convert_svd_register(register),
+                    description: Ident::from(info.description.clone()),
+                    offset: info.address_offset,
+                    size: info.size.or(defs.size)
+                        .ok_or_else(
+                            || {
+                                format!("Register {} has no `size` field", register.name)
+                            },)?,
+                }
+            ),
+            Register::Array(ref info, ref array_info) => {
                 let index_convertible = if let Some(ref indexes) = array_info.dim_index {
                     let mut index_iter = indexes.iter();
                     let mut previous = 0;
@@ -512,69 +531,90 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
                 let array_convertible = index_convertible && packed_registers;
 
                 if array_convertible {
-                    registers_expanded.push(register.clone());
+                    registers_expanded.push(
+                        RegisterBlockField{
+                            field: util::convert_svd_register(&register),
+                            description: Ident::from(info.description.clone()),
+                            offset: info.address_offset,
+                            size: info.size.or(defs.size)
+                                .ok_or_else(
+                                    || {
+                                        format!("Register {} has no `size` field", register.name)
+                                    },)?
+                            * array_info.dim,
+                        });                                    
                 } else {
-                    registers_expanded.append(&mut util::expand(register));
+                    let mut field_num = 0;
+                    for field in util::expand_svd_register(register).iter() {
+                        registers_expanded.push(
+                            RegisterBlockField{
+                                field: field.clone(),
+                                description: Ident::from(info.description.clone()),
+                                offset: info.address_offset + field_num * array_info.dim_increment,
+                                size: info.size.or(defs.size)
+                                    .ok_or_else(
+                                        || {
+                                            format!("Register {} has no `size` field", register.name)
+                                        },)?
+                            });
+                        field_num += 1;
+                    }
                 }
             },
         }
     }
 
-    
-    for register in util::sort_by_offset(registers_expanded) {
-        let pad = if let Some(pad) = register.address_offset.checked_sub(offset) {
+    registers_expanded.sort_by_key(|x| x.offset);
+
+    for register in registers_expanded {
+        let pad = if let Some(pad) = register.offset.checked_sub(offset) {
             pad
         } else {
             writeln!(
                 io::stderr(),
                 "WARNING {} overlaps with another register at offset {}. \
                  Ignoring.",
-                register.name,
-                register.address_offset
-            ).ok();
+                register.field.ident.unwrap(),
+                register.offset
+            )
+                .ok();
             continue;
         };
 
         if pad != 0 {
             let name = Ident::new(format!("_reserved{}", i));
             let pad = pad as usize;
-            fields.push(quote! {
-                #name : [u8; #pad],
-            });
+            fields.append(
+                quote! {
+                    #name : [u8; #pad],
+                });
             i += 1;
         }
+
+        let comment = &format!(
+            "0x{:02x} - {}",
+            register.offset,
+            register.description,
+        )
+            [..];
         
-        fields.push( util::register_to_rust(&register) );
+        fields.append(
+            quote! {
+                #[doc = #comment]
+            }
+        );
         
-        offset = match register {
-            Register::Single(ref _into) => register.address_offset
-                +
-                register
-                .size
-                .or(defs.size)
-                .ok_or_else(
-                    || {
-                        format!("Register {} has no `size` field", register.name)
-                    },
-                )? / 8,
-            Register::Array(ref _into, ref array_info) => register.address_offset
-                +
-                register
-                .size
-                .or(defs.size)
-                .ok_or_else(
-                    || {
-                        format!("Register {} has no `size` field", register.name)
-                    },
-                )? * array_info.dim / 8,
-        };
+        register.field.to_tokens(&mut fields);
+        Ident::new(",").to_tokens(&mut fields);
+        
+        offset = register.offset + register.size/8;
     }
 
     Ok(quote! {
         /// Register block
         #[repr(C)]
         pub struct RegisterBlock {
-            #(#fields)*
+            #fields
         }
     })
 }

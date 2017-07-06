@@ -7,7 +7,6 @@ use svd::{Access, EnumeratedValues, Field, Peripheral, Register,
           Usage};
 use syn;
 use syn::{Ident, IntTy, Lit};
-use quote::{Tokens, ToTokens};
 
 use errors::*;
 
@@ -138,44 +137,23 @@ pub fn respace(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-pub fn register_to_rust(register: &Register) -> Tokens {
-    match *register {
-        Register::Single(ref _info) => {
-            let comment = &format!(
-                "0x{:02x} - {}",
-                register.address_offset,
-                respace(&register.description)
-            )
-                [..];
+/// Takes a svd::Register which may be a register array, and turn in into
+/// a list of syn::Field where the register arrays have been expanded.
+pub fn expand_svd_register(register: &Register) -> Vec<syn::Field> {
+    let name_to_ty = |name: &String| -> syn::Ty {
+        syn::Ty::Path(None, syn::Path{
+            global: false,
+            segments: vec![syn::PathSegment{
+                ident: Ident::new(name.to_sanitized_upper_case()),
+                parameters: syn::PathParameters::none(),
+            }],
+        })
+    };
 
-            let array_index_match = Regex::new(r"%s\((?P<i>[ a-zA-Z0-9]*)\)").unwrap();
-            //println!("{}", register.name.as_str());
-            let rty = Ident::new(array_index_match.replace_all(register.name.as_str(), "").to_sanitized_upper_case());
-            let reg_name = Ident::new(array_index_match.replace_all(register.name.as_str(), "$i").to_sanitized_snake_case());
-
-            quote! {
-                #[doc = #comment]
-                pub #reg_name : #rty,
-            }
-        },
-        Register::Array(ref info, ref array_info) => {
-            let field = convert_svd_register(register);
-            let mut tokens = Tokens::new();
-            field.to_tokens(&mut tokens);
-            Ident::new(",").to_tokens(&mut tokens);
-            tokens
-        },
-    }
-}
-
-
-/// Takes a list of "registers", some of which may actually be register arrays,
-/// and turn in into alist of registers where the register arrays have been expanded.
-pub fn expand(register: &Register) -> Vec<Register> {
     let mut out = vec![];
 
     match *register {
-        Register::Single(ref _info) => out.push( register.clone() ),
+        Register::Single(ref _info) => out.push( convert_svd_register(register) ),
         Register::Array(ref info, ref array_info) => {
             let has_brackets = info.name.contains("[%s]");
 
@@ -192,28 +170,34 @@ pub fn expand(register: &Register) -> Vec<Register> {
                         )
                     },
                 );
-
-            for (idx, i) in indices.iter().zip(0..) {
+            
+            for (idx, _i) in indices.iter().zip(0..) {
                 let name = if has_brackets {
-                    info.name.replace("[%s]", format!("%s({})", idx).as_str())
+                    info.name.replace("[%s]", format!("{}", idx).as_str())
                 } else {
-                    info.name.replace("%s", format!("%s({})", idx).as_str())
+                    info.name.replace("%s", format!("{}", idx).as_str())
                 };
-
-                let offset = info.address_offset +
-                    i * array_info.dim_increment;
-
-                let mut expanded_info = info.clone();
-                expanded_info.name = name;
-                expanded_info.address_offset = offset;
                 
+                let ty_name = if has_brackets {
+                    info.name.replace("[%s]", "")
+                } else {
+                    info.name.replace("%s", "")
+                };
+                    
+                let ident = Ident::new(name.to_sanitized_snake_case());
+                let ty = name_to_ty(&ty_name);
+
                 out.push(
-                    Register::Single(expanded_info)
+                    syn::Field{
+                        ident: Some(ident),
+                        vis: syn::Visibility::Public,
+                        attrs: vec![],
+                        ty: ty,
+                    }
                 );
             }
-        }
+        },
     }
-
     out
 }
 
@@ -261,12 +245,6 @@ pub fn convert_svd_register(register: &svd::Register) -> syn::Field {
             }
         },
     }
-}
-
-
-pub fn sort_by_offset(mut registers: Vec<Register>) -> Vec<Register> {
-    registers.sort_by_key(|x| x.address_offset);
-    return registers;
 }
 
 pub fn name_of(register: &Register) -> Cow<str> {
