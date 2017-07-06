@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-use regex::Regex;
 use inflections::Inflect;
 use svd;
 use svd::{Access, EnumeratedValues, Field, Peripheral, Register,
