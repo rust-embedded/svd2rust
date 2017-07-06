@@ -2,10 +2,12 @@ use std::borrow::Cow;
 
 use regex::Regex;
 use inflections::Inflect;
+use svd;
 use svd::{Access, EnumeratedValues, Field, Peripheral, Register,
           Usage};
+use syn;
 use syn::{Ident, IntTy, Lit};
-use quote::Tokens;
+use quote::{Tokens, ToTokens};
 
 use errors::*;
 
@@ -157,40 +159,11 @@ pub fn register_to_rust(register: &Register) -> Tokens {
             }
         },
         Register::Array(ref info, ref array_info) => {
-            let has_brackets = info.name.contains("[%s]");
-            
-            let comment = &format!(
-                "0x{:02x} - {} [{}]",
-                register.address_offset,
-                respace(&register.description),
-                array_info.dim,
-            )
-                [..];
-
-            let rty = Ident::from({
-                let name = if has_brackets {
-                    info.name.replace("[%s]", "")
-                } else {
-                    info.name.replace("%s", "")
-                };
-                name.to_sanitized_upper_case().into_owned()
-            });
-
-            let reg_name = Ident::from({
-                let name = if has_brackets {
-                    info.name.replace("[%s]", "")
-                } else {
-                    info.name.replace("%s", "")
-                };
-                name.to_sanitized_snake_case().into_owned()
-            });
-
-            let length = Ident::from(array_info.dim.to_string());
-
-            quote! {
-                #[doc = #comment]
-                pub #reg_name : [#rty; #length],
-            }
+            let field = convert_svd_register(register);
+            let mut tokens = Tokens::new();
+            field.to_tokens(&mut tokens);
+            Ident::new(",").to_tokens(&mut tokens);
+            tokens
         },
     }
 }
@@ -242,6 +215,52 @@ pub fn expand(register: &Register) -> Vec<Register> {
     }
 
     out
+}
+
+pub fn convert_svd_register(register: &svd::Register) -> syn::Field {
+    let name_to_ty = |name: &String| -> syn::Ty {
+        syn::Ty::Path(None, syn::Path{
+            global: false,
+            segments: vec![syn::PathSegment{
+                ident: Ident::new(name.to_sanitized_upper_case()),
+                parameters: syn::PathParameters::none(),
+            }],
+        })
+    };
+    
+    match *register {
+        Register::Single(ref info) => {
+            syn::Field{
+                ident: Some(Ident::new(info.name.to_sanitized_snake_case())),
+                vis: syn::Visibility::Public,
+                attrs: vec![],
+                ty: name_to_ty(&info.name),
+            }
+        },
+        Register::Array(ref info, ref array_info) => {
+            let has_brackets = info.name.contains("[%s]");
+
+            let name = if has_brackets {
+                info.name.replace("[%s]", "")
+            } else {
+                info.name.replace("%s", "")
+            };
+            
+            let ident = Ident::new(name.to_sanitized_snake_case());
+            
+            let ty = syn::Ty::Array(
+                Box::new(name_to_ty(&name)),
+                syn::ConstExpr::Lit(syn::Lit::Int(array_info.dim as u64, syn::IntTy::Unsuffixed)),
+            );
+
+            syn::Field{
+                ident: Some(ident),
+                vis: syn::Visibility::Public,
+                attrs: vec![],
+                ty: ty,
+            }
+        },
+    }
 }
 
 
