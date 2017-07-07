@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.11.0] - 2017-07-07
+
+### Added
+
+- Multiarch support. Now `svd2rust` can generate crates for MSP430
+  microcontrollers. The target architecture must be specified using the
+  `--target` flag.
+
+- The generated crate will now populate the interrupts section of the vector
+  table if the "rt" feature is enabled.
+
+- An `interrupt!` macro has been added to the generated crates. This macro can
+  be used to override an interrupt handler. This macro is only available if
+  the "rt" feature is enabled.
+
+### Changed
+
+- [breaking-change] the generated crates now depend on the [`bare-metal`] crate.
+
+[`bare-metal`]: https://crates.io/crates/bare-metal
+
+- generate crates now have a "rt" Cargo feature. This feature makes the
+  generated crate depend on the [`cortex-m-rt`] crate.
+
+[`cortex-m-rt`]: https://crates.io/crates/cortex-m-rt
+
+### Removed
+
+- [breaking-change] the `interrupt` module has been removed from generated
+  crates. the `interrupt::Interrupt` enum can now be found at the root of the
+  crate.
+
 ## [v0.10.0] - 2017-06-11
 
 ### Changed
@@ -243,7 +275,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.11.0...HEAD
+[v0.11.0]: https://github.com/japaric/svd2rust/compare/v0.10.0...v0.11.0
 [v0.10.0]: https://github.com/japaric/svd2rust/compare/v0.9.1...v0.10.0
 [v0.9.1]: https://github.com/japaric/svd2rust/compare/v0.9.0...v0.9.1
 [v0.9.0]: https://github.com/japaric/svd2rust/compare/v0.8.1...v0.9.0
