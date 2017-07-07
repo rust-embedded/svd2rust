@@ -18,9 +18,20 @@
 //!
 //! # Usage
 //!
+//! `svd2rust` supports Cortex-M and MSP430 microcontrollers. The generated
+//! crate can be tailored for either architecture using the `--target` flag. The
+//! flag accepts "cortex-m", "msp430" and "none" as values. "none" can be used
+//! to generate a crate that's architecture agnostic and that should work for
+//! architectures that `svd2rust` doesn't currently know about like the Cortex-A
+//! architecture.
+//!
+//! If the `--target` flag is omitted `svd2rust` assumes the target is the
+//! Cortex-M architecture.
+//!
 //! ```
 //! $ svd2rust -i STM32F30x.svd | rustfmt | tee src/lib.rs
-//! //! Peripheral access API for STM32F30X microcontrollers (generated using svd2rust v0.11.0)
+//! //! Peripheral access API for STM32F30X microcontrollers
+//! //! (generated using svd2rust v0.11.0)
 //!
 //! #![deny(missing_docs)]
 //! #![deny(warnings)]
@@ -79,9 +90,16 @@
 //!
 //! The generated crate depends on:
 //!
-//! - [`cortex-m-rt`](https://crates.io/crates/cortex-m-rt) v0.3.x
-//! - [`cortex-m`](https://crates.io/crates/cortex-m) v0.3.x
+//! - [`bare-metal`](https://crates.io/crates/bare-metal) v0.1.x
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
+//! - [`cortex-m-rt`](https://crates.io/crates/cortex-m-rt) v0.3.x if targeting
+//!   the Cortex-M architecture.
+//! - [`cortex-m`](https://crates.io/crates/cortex-m) v0.3.x if targeting the
+//!   Cortex-M architecture.
+//! - [`msp430`](https://crates.io/crates/msp430) v0.1.x if targeting the MSP430
+//!   architecture.
+//! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.1.x if targeting the
+//!   MSP430 architecture.
 //!
 //! # Peripheral API
 //!
@@ -365,10 +383,10 @@
 /// must have signature `fn()`.
 ///
 /// Optionally, a third argument may be used to declare interrupt local data.
-/// The handler will have exclusive access to this data on each invocation. If
-/// the third argument is used then the signature of the handler function must
-/// be `fn(&mut $NAME::Local)` where `$NAME` is the first argument passed to the
-/// macro.
+/// The handler will have exclusive access to these *local* variables on each
+/// invocation. If the third argument is used then the signature of the handler
+/// function must be `fn(&mut $NAME::Locals)` where `$NAME` is the first argument
+/// passed to the macro.
 ///
 /// # Example
 ///
@@ -379,14 +397,14 @@
 ///     print!(".");
 /// }
 ///
-/// interrupt!(TIM3, tick, local: {
+/// interrupt!(TIM3, tick, locals: {
 ///     tick: bool = false;
 /// });
 ///
-/// fn tick(local: &mut TIM3::Local) {
-///     local.tick = !local.tick;
+/// fn tick(locals: &mut TIM3::Locals) {
+///     locals.tick = !locals.tick;
 ///
-///     if local.tick {
+///     if locals.tick {
 ///         println!("Tick");
 ///     } else {
 ///         println!("Tock");
@@ -395,8 +413,8 @@
 /// ```
 #[macro_export]
 macro_rules! interrupt {
-    ($NAME:ident, $body:path) => {};
-    ($NAME:ident, $body:path, local: {
+    ($NAME:ident, $path:path) => {};
+    ($NAME:ident, $path:path, locals: {
         $($lvar:ident: $lty:ty = $lval:expr;)+
     }) => {};
 }

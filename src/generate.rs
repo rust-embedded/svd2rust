@@ -133,7 +133,7 @@ pub fn device(
         }
 
         ::generate::peripheral(p, &d.peripherals, items, &d.defaults)?;
-        let p = &*p.name;
+        let p = p.name.to_sanitized_upper_case();
         let id = Ident::new(&*p);
         fields.push(quote! {
             #[doc = #p]
@@ -305,12 +305,12 @@ pub fn interrupt(
             #[cfg(feature = "rt")]
             #[macro_export]
             macro_rules! interrupt {
-                ($NAME:ident, $f:ident, local: {
+                ($NAME:ident, $path:path, locals: {
                     $($lvar:ident:$lty:ident = $lval:expr;)*
                 }) => {
                     #[allow(non_snake_case)]
                     mod $NAME {
-                        pub struct Local {
+                        pub struct Locals {
                             $(
                                 pub $lvar: $lty,
                             )*
@@ -323,19 +323,19 @@ pub fn interrupt(
                         // check that the handler exists
                         let _ = $crate::interrupt::Interrupt::$NAME;
 
-                        static mut LOCAL: self::$NAME::Local =
-                            self::$NAME::Local {
+                        static mut LOCALS: self::$NAME::Locals =
+                            self::$NAME::Locals {
                                 $(
                                     $lvar: $lval,
                                 )*
                             };
 
                         // type checking
-                        let f: fn(&mut self::$NAME::Local) = $f;
-                        f(unsafe { &mut LOCAL });
+                        let f: fn(&mut self::$NAME::Locals) = $path;
+                        f(unsafe { &mut LOCALS });
                     }
                 };
-                ($NAME:ident, $f:ident) => {
+                ($NAME:ident, $path:path) => {
                     #[allow(non_snake_case)]
                     #[no_mangle]
                     pub extern "C" fn $NAME() {
@@ -343,7 +343,7 @@ pub fn interrupt(
                         let _ = $crate::interrupt::Interrupt::$NAME;
 
                         // type checking
-                        let f: fn() = $f;
+                        let f: fn() = $path;
                         f();
                     }
                 }
