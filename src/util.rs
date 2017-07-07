@@ -1,11 +1,9 @@
 use std::borrow::Cow;
 
 use inflections::Inflect;
-use svd;
-use svd::{Access, EnumeratedValues, Field, Peripheral, Register,
+use svd::{self, Access, EnumeratedValues, Field, Peripheral, Register,
           Usage};
-use syn;
-use syn::{Ident, IntTy, Lit};
+use syn::{self, Ident, IntTy, Lit};
 
 use errors::*;
 

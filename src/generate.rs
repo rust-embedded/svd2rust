@@ -5,8 +5,7 @@ use cast::u64;
 use quote::{Tokens, ToTokens};
 use svd::{Access, BitRange, Defaults, Device, EnumeratedValues, Field,
           Peripheral, Register, Usage, WriteConstraint};
-use syn;
-use syn::{Ident, Lit};
+use syn::{self, Ident, Lit};
 
 use errors::*;
 use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext, BITS_PER_BYTE};
