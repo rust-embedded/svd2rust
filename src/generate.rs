@@ -187,8 +187,8 @@ pub fn interrupt(
     let mut pos = 0;
     let mut mod_items = vec![];
     mod_items.push(quote! {
-            use bare_metal::Nr;
-        });
+        use bare_metal::Nr;
+    });
     for interrupt in &interrupts {
         while pos < interrupt.value {
             elements.push(quote!(None));
@@ -210,13 +210,13 @@ pub fn interrupt(
         let value = util::unsuffixed(u64(interrupt.value));
 
         variants.push(quote! {
-                #[doc = #description]
-                #name_uc,
-            });
+            #[doc = #description]
+            #name_uc,
+        });
 
         arms.push(quote! {
-                Interrupt::#name_uc => #value,
-            });
+            Interrupt::#name_uc => #value,
+        });
 
         elements.push(quote!(Some(#name_uc)));
         names.push(name_uc);
@@ -375,26 +375,26 @@ pub fn peripheral(
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
     items.push(quote! {
-            #[doc = #description]
-            pub const #name: Peripheral<#name_pc> =
-                unsafe { Peripheral::new(#address) };
-        });
+        #[doc = #description]
+        pub const #name: Peripheral<#name_pc> =
+            unsafe { Peripheral::new(#address) };
+    });
 
     if let Some(base) = p.derived_from.as_ref() {
         // TODO Verify that base exists
         let base_sc = Ident::new(&*base.to_sanitized_snake_case());
         items.push(quote! {
-                /// Register block
-                pub struct #name_pc { register_block: #base_sc::RegisterBlock }
+            /// Register block
+            pub struct #name_pc { register_block: #base_sc::RegisterBlock }
 
-                impl Deref for #name_pc {
-                    type Target = #base_sc::RegisterBlock;
+            impl Deref for #name_pc {
+                type Target = #base_sc::RegisterBlock;
 
-                    fn deref(&self) -> &#base_sc::RegisterBlock {
-                        &self.register_block
-                    }
+                fn deref(&self) -> &#base_sc::RegisterBlock {
+                    &self.register_block
                 }
-            });
+            }
+        });
 
         // TODO We don't handle inheritance style `derivedFrom`, we should raise
         // an error in that case
@@ -427,24 +427,24 @@ pub fn peripheral(
     let name_sc = Ident::new(&*p.name.to_sanitized_snake_case());
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
     items.push(quote! {
-            #[doc = #description]
-            pub mod #name_sc {
-                use vcell::VolatileCell;
+        #[doc = #description]
+        pub mod #name_sc {
+            use vcell::VolatileCell;
 
-                #(#mod_items)*
+            #(#mod_items)*
+        }
+
+        #[doc = #description]
+        pub struct #name_pc { register_block: #name_sc::RegisterBlock }
+
+        impl Deref for #name_pc {
+            type Target = #name_sc::RegisterBlock;
+
+            fn deref(&self) -> &#name_sc::RegisterBlock {
+                &self.register_block
             }
-
-            #[doc = #description]
-            pub struct #name_pc { register_block: #name_sc::RegisterBlock }
-
-            impl Deref for #name_pc {
-                type Target = #name_sc::RegisterBlock;
-
-                fn deref(&self) -> &#name_sc::RegisterBlock {
-                    &self.register_block
-                }
-            }
-        });
+        }
+    });
 
     Ok(())
 }
@@ -473,8 +473,8 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
             let name = Ident::new(format!("_reserved{}", i));
             let pad = pad as usize;
             fields.push(quote! {
-                    #name : [u8; #pad],
-                });
+                #name : [u8; #pad],
+            });
             i += 1;
         }
 
@@ -491,9 +491,9 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
         };
         let reg_name = Ident::new(&*register.name.to_sanitized_snake_case());
         fields.push(quote! {
-                #[doc = #comment]
-                pub #reg_name : #rty,
-            });
+            #[doc = #comment]
+            pub #reg_name : #rty,
+        });
 
         offset = register.offset +
                  register
@@ -508,12 +508,12 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
     }
 
     Ok(quote! {
-            /// Register block
-            #[repr(C)]
-            pub struct RegisterBlock {
-                #(#fields)*
-            }
-        })
+        /// Register block
+        #[repr(C)]
+        pub struct RegisterBlock {
+            #(#fields)*
+        }
+    })
 }
 
 fn unsafety(
@@ -573,66 +573,66 @@ pub fn register(
 
     if access == Access::ReadWrite {
         reg_impl_items.push(quote! {
-                /// Modifies the contents of the register
-                #[inline(always)]
-                pub fn modify<F>(&self, f: F)
-                where
-                    for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W
-                {
-                    let bits = self.register.get();
-                    let r = R { bits: bits };
-                    let mut w = W { bits: bits };
-                    f(&r, &mut w);
-                    self.register.set(w.bits);
-                }
-            });
+            /// Modifies the contents of the register
+            #[inline(always)]
+            pub fn modify<F>(&self, f: F)
+            where
+                for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W
+            {
+                let bits = self.register.get();
+                let r = R { bits: bits };
+                let mut w = W { bits: bits };
+                f(&r, &mut w);
+                self.register.set(w.bits);
+            }
+        });
     }
 
     if access == Access::ReadOnly || access == Access::ReadWrite {
         reg_impl_items.push(quote! {
-                /// Reads the contents of the register
-                #[inline(always)]
-                pub fn read(&self) -> R {
-                    R { bits: self.register.get() }
-                }
-            });
+            /// Reads the contents of the register
+            #[inline(always)]
+            pub fn read(&self) -> R {
+                R { bits: self.register.get() }
+            }
+        });
 
         mod_items.push(quote! {
-                /// Value read from the register
-                pub struct R {
-                    bits: #rty,
-                }
-            });
+            /// Value read from the register
+            pub struct R {
+                bits: #rty,
+            }
+        });
 
         r_impl_items.push(quote! {
-                /// Value of the register as raw bits
-                #[inline(always)]
-                pub fn bits(&self) -> #rty {
-                    self.bits
-                }
-            });
+            /// Value of the register as raw bits
+            #[inline(always)]
+            pub fn bits(&self) -> #rty {
+                self.bits
+            }
+        });
     }
 
     if access == Access::WriteOnly || access == Access::ReadWrite {
         reg_impl_items.push(quote! {
-                /// Writes to the register
-                #[inline(always)]
-                pub fn write<F>(&self, f: F)
-                where
-                    F: FnOnce(&mut W) -> &mut W
-                {
-                    let mut w = W::reset_value();
-                    f(&mut w);
-                    self.register.set(w.bits);
-                }
-            });
+            /// Writes to the register
+            #[inline(always)]
+            pub fn write<F>(&self, f: F)
+            where
+                F: FnOnce(&mut W) -> &mut W
+            {
+                let mut w = W::reset_value();
+                f(&mut w);
+                self.register.set(w.bits);
+            }
+        });
 
         mod_items.push(quote! {
-                /// Value to write to the register
-                pub struct W {
-                    bits: #rty,
-                }
-            });
+            /// Value to write to the register
+            pub struct W {
+                bits: #rty,
+            }
+        });
 
         let rv = register
             .reset_value
@@ -644,36 +644,36 @@ pub fn register(
             })?;
 
         w_impl_items.push(quote! {
-                /// Reset value of the register
-                #[inline(always)]
-                pub fn reset_value() -> W {
-                    W { bits: #rv }
-                }
+            /// Reset value of the register
+            #[inline(always)]
+            pub fn reset_value() -> W {
+                W { bits: #rv }
+            }
 
-                /// Writes raw bits to the register
-                #[inline(always)]
-                pub #unsafety fn bits(&mut self, bits: #rty) -> &mut Self {
-                    self.bits = bits;
-                    self
-                }
-            });
+            /// Writes raw bits to the register
+            #[inline(always)]
+            pub #unsafety fn bits(&mut self, bits: #rty) -> &mut Self {
+                self.bits = bits;
+                self
+            }
+        });
     }
 
     if access == Access::ReadWrite {
         reg_impl_items.push(quote! {
-                /// Writes the reset value to the register
-                #[inline(always)]
-                pub fn reset(&self) {
-                    self.write(|w| w)
-                }
-            })
+            /// Writes the reset value to the register
+            #[inline(always)]
+            pub fn reset(&self) {
+                self.write(|w| w)
+            }
+        })
     }
 
     mod_items.push(quote! {
-            impl super::#name_pc {
-                #(#reg_impl_items)*
-            }
-        });
+        impl super::#name_pc {
+            #(#reg_impl_items)*
+        }
+    });
 
     if let Some(fields) = register.fields.as_ref() {
         // filter out all reserved fields, as we should not generate code for
@@ -702,31 +702,31 @@ pub fn register(
 
     if access == Access::ReadOnly || access == Access::ReadWrite {
         mod_items.push(quote! {
-                impl R {
-                    #(#r_impl_items)*
-                }
-            });
+            impl R {
+                #(#r_impl_items)*
+            }
+        });
     }
 
     if access == Access::WriteOnly || access == Access::ReadWrite {
         mod_items.push(quote! {
-                impl W {
-                    #(#w_impl_items)*
-                }
-            });
+            impl W {
+                #(#w_impl_items)*
+            }
+        });
     }
 
     items.push(quote! {
-            #[doc = #description]
-            pub struct #name_pc {
-                register: VolatileCell<#rty>
-            }
+        #[doc = #description]
+        pub struct #name_pc {
+            register: VolatileCell<#rty>
+        }
 
-            #[doc = #description]
-            pub mod #name_sc {
-                #(#mod_items)*
-            }
-        });
+        #[doc = #description]
+        pub mod #name_sc {
+            #(#mod_items)*
+        }
+    });
 
     Ok(())
 }
@@ -892,34 +892,34 @@ pub fn fields(
                         let rmod_ = Ident::new(&*rmod_);
 
                         mod_items.push(quote! {
-                                #[doc = #desc]
-                                pub type #pc_r = ::#pmod_::#rmod_::#base_pc_r;
-                            });
+                            #[doc = #desc]
+                            pub type #pc_r = ::#pmod_::#rmod_::#base_pc_r;
+                        });
                     } else if let Some(ref register) = base.register {
                         let mod_ = register.to_sanitized_snake_case();
                         let mod_ = Ident::new(&*mod_);
 
                         mod_items.push(quote! {
-                                #[doc = #desc]
-                                pub type #pc_r = super::#mod_::#base_pc_r;
-                            });
+                            #[doc = #desc]
+                            pub type #pc_r = super::#mod_::#base_pc_r;
+                        });
                     } else {
                         mod_items.push(quote! {
-                                #[doc = #desc]
-                                pub type #pc_r = #base_pc_r;
-                            });
+                            #[doc = #desc]
+                            pub type #pc_r = #base_pc_r;
+                        });
                     }
                 }
 
                 let description = &f.description;
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
-                        #[doc = #description]
-                        #[inline(always)]
-                        pub fn #sc(&self) -> #pc_r {
-                            #pc_r::_from({ #value })
-                        }
-                    });
+                    #[doc = #description]
+                    #[inline(always)]
+                    pub fn #sc(&self) -> #pc_r {
+                        #pc_r::_from({ #value })
+                    }
+                });
 
                 if base.is_none() {
                     let desc = format!(
@@ -933,24 +933,24 @@ pub fn fields(
                             let desc = v.description;
                             let pc = &v.pc;
                             quote! {
-                                    #[doc = #desc]
-                                    #pc
-                                }
+                                #[doc = #desc]
+                                #pc
+                            }
                         })
                         .collect::<Vec<_>>();
                     if has_reserved_variant {
                         vars.push(quote! {
-                                /// Reserved
-                                _Reserved(#fty)
-                            });
+                            /// Reserved
+                            _Reserved(#fty)
+                        });
                     }
                     mod_items.push(quote! {
-                            #[doc = #desc]
-                            #[derive(Clone, Copy, Debug, PartialEq)]
-                            pub enum #pc_r {
-                                #(#vars),*
-                            }
-                        });
+                        #[doc = #desc]
+                        #[derive(Clone, Copy, Debug, PartialEq)]
+                        pub enum #pc_r {
+                            #(#vars),*
+                        }
+                    });
 
                     let mut enum_items = vec![];
 
@@ -962,14 +962,14 @@ pub fn fields(
                             let pc = &v.pc;
 
                             quote! {
-                                    #pc_r::#pc => #value
-                                }
+                                #pc_r::#pc => #value
+                            }
                         })
                         .collect::<Vec<_>>();
                     if has_reserved_variant {
                         arms.push(quote! {
-                                #pc_r::_Reserved(bits) => bits
-                            });
+                            #pc_r::_Reserved(bits) => bits
+                        });
                     }
 
                     if f.width == 1 {
@@ -989,14 +989,14 @@ pub fn fields(
                     }
 
                     enum_items.push(quote! {
-                            /// Value of the field as raw bits
-                            #[inline(always)]
-                            pub fn #bits(&self) -> #fty {
-                                match *self {
-                                    #(#arms),*
-                                }
+                        /// Value of the field as raw bits
+                        #[inline(always)]
+                        pub fn #bits(&self) -> #fty {
+                            match *self {
+                                #(#arms),*
                             }
-                        });
+                        }
+                    });
 
                     let mut arms = variants
                         .iter()
@@ -1005,31 +1005,31 @@ pub fn fields(
                             let pc = &v.pc;
 
                             quote! {
-                                    #i => #pc_r::#pc
-                                }
+                                #i => #pc_r::#pc
+                            }
                         })
                         .collect::<Vec<_>>();
 
                     if has_reserved_variant {
                         arms.push(quote! {
-                                i => #pc_r::_Reserved(i)
-                            });
+                            i => #pc_r::_Reserved(i)
+                        });
                     } else if 1 << f.width.to_ty_width()? != variants.len() {
                         arms.push(quote! {
-                                _ => unreachable!()
-                            });
+                            _ => unreachable!()
+                        });
                     }
 
                     enum_items.push(quote! {
-                            #[allow(missing_docs)]
-                            #[doc(hidden)]
-                            #[inline(always)]
-                            pub fn _from(value: #fty) -> #pc_r {
-                                match value {
-                                    #(#arms),*,
-                                }
+                        #[allow(missing_docs)]
+                        #[doc(hidden)]
+                        #[inline(always)]
+                        pub fn _from(value: #fty) -> #pc_r {
+                            match value {
+                                #(#arms),*,
                             }
-                        });
+                        }
+                    });
 
                     for v in &variants {
                         let pc = &v.pc;
@@ -1046,32 +1046,32 @@ pub fn fields(
                             pc
                         );
                         enum_items.push(quote! {
-                                #[doc = #doc]
-                                #[inline(always)]
-                                pub fn #is_variant(&self) -> bool {
-                                    *self == #pc_r::#pc
-                                }
-                            });
+                            #[doc = #doc]
+                            #[inline(always)]
+                            pub fn #is_variant(&self) -> bool {
+                                *self == #pc_r::#pc
+                            }
+                        });
                     }
 
                     mod_items.push(quote! {
-                            impl #pc_r {
-                                #(#enum_items)*
-                            }
-                        });
+                        impl #pc_r {
+                            #(#enum_items)*
+                        }
+                    });
                 }
             } else {
                 let description = &f.description;
                 let pc_r = &f.pc_r;
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
-                        #[doc = #description]
-                        #[inline(always)]
-                        pub fn #sc(&self) -> #pc_r {
-                            let bits = { #value };
-                            #pc_r { bits }
-                        }
-                    });
+                    #[doc = #description]
+                    #[inline(always)]
+                    pub fn #sc(&self) -> #pc_r {
+                        let bits = { #value };
+                        #pc_r { bits }
+                    }
+                });
 
                 let mut pc_r_impl_items = vec![quote! {
                     /// Value of the field as raw bits
@@ -1098,15 +1098,15 @@ pub fn fields(
                 }
 
                 mod_items.push(quote! {
-                        /// Value of the field
-                        pub struct #pc_r {
-                            bits: #fty,
-                        }
+                    /// Value of the field
+                    pub struct #pc_r {
+                        bits: #fty,
+                    }
 
-                        impl #pc_r {
-                            #(#pc_r_impl_items)*
-                        }
-                    });
+                    impl #pc_r {
+                        #(#pc_r_impl_items)*
+                    }
+                });
             }
 
         }
@@ -1163,36 +1163,36 @@ pub fn fields(
                         let rmod_ = Ident::new(&*rmod_);
 
                         mod_items.push(quote! {
-                                        #[doc = #pc_w_doc]
-                                        pub type #pc_w =
-                                            ::#pmod_::#rmod_::#base_pc_w;
-                                    });
+                            #[doc = #pc_w_doc]
+                            pub type #pc_w =
+                                ::#pmod_::#rmod_::#base_pc_w;
+                        });
 
                         quote! {
-                                    ::#pmod_::#rmod_::#base_pc_w
-                                }
+                            ::#pmod_::#rmod_::#base_pc_w
+                        }
                     } else if let Some(ref register) = base.register {
                         let mod_ = register.to_sanitized_snake_case();
                         let mod_ = Ident::new(&*mod_);
 
                         mod_items.push(quote! {
-                                        #[doc = #pc_w_doc]
-                                        pub type #pc_w =
-                                            super::#mod_::#base_pc_w;
-                                    });
+                            #[doc = #pc_w_doc]
+                            pub type #pc_w =
+                                super::#mod_::#base_pc_w;
+                        });
 
                         quote! {
-                                    super::#mod_::#base_pc_w
-                                }
+                            super::#mod_::#base_pc_w
+                        }
                     } else {
                         mod_items.push(quote! {
-                                        #[doc = #pc_w_doc]
-                                        pub type #pc_w = #base_pc_w;
-                                    });
+                            #[doc = #pc_w_doc]
+                            pub type #pc_w = #base_pc_w;
+                        });
 
                         quote! {
-                                    #base_pc_w
-                                }
+                            #base_pc_w
+                        }
                     }
                 });
 
@@ -1231,46 +1231,46 @@ pub fn fields(
                     let variants_pc = variants.iter().map(|v| &v.pc);
                     let variants_doc = variants.iter().map(|v| &*v.doc);
                     mod_items.push(quote! {
-                            #[doc = #pc_w_doc]
-                            pub enum #pc_w {
-                                #(#[doc = #variants_doc]
-                                #variants_pc),*
-                            }
-                        });
+                        #[doc = #pc_w_doc]
+                        pub enum #pc_w {
+                            #(#[doc = #variants_doc]
+                            #variants_pc),*
+                        }
+                    });
 
                     let arms = variants.iter().map(|v| {
                         let pc = &v.pc;
                         let value = util::unsuffixed_or_bool(v.value, f.width);
 
                         quote! {
-                                    #pc_w::#pc => #value
-                                }
+                            #pc_w::#pc => #value
+                        }
                     });
 
                     mod_items.push(quote! {
-                            impl #pc_w {
-                                #[allow(missing_docs)]
-                                #[doc(hidden)]
-                                #[inline(always)]
-                                pub fn _bits(&self) -> #fty {
-                                    match *self {
-                                        #(#arms),*
-                                    }
+                        impl #pc_w {
+                            #[allow(missing_docs)]
+                            #[doc(hidden)]
+                            #[inline(always)]
+                            pub fn _bits(&self) -> #fty {
+                                match *self {
+                                    #(#arms),*
                                 }
                             }
-                        });
+                        }
+                    });
                 }
 
 
                 proxy_items.push(quote! {
-                        /// Writes `variant` to the field
-                        #[inline(always)]
-                        pub fn variant(self, variant: #pc_w) -> &'a mut W {
-                            #unsafety {
-                                self.#bits(variant._bits())
-                            }
+                    /// Writes `variant` to the field
+                    #[inline(always)]
+                    pub fn variant(self, variant: #pc_w) -> &'a mut W {
+                        #unsafety {
+                            self.#bits(variant._bits())
                         }
-                    });
+                    }
+                });
 
                 for v in &variants {
                     let pc = &v.pc;
@@ -1279,72 +1279,72 @@ pub fn fields(
                     let doc = util::respace(&v.doc);
                     if let Some(enum_) = base_pc_w.as_ref() {
                         proxy_items.push(quote! {
-                                #[doc = #doc]
-                                #[inline(always)]
-                                pub fn #sc(self) -> &'a mut W {
-                                    self.variant(#enum_::#pc)
-                                }
-                            });
+                            #[doc = #doc]
+                            #[inline(always)]
+                            pub fn #sc(self) -> &'a mut W {
+                                self.variant(#enum_::#pc)
+                            }
+                        });
                     } else {
                         proxy_items.push(quote! {
-                                #[doc = #doc]
-                                #[inline(always)]
-                                pub fn #sc(self) -> &'a mut W {
-                                    self.variant(#pc_w::#pc)
-                                }
-                            });
+                            #[doc = #doc]
+                            #[inline(always)]
+                            pub fn #sc(self) -> &'a mut W {
+                                self.variant(#pc_w::#pc)
+                            }
+                        });
                     }
                 }
             }
 
             if width == 1 {
                 proxy_items.push(quote! {
-                        /// Sets the field bit
-                        pub fn set_bit(self) -> &'a mut W {
-                            self.bit(true)
-                        }
+                    /// Sets the field bit
+                    pub fn set_bit(self) -> &'a mut W {
+                        self.bit(true)
+                    }
 
-                        /// Clears the field bit
-                        pub fn clear_bit(self) -> &'a mut W {
-                            self.bit(false)
-                        }
-                    });
+                    /// Clears the field bit
+                    pub fn clear_bit(self) -> &'a mut W {
+                        self.bit(false)
+                    }
+                });
             }
 
             proxy_items.push(quote! {
-                    /// Writes raw bits to the field
-                    #[inline(always)]
-                    pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        const MASK: #fty = #mask;
-                        const OFFSET: u8 = #offset;
+                /// Writes raw bits to the field
+                #[inline(always)]
+                pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
+                    const MASK: #fty = #mask;
+                    const OFFSET: u8 = #offset;
 
-                        self.w.bits &= !((MASK as #rty) << OFFSET);
-                        self.w.bits |= ((value & MASK) as #rty) << OFFSET;
-                        self.w
-                    }
-                });
+                    self.w.bits &= !((MASK as #rty) << OFFSET);
+                    self.w.bits |= ((value & MASK) as #rty) << OFFSET;
+                    self.w
+                }
+            });
 
             let _pc_w = &f._pc_w;
             mod_items.push(quote! {
-                    /// Proxy
-                    pub struct #_pc_w<'a> {
-                        w: &'a mut W,
-                    }
+                /// Proxy
+                pub struct #_pc_w<'a> {
+                    w: &'a mut W,
+                }
 
-                    impl<'a> #_pc_w<'a> {
-                        #(#proxy_items)*
-                    }
-                });
+                impl<'a> #_pc_w<'a> {
+                    #(#proxy_items)*
+                }
+            });
 
             let description = &f.description;
             let sc = &f.sc;
             w_impl_items.push(quote! {
-                    #[doc = #description]
-                    #[inline(always)]
-                    pub fn #sc(&mut self) -> #_pc_w {
-                        #_pc_w { w: self }
-                    }
-                })
+                #[doc = #description]
+                #[inline(always)]
+                pub fn #sc(&mut self) -> #_pc_w {
+                    #_pc_w { w: self }
+                }
+            })
         }
     }
 
