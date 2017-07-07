@@ -133,6 +133,18 @@ pub fn device(
         }
 
         ::generate::peripheral(p, &d.peripherals, items, &d.defaults)?;
+
+        if p.registers
+            .as_ref()
+            .map(|v| &v[..])
+            .unwrap_or(&[])
+            .is_empty()
+        {
+            // No register block will be generated so don't put this peripheral
+            // in the `Peripherals` struct
+            continue;
+        }
+
         let p = p.name.to_sanitized_upper_case();
         let id = Ident::new(&*p);
         fields.push(quote! {
