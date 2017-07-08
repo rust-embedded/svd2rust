@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.11.1] - 2017-07-07
+
+### Fixed
+
+- the `Peripherals` struct now includes derivedFrom peripherals.
+
 ## [v0.11.0] - 2017-07-07
 
 ### Added
@@ -275,7 +281,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.11.1...HEAD
+[v0.11.1]: https://github.com/japaric/svd2rust/compare/v0.11.0...v0.11.1
 [v0.11.0]: https://github.com/japaric/svd2rust/compare/v0.10.0...v0.11.0
 [v0.10.0]: https://github.com/japaric/svd2rust/compare/v0.9.1...v0.10.0
 [v0.9.1]: https://github.com/japaric/svd2rust/compare/v0.9.0...v0.9.1
