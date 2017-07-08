@@ -138,7 +138,7 @@ pub fn device(
             .as_ref()
             .map(|v| &v[..])
             .unwrap_or(&[])
-            .is_empty()
+            .is_empty() && p.derived_from.is_none()
         {
             // No register block will be generated so don't put this peripheral
             // in the `Peripherals` struct
