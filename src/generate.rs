@@ -313,6 +313,10 @@ pub fn interrupt(
     });
 
     if *target != Target::None {
+        let abi = match *target {
+            Target::Msp430 => "msp430-interrupt",
+            _ => "C",
+        };
         mod_items.push(quote! {
             #[cfg(feature = "rt")]
             #[macro_export]
@@ -331,7 +335,7 @@ pub fn interrupt(
 
                     #[allow(non_snake_case)]
                     #[no_mangle]
-                    pub extern "C" fn $NAME() {
+                    pub extern #abi fn $NAME() {
                         // check that the handler exists
                         let _ = $crate::interrupt::Interrupt::$NAME;
 
@@ -350,7 +354,7 @@ pub fn interrupt(
                 ($NAME:ident, $path:path) => {
                     #[allow(non_snake_case)]
                     #[no_mangle]
-                    pub extern "C" fn $NAME() {
+                    pub extern #abi fn $NAME() {
                         // check that the handler exists
                         let _ = $crate::interrupt::Interrupt::$NAME;
 
