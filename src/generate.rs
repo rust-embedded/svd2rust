@@ -35,11 +35,9 @@ pub fn device(
 
     if *target != Target::None {
         items.push(quote! {
-            #![cfg_attr(feature = "rt", feature(asm))]
-            #![cfg_attr(feature = "rt", feature(core_intrinsics))]
+            #![cfg_attr(feature = "rt", feature(global_asm))]
             #![cfg_attr(feature = "rt", feature(linkage))]
             #![cfg_attr(feature = "rt", feature(macro_reexport))]
-            #![cfg_attr(feature = "rt", feature(naked_functions))]
             #![cfg_attr(feature = "rt", feature(used))]
         });
     }
@@ -234,24 +232,24 @@ pub fn interrupt(
         names.push(name_uc);
     }
 
+    let aliases = names.iter()
+            .map(|n| format!("
+.weak {0}
+{0} = DEFAULT_HANDLER", n))
+            .collect::<Vec<_>>()
+            .concat();
+
     let n = util::unsuffixed(u64(pos));
     match *target {
         Target::CortexM => {
             mod_items.push(quote! {
-                #(
-                    #[allow(non_snake_case)]
-                    #[allow(private_no_mangle_fns)]
-                    #[cfg(feature = "rt")]
-                    #[linkage = "weak"]
-                    #[naked]
-                    #[no_mangle]
-                    extern "C" fn #names() {
-                        unsafe {
-                            asm!("b DEFAULT_HANDLER" :::: "volatile");
-                            ::core::intrinsics::unreachable()
-                        }
-                    }
-                )*
+                #[cfg(feature = "rt")]
+                global_asm!(#aliases);
+
+                #[cfg(feature = "rt")]
+                extern "C" {
+                    #(fn #names();)*
+                }
 
                 #[allow(private_no_mangle_statics)]
                 #[cfg(feature = "rt")]
@@ -259,27 +257,20 @@ pub fn interrupt(
                 #[link_section = ".vector_table.interrupts"]
                 #[no_mangle]
                 #[used]
-                pub static INTERRUPTS: [Option<extern "C" fn()>; #n] = [
+                pub static INTERRUPTS: [Option<unsafe extern "C" fn()>; #n] = [
                     #(#elements,)*
                 ];
             });
         }
         Target::Msp430 => {
             mod_items.push(quote! {
-                #(
-                    #[allow(non_snake_case)]
-                    #[allow(private_no_mangle_fns)]
-                    #[cfg(feature = "rt")]
-                    #[linkage = "weak"]
-                    #[naked]
-                    #[no_mangle]
-                    extern "msp430-interrupt" fn #names() {
-                        unsafe {
-                            asm!("jmp DEFAULT_HANDLER" :::: "volatile");
-                            ::core::intrinsics::unreachable()
-                        }
-                    }
-                )*
+                #[cfg(feature = "rt")]
+                global_asm!(#aliases);
+
+                #[cfg(feature = "rt")]
+                extern "msp430-interrupt" {
+                    #(fn #names();)*
+                }
 
                 #[allow(private_no_mangle_statics)]
                 #[cfg(feature = "rt")]
@@ -288,7 +279,7 @@ pub fn interrupt(
                 #[no_mangle]
                 #[used]
                 pub static INTERRUPTS:
-                    [Option<extern "msp430-interrupt" fn()>; #n] = [
+                    [Option<unsafe extern "msp430-interrupt" fn()>; #n] = [
                         #(#elements,)*
                     ];
             });
