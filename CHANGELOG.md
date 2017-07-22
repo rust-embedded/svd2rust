@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.11.2] - 2017-07-21
+
+### Fixed
+
+- deduplicate non overridden interrupt handlers. This saves 4 bytes of Flash
+  memory per interrupt handler.
+
 ## [v0.11.1] - 2017-07-07
 
 ### Fixed
