@@ -2,6 +2,10 @@ environment:
   global:
     CRATE_NAME: svd2rust
     RUST_VERSION: stable
+    # workaround for AppVeyor issues (2017-07-21)
+    RUSTUP_USE_HYPER: 1
+    CARGO_HTTP_CHECK_REVOKE: false
+
 
   matrix:
     # MinGW
