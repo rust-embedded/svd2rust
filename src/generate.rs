@@ -36,7 +36,6 @@ pub fn device(
     if *target != Target::None {
         items.push(quote! {
             #![cfg_attr(feature = "rt", feature(global_asm))]
-            #![cfg_attr(feature = "rt", feature(linkage))]
             #![cfg_attr(feature = "rt", feature(macro_reexport))]
             #![cfg_attr(feature = "rt", feature(used))]
         });
@@ -235,7 +234,7 @@ pub fn interrupt(
     let aliases = names.iter()
             .map(|n| format!("
 .weak {0}
-{0} = DEFAULT_HANDLER", n))
+{0} = DH_TRAMPOLINE", n))
             .collect::<Vec<_>>()
             .concat();
 
@@ -243,6 +242,12 @@ pub fn interrupt(
     match *target {
         Target::CortexM => {
             mod_items.push(quote! {
+                #[cfg(feature = "rt")]
+                global_asm!("
+                DH_TRAMPOLINE:
+                    b DEFAULT_HANDLER
+                ");
+
                 #[cfg(feature = "rt")]
                 global_asm!(#aliases);
 
@@ -264,6 +269,12 @@ pub fn interrupt(
         }
         Target::Msp430 => {
             mod_items.push(quote! {
+                #[cfg(feature = "rt")]
+                global_asm!("
+                DH_TRAMPOLINE:
+                    jmp DEFAULT_HANDLER
+                ");
+
                 #[cfg(feature = "rt")]
                 global_asm!(#aliases);
 
