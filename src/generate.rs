@@ -244,6 +244,7 @@ pub fn interrupt(
             mod_items.push(quote! {
                 #[cfg(feature = "rt")]
                 global_asm!("
+                .thumb_func
                 DH_TRAMPOLINE:
                     b DEFAULT_HANDLER
                 ");
