@@ -6,7 +6,7 @@ use either::Either;
 use quote::Tokens;
 use svd::{Access, BitRange, Defaults, Device, EnumeratedValues, Field,
           Peripheral, Register, Usage, WriteConstraint};
-use syn::{Ident, Lit};
+use syn::Ident;
 
 use errors::*;
 use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
@@ -390,7 +390,7 @@ pub fn peripheral(
 ) -> Result<()> {
     let name = Ident::new(&*p.name.to_uppercase());
     let name_pc = Ident::new(&*p.name.to_sanitized_upper_case());
-    let address = util::unsuffixed(u64(p.base_address));
+    let address = Ident::new(format!("{:#x}", p.base_address));
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
     items.push(quote! {
@@ -498,7 +498,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
         }
 
         let comment = &format!(
-            "0x{:02x} - {}",
+            "{:#02x} - {}",
             register.offset,
             util::respace(&register.info.description)
         )
@@ -656,7 +656,7 @@ pub fn register(
         let rv = register
             .reset_value
             .or(defs.reset_value)
-            .map(|rv| util::unsuffixed(u64(rv)))
+            .map(|rv| Ident::new(format!("{:#x}", rv)))
             .ok_or_else(|| {
                 format!("Register {} has no reset value",
                                     register.name)
@@ -768,9 +768,9 @@ pub fn fields(
         access: Option<Access>,
         description: String,
         evs: &'a [EnumeratedValues],
-        mask: Lit,
+        mask: Ident,
         name: &'a str,
-        offset: Lit,
+        offset: Ident,
         pc_r: Ident,
         pc_w: Ident,
         sc: Ident,
@@ -814,9 +814,15 @@ pub fn fields(
                 access: f.access,
                 evs: &f.enumerated_values,
                 sc: Ident::new(&*sc),
-                mask: util::unsuffixed_or_bool((1 << width) - 1, width),
+                mask: {
+                    if width != 1 {
+                        Ident::new(format!("{:#x}", ((1 as u64) << width) - 1))
+                    } else {
+                        Ident::new("true")
+                    }
+                },
                 name: &f.name,
-                offset: util::unsuffixed(u64(f.bit_range.offset)),
+                offset: Ident::new(format!("{:#x}", f.bit_range.offset)),
                 ty: width.to_ty()?,
                 write_constraint: f.write_constraint.as_ref(),
             })
