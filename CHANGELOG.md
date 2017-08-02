@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-## [v0.11.2] - 2017-07-21
+## [v0.11.3] - 2017-08-01
+
+### Fixed
+
+- Overrides of interrupt handles were being ignored if LTO was not enabled.
+
+## [v0.11.2] - 2017-07-21 - YANKED
 
 ### Fixed
 
