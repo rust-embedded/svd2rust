@@ -4,6 +4,7 @@ use inflections::Inflect;
 use svd::{self, Access, EnumeratedValues, Field, Peripheral, Register,
           Usage};
 use syn::{self, Ident, IntTy, Lit};
+use quote::Tokens;
 
 use errors::*;
 
@@ -277,6 +278,32 @@ pub fn access_of(register: &Register) -> Access {
                 Access::ReadWrite
             },
         )
+}
+
+/// Turns `n` into an unsuffixed separated hex tokens
+pub fn hex(n: u32) -> Tokens {
+    let mut t = Tokens::new();
+    let (h2, h1) = ((n >> 16) & 0xffff, n & 0xffff);
+    t.append(if h2 != 0 {
+        format!("0x{:04x}_{:04x}", h2, h1)
+    } else if h1 & 0xff00 != 0 {
+        format!("0x{:04x}", h1)
+    } else if h1 != 0 {
+        format!("0x{:02x}", h1 & 0xff)
+    } else {
+        String::from("0")
+    });
+    t
+}
+
+pub fn hex_or_bool(n: u32, width: u32) -> Tokens {
+    if width == 1 {
+        let mut t = Tokens::new();
+        t.append(if n == 0 { "false" } else { "true" });
+        t
+    } else {
+        hex(n)
+    }
 }
 
 /// Turns `n` into an unsuffixed literal

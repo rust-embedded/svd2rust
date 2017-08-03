@@ -5,7 +5,7 @@ use cast::u64;
 use quote::{Tokens, ToTokens};
 use svd::{Access, BitRange, Defaults, Device, EnumeratedValues, Field,
           Peripheral, Register, Usage, WriteConstraint};
-use syn::{self, Ident, Lit};
+use syn::{self, Ident};
 
 use errors::*;
 use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext, BITS_PER_BYTE};
@@ -424,7 +424,7 @@ pub fn peripheral(
 ) -> Result<()> {
     let name = Ident::new(&*p.name.to_uppercase());
     let name_pc = Ident::new(&*p.name.to_sanitized_upper_case());
-    let address = util::unsuffixed(u64(p.base_address));
+    let address = util::hex(p.base_address);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
     items.push(quote! {
@@ -756,7 +756,7 @@ pub fn register(
         let rv = register
             .reset_value
             .or(defs.reset_value)
-            .map(|rv| util::unsuffixed(u64(rv)))
+            .map(|rv| util::hex(rv))
             .ok_or_else(|| {
                 format!("Register {} has no reset value",
                                     register.name)
@@ -868,9 +868,9 @@ pub fn fields(
         access: Option<Access>,
         description: String,
         evs: &'a [EnumeratedValues],
-        mask: Lit,
+        mask: Tokens,
         name: &'a str,
-        offset: Lit,
+        offset: Tokens,
         pc_r: Ident,
         pc_w: Ident,
         sc: Ident,
@@ -914,9 +914,9 @@ pub fn fields(
                 access: f.access,
                 evs: &f.enumerated_values,
                 sc: Ident::new(&*sc),
-                mask: util::unsuffixed_or_bool((1 << width) - 1, width),
+                mask: util::hex_or_bool((((1 as u64) << width) - 1) as u32, width),
                 name: &f.name,
-                offset: util::unsuffixed(u64(f.bit_range.offset)),
+                offset: util::hex(f.bit_range.offset),
                 ty: width.to_ty()?,
                 write_constraint: f.write_constraint.as_ref(),
             })
@@ -1077,7 +1077,7 @@ pub fn fields(
                         .iter()
                         .map(|v| {
                             let value =
-                                util::unsuffixed_or_bool(v.value, f.width);
+                                util::hex_or_bool(v.value as u32, f.width);
                             let pc = &v.pc;
 
                             quote! {
