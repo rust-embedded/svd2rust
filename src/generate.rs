@@ -4,8 +4,8 @@ use std::io::{self, Write};
 use cast::u64;
 use either::Either;
 use quote::Tokens;
-use svd::{Access, BitRange, Defaults, Device, EnumeratedValues, Field,
-          Peripheral, Register, Usage, WriteConstraint};
+use svd::{Access, BitRange, Cluster, Defaults, Device, EnumeratedValues,
+          Field, Peripheral, Register, Usage, WriteConstraint};
 use syn::{Ident, Lit};
 
 use errors::*;
@@ -423,21 +423,40 @@ pub fn peripheral(
         return Ok(());
     }
 
-    let registers = p.registers.as_ref().map(|x| x.as_ref()).unwrap_or(&[][..]);
+    let ercs = p.registers.as_ref().map(|x| x.as_ref()).unwrap_or(&[][..]);
 
     // No `struct RegisterBlock` can be generated
-    if registers.is_empty() {
+    if ercs.is_empty() {
         // Drop the `pub const` definition of the peripheral
         items.pop();
         return Ok(());
     }
 
     let mut mod_items = vec![];
-    mod_items.push(::generate::register_block(registers, defaults)?);
+    // TODO Push the top-level register block along with all sub-level register blocks via clusters.
+    mod_items.push(::generate::register_block(ercs, defaults, None)?);
 
-    for register in registers {
+    // For each cluster create cluster struct definition.
+    let all_clusters = util::periph_all_clusters(p);
+    for c in all_clusters {
+        let name = match *c {
+            Cluster::Single(ref info) => info.name.to_sanitized_upper_case(),
+            Cluster::Array(ref info, _) => info.name.to_sanitized_upper_case(),
+        };
+        mod_items.push(::generate::register_block(
+            &c.children,
+            defaults,
+            Some(&name),
+        )?);
+    }
+
+    // Define software for each register of the set of all registers.
+    let all_registers = util::periph_all_registers(p);
+    let registers = &all_registers[..];
+
+    for reg in registers {
         ::generate::register(
-            register,
+            reg,
             registers,
             p,
             all_peripherals,
@@ -471,22 +490,26 @@ pub fn peripheral(
     Ok(())
 }
 
-fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
+fn register_block(
+    ercs: &[Either<Register, Cluster>],
+    defs: &Defaults,
+    name: Option<&str>,
+) -> Result<Tokens> {
     let mut fields = vec![];
     // enumeration of reserved fields
     let mut i = 0;
     // offset from the base address, in bytes
     let mut offset = 0;
-    for register in util::expand(registers) {
-        let pad = if let Some(pad) = register.offset.checked_sub(offset) {
+    for erc in util::expand(ercs) {
+        let pad = if let Some(pad) = erc.offset.checked_sub(offset) {
             pad
         } else {
             writeln!(
                 io::stderr(),
-                "WARNING {} overlaps with another register at offset {}. \
+                "WARNING {} overlaps with another register/cluster at offset {}. \
                  Ignoring.",
-                register.name,
-                register.offset
+                erc.name,
+                erc.offset
             ).ok();
             continue;
         };
@@ -502,31 +525,37 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
 
         let comment = &format!(
             "0x{:02x} - {}",
-            register.offset,
-            util::respace(&register.info.description)
+            erc.offset,
+            util::respace(&erc.description_of())
         )
             [..];
 
-        let rty = match register.ty {
+        let rty = match erc.ty {
             Either::Left(ref ty) => Ident::from(&**ty),
             Either::Right(ref ty) => Ident::from(&***ty),
         };
-        let reg_name = Ident::new(&*register.name.to_sanitized_snake_case());
+        let reg_name = Ident::new(&*erc.name.to_sanitized_snake_case());
         fields.push(quote! {
             #[doc = #comment]
             pub #reg_name : #rty,
         });
 
-        offset = register.offset +
-            register.info.size.or(defs.size).ok_or_else(
-                || format!("Register {} has no `size` field", register.name),
+        offset = erc.offset +
+            erc.size_of().or(defs.size).ok_or_else(
+                || format!("Register/Cluster {} has no `size` field", erc.name),
             )? / 8;
     }
 
+    let name = Ident::new(match name {
+        Some(name) => name,
+        None => "RegisterBlock",
+    });
+
+    // TODO name this RegisterBlock or Cluster based upon some parameter.
     Ok(quote! {
         /// Register block
         #[repr(C)]
-        pub struct RegisterBlock {
+        pub struct #name {
             #(#fields)*
         }
     })
@@ -556,7 +585,7 @@ fn unsafety(
 
 pub fn register(
     register: &Register,
-    all_registers: &[Register],
+    all_registers: &[&Register],
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
     defs: &Defaults,
@@ -750,7 +779,7 @@ pub fn register(
 pub fn fields(
     fields: &[Field],
     parent: &Register,
-    all_registers: &[Register],
+    all_registers: &[&Register],
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
     rty: &Ident,
