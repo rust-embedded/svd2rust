@@ -231,12 +231,15 @@ pub fn interrupt(
         names.push(name_uc);
     }
 
-    let aliases = names.iter()
-            .map(|n| format!("
+    let aliases = names
+        .iter()
+        .map(|n| {
+            format!("
 .weak {0}
-{0} = DH_TRAMPOLINE", n))
-            .collect::<Vec<_>>()
-            .concat();
+{0} = DH_TRAMPOLINE", n)
+        })
+        .collect::<Vec<_>>()
+        .concat();
 
     let n = util::unsuffixed(u64(pos));
     match *target {
@@ -515,15 +518,9 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
         });
 
         offset = register.offset +
-                 register
-                     .info
-                     .size
-                     .or(defs.size)
-                     .ok_or_else(
-            || {
-                format!("Register {} has no `size` field", register.name)
-            },
-        )? / 8;
+            register.info.size.or(defs.size).ok_or_else(
+                || format!("Register {} has no `size` field", register.name),
+            )? / 8;
     }
 
     Ok(quote! {
@@ -841,7 +838,8 @@ pub fn fields(
             } else {
                 quote! { as #fty }
             };
-            let value = quote! {
+            let value =
+                quote! {
                 const MASK: #fty = #mask;
                 const OFFSET: u8 = #offset;
 
@@ -857,7 +855,8 @@ pub fn fields(
                     peripheral,
                     all_peripherals,
                     Usage::Read,
-                )? {
+                )?
+            {
                 struct Variant<'a> {
                     description: &'a str,
                     pc: Ident,
@@ -1155,7 +1154,8 @@ pub fn fields(
                     peripheral,
                     all_peripherals,
                     Usage::Write,
-                )? {
+                )?
+            {
                 struct Variant {
                     doc: String,
                     pc: Ident,
