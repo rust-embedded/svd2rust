@@ -87,7 +87,7 @@ pub fn device(
         });
     }
 
-    ::generate::interrupt(target, &d.peripherals, items);
+    ::generate::interrupt(d, target, &d.peripherals, items);
 
     const CORE_PERIPHERALS: &[&str] = &[
         "CPUID",
@@ -173,6 +173,7 @@ pub fn device(
 
 /// Generates code for `src/interrupt.rs`
 pub fn interrupt(
+    device: &Device,
     target: &Target,
     peripherals: &[Peripheral],
     items: &mut Vec<Tokens>,
@@ -241,21 +242,48 @@ pub fn interrupt(
     let n = util::unsuffixed(u64(pos));
     match *target {
         Target::CortexM => {
+            let is_armv6 = match device.cpu {
+                Some(ref cpu) if cpu.name.starts_with("CM0") => true,
+                _ => false,
+            };
+
+            if is_armv6 {
+                // Cortex-M0(+) are ARMv6 and don't have `b.w` (branch with 16 MB range). This
+                // can cause linker errors when the handler is too far away. Instead of a small
+                // inline assembly shim, we generate a function for those targets and let the
+                // compiler do the work (sacrificing a few bytes of code).
+                mod_items.push(quote! {
+                    #[cfg(feature = "rt")]
+                    extern "C" {
+                        fn DEFAULT_HANDLER();
+                    }
+
+                    #[cfg(feature = "rt")]
+                    #[allow(non_snake_case)]
+                    #[no_mangle]
+                    pub unsafe extern "C" fn DH_TRAMPOLINE() {
+                        DEFAULT_HANDLER();
+                    }
+                });
+            } else {
+                mod_items.push(quote! {
+                    #[cfg(all(target_arch = "arm", feature = "rt"))]
+                    global_asm!("
+                    .thumb_func
+                    DH_TRAMPOLINE:
+                        b DEFAULT_HANDLER
+                    ");
+
+                    /// Hack to compile on x86
+                    #[cfg(all(target_arch = "x86_64", feature = "rt"))]
+                    global_asm!("
+                    DH_TRAMPOLINE:
+                        jmp DEFAULT_HANDLER
+                    ");
+                })
+            }
+
             mod_items.push(quote! {
-                #[cfg(all(target_arch = "arm", feature = "rt"))]
-                global_asm!("
-                .thumb_func
-                DH_TRAMPOLINE:
-                    b DEFAULT_HANDLER
-                ");
-
-                /// Hack to compile on x86
-                #[cfg(all(target_arch = "x86_64", feature = "rt"))]
-                global_asm!("
-                DH_TRAMPOLINE:
-                    jmp DEFAULT_HANDLER
-                ");
-
                 #[cfg(feature = "rt")]
                 global_asm!(#aliases);
 
