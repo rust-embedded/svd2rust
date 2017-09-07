@@ -242,11 +242,18 @@ pub fn interrupt(
     match *target {
         Target::CortexM => {
             mod_items.push(quote! {
-                #[cfg(feature = "rt")]
+                #[cfg(all(target_arch = "arm", feature = "rt"))]
                 global_asm!("
                 .thumb_func
                 DH_TRAMPOLINE:
                     b DEFAULT_HANDLER
+                ");
+
+                /// Hack to compile on x86
+                #[cfg(all(target_arch = "x86_64", feature = "rt"))]
+                global_asm!("
+                DH_TRAMPOLINE:
+                    jmp DEFAULT_HANDLER
                 ");
 
                 #[cfg(feature = "rt")]
