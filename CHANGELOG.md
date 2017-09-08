@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.11.4] - 2017-09-08
+
+### Fixed
+
+- Device crates can be compiled for x86 again.
+
+- Linking issue on ARMv6-M devices.
+
 ## [v0.11.3] - 2017-08-01
 
 ### Fixed
@@ -294,7 +302,9 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.11.2...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.11.4...HEAD
+[v0.11.4]: https://github.com/japaric/svd2rust/compare/v0.11.3...v0.11.4
+[v0.11.3]: https://github.com/japaric/svd2rust/compare/v0.11.2...v0.11.3
 [v0.11.2]: https://github.com/japaric/svd2rust/compare/v0.11.1...v0.11.2
 [v0.11.1]: https://github.com/japaric/svd2rust/compare/v0.11.0...v0.11.1
 [v0.11.0]: https://github.com/japaric/svd2rust/compare/v0.10.0...v0.11.0

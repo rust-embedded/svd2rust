@@ -8,7 +8,7 @@ keywords = ["arm", "cortex-m", "register", "map", "generator"]
 license = "MIT OR Apache-2.0"
 name = "svd2rust"
 repository = "https://github.com/japaric/svd2rust"
-version = "0.11.3"
+version = "0.11.4"
 
 [dependencies]
 cast = "0.2.0"
