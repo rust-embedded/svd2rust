@@ -1,26 +1,37 @@
 [package]
 authors = ["Jorge Aparicio <jorge@japaric.io>"]
 build = "build.rs"
-categories = ["command-line-utilities", "embedded", "hardware-support", "no-std"]
+categories = [
+    "command-line-utilities",
+    "embedded",
+    "hardware-support",
+    "no-std",
+]
 description = "Generate Rust register maps (`struct`s) from SVD files"
 documentation = "https://github.com/japaric/svd2rust#svd2rust"
-keywords = ["arm", "cortex-m", "register", "map", "generator"]
+keywords = [
+    "arm",
+    "cortex-m",
+    "register",
+    "map",
+    "generator",
+]
 license = "MIT OR Apache-2.0"
 name = "svd2rust"
 repository = "https://github.com/japaric/svd2rust"
 version = "0.11.4"
 
-[dependencies]
-cast = "0.2.0"
-clap = "2.20.5"
-either = "1.0.3"
-error-chain = "0.10.0"
-inflections = "1.1.0"
-quote = "0.3.15"
-svd-parser = "0.5.2"
-syn = "0.11.9"
-
 [[bin]]
 doc = false
 name = "svd2rust"
 path = "src/main.rs"
+
+[dependencies]
+cast = "0.2.2"
+clap = "2.26.0"
+either = "1.1.0"
+error-chain = "0.11.0"
+inflections = "1.1.0"
+quote = "0.3.15"
+svd-parser = "0.5.2"
+syn = "0.11.11"
