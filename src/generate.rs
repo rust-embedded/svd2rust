@@ -244,7 +244,8 @@ pub fn interrupt(
         Target::CortexM => {
             let is_armv6 = match device.cpu {
                 Some(ref cpu) if cpu.name.starts_with("CM0") => true,
-                _ => false,
+                Some(_) => false,
+                _ => true,  // default to armv6 when the <cpu> section is missing
             };
 
             if is_armv6 {
