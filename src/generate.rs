@@ -462,7 +462,7 @@ pub fn peripheral(
 
 struct RegisterBlockField {
     field: syn::Field,
-    description: Ident,
+    description: String,
     offset: u32,
     size: u32,
 }
@@ -487,7 +487,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
             Register::Single(ref info) => registers_expanded.push(
                 RegisterBlockField{
                     field: util::convert_svd_register(register),
-                    description: Ident::from(info.description.clone()),
+                    description: info.description.clone(),
                     offset: info.address_offset,
                     size: register_size,
                 }
@@ -517,7 +517,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
                     registers_expanded.push(
                         RegisterBlockField{
                             field: util::convert_svd_register(&register),
-                            description: Ident::from(info.description.clone()),
+                            description: info.description.clone(),
                             offset: info.address_offset,
                             size: register_size * array_info.dim,
                         });                                    
@@ -527,7 +527,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
                         registers_expanded.push(
                             RegisterBlockField{
                                 field: field.clone(),
-                                description: Ident::from(info.description.clone()),
+                                description: info.description.clone(),
                                 offset: info.address_offset + field_num * array_info.dim_increment,
                                 size: register_size,
                             });
