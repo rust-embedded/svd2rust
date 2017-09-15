@@ -568,7 +568,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
         let comment = &format!(
             "0x{:02x} - {}",
             register.offset,
-            register.description,
+            util::respace(&register.description),
         )
             [..];
         
