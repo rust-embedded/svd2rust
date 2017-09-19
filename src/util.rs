@@ -1,13 +1,13 @@
 use std::borrow::Cow;
-use std::rc::Rc;
 
-use either::Either;
 use inflections::Inflect;
-use svd::{Access, EnumeratedValues, Field, Peripheral, Register, RegisterInfo,
+use svd::{self, Access, EnumeratedValues, Field, Peripheral, Register,
           Usage};
-use syn::{Ident, IntTy, Lit};
+use syn::{self, Ident, IntTy, Lit};
 
 use errors::*;
+
+pub const BITS_PER_BYTE: u32 = 8;
 
 /// List of chars that some vendors use in their peripheral/field names but
 /// that are not valid in Rust ident
@@ -136,86 +136,114 @@ pub fn respace(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-pub struct ExpandedRegister<'a> {
-    pub info: &'a RegisterInfo,
-    pub name: String,
-    pub offset: u32,
-    pub ty: Either<String, Rc<String>>,
-}
+/// Takes a svd::Register which may be a register array, and turn in into
+/// a list of syn::Field where the register arrays have been expanded.
+pub fn expand_svd_register(register: &Register) -> Vec<syn::Field> {
+    let name_to_ty = |name: &String| -> syn::Ty {
+        syn::Ty::Path(None, syn::Path{
+            global: false,
+            segments: vec![syn::PathSegment{
+                ident: Ident::new(name.to_sanitized_upper_case()),
+                parameters: syn::PathParameters::none(),
+            }],
+        })
+    };
 
-/// Takes a list of "registers", some of which may actually be register arrays,
-/// and turns it into a new *sorted* (by address offset) list of registers where
-/// the register arrays have been expanded.
-pub fn expand(registers: &[Register]) -> Vec<ExpandedRegister> {
     let mut out = vec![];
 
-    for r in registers {
-        match *r {
-            Register::Single(ref info) => {
-                out.push(
-                    ExpandedRegister {
-                        info: info,
-                        name: info.name.to_sanitized_snake_case().into_owned(),
-                        offset: info.address_offset,
-                        ty: Either::Left(
-                            info.name
-                                .to_sanitized_upper_case()
-                                .into_owned(),
-                        ),
-                    },
-                )
-            }
-            Register::Array(ref info, ref array_info) => {
-                let has_brackets = info.name.contains("[%s]");
+    match *register {
+        Register::Single(ref _info) => out.push( convert_svd_register(register) ),
+        Register::Array(ref info, ref array_info) => {
+            let has_brackets = info.name.contains("[%s]");
 
-                let ty = if has_brackets {
+            let indices = array_info
+                .dim_index
+                .as_ref()
+                .map(|v| Cow::from(&**v))
+                .unwrap_or_else(
+                    || {
+                        Cow::from(
+                            (0..array_info.dim)
+                                .map(|i| i.to_string())
+                                .collect::<Vec<_>>(),
+                        )
+                    },
+                );
+            
+            for (idx, _i) in indices.iter().zip(0..) {
+                let name = if has_brackets {
+                    info.name.replace("[%s]", format!("{}", idx).as_str())
+                } else {
+                    info.name.replace("%s", format!("{}", idx).as_str())
+                };
+                
+                let ty_name = if has_brackets {
                     info.name.replace("[%s]", "")
                 } else {
                     info.name.replace("%s", "")
                 };
+                    
+                let ident = Ident::new(name.to_sanitized_snake_case());
+                let ty = name_to_ty(&ty_name);
 
-                let ty = Rc::new(ty.to_sanitized_upper_case().into_owned());
-
-                let indices = array_info
-                    .dim_index
-                    .as_ref()
-                    .map(|v| Cow::from(&**v))
-                    .unwrap_or_else(
-                        || {
-                            Cow::from(
-                                (0..array_info.dim)
-                                    .map(|i| i.to_string())
-                                    .collect::<Vec<_>>(),
-                            )
-                        },
-                    );
-
-                for (idx, i) in indices.iter().zip(0..) {
-                    let name = if has_brackets {
-                        info.name.replace("[%s]", idx)
-                    } else {
-                        info.name.replace("%s", idx)
-                    };
-
-                    let offset = info.address_offset +
-                                 i * array_info.dim_increment;
-
-                    out.push(
-                        ExpandedRegister {
-                            info: info,
-                            name: name.to_sanitized_snake_case().into_owned(),
-                            offset: offset,
-                            ty: Either::Right(ty.clone()),
-                        },
-                    );
-                }
+                out.push(
+                    syn::Field{
+                        ident: Some(ident),
+                        vis: syn::Visibility::Public,
+                        attrs: vec![],
+                        ty: ty,
+                    }
+                );
             }
-        }
+        },
     }
-
-    out.sort_by_key(|x| x.offset);
-
     out
+}
+
+pub fn convert_svd_register(register: &svd::Register) -> syn::Field {
+    let name_to_ty = |name: &String| -> syn::Ty {
+        syn::Ty::Path(None, syn::Path{
+            global: false,
+            segments: vec![syn::PathSegment{
+                ident: Ident::new(name.to_sanitized_upper_case()),
+                parameters: syn::PathParameters::none(),
+            }],
+        })
+    };
+    
+    match *register {
+        Register::Single(ref info) => {
+            syn::Field{
+                ident: Some(Ident::new(info.name.to_sanitized_snake_case())),
+                vis: syn::Visibility::Public,
+                attrs: vec![],
+                ty: name_to_ty(&info.name),
+            }
+        },
+        Register::Array(ref info, ref array_info) => {
+            let has_brackets = info.name.contains("[%s]");
+
+            let name = if has_brackets {
+                info.name.replace("[%s]", "")
+            } else {
+                info.name.replace("%s", "")
+            };
+            
+            let ident = Ident::new(name.to_sanitized_snake_case());
+            
+            let ty = syn::Ty::Array(
+                Box::new(name_to_ty(&name)),
+                syn::ConstExpr::Lit(syn::Lit::Int(array_info.dim as u64, syn::IntTy::Unsuffixed)),
+            );
+
+            syn::Field{
+                ident: Some(ident),
+                vis: syn::Visibility::Public,
+                attrs: vec![],
+                ty: ty,
+            }
+        },
+    }
 }
 
 pub fn name_of(register: &Register) -> Cow<str> {
