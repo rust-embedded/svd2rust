@@ -916,7 +916,7 @@ pub fn fields(
                 sc: Ident::new(&*sc),
                 mask: util::hex_or_bool((((1 as u64) << width) - 1) as u32, width),
                 name: &f.name,
-                offset: util::hex(f.bit_range.offset),
+                offset: util::unsuffixed(u64::from(f.bit_range.offset)),
                 ty: width.to_ty()?,
                 write_constraint: f.write_constraint.as_ref(),
             })

@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use inflections::Inflect;
 use svd::{self, Access, EnumeratedValues, Field, Peripheral, Register,
           Usage};
-use syn::{self, Ident, IntTy, Lit};
+use syn::{self, Ident};
 use quote::Tokens;
 
 use errors::*;
@@ -280,7 +280,7 @@ pub fn access_of(register: &Register) -> Access {
         )
 }
 
-/// Turns `n` into an unsuffixed separated hex tokens
+/// Turns `n` into an unsuffixed separated hex token
 pub fn hex(n: u32) -> Tokens {
     let mut t = Tokens::new();
     let (h2, h1) = ((n >> 16) & 0xffff, n & 0xffff);
@@ -306,18 +306,18 @@ pub fn hex_or_bool(n: u32, width: u32) -> Tokens {
     }
 }
 
-/// Turns `n` into an unsuffixed literal
-pub fn unsuffixed(n: u64) -> Lit {
-    Lit::Int(n, IntTy::Unsuffixed)
+/// Turns `n` into an unsuffixed token
+pub fn unsuffixed(n: u64) -> Tokens {
+    let mut t = Tokens::new();
+    t.append(format!("{}", n));
+    t
 }
 
-pub fn unsuffixed_or_bool(n: u64, width: u32) -> Lit {
+pub fn unsuffixed_or_bool(n: u64, width: u32) -> Tokens {
     if width == 1 {
-        if n == 0 {
-            Lit::Bool(false)
-        } else {
-            Lit::Bool(true)
-        }
+        let mut t = Tokens::new();
+        t.append(if n == 0 { "false" } else { "true" });
+        t
     } else {
         unsuffixed(n)
     }
