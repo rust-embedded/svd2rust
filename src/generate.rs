@@ -359,7 +359,7 @@ pub fn interrupt(
             #[macro_export]
             macro_rules! interrupt {
                 ($NAME:ident, $path:path, locals: {
-                    $($lvar:ident:$lty:ident = $lval:expr;)*
+                    $($lvar:ident:$lty:ty = $lval:expr;)*
                 }) => {
                     #[allow(non_snake_case)]
                     mod $NAME {
