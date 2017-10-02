@@ -537,21 +537,29 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
             Register::Array(ref info, ref array_info) => {
                 let sequential_addresses = register_size == array_info.dim_increment*BITS_PER_BYTE;
 
-                let numeral_indexes = array_info.dim_index.clone()
+                let numeral_indexes = if !register.name.contains("[%s]") {
+                    array_info.dim_index.clone()
                     .ok_or_else( || format!("Register {} has no `dim_index` field", register.name))?
                     .iter()
-                    .all(|element| element.parse::<usize>().is_ok());
-
-                let sequential_indexes = if numeral_indexes && sequential_addresses {
-                    array_info.dim_index.clone()
-                        .unwrap()
-                        .iter()
-                        .map(|element| element.parse::<u32>().unwrap())
-                        .collect::<Vec<u32>>()
-                        .eq(&(0..array_info.dim).collect::<Vec<u32>>())
+                    .all(|element| element.parse::<usize>().is_ok())
                 } else {
-                    false
+                    true
                 };
+
+                let mut sequential_indexes = true;
+                if !register.name.contains("[%s]"){
+                    sequential_indexes = if numeral_indexes && sequential_addresses {
+                        array_info.dim_index.clone()
+                            .unwrap()
+                            .iter()
+                            .map(|element| element.parse::<u32>().unwrap())
+                            .collect::<Vec<u32>>()
+                            .eq(&(0..array_info.dim).collect::<Vec<u32>>())
+                    } else {
+                        false
+                    };
+                }
+
 
                 let array_convertible = sequential_indexes && numeral_indexes && sequential_addresses;
 
