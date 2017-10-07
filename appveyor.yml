@@ -48,9 +48,10 @@ deploy:
     appveyor_repo_tag: true
   provider: GitHub
 
-cache:
-  - C:\Users\appveyor\.cargo\registry
-  - target
+# disable the cache for now; it seems that we are hitting the cache size limit
+# cache:
+  # - C:\Users\appveyor\.cargo\registry
+  # - target
 
 branches:
   only:
