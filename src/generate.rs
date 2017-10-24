@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::io::{self, Write};
 
 use cast::u64;
-use quote::{Tokens, ToTokens};
-use svd::{Access, BitRange, Defaults, Device, EnumeratedValues, Field,
-          Peripheral, Register, Usage, WriteConstraint};
+use quote::{ToTokens, Tokens};
+use svd::{Access, BitRange, Defaults, Device, EnumeratedValues, Field, Peripheral, Register,
+          Usage, WriteConstraint};
 use syn::{self, Ident};
 
 use errors::*;
@@ -12,11 +12,7 @@ use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext, BITS_PER_BY
 use Target;
 
 /// Whole device generation
-pub fn device(
-    d: &Device,
-    target: &Target,
-    items: &mut Vec<Tokens>,
-) -> Result<()> {
+pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()> {
     let doc = format!(
         "Peripheral access API for {0} microcontrollers \
          (generated using svd2rust v{1})\n\n\
@@ -121,9 +117,7 @@ pub fn device(
     }
 
     for p in &d.peripherals {
-        if *target == Target::CortexM &&
-            CORE_PERIPHERALS.contains(&&*p.name.to_uppercase())
-        {
+        if *target == Target::CortexM && CORE_PERIPHERALS.contains(&&*p.name.to_uppercase()) {
             // Core peripherals are handled above
             continue;
         }
@@ -183,8 +177,7 @@ pub fn interrupt(
         .map(|i| (i.value, i))
         .collect::<HashMap<_, _>>();
 
-    let mut interrupts =
-        interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
+    let mut interrupts = interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
     interrupts.sort_by_key(|i| i.value);
 
     let mut arms = vec![];
@@ -231,19 +224,25 @@ pub fn interrupt(
         names.push(name_uc);
     }
 
-    let aliases = names.iter()
-            .map(|n| format!("
+    let aliases = names
+        .iter()
+        .map(|n| {
+            format!(
+                "
 .weak {0}
-{0} = DH_TRAMPOLINE", n))
-            .collect::<Vec<_>>()
-            .concat();
+{0} = DH_TRAMPOLINE",
+                n
+            )
+        })
+        .collect::<Vec<_>>()
+        .concat();
 
     let n = util::unsuffixed(u64(pos));
     match *target {
         Target::CortexM => {
             let is_armv6 = match device.cpu {
                 Some(ref cpu) => cpu.name.starts_with("CM0"),
-                None => true,  // default to armv6 when the <cpu> section is missing
+                None => true, // default to armv6 when the <cpu> section is missing
             };
 
             if is_armv6 {
@@ -517,33 +516,37 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
     let mut offset = 0;
     let mut registers_expanded = vec![];
 
-    // If svd register arrays can't be converted to rust arrays (non sequential adresses, non numeral indexes, or not containing all elements from 0 to size) they will be expanded
+    // If svd register arrays can't be converted to rust arrays (non sequential adresses, non
+    // numeral indexes, or not containing all elements from 0 to size) they will be expanded
     for register in registers {
-        let register_size = register.size.or(defs.size)
-            .ok_or_else(
-                || {
-                    format!("Register {} has no `size` field", register.name)
-                },)?;
-        
-        match *register {
-            Register::Single(ref info) => registers_expanded.push(
-                RegisterBlockField{
-                    field: util::convert_svd_register(register),
-                    description: info.description.clone(),
-                    offset: info.address_offset,
-                    size: register_size,
-                }
-            ),
-            Register::Array(ref info, ref array_info) => {
-                let sequential_adresses = register_size == array_info.dim_increment*BITS_PER_BYTE;
+        let register_size = register
+            .size
+            .or(defs.size)
+            .ok_or_else(|| format!("Register {} has no `size` field", register.name))?;
 
-                let numeral_indexes = array_info.dim_index.clone()
-                    .ok_or_else( || format!("Register {} has no `dim_index` field", register.name))?
+        match *register {
+            Register::Single(ref info) => registers_expanded.push(RegisterBlockField {
+                field: util::convert_svd_register(register),
+                description: info.description.clone(),
+                offset: info.address_offset,
+                size: register_size,
+            }),
+            Register::Array(ref info, ref array_info) => {
+                let sequential_adresses = register_size == array_info.dim_increment * BITS_PER_BYTE;
+
+                let numeral_indexes = array_info
+                    .dim_index
+                    .clone()
+                    .ok_or_else(|| {
+                        format!("Register {} has no `dim_index` field", register.name)
+                    })?
                     .iter()
                     .all(|element| element.parse::<usize>().is_ok());
-                
+
                 let sequential_indexes = if numeral_indexes && sequential_adresses {
-                    array_info.dim_index.clone()
+                    array_info
+                        .dim_index
+                        .clone()
                         .unwrap()
                         .iter()
                         .map(|element| element.parse::<u32>().unwrap())
@@ -553,30 +556,29 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
                     false
                 };
 
-                let array_convertible = sequential_indexes && numeral_indexes && sequential_adresses;
+                let array_convertible =
+                    sequential_indexes && numeral_indexes && sequential_adresses;
 
                 if array_convertible {
-                    registers_expanded.push(
-                        RegisterBlockField{
-                            field: util::convert_svd_register(&register),
-                            description: info.description.clone(),
-                            offset: info.address_offset,
-                            size: register_size * array_info.dim,
-                        });                                    
+                    registers_expanded.push(RegisterBlockField {
+                        field: util::convert_svd_register(&register),
+                        description: info.description.clone(),
+                        offset: info.address_offset,
+                        size: register_size * array_info.dim,
+                    });
                 } else {
                     let mut field_num = 0;
                     for field in util::expand_svd_register(register).iter() {
-                        registers_expanded.push(
-                            RegisterBlockField{
-                                field: field.clone(),
-                                description: info.description.clone(),
-                                offset: info.address_offset + field_num * array_info.dim_increment,
-                                size: register_size,
-                            });
+                        registers_expanded.push(RegisterBlockField {
+                            field: field.clone(),
+                            description: info.description.clone(),
+                            offset: info.address_offset + field_num * array_info.dim_increment,
+                            size: register_size,
+                        });
                         field_num += 1;
                     }
                 }
-            },
+            }
         }
     }
 
@@ -592,18 +594,16 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
                  Ignoring.",
                 register.field.ident.unwrap(),
                 register.offset
-            )
-                .ok();
+            ).ok();
             continue;
         };
 
         if pad != 0 {
             let name = Ident::new(format!("_reserved{}", i));
             let pad = pad as usize;
-            fields.append(
-                quote! {
-                    #name : [u8; #pad],
-                });
+            fields.append(quote! {
+                #name : [u8; #pad],
+            });
             i += 1;
         }
 
@@ -611,19 +611,16 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
             "0x{:02x} - {}",
             register.offset,
             util::respace(&register.description),
-        )
-            [..];
-        
-        fields.append(
-            quote! {
-                #[doc = #comment]
-            }
-        );
-        
+        )[..];
+
+        fields.append(quote! {
+            #[doc = #comment]
+        });
+
         register.field.to_tokens(&mut fields);
         Ident::new(",").to_tokens(&mut fields);
-        
-        offset = register.offset + register.size/BITS_PER_BYTE;
+
+        offset = register.offset + register.size / BITS_PER_BYTE;
     }
 
     Ok(quote! {
@@ -635,14 +632,11 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
     })
 }
 
-fn unsafety(
-    write_constraint: Option<&WriteConstraint>,
-    width: u32,
-) -> Option<Ident> {
+fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Ident> {
     match write_constraint {
         Some(&WriteConstraint::Range(ref range))
-            if range.min as u64 == 0 &&
-                   range.max as u64 == (1u64 << width) - 1 => {
+            if range.min as u64 == 0 && range.max as u64 == (1u64 << width) - 1 =>
+        {
             // the SVD has acknowledged that it's safe to write
             // any value that can fit in the field
             None
@@ -669,10 +663,10 @@ pub fn register(
     let name = util::name_of(register);
     let name_pc = Ident::new(&*name.to_sanitized_upper_case());
     let name_sc = Ident::new(&*name.to_sanitized_snake_case());
-    let rsize = register.size.or(defs.size).ok_or_else(|| {
-        format!("Register {} has no `size` field",
-                                register.name)
-    })?;
+    let rsize = register
+        .size
+        .or(defs.size)
+        .ok_or_else(|| format!("Register {} has no `size` field", register.name))?;
     let rsize = if rsize < 8 {
         8
     } else if rsize.is_power_of_two() {
@@ -757,10 +751,7 @@ pub fn register(
             .reset_value
             .or(defs.reset_value)
             .map(|rv| util::hex(rv))
-            .ok_or_else(|| {
-                format!("Register {} has no reset value",
-                                    register.name)
-            })?;
+            .ok_or_else(|| format!("Register {} has no reset value", register.name))?;
 
         w_impl_items.push(quote! {
             /// Reset value of the register
@@ -948,16 +939,15 @@ pub fn fields(
                 ((self.bits >> OFFSET) & MASK as #rty) #cast
             };
 
-            if let Some((evs, base)) =
-                util::lookup(
-                    f.evs,
-                    fields,
-                    parent,
-                    all_registers,
-                    peripheral,
-                    all_peripherals,
-                    Usage::Read,
-                )? {
+            if let Some((evs, base)) = util::lookup(
+                f.evs,
+                fields,
+                parent,
+                all_registers,
+                peripheral,
+                all_peripherals,
+                Usage::Read,
+            )? {
                 struct Variant<'a> {
                     description: &'a str,
                     pc: Ident,
@@ -997,10 +987,7 @@ pub fn fields(
                 if let Some(ref base) = base {
                     let pc = base.field.to_sanitized_upper_case();
                     let base_pc_r = Ident::new(&*format!("{}R", pc));
-                    let desc = format!(
-                        "Possible values of the field `{}`",
-                        f.name,
-                    );
+                    let desc = format!("Possible values of the field `{}`", f.name,);
 
                     if let (Some(ref peripheral), Some(ref register)) =
                         (base.peripheral, base.register)
@@ -1041,10 +1028,7 @@ pub fn fields(
                 });
 
                 if base.is_none() {
-                    let desc = format!(
-                        "Possible values of the field `{}`",
-                        f.name,
-                    );
+                    let desc = format!("Possible values of the field `{}`", f.name,);
 
                     let mut vars = variants
                         .iter()
@@ -1076,8 +1060,7 @@ pub fn fields(
                     let mut arms = variants
                         .iter()
                         .map(|v| {
-                            let value =
-                                util::hex_or_bool(v.value as u32, f.width);
+                            let value = util::hex_or_bool(v.value as u32, f.width);
                             let pc = &v.pc;
 
                             quote! {
@@ -1160,10 +1143,7 @@ pub fn fields(
                             Ident::new(&*format!("is_{}", sc))
                         };
 
-                        let doc = format!(
-                            "Checks if the value of the field is `{}`",
-                            pc
-                        );
+                        let doc = format!("Checks if the value of the field is `{}`", pc);
                         enum_items.push(quote! {
                             #[doc = #doc]
                             #[inline]
@@ -1192,13 +1172,15 @@ pub fn fields(
                     }
                 });
 
-                let mut pc_r_impl_items = vec![quote! {
-                    /// Value of the field as raw bits
-                    #[inline]
-                    pub fn #bits(&self) -> #fty {
-                        self.bits
-                    }
-                }];
+                let mut pc_r_impl_items = vec![
+                    quote! {
+                        /// Value of the field as raw bits
+                        #[inline]
+                        pub fn #bits(&self) -> #fty {
+                            self.bits
+                        }
+                    },
+                ];
 
                 if f.width == 1 {
                     pc_r_impl_items.push(quote! {
@@ -1227,7 +1209,6 @@ pub fn fields(
                     }
                 });
             }
-
         }
     }
 
@@ -1246,16 +1227,15 @@ pub fn fields(
             let mask = &f.mask;
             let width = f.width;
 
-            if let Some((evs, base)) =
-                util::lookup(
-                    &f.evs,
-                    fields,
-                    parent,
-                    all_registers,
-                    peripheral,
-                    all_peripherals,
-                    Usage::Write,
-                )? {
+            if let Some((evs, base)) = util::lookup(
+                &f.evs,
+                fields,
+                parent,
+                all_registers,
+                peripheral,
+                all_peripherals,
+                Usage::Write,
+            )? {
                 struct Variant {
                     doc: String,
                     pc: Ident,
@@ -1264,10 +1244,7 @@ pub fn fields(
                 }
 
                 let pc_w = &f.pc_w;
-                let pc_w_doc = format!(
-                    "Values that can be written to the field `{}`",
-                    f.name
-                );
+                let pc_w_doc = format!("Values that can be written to the field `{}`", f.name);
 
                 let base_pc_w = base.as_ref().map(|base| {
                     let pc = base.field.to_sanitized_upper_case();
