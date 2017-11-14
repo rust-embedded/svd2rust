@@ -21,6 +21,7 @@ pub fn render(device: &Device, target: &Target, peripherals: &[Peripheral]) -> R
     interrupts.sort_by_key(|i| i.value);
 
     let mut arms = vec![];
+    let mut from_arms = vec![];
     let mut elements = vec![];
     let mut names = vec![];
     let mut variants = vec![];
@@ -58,6 +59,10 @@ pub fn render(device: &Device, target: &Target, peripherals: &[Peripheral]) -> R
 
         arms.push(quote! {
             Interrupt::#name_uc => #value,
+        });
+
+        from_arms.push(quote! {
+            #value => Ok(Interrupt::#name_uc),
         });
 
         elements.push(quote!(Some(#name_uc)));
@@ -184,6 +189,23 @@ pub fn render(device: &Device, target: &Target, peripherals: &[Peripheral]) -> R
             fn nr(&self) -> u8 {
                 match *self {
                     #(#arms)*
+                }
+            }
+        }
+
+        use core::convert::TryFrom;
+
+        #[derive(Debug, Copy, Clone)]
+        pub struct TryFromInterruptError(());
+
+        impl TryFrom<u8> for Interrupt {
+            type Error = TryFromInterruptError;
+
+            #[inline]
+            fn try_from(value: u8) -> Result<Self, Self::Error> {
+                match value {
+                    #(#from_arms)*
+                    _ => Err(TryFromInterruptError(())),
                 }
             }
         }
