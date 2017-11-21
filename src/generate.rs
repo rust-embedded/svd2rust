@@ -38,6 +38,7 @@ pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()
 
     items.push(quote! {
         #![doc = #doc]
+        #![allow(private_no_mangle_statics)]
         #![deny(missing_docs)]
         #![deny(warnings)]
         #![allow(non_camel_case_types)]
@@ -69,8 +70,7 @@ pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()
         extern crate vcell;
 
         use core::ops::Deref;
-
-        use bare_metal::Peripheral;
+        use core::marker::PhantomData;
     });
 
     if let Some(cpu) = d.cpu.as_ref() {
@@ -101,18 +101,16 @@ pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()
     let mut fields = vec![];
     let mut exprs = vec![];
     if *target == Target::CortexM {
+        items.push(quote! {
+            pub use cortex_m::peripheral::Peripherals as CorePeripherals;
+        });
+
         for p in CORE_PERIPHERALS {
             let id = Ident::new(*p);
 
             items.push(quote! {
                 pub use cortex_m::peripheral::#id;
             });
-
-            fields.push(quote! {
-                #[doc = #p]
-                pub #id: &'a #id
-            });
-            exprs.push(quote!(#id: &*#id.get()));
         }
     }
 
@@ -139,21 +137,39 @@ pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()
         let id = Ident::new(&*p);
         fields.push(quote! {
             #[doc = #p]
-            pub #id: &'a #id
+            pub #id: #id
         });
-        exprs.push(quote!(#id: &*#id.get()));
+        exprs.push(quote!(#id: #id { _marker: PhantomData }));
     }
 
     items.push(quote! {
+        #[no_mangle]
+        static mut PERIPHERALS: bool = false;
+
         /// All the peripherals
         #[allow(non_snake_case)]
-        pub struct Peripherals<'a> {
+        pub struct Peripherals {
             #(#fields,)*
         }
 
-        impl<'a> Peripherals<'a> {
-            /// Grants access to all the peripherals
-            pub unsafe fn all() -> Self {
+        impl Peripherals {
+            /// Returns all the peripherals *once*
+            pub fn all() -> Option<Self> {
+                cortex_m::interrupt::free(|_| {
+                    if unsafe { PERIPHERALS } {
+                        None
+                    } else {
+                        Some(unsafe { Peripherals::_all() })
+                    }
+                })
+            }
+
+            #[doc(hidden)]
+            pub unsafe fn _all() -> Self {
+                debug_assert!(!PERIPHERALS);
+
+                PERIPHERALS = true;
+
                 Peripherals {
                     #(#exprs,)*
                 }
@@ -421,36 +437,44 @@ pub fn peripheral(
     items: &mut Vec<Tokens>,
     defaults: &Defaults,
 ) -> Result<()> {
-    let name = Ident::new(&*p.name.to_uppercase());
     let name_pc = Ident::new(&*p.name.to_sanitized_upper_case());
     let address = util::hex(p.base_address);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
-    items.push(quote! {
-        #[doc = #description]
-        pub const #name: Peripheral<#name_pc> =
-            unsafe { Peripheral::new(#address) };
-    });
-
-    if let Some(base) = p.derived_from.as_ref() {
+    let name_sc = Ident::new(&*p.name.to_sanitized_snake_case());
+    let (base, derived) = if let Some(base) = p.derived_from.as_ref() {
         // TODO Verify that base exists
-        let base_sc = Ident::new(&*base.to_sanitized_snake_case());
-        items.push(quote! {
-            /// Register block
-            pub struct #name_pc { register_block: #base_sc::RegisterBlock }
-
-            impl Deref for #name_pc {
-                type Target = #base_sc::RegisterBlock;
-
-                fn deref(&self) -> &#base_sc::RegisterBlock {
-                    &self.register_block
-                }
-            }
-        });
-
         // TODO We don't handle inheritance style `derivedFrom`, we should raise
         // an error in that case
-        return Ok(());
+        (Ident::new(&*base.to_sanitized_snake_case()), true)
+    } else {
+        (name_sc.clone(), false)
+    };
+
+    items.push(quote! {
+        #[doc = #description]
+        pub struct #name_pc { _marker: PhantomData<*const ()> }
+
+        unsafe impl Send for #name_pc {}
+
+        impl #name_pc {
+            /// Returns a pointer to the register block
+            pub fn ptr() -> *const #base::RegisterBlock {
+                #address as *const _
+            }
+        }
+
+        impl Deref for #name_pc {
+            type Target = #base::RegisterBlock;
+
+            fn deref(&self) -> &#base::RegisterBlock {
+                unsafe { &*#name_pc::ptr() }
+            }
+        }
+    });
+
+    if derived {
+        return Ok(())
     }
 
     let registers = p.registers.as_ref().map(|x| x.as_ref()).unwrap_or(&[][..]);
@@ -476,7 +500,6 @@ pub fn peripheral(
         )?;
     }
 
-    let name_sc = Ident::new(&*p.name.to_sanitized_snake_case());
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
     items.push(quote! {
         #[doc = #description]
@@ -484,17 +507,6 @@ pub fn peripheral(
             use vcell::VolatileCell;
 
             #(#mod_items)*
-        }
-
-        #[doc = #description]
-        pub struct #name_pc { register_block: #name_sc::RegisterBlock }
-
-        impl Deref for #name_pc {
-            type Target = #name_sc::RegisterBlock;
-
-            fn deref(&self) -> &#name_sc::RegisterBlock {
-                &self.register_block
-            }
         }
     });
 
