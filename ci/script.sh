@@ -16,7 +16,7 @@ test_svd() {
 main() {
     cross check --target $TARGET
 
-    if [ -z $VENDOR ]; then
+    if [ -z ${VENDOR-} ]; then
         return
     fi
 
