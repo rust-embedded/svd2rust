@@ -157,6 +157,7 @@ pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()
 
         impl Peripherals {
             /// Returns all the peripherals *once*
+            #[inline(always)]
             pub fn take() -> Option<Self> {
                 cortex_m::interrupt::free(|_| {
                     if unsafe { DEVICE_PERIPHERALS } {
