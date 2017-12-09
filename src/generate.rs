@@ -143,8 +143,11 @@ pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()
     }
 
     items.push(quote! {
+        // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
+        // crate as that would let you `take` the device peripherals more than once (one per minor
+        // version)
         #[no_mangle]
-        static mut PERIPHERALS: bool = false;
+        static mut DEVICE_PERIPHERALS: bool = false;
 
         /// All the peripherals
         #[allow(non_snake_case)]
@@ -154,21 +157,21 @@ pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()
 
         impl Peripherals {
             /// Returns all the peripherals *once*
-            pub fn all() -> Option<Self> {
+            pub fn take() -> Option<Self> {
                 cortex_m::interrupt::free(|_| {
-                    if unsafe { PERIPHERALS } {
+                    if unsafe { DEVICE_PERIPHERALS } {
                         None
                     } else {
-                        Some(unsafe { Peripherals::_all() })
+                        Some(unsafe { Peripherals::steal() })
                     }
                 })
             }
 
             #[doc(hidden)]
-            pub unsafe fn _all() -> Self {
-                debug_assert!(!PERIPHERALS);
+            pub unsafe fn steal() -> Self {
+                debug_assert!(!DEVICE_PERIPHERALS);
 
-                PERIPHERALS = true;
+                DEVICE_PERIPHERALS = true;
 
                 Peripherals {
                     #(#exprs,)*

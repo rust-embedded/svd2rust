@@ -19,7 +19,7 @@ keywords = [
 license = "MIT OR Apache-2.0"
 name = "svd2rust"
 repository = "https://github.com/japaric/svd2rust"
-version = "0.11.4"
+version = "0.12.0"
 
 [[bin]]
 doc = false
