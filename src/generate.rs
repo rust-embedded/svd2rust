@@ -167,7 +167,7 @@ pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()
                 })
             }
 
-            #[doc(hidden)]
+            /// Unchecked version of `Peripherals::take`
             pub unsafe fn steal() -> Self {
                 debug_assert!(!DEVICE_PERIPHERALS);
 
