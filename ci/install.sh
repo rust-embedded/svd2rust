@@ -19,7 +19,7 @@ main() {
            --git japaric/cross \
            --tag $tag
 
-    if [ ! -z $VENDOR ]; then
+    if [ ! -z ${VENDOR-} ]; then
         curl -LSfs https://japaric.github.io/trust/install.sh | \
             sh -s -- \
                --crate rustfmt \
