@@ -47,7 +47,7 @@ matrix:
       os: osx
 
 install:
-  - sh ci/install.sh
+  - bash ci/install.sh
 
 script:
   - bash ci/script.sh

@@ -1,5 +1,4 @@
-set -ex
-set -o pipefail
+set -euxo pipefail
 
 test_svd() {
     (
@@ -15,9 +14,9 @@ test_svd() {
 }
 
 main() {
-    cross build --target $TARGET
+    cross check --target $TARGET
 
-    if [ -z $VENDOR ]; then
+    if [ -z ${VENDOR-} ]; then
         return
     fi
 
@@ -35,7 +34,7 @@ main() {
     # test crate
     cargo init --name foo $td
     echo 'bare-metal = "0.1.0"' >> $td/Cargo.toml
-    echo 'cortex-m = "0.3.0"' >> $td/Cargo.toml
+    echo 'cortex-m = { git = "https://github.com/japaric/cortex-m" }' >> $td/Cargo.toml
     echo 'cortex-m-rt = "0.3.0"' >> $td/Cargo.toml
     echo 'vcell = "0.1.0"' >> $td/Cargo.toml
 
@@ -609,6 +608,6 @@ main() {
     rm -rf $td
 }
 
-if [ -z $TRAVIS_TAG ]; then
+if [ -z ${TRAVIS_TAG-} ]; then
     main
 fi

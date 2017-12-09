@@ -107,10 +107,7 @@ fn main() {
         if let Some(backtrace) = e.backtrace() {
             writeln!(stderr, "backtrace: {:?}", backtrace).ok();
         } else {
-            writeln!(
-                stderr,
-                "note: run with `RUST_BACKTRACE=1` for a backtrace"
-            ).ok();
+            writeln!(stderr, "note: run with `RUST_BACKTRACE=1` for a backtrace").ok();
         }
 
         process::exit(1);
