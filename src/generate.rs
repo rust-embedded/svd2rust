@@ -75,10 +75,14 @@ pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()
 
     if let Some(cpu) = d.cpu.as_ref() {
         let bits = util::unsuffixed(cpu.nvic_priority_bits as u64);
+        let name = &cpu.name;
 
         items.push(quote! {
             /// Number available in the NVIC for configuring priority
             pub const NVIC_PRIO_BITS: u8 = #bits;
+
+            /// CPU
+            pub const CPU: &'static str = #name;
         });
     }
 
