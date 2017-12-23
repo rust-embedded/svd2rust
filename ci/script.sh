@@ -8,7 +8,8 @@ test_svd() {
     )
 
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
-    target/$TARGET/release/svd2rust -i $td/${1}.svd | ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
+    target/$TARGET/release/svd2rust -i $td/${1}.svd | \
+        ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
 
     cargo check --manifest-path $td/Cargo.toml
 }
@@ -379,6 +380,27 @@ main() {
             test_svd ht32f125x
             test_svd ht32f175x
             test_svd ht32f275x
+        ;;
+
+        # test other targets (architectures)
+        OTHER)
+            echo 'msp430 = "0.1.0"' >> $td/Cargo.toml
+
+            (
+                cd $td &&
+                    curl -LO \
+                         https://github.com/pftbest/msp430g2553/raw/v0.1.0/msp430g2553.svd
+            )
+
+            target/$TARGET/release/svd2rust --target msp430 -i $td/msp430g2553.svd | \
+                ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
+
+            cargo check --manifest-path $td/Cargo.toml
+
+            target/$TARGET/release/svd2rust --target none -i $td/msp430g2553.svd | \
+                ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
+
+            cargo check --manifest-path $td/Cargo.toml
         ;;
 
         Nordic)
