@@ -33,6 +33,8 @@ matrix:
       rust: nightly
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Toshiba
       rust: nightly
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=OTHER
+      rust: nightly
 
     # Linux
     - env: TARGET=i686-unknown-linux-gnu

@@ -57,6 +57,7 @@ pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()
         }
         Target::Msp430 => {
             items.push(quote! {
+                extern crate msp430;
                 #[macro_reexport(default_handler)]
                 #[cfg(feature = "rt")]
                 extern crate msp430_rt;
@@ -142,6 +143,24 @@ pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()
         exprs.push(quote!(#id: #id { _marker: PhantomData }));
     }
 
+    let take = match *target {
+        Target::CortexM => Some(Ident::new("cortex_m")),
+        Target::Msp430 => Some(Ident::new("msp430")),
+        Target::None => None,
+    }.map(|krate| quote! {
+        /// Returns all the peripherals *once*
+        #[inline]
+        pub fn take() -> Option<Self> {
+            #krate::interrupt::free(|_| {
+                if unsafe { DEVICE_PERIPHERALS } {
+                    None
+                } else {
+                    Some(unsafe { Peripherals::steal() })
+                }
+            })
+        }
+    });
+
     items.push(quote! {
         // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
         // crate as that would let you `take` the device peripherals more than once (one per minor
@@ -156,17 +175,7 @@ pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()
         }
 
         impl Peripherals {
-            /// Returns all the peripherals *once*
-            #[inline(always)]
-            pub fn take() -> Option<Self> {
-                cortex_m::interrupt::free(|_| {
-                    if unsafe { DEVICE_PERIPHERALS } {
-                        None
-                    } else {
-                        Some(unsafe { Peripherals::steal() })
-                    }
-                })
-            }
+            #take
 
             /// Unchecked version of `Peripherals::take`
             pub unsafe fn steal() -> Self {
