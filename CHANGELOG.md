@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.12.0] - 2018-01-15
+
+### Changed
+
+- Functions are now marked as `#[inline]` instead of as `#[inline(always)]`.
+
+- Registers specified as arrays in SVD files are now being translated into Rust array in simple
+  cases.
+
+- When CPU information is not declared in the SVD file assume that the CPU is an ARMv6-M CPU (the
+  lowest common denominator). This only applies when the target is the Cortex-M architecture.
+
+- [breaking-change] Peripherals are now exposed as scoped singletons, instead of as global
+  singletons.
+
 ## [v0.11.4] - 2017-09-08
 
 ### Fixed
@@ -302,7 +317,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.11.4...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.12.0...HEAD
+[v0.12.0]: https://github.com/japaric/svd2rust/compare/v0.11.4...v0.12.0
 [v0.11.4]: https://github.com/japaric/svd2rust/compare/v0.11.3...v0.11.4
 [v0.11.3]: https://github.com/japaric/svd2rust/compare/v0.11.2...v0.11.3
 [v0.11.2]: https://github.com/japaric/svd2rust/compare/v0.11.1...v0.11.2
