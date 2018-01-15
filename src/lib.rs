@@ -31,13 +31,15 @@
 //! ```
 //! $ svd2rust -i STM32F30x.svd | rustfmt | tee src/lib.rs
 //! //! Peripheral access API for STM32F30X microcontrollers
-//! //! (generated using svd2rust v0.11.0)
+//! //! (generated using svd2rust v0.12.0)
 //!
 //! #![deny(missing_docs)]
 //! #![deny(warnings)]
 //! #![no_std]
 //!
+//! extern crate bare_metal;
 //! extern crate cortex_m;
+//! #[cfg(feature = "rt")]
 //! extern crate cortex_m_rt;
 //! extern crate vcell;
 //!
@@ -45,11 +47,8 @@
 //!
 //! /// Interrupts
 //! pub mod interrupt {
-//!     ..
+//!     // ..
 //! }
-//!
-//! /// General-purpose I/Os
-//! pub const GPIOA: Peripheral<GPIOA> = unsafe { Peripheral::new(1207959552) };
 //!
 //! /// General-purpose I/Os
 //! pub mod gpioa {
@@ -61,27 +60,25 @@
 //!     ..
 //! }
 //!
-//! pub struct GPIOA {
-//!     register_block: gpioa::RegisterBlock,
-//! }
-//!
 //! /// General-purpose I/Os
-//! pub const GPIOB: Peripheral<GPIOB> = unsafe { Peripheral::new(1207960576) };
+//! pub struct GPIOA { _marker: PhantomData<*const ()> }
 //!
-//! /// General-purpose I/Os
-//! pub mod gpiob {
-//!     ..
+//! unsafe impl Send for GPIOA {}
+//!
+//! impl GPIOA {
+//!     /// Returns a pointer to the register block
+//!     pub fn ptr() -> *const gpioa::RegisterBlock {
+//!         0x4800_0000 as *const _
+//!     }
 //! }
 //!
-//! pub struct GPIOB {
-//!     register_block: gpiob::RegisterBlock,
+//! impl core::ops::Deref for GPIOA {
+//!     type Target = gpioa::RegisterBlock;
+//!
+//!     fn deref(&self) -> &gpioa::RegisterBlock {
+//!         unsafe { &*GPIOA::ptr() }
+//!     }
 //! }
-//!
-//! /// GPIOC
-//! pub const GPIOC: Peripheral<GPIOC> = unsafe { Peripheral::new(1207961600) };
-//!
-//! /// Register block
-//! pub type GPIOC = GPIOB;
 //!
 //! // ..
 //! ```
@@ -92,9 +89,9 @@
 //!
 //! - [`bare-metal`](https://crates.io/crates/bare-metal) v0.1.x
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
-//! - [`cortex-m-rt`](https://crates.io/crates/cortex-m-rt) v0.3.x if targeting
+//! - [`cortex-m-rt`](https://crates.io/crates/cortex-m-rt) v0.4.x if targeting
 //!   the Cortex-M architecture.
-//! - [`cortex-m`](https://crates.io/crates/cortex-m) v0.3.x if targeting the
+//! - [`cortex-m`](https://crates.io/crates/cortex-m) v0.4.x if targeting the
 //!   Cortex-M architecture.
 //! - [`msp430`](https://crates.io/crates/msp430) v0.1.x if targeting the MSP430
 //!   architecture.
@@ -103,17 +100,60 @@
 //!
 //! # Peripheral API
 //!
-//! In the root of the generated API, you'll find all the device peripherals as
-//! `const`ant `struct`s. You can access the register block behind the
-//! peripheral using either of these two methods:
+//! To use a peripheral first you must get an *instance* of the peripheral. All the device
+//! peripherals are modeled as singletons (there can only ever be, at most, one instance of any
+//! one of them) and the only way to get an instance of them is through the `Peripherals::take`
+//! method.
 //!
-//! - `get()` for `unsafe`, unsynchronized access to the peripheral, or
+//! ```
+//! fn main() {
+//!     let mut peripherals = stm32f30x::Peripherals::take().unwrap();
+//!     peripherals.GPIOA.odr.write(|w| w.bits(1));
+//! }
+//! ```
 //!
-//! - `borrow()` which grants you exclusive access to the peripheral but can
-//!   only be used within a critical section (`interrupt::free`).
+//! This method can only be successfully called *once* -- that's why the method returns an `Option`.
+//! Subsequent calls to the method will result in a `None` value being returned.
 //!
-//! The register block is basically a `struct` where each field represents a
-//! register.
+//! ```
+//! fn main() {
+//!     let ok = stm32f30x::Peripherals::take().unwrap();
+//!     let panics = stm32f30x::Peripherals::take().unwrap();
+//! }
+//! ```
+//!
+//! The singleton property can be *unsafely* bypassed using the `ptr` static method which is
+//! available on all the peripheral types. This method is a useful for implementing safe higher
+//! level abstractions.
+//!
+//! ```
+//! struct PA0 { _0: () }
+//! impl PA0 {
+//!     fn is_high(&self) -> bool {
+//!         // NOTE(unsafe) actually safe because this is an atomic read with no side effects
+//!         unsafe { (*GPIOA::ptr()).idr.read().bits() & 1 != 0 }
+//!     }
+//!
+//!     fn is_low(&self) -> bool {
+//!         !self.is_high()
+//!     }
+//! }
+//! struct PA1 { _0: () }
+//! // ..
+//!
+//! fn configure(gpioa: GPIOA) -> (PA0, PA1, ..) {
+//!     // configure all the PAx pins as inputs
+//!     gpioa.moder.reset();
+//!     // the GPIOA proxy is destroyed here now the GPIOA register block can't be modified
+//!     // thus the configuration of the PAx pins is now frozen
+//!     drop(gpioa);
+//!     (PA0 { _0: () }, PA1 { _0: () }, ..)
+//! }
+//! ```
+//!
+//! Each peripheral proxy `deref`s to a `RegisterBlock` struct that represents a piece of device
+//! memory. Each field in this `struct` represents one register in the register block associated to
+//! the peripheral.
 //!
 //! ```
 //! /// Inter-integrated circuit
@@ -148,10 +188,9 @@
 //!
 //! # `read` / `modify` / `write` API
 //!
-//! Each register in the register block, e.g. the `cr1` field in the `I2C`
-//! struct, exposes a combination of the `read`, `modify` and `write` methods.
-//! Which methods exposes each register depends on whether the register is
-//! read-only, read-write or write-only:
+//! Each register in the register block, e.g. the `cr1` field in the `I2C` struct, exposes a
+//! combination of the `read`, `modify` and `write` methods. Which methods exposes each register
+//! depends on whether the register is read-only, read-write or write-only:
 //!
 //! - read-only registers only expose the `read` method.
 //! - write-only registers only expose the `write` method.
@@ -165,7 +204,7 @@
 //! ``` rust
 //! impl CR2 {
 //!     /// Modifies the contents of the register
-//!     pub fn modify<F>(&mut self, f: F)
+//!     pub fn modify<F>(&self, f: F)
 //!     where
 //!         for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W
 //!     {
@@ -185,10 +224,9 @@
 //! }
 //! ```
 //!
-//! The `read` method "reads" the register using a **single**, volatile `LDR`
-//! instruction and returns a proxy `R` struct that allows access to only the
-//! readable bits (i.e. not to the reserved or write-only bits) of the `CR2`
-//! register:
+//! The `read` method "reads" the register using a **single**, volatile `LDR` instruction and
+//! returns a proxy `R` struct that allows access to only the readable bits (i.e. not to the
+//! reserved or write-only bits) of the `CR2` register:
 //!
 //! ``` rust
 //! /// Value read from the register
@@ -214,14 +252,13 @@
 //! }
 //! ```
 //!
-//! On the other hand, the `write` method writes some value to the register
-//! using a **single**, volatile `STR` instruction. This method involves a `W`
-//! struct that only allows constructing valid states of the `CR2` register.
+//! On the other hand, the `write` method writes some value to the register using a **single**,
+//! volatile `STR` instruction. This method involves a `W` struct that only allows constructing
+//! valid states of the `CR2` register.
 //!
-//! The only constructor that `W` provides is `reset_value` which returns the
-//! value of the `CR2` register after a reset. The rest of `W` methods are
-//! "builder-like" and can be used to modify the writable bitfields of the
-//! `CR2` register.
+//! The only constructor that `W` provides is `reset_value` which returns the value of the `CR2`
+//! register after a reset. The rest of `W` methods are "builder-like" and can be used to modify the
+//! writable bitfields of the `CR2` register.
 //!
 //! ``` rust
 //! impl CR2W {
@@ -238,10 +275,10 @@
 //! }
 //! ```
 //!
-//! The `write` method takes a closure with signature `(&mut W) -> &mut W`. If
-//! the "identity closure", `|w| w`, is passed then the `write` method will set
-//! the `CR2` register to its reset value. Otherwise, the closure specifies how
-//! the reset value will be modified *before* it's written to `CR2`.
+//! The `write` method takes a closure with signature `(&mut W) -> &mut W`. If the "identity
+//! closure", `|w| w`, is passed then the `write` method will set the `CR2` register to its reset
+//! value. Otherwise, the closure specifies how the reset value will be modified *before* it's
+//! written to `CR2`.
 //!
 //! Usage looks like this:
 //!
@@ -278,12 +315,10 @@
 //!
 //! # enumeratedValues
 //!
-//! If your SVD uses the `<enumeratedValues>` feature, then the API will be
-//! *extended* to provide even more type safety. This extension is backward
-//! compatible with the original version so you could "upgrade" your SVD by
-//! adding, yourself, `<enumeratedValues>` to it and then use `svd2rust` to
-//! re-generate a better API that doesn't break the existing code that uses
-//! that API.
+//! If your SVD uses the `<enumeratedValues>` feature, then the API will be *extended* to provide
+//! even more type safety. This extension is backward compatible with the original version so you
+//! could "upgrade" your SVD by adding, yourself, `<enumeratedValues>` to it and then use `svd2rust`
+//! to re-generate a better API that doesn't break the existing code that uses that API.
 //!
 //! The new `read` API returns an enum that you can match:
 //!
@@ -323,8 +358,8 @@
 //! }
 //! ```
 //!
-//! And the new `write` API provides similar additions as well: `variant` lets
-//! you pick the value to write from an `enum`eration of the possible ones:
+//! And the new `write` API provides similar additions as well: `variant` lets you pick the value to
+//! write from an `enum`eration of the possible ones:
 //!
 //! ```
 //! // enum DIRW { Input, Output }
@@ -348,31 +383,30 @@
 //!
 //! # Interrupt API
 //!
-//! SVD files also describe the device interrupts. svd2rust generated crates
-//! expose an enumeration of the device interrupts as an `Interrupt` `enum` in
-//! the root of the crate. This `enum` can be used with the `cortex-m` crate
-//! `NVIC` API.
+//! SVD files also describe the device interrupts. svd2rust generated crates expose an enumeration
+//! of the device interrupts as an `Interrupt` `enum` in the root of the crate. This `enum` can be
+//! used with the `cortex-m` crate `NVIC` API.
 //!
 //! ```
 //! extern crate cortex_m;
+//! extern crate stm32f30x;
 //!
 //! use cortex_m::interrupt;
-//! use cortex_m::peripheral::NVIC;
+//! use cortex_m::peripheral::Peripherals;
+//! use stm32f30x::Interrupt;
 //!
-//! interrupt::free(|cs| {
-//!     let nvic = NVIC.borrow(cs);
+//! let p = Peripherals::take().unwrap();
+//! let mut nvic = p.NVIC;
 //!
-//!     nvic.enable(Interrupt::TIM2);
-//!     nvic.enable(Interrupt::TIM3);
-//! });
+//! nvic.enable(Interrupt::TIM2);
+//! nvic.enable(Interrupt::TIM3);
 //! ```
 //!
 //! ## the "rt" feature
 //!
-//! If the "rt" Cargo feature of the svd2rust generated crate is enabled the
-//! crate will populate the part of the vector table that contains the interrupt
-//! vectors and provide an [`interrupt!`](macro.interrupt.html) macro that can
-//! be used to register interrupt handlers.
+//! If the "rt" Cargo feature of the svd2rust generated crate is enabled the crate will populate the
+//! part of the vector table that contains the interrupt vectors and provide an
+//! [`interrupt!`](macro.interrupt.html) macro that can be used to register interrupt handlers.
 
 // NOTE This file is for documentation only
 
