@@ -89,7 +89,7 @@
 //!
 //! - [`bare-metal`](https://crates.io/crates/bare-metal) v0.1.x
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
-//! - [`cortex-m-rt`](https://crates.io/crates/cortex-m-rt) v0.4.x if targeting
+//! - [`cortex-m-rt`](https://crates.io/crates/cortex-m-rt) v0.3.x if targeting
 //!   the Cortex-M architecture.
 //! - [`cortex-m`](https://crates.io/crates/cortex-m) v0.4.x if targeting the
 //!   Cortex-M architecture.
