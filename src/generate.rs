@@ -1428,12 +1428,12 @@ pub fn fields(
             if width == 1 {
                 proxy_items.push(quote! {
                     /// Sets the field bit
-                    pub fn set_bit(self) -> &'a mut W {
+                    pub #unsafety fn set_bit(self) -> &'a mut W {
                         self.bit(true)
                     }
 
                     /// Clears the field bit
-                    pub fn clear_bit(self) -> &'a mut W {
+                    pub #unsafety fn clear_bit(self) -> &'a mut W {
                         self.bit(false)
                     }
                 });
