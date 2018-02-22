@@ -566,20 +566,28 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
             Register::Array(ref info, ref array_info) => {
                 let sequential_adresses = register_size == array_info.dim_increment * BITS_PER_BYTE;
 
-                let numeral_indexes = array_info
-                    .dim_index
-                    .clone()
-                    .ok_or_else(|| {
-                        format!("Register {} has no `dim_index` field", register.name)
-                    })?
+                let indexes = if register.name.contains("[%s]") {
+                    // From: http://www.keil.com/pack/doc/CMSIS/SVD/html/elem_registers.html
+                    // "dimIndex should not be used together with the placeholder [%s],
+                    //     but rather with %s"
+                    (0..array_info.dim)
+                      .map(|i| i.to_string())
+                      .collect()
+                } else {
+                    array_info
+                        .dim_index
+                        .clone()
+                        .ok_or_else(|| {
+                            format!("Register {} has no `dim_index` field", register.name)
+                        })?
+                };
+
+                let numeral_indexes = indexes
                     .iter()
                     .all(|element| element.parse::<usize>().is_ok());
 
                 let sequential_indexes = if numeral_indexes && sequential_adresses {
-                    array_info
-                        .dim_index
-                        .clone()
-                        .unwrap()
+                    indexes
                         .iter()
                         .map(|element| element.parse::<u32>().unwrap())
                         .collect::<Vec<u32>>()
