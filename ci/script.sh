@@ -38,6 +38,7 @@ main() {
     echo 'cortex-m = "0.4.0"' >> $td/Cargo.toml
     echo 'cortex-m-rt = "0.3.0"' >> $td/Cargo.toml
     echo 'vcell = "0.1.0"' >> $td/Cargo.toml
+    echo 'msp430 = "0.1.0"' >> $td/Cargo.toml
     echo '[profile.dev]' >> $td/Cargo.toml
     echo 'incremental = false' >> $td/Cargo.toml
 
@@ -386,8 +387,6 @@ main() {
 
         # test other targets (architectures)
         OTHER)
-            echo 'msp430 = "0.1.0"' >> $td/Cargo.toml
-
             (
                 cd $td &&
                     curl -LO \
