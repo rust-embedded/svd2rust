@@ -13,6 +13,10 @@ pub const BITS_PER_BYTE: u32 = 8;
 /// that are not valid in Rust ident
 const BLACKLIST_CHARS: &'static [char] = &['(', ')', '[', ']'];
 
+pub trait Sanitize {
+    fn sanitize(&self) -> Cow<str>;
+}
+
 pub trait ToSanitizedPascalCase {
     fn to_sanitized_pascal_case(&self) -> Cow<str>;
 }
@@ -23,6 +27,12 @@ pub trait ToSanitizedUpperCase {
 
 pub trait ToSanitizedSnakeCase {
     fn to_sanitized_snake_case(&self) -> Cow<str>;
+}
+
+impl Sanitize for str {
+    fn sanitize(&self) -> Cow<str> {
+        Cow::from(self.replace(BLACKLIST_CHARS, ""))
+    }
 }
 
 impl ToSanitizedSnakeCase for str {
