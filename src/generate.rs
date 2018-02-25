@@ -8,7 +8,7 @@ use svd::{Access, BitRange, Defaults, Device, EnumeratedValues, Field, Periphera
 use syn::{self, Ident};
 
 use errors::*;
-use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext, BITS_PER_BYTE};
+use util::{self, Sanitize, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext, BITS_PER_BYTE};
 use Target;
 
 /// Whole device generation
@@ -141,7 +141,7 @@ pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()
             continue;
         }
 
-        let p = p.name.to_sanitized_upper_case();
+        let p = p.name.sanitize();
         let id = Ident::new(&*p);
         fields.push(quote! {
             #[doc = #p]
@@ -457,7 +457,7 @@ pub fn peripheral(
     items: &mut Vec<Tokens>,
     defaults: &Defaults,
 ) -> Result<()> {
-    let name_pc = Ident::new(&*p.name.to_sanitized_upper_case());
+    let name = Ident::new(&*p.name.sanitize());
     let address = util::hex(p.base_address);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
@@ -473,22 +473,22 @@ pub fn peripheral(
 
     items.push(quote! {
         #[doc = #description]
-        pub struct #name_pc { _marker: PhantomData<*const ()> }
+        pub struct #name { _marker: PhantomData<*const ()> }
 
-        unsafe impl Send for #name_pc {}
+        unsafe impl Send for #name {}
 
-        impl #name_pc {
+        impl #name {
             /// Returns a pointer to the register block
             pub fn ptr() -> *const #base::RegisterBlock {
                 #address as *const _
             }
         }
 
-        impl Deref for #name_pc {
+        impl Deref for #name {
             type Target = #base::RegisterBlock;
 
             fn deref(&self) -> &#base::RegisterBlock {
-                unsafe { &*#name_pc::ptr() }
+                unsafe { &*#name::ptr() }
             }
         }
     });
