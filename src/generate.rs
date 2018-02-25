@@ -143,11 +143,12 @@ pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()
 
         let p = p.name.sanitize();
         let id = Ident::new(&*p);
+        let id_sc = Ident::new(&*p.to_sanitized_snake_case());
         fields.push(quote! {
             #[doc = #p]
-            pub #id: #id
+            pub #id_sc: #id
         });
-        exprs.push(quote!(#id: #id { _marker: PhantomData }));
+        exprs.push(quote!(#id_sc: #id { _marker: PhantomData }));
     }
 
     let take = match *target {
