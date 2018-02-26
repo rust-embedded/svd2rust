@@ -33,7 +33,7 @@ pub fn render(
     let rty = rsize.to_ty()?;
     let description = util::respace(&register.description);
 
-    let unsafety = ::generate::unsafety(register.write_constraint.as_ref(), rsize);
+    let unsafety = unsafety(register.write_constraint.as_ref(), rsize);
 
     let mut mod_items = vec![];
     let mut reg_impl_items = vec![];
@@ -577,7 +577,7 @@ pub fn fields(
 
             let mut proxy_items = vec![];
 
-            let mut unsafety = ::generate::unsafety(f.write_constraint, f.width);
+            let mut unsafety = unsafety(f.write_constraint, f.width);
             let bits = &f.bits;
             let fty = &f.ty;
             let offset = &f.offset;
@@ -802,6 +802,25 @@ pub fn fields(
     }
 
     Ok(())
+}
+
+fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Ident> {
+    match write_constraint {
+        Some(&WriteConstraint::Range(ref range))
+            if range.min as u64 == 0 && range.max as u64 == (1u64 << width) - 1 =>
+        {
+            // the SVD has acknowledged that it's safe to write
+            // any value that can fit in the field
+            None
+        }
+        None if width == 1 => {
+            // the field is one bit wide, so we assume it's legal to write
+            // either value into it or it wouldn't exist; despite that
+            // if a writeConstraint exists then respect it
+            None
+        }
+        _ => Some(Ident::new("unsafe")),
+    }
 }
 
 #[derive(Clone, Debug)]
