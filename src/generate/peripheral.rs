@@ -70,7 +70,7 @@ pub fn render(
     mod_items.push(register_block(registers, defaults)?);
 
     for reg in registers {
-        out.extend(register::render(
+        mod_items.extend(register::render(
             reg,
             registers,
             p,
