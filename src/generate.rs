@@ -216,7 +216,8 @@ pub fn interrupt(
     let mut interrupts = interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
     interrupts.sort_by_key(|i| i.value);
 
-    let mut arms = vec![];
+    let mut nr_arms = vec![];
+    let mut from_arms = vec![];
     let mut elements = vec![];
     let mut names = vec![];
     let mut variants = vec![];
@@ -252,8 +253,12 @@ pub fn interrupt(
             #name_uc,
         });
 
-        arms.push(quote! {
+        nr_arms.push(quote! {
             Interrupt::#name_uc => #value,
+        });
+
+        from_arms.push(quote! {
+            #value => Ok(Interrupt::#name_uc),
         });
 
         elements.push(quote!(Some(#name_uc)));
@@ -370,6 +375,7 @@ pub fn interrupt(
 
     mod_items.push(quote! {
         /// Enumeration of all the interrupts
+        #[derive(Debug)]
         pub enum Interrupt {
             #(#variants)*
         }
@@ -378,7 +384,19 @@ pub fn interrupt(
             #[inline]
             fn nr(&self) -> u8 {
                 match *self {
-                    #(#arms)*
+                    #(#nr_arms)*
+                }
+            }
+        }
+
+        impl TryFrom<u8> for Interrupt {
+            type Error = TryFromIntError;
+
+            #[inline]
+            fn try_from(value: u8) -> Result<Self, Self::Error> {
+                match value {
+                    #(#from_arms)*
+                    _ => Err(),
                 }
             }
         }
