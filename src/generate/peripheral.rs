@@ -1,4 +1,5 @@
 use std::io::{self, Write};
+use std::borrow::Cow;
 
 use quote::{ToTokens, Tokens};
 use svd::{Defaults, Peripheral, Register};
@@ -6,6 +7,7 @@ use syn::{self, Ident};
 
 use errors::*;
 use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
+
 
 use generate::register;
 
@@ -116,7 +118,7 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
 
         match *register {
             Register::Single(ref info) => registers_expanded.push(RegisterBlockField {
-                field: util::convert_svd_register(register),
+                field: convert_svd_register(register),
                 description: info.description.clone(),
                 offset: info.address_offset,
                 size: register_size,
@@ -136,14 +138,14 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
 
                 if array_convertible {
                     registers_expanded.push(RegisterBlockField {
-                        field: util::convert_svd_register(&register),
+                        field: convert_svd_register(&register),
                         description: info.description.clone(),
                         offset: info.address_offset,
                         size: register_size * array_info.dim,
                     });
                 } else {
                     let mut field_num = 0;
-                    for field in util::expand_svd_register(register).iter() {
+                    for field in expand_svd_register(register).iter() {
                         registers_expanded.push(RegisterBlockField {
                             field: field.clone(),
                             description: info.description.clone(),
@@ -205,4 +207,119 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
             #fields
         }
     })
+}
+
+
+/// Takes a svd::Register which may be a register array, and turn in into
+/// a list of syn::Field where the register arrays have been expanded.
+fn expand_svd_register(register: &Register) -> Vec<syn::Field> {
+    let name_to_ty = |name: &String| -> syn::Ty {
+        syn::Ty::Path(
+            None,
+            syn::Path {
+                global: false,
+                segments: vec![
+                    syn::PathSegment {
+                        ident: Ident::new(name.to_sanitized_upper_case()),
+                        parameters: syn::PathParameters::none(),
+                    },
+                ],
+            },
+        )
+    };
+
+    let mut out = vec![];
+
+    match *register {
+        Register::Single(ref _info) => out.push(convert_svd_register(register)),
+        Register::Array(ref info, ref array_info) => {
+            let has_brackets = info.name.contains("[%s]");
+
+            let indices = array_info
+                .dim_index
+                .as_ref()
+                .map(|v| Cow::from(&**v))
+                .unwrap_or_else(|| {
+                    Cow::from(
+                        (0..array_info.dim)
+                            .map(|i| i.to_string())
+                            .collect::<Vec<_>>(),
+                    )
+                });
+
+            for (idx, _i) in indices.iter().zip(0..) {
+                let name = if has_brackets {
+                    info.name.replace("[%s]", format!("{}", idx).as_str())
+                } else {
+                    info.name.replace("%s", format!("{}", idx).as_str())
+                };
+
+                let ty_name = if has_brackets {
+                    info.name.replace("[%s]", "")
+                } else {
+                    info.name.replace("%s", "")
+                };
+
+                let ident = Ident::new(name.to_sanitized_snake_case());
+                let ty = name_to_ty(&ty_name);
+
+                out.push(syn::Field {
+                    ident: Some(ident),
+                    vis: syn::Visibility::Public,
+                    attrs: vec![],
+                    ty: ty,
+                });
+            }
+        }
+    }
+    out
+}
+
+fn convert_svd_register(register: &Register) -> syn::Field {
+    let name_to_ty = |name: &String| -> syn::Ty {
+        syn::Ty::Path(
+            None,
+            syn::Path {
+                global: false,
+                segments: vec![
+                    syn::PathSegment {
+                        ident: Ident::new(name.to_sanitized_upper_case()),
+                        parameters: syn::PathParameters::none(),
+                    },
+                ],
+            },
+        )
+    };
+
+    match *register {
+        Register::Single(ref info) => syn::Field {
+            ident: Some(Ident::new(info.name.to_sanitized_snake_case())),
+            vis: syn::Visibility::Public,
+            attrs: vec![],
+            ty: name_to_ty(&info.name),
+        },
+        Register::Array(ref info, ref array_info) => {
+            let has_brackets = info.name.contains("[%s]");
+
+            let name = if has_brackets {
+                info.name.replace("[%s]", "")
+            } else {
+                info.name.replace("%s", "")
+            };
+
+            let ident = Ident::new(name.to_sanitized_snake_case());
+
+            let ty = syn::Ty::Array(
+                Box::new(name_to_ty(&name)),
+                syn::ConstExpr::Lit(syn::Lit::Int(array_info.dim as u64, syn::IntTy::Unsuffixed)),
+            );
+
+            syn::Field {
+                ident: Some(ident),
+                vis: syn::Visibility::Public,
+                attrs: vec![],
+                ty: ty,
+            }
+        }
+    }
 }

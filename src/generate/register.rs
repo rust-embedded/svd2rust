@@ -296,7 +296,7 @@ pub fn fields(
                 ((self.bits >> OFFSET) & MASK as #rty) #cast
             };
 
-            if let Some((evs, base)) = util::lookup(
+            if let Some((evs, base)) = lookup(
                 f.evs,
                 fields,
                 parent,
@@ -584,7 +584,7 @@ pub fn fields(
             let mask = &f.mask;
             let width = f.width;
 
-            if let Some((evs, base)) = util::lookup(
+            if let Some((evs, base)) = lookup(
                 &f.evs,
                 fields,
                 parent,
@@ -802,4 +802,214 @@ pub fn fields(
     }
 
     Ok(())
+}
+
+#[derive(Clone, Debug)]
+pub struct Base<'a> {
+    pub peripheral: Option<&'a str>,
+    pub register: Option<&'a str>,
+    pub field: &'a str,
+}
+
+fn lookup<'a>(
+    evs: &'a [EnumeratedValues],
+    fields: &'a [Field],
+    register: &'a Register,
+    all_registers: &'a [Register],
+    peripheral: &'a Peripheral,
+    all_peripherals: &'a [Peripheral],
+    usage: Usage,
+) -> Result<Option<(&'a EnumeratedValues, Option<Base<'a>>)>> {
+    let evs = evs.iter()
+        .map(|evs| if let Some(ref base) = evs.derived_from {
+            let mut parts = base.split('.');
+
+            match (parts.next(), parts.next(), parts.next(), parts.next()) {
+                (Some(base_peripheral), Some(base_register), Some(base_field), Some(base_evs)) => {
+                    lookup_in_peripherals(
+                        base_peripheral,
+                        base_register,
+                        base_field,
+                        base_evs,
+                        all_peripherals,
+                    )
+                }
+                (Some(base_register), Some(base_field), Some(base_evs), None) => {
+                    lookup_in_peripheral(
+                        None,
+                        base_register,
+                        base_field,
+                        base_evs,
+                        all_registers,
+                        peripheral,
+                    )
+                }
+                (Some(base_field), Some(base_evs), None, None) => {
+                    lookup_in_fields(base_evs, base_field, fields, register)
+                }
+                (Some(base_evs), None, None, None) => lookup_in_register(base_evs, register),
+                _ => unreachable!(),
+            }
+        } else {
+            Ok((evs, None))
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    for &(ref evs, ref base) in evs.iter() {
+        if evs.usage == Some(usage) {
+            return Ok(Some((*evs, base.clone())));
+        }
+    }
+
+    Ok(evs.first().cloned())
+}
+
+fn lookup_in_fields<'f>(
+    base_evs: &str,
+    base_field: &str,
+    fields: &'f [Field],
+    register: &Register,
+) -> Result<(&'f EnumeratedValues, Option<Base<'f>>)> {
+    if let Some(base_field) = fields.iter().find(|f| f.name == base_field) {
+        return lookup_in_field(base_evs, None, None, base_field);
+    } else {
+        Err(format!(
+            "Field {} not found in register {}",
+            base_field,
+            register.name
+        ))?
+    }
+}
+
+fn lookup_in_peripheral<'p>(
+    base_peripheral: Option<&'p str>,
+    base_register: &'p str,
+    base_field: &str,
+    base_evs: &str,
+    all_registers: &'p [Register],
+    peripheral: &'p Peripheral,
+) -> Result<(&'p EnumeratedValues, Option<Base<'p>>)> {
+    if let Some(register) = all_registers.iter().find(|r| r.name == base_register) {
+        if let Some(field) = register
+            .fields
+            .as_ref()
+            .map(|fs| &**fs)
+            .unwrap_or(&[])
+            .iter()
+            .find(|f| f.name == base_field)
+        {
+            lookup_in_field(base_evs, Some(base_register), base_peripheral, field)
+        } else {
+            Err(format!(
+                "No field {} in register {}",
+                base_field,
+                register.name
+            ))?
+        }
+    } else {
+        Err(format!(
+            "No register {} in peripheral {}",
+            base_register,
+            peripheral.name
+        ))?
+    }
+}
+
+fn lookup_in_field<'f>(
+    base_evs: &str,
+    base_register: Option<&'f str>,
+    base_peripheral: Option<&'f str>,
+    field: &'f Field,
+) -> Result<(&'f EnumeratedValues, Option<Base<'f>>)> {
+    for evs in &field.enumerated_values {
+        if evs.name.as_ref().map(|s| &**s) == Some(base_evs) {
+            return Ok(
+                (
+                    evs,
+                    Some(Base {
+                        field: &field.name,
+                        register: base_register,
+                        peripheral: base_peripheral,
+                    }),
+                ),
+            );
+        }
+    }
+
+    Err(format!(
+        "No EnumeratedValues {} in field {}",
+        base_evs,
+        field.name
+    ))?
+}
+
+fn lookup_in_register<'r>(
+    base_evs: &str,
+    register: &'r Register,
+) -> Result<(&'r EnumeratedValues, Option<Base<'r>>)> {
+    let mut matches = vec![];
+
+    for f in register.fields.as_ref().map(|v| &**v).unwrap_or(&[]) {
+        if let Some(evs) = f.enumerated_values
+            .iter()
+            .find(|evs| evs.name.as_ref().map(|s| &**s) == Some(base_evs))
+        {
+            matches.push((evs, &f.name))
+        }
+    }
+
+    match matches.first() {
+        None => Err(format!(
+            "EnumeratedValues {} not found in register {}",
+            base_evs,
+            register.name
+        ))?,
+        Some(&(evs, field)) => if matches.len() == 1 {
+            return Ok((
+                evs,
+                Some(Base {
+                    field: field,
+                    register: None,
+                    peripheral: None,
+                }),
+            ));
+        } else {
+            let fields = matches
+                .iter()
+                .map(|&(ref f, _)| &f.name)
+                .collect::<Vec<_>>();
+            Err(format!(
+                "Fields {:?} have an \
+                 enumeratedValues named {}",
+                fields,
+                base_evs
+            ))?
+        },
+    }
+}
+
+fn lookup_in_peripherals<'p>(
+    base_peripheral: &'p str,
+    base_register: &'p str,
+    base_field: &str,
+    base_evs: &str,
+    all_peripherals: &'p [Peripheral],
+) -> Result<(&'p EnumeratedValues, Option<Base<'p>>)> {
+    if let Some(peripheral) = all_peripherals.iter().find(|p| p.name == base_peripheral) {
+        let all_registers = peripheral
+            .registers
+            .as_ref()
+            .map(|x| x.as_ref())
+            .unwrap_or(&[][..]);
+        lookup_in_peripheral(
+            Some(base_peripheral),
+            base_register,
+            base_field,
+            base_evs,
+            all_registers,
+            peripheral,
+        )
+    } else {
+        Err(format!("No peripheral {}", base_peripheral))?
+    }
 }
