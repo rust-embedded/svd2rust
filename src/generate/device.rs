@@ -1,4 +1,4 @@
-use quote::{Tokens};
+use quote::Tokens;
 use svd::Device;
 use syn::Ident;
 
@@ -85,18 +85,7 @@ pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
     out.extend(interrupt::render(d, target, &d.peripherals)?);
 
     const CORE_PERIPHERALS: &[&str] = &[
-        "CBP",
-        "CPUID",
-        "DCB",
-        "DWT",
-        "FPB",
-        "FPU",
-        "ITM",
-        "MPU",
-        "NVIC",
-        "SCB",
-        "SYST",
-        "TPIU",
+        "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU"
     ];
 
     let mut fields = vec![];
@@ -153,17 +142,19 @@ pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
         Target::CortexM => Some(Ident::new("cortex_m")),
         Target::Msp430 => Some(Ident::new("msp430")),
         Target::None => None,
-    }.map(|krate| quote! {
-        /// Returns all the peripherals *once*
-        #[inline]
-        pub fn take() -> Option<Self> {
-            #krate::interrupt::free(|_| {
-                if unsafe { DEVICE_PERIPHERALS } {
-                    None
-                } else {
-                    Some(unsafe { Peripherals::steal() })
-                }
-            })
+    }.map(|krate| {
+        quote! {
+            /// Returns all the peripherals *once*
+            #[inline]
+            pub fn take() -> Option<Self> {
+                #krate::interrupt::free(|_| {
+                    if unsafe { DEVICE_PERIPHERALS } {
+                        None
+                    } else {
+                        Some(unsafe { Peripherals::steal() })
+                    }
+                })
+            }
         }
     });
 

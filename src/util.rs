@@ -148,9 +148,8 @@ pub fn name_of(register: &Register) -> Cow<str> {
 }
 
 pub fn access_of(register: &Register) -> Access {
-    register
-        .access
-        .unwrap_or_else(|| if let Some(ref fields) = register.fields {
+    register.access.unwrap_or_else(|| {
+        if let Some(ref fields) = register.fields {
             if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
                 Access::ReadOnly
             } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
@@ -160,7 +159,8 @@ pub fn access_of(register: &Register) -> Access {
             }
         } else {
             Access::ReadWrite
-        })
+        }
+    })
 }
 
 /// Turns `n` into an unsuffixed separated hex token

@@ -1,12 +1,11 @@
 use cast::u64;
 use quote::Tokens;
-use svd::{Access, BitRange, Defaults, EnumeratedValues, Field, Peripheral, Register,
-          Usage, WriteConstraint};
+use svd::{Access, BitRange, Defaults, EnumeratedValues, Field, Peripheral, Register, Usage,
+          WriteConstraint};
 use syn::Ident;
 
 use errors::*;
 use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
-
 
 pub fn render(
     register: &Register,
@@ -714,7 +713,6 @@ pub fn fields(
                     });
                 }
 
-
                 proxy_items.push(quote! {
                     /// Writes `variant` to the field
                     #[inline]
@@ -840,37 +838,42 @@ fn lookup<'a>(
     usage: Usage,
 ) -> Result<Option<(&'a EnumeratedValues, Option<Base<'a>>)>> {
     let evs = evs.iter()
-        .map(|evs| if let Some(ref base) = evs.derived_from {
-            let mut parts = base.split('.');
+        .map(|evs| {
+            if let Some(ref base) = evs.derived_from {
+                let mut parts = base.split('.');
 
-            match (parts.next(), parts.next(), parts.next(), parts.next()) {
-                (Some(base_peripheral), Some(base_register), Some(base_field), Some(base_evs)) => {
-                    lookup_in_peripherals(
+                match (parts.next(), parts.next(), parts.next(), parts.next()) {
+                    (
+                        Some(base_peripheral),
+                        Some(base_register),
+                        Some(base_field),
+                        Some(base_evs),
+                    ) => lookup_in_peripherals(
                         base_peripheral,
                         base_register,
                         base_field,
                         base_evs,
                         all_peripherals,
-                    )
+                    ),
+                    (Some(base_register), Some(base_field), Some(base_evs), None) => {
+                        lookup_in_peripheral(
+                            None,
+                            base_register,
+                            base_field,
+                            base_evs,
+                            all_registers,
+                            peripheral,
+                        )
+                    }
+                    (Some(base_field), Some(base_evs), None, None) => {
+                        lookup_in_fields(base_evs, base_field, fields, register)
+                    }
+                    (Some(base_evs), None, None, None) => lookup_in_register(base_evs, register),
+                    _ => unreachable!(),
                 }
-                (Some(base_register), Some(base_field), Some(base_evs), None) => {
-                    lookup_in_peripheral(
-                        None,
-                        base_register,
-                        base_field,
-                        base_evs,
-                        all_registers,
-                        peripheral,
-                    )
-                }
-                (Some(base_field), Some(base_evs), None, None) => {
-                    lookup_in_fields(base_evs, base_field, fields, register)
-                }
-                (Some(base_evs), None, None, None) => lookup_in_register(base_evs, register),
-                _ => unreachable!(),
+            } else {
+                Ok((evs, None))
             }
-        } else {
-            Ok((evs, None))
         })
         .collect::<Result<Vec<_>>>()?;
 
@@ -894,8 +897,7 @@ fn lookup_in_fields<'f>(
     } else {
         Err(format!(
             "Field {} not found in register {}",
-            base_field,
-            register.name
+            base_field, register.name
         ))?
     }
 }
@@ -921,15 +923,13 @@ fn lookup_in_peripheral<'p>(
         } else {
             Err(format!(
                 "No field {} in register {}",
-                base_field,
-                register.name
+                base_field, register.name
             ))?
         }
     } else {
         Err(format!(
             "No register {} in peripheral {}",
-            base_register,
-            peripheral.name
+            base_register, peripheral.name
         ))?
     }
 }
@@ -942,23 +942,20 @@ fn lookup_in_field<'f>(
 ) -> Result<(&'f EnumeratedValues, Option<Base<'f>>)> {
     for evs in &field.enumerated_values {
         if evs.name.as_ref().map(|s| &**s) == Some(base_evs) {
-            return Ok(
-                (
-                    evs,
-                    Some(Base {
-                        field: &field.name,
-                        register: base_register,
-                        peripheral: base_peripheral,
-                    }),
-                ),
-            );
+            return Ok((
+                evs,
+                Some(Base {
+                    field: &field.name,
+                    register: base_register,
+                    peripheral: base_peripheral,
+                }),
+            ));
         }
     }
 
     Err(format!(
         "No EnumeratedValues {} in field {}",
-        base_evs,
-        field.name
+        base_evs, field.name
     ))?
 }
 
@@ -980,8 +977,7 @@ fn lookup_in_register<'r>(
     match matches.first() {
         None => Err(format!(
             "EnumeratedValues {} not found in register {}",
-            base_evs,
-            register.name
+            base_evs, register.name
         ))?,
         Some(&(evs, field)) => if matches.len() == 1 {
             return Ok((
@@ -1000,8 +996,7 @@ fn lookup_in_register<'r>(
             Err(format!(
                 "Fields {:?} have an \
                  enumeratedValues named {}",
-                fields,
-                base_evs
+                fields, base_evs
             ))?
         },
     }

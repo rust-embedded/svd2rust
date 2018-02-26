@@ -8,7 +8,6 @@ use syn::{self, Ident};
 use errors::*;
 use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
 
-
 use generate::register;
 
 pub fn render(
@@ -76,7 +75,7 @@ pub fn render(
             registers,
             p,
             all_peripherals,
-            defaults
+            defaults,
         )?);
     }
 
@@ -124,7 +123,8 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
                 size: register_size,
             }),
             Register::Array(ref info, ref array_info) => {
-                let sequential_addresses = register_size == array_info.dim_increment * BITS_PER_BYTE;
+                let sequential_addresses =
+                    register_size == array_info.dim_increment * BITS_PER_BYTE;
 
                 // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
                 let sequential_indexes = array_info.dim_index.as_ref().map_or(true, |dim_index| {
@@ -208,7 +208,6 @@ fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
         }
     })
 }
-
 
 /// Takes a svd::Register which may be a register array, and turn in into
 /// a list of syn::Field where the register arrays have been expanded.

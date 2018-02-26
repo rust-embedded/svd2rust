@@ -10,11 +10,7 @@ use util::{self, ToSanitizedUpperCase};
 use Target;
 
 /// Generates code for `src/interrupt.rs`
-pub fn render(
-    device: &Device,
-    target: &Target,
-    peripherals: &[Peripheral],
-) -> Result<Vec<Tokens>> {
+pub fn render(device: &Device, target: &Target, peripherals: &[Peripheral]) -> Result<Vec<Tokens>> {
     let interrupts = peripherals
         .iter()
         .flat_map(|p| p.interrupt.iter())
