@@ -2,6 +2,7 @@
 
 extern crate cast;
 extern crate clap;
+extern crate either;
 #[macro_use]
 extern crate error_chain;
 extern crate inflections;

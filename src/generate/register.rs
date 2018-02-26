@@ -1,7 +1,8 @@
 use cast::u64;
+use either::Either;
 use quote::Tokens;
-use svd::{Access, BitRange, Defaults, EnumeratedValues, Field, Peripheral, Register, Usage,
-          WriteConstraint};
+use svd::{Access, BitRange, Cluster, Defaults, EnumeratedValues, Field, Peripheral, Register,
+          Usage, WriteConstraint};
 use syn::Ident;
 
 use errors::*;
@@ -9,7 +10,7 @@ use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
 
 pub fn render(
     register: &Register,
-    all_registers: &[Register],
+    all_registers: &[&Register],
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
     defs: &Defaults,
@@ -200,7 +201,7 @@ pub fn render(
 pub fn fields(
     fields: &[Field],
     parent: &Register,
-    all_registers: &[Register],
+    all_registers: &[&Register],
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
     rty: &Ident,
@@ -832,7 +833,7 @@ fn lookup<'a>(
     evs: &'a [EnumeratedValues],
     fields: &'a [Field],
     register: &'a Register,
-    all_registers: &'a [Register],
+    all_registers: &'a [&'a Register],
     peripheral: &'a Peripheral,
     all_peripherals: &'a [Peripheral],
     usage: Usage,
@@ -907,7 +908,7 @@ fn lookup_in_peripheral<'p>(
     base_register: &'p str,
     base_field: &str,
     base_evs: &str,
-    all_registers: &'p [Register],
+    all_registers: &[&'p Register],
     peripheral: &'p Peripheral,
 ) -> Result<(&'p EnumeratedValues, Option<Base<'p>>)> {
     if let Some(register) = all_registers.iter().find(|r| r.name == base_register) {
@@ -1010,20 +1011,48 @@ fn lookup_in_peripherals<'p>(
     all_peripherals: &'p [Peripheral],
 ) -> Result<(&'p EnumeratedValues, Option<Base<'p>>)> {
     if let Some(peripheral) = all_peripherals.iter().find(|p| p.name == base_peripheral) {
-        let all_registers = peripheral
-            .registers
-            .as_ref()
-            .map(|x| x.as_ref())
-            .unwrap_or(&[][..]);
+        let all_registers = periph_all_registers(peripheral);
         lookup_in_peripheral(
             Some(base_peripheral),
             base_register,
             base_field,
             base_evs,
-            all_registers,
+            all_registers.as_slice(),
             peripheral,
         )
     } else {
         Err(format!("No peripheral {}", base_peripheral))?
     }
+}
+
+fn periph_all_registers<'a>(p: &'a Peripheral) -> Vec<&'a Register> {
+    let mut par: Vec<&Register> = Vec::new();
+    let mut rem: Vec<&Either<Register, Cluster>> = Vec::new();
+    if p.registers.is_none() {
+        return par;
+    }
+
+    if let Some(ref regs) = p.registers {
+        for r in regs.iter() {
+            rem.push(r);
+        }
+    }
+
+    loop {
+        let b = rem.pop();
+        if b.is_none() {
+            break;
+        }
+
+        let b = b.unwrap();
+        match *b {
+            Either::Left(ref reg) => {
+                par.push(reg);
+            }
+            Either::Right(ref cluster) => for ref c in cluster.children.iter() {
+                rem.push(c);
+            },
+        }
+    }
+    par
 }
