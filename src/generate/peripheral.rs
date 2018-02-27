@@ -61,9 +61,10 @@ pub fn render(
     let ercs = p.registers.as_ref().map(|x| x.as_ref()).unwrap_or(&[][..]);
 
     let registers: &[&Register] = &util::only_registers(&ercs)[..];
+    let clusters = util::only_clusters(ercs);
 
     // No `struct RegisterBlock` can be generated
-    if registers.is_empty() {
+    if registers.is_empty() && clusters.is_empty() {
         // Drop the `#name_pc` definition of the peripheral
         out.pop();
         return Ok(out);
@@ -73,7 +74,6 @@ pub fn render(
     mod_items.push(register_or_cluster_block(ercs, defaults, None)?);
 
     // Push all cluster related information into the peripheral module.
-    let clusters = util::only_clusters(ercs);
     for c in &clusters {
         mod_items.push(cluster_block(c, defaults, p, all_peripherals)?);
     }
