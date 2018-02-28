@@ -1,681 +1,19 @@
-use std::collections::HashMap;
-use std::io::{self, Write};
-
 use cast::u64;
-use quote::{ToTokens, Tokens};
-use svd::{Access, BitRange, Defaults, Device, EnumeratedValues, Field, Peripheral, Register,
-          Usage, WriteConstraint};
-use syn::{self, Ident};
+use quote::Tokens;
+use svd::{Access, BitRange, Defaults, EnumeratedValues, Field, Peripheral, Register, Usage,
+          WriteConstraint};
+use syn::Ident;
 
 use errors::*;
-use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext, BITS_PER_BYTE};
-use Target;
+use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
 
-/// Whole device generation
-pub fn device(d: &Device, target: &Target, items: &mut Vec<Tokens>) -> Result<()> {
-    let doc = format!(
-        "Peripheral access API for {0} microcontrollers \
-         (generated using svd2rust v{1})\n\n\
-         You can find an overview of the API [here].\n\n\
-         [here]: https://docs.rs/svd2rust/{1}/svd2rust/#peripheral-api",
-        d.name.to_uppercase(),
-        env!("CARGO_PKG_VERSION")
-    );
-
-    if *target == Target::Msp430 {
-        items.push(quote! {
-            #![feature(abi_msp430_interrupt)]
-        });
-    }
-
-    if *target != Target::None {
-        items.push(quote! {
-            #![cfg_attr(feature = "rt", feature(global_asm))]
-            #![cfg_attr(feature = "rt", feature(macro_reexport))]
-            #![cfg_attr(feature = "rt", feature(used))]
-        });
-    }
-
-    items.push(quote! {
-        #![doc = #doc]
-        #![allow(private_no_mangle_statics)]
-        #![deny(missing_docs)]
-        #![deny(warnings)]
-        #![allow(non_camel_case_types)]
-        #![feature(const_fn)]
-        #![no_std]
-    });
-
-    match *target {
-        Target::CortexM => {
-            items.push(quote! {
-                extern crate cortex_m;
-                #[macro_reexport(default_handler, exception)]
-                #[cfg(feature = "rt")]
-                extern crate cortex_m_rt;
-            });
-        }
-        Target::Msp430 => {
-            items.push(quote! {
-                extern crate msp430;
-                #[macro_reexport(default_handler)]
-                #[cfg(feature = "rt")]
-                extern crate msp430_rt;
-            });
-        }
-        Target::None => {}
-    }
-
-    items.push(quote! {
-        extern crate bare_metal;
-        extern crate vcell;
-
-        use core::ops::Deref;
-        use core::marker::PhantomData;
-    });
-
-    if let Some(cpu) = d.cpu.as_ref() {
-        let bits = util::unsuffixed(cpu.nvic_priority_bits as u64);
-
-        items.push(quote! {
-            /// Number available in the NVIC for configuring priority
-            pub const NVIC_PRIO_BITS: u8 = #bits;
-        });
-    }
-
-    ::generate::interrupt(d, target, &d.peripherals, items);
-
-    const CORE_PERIPHERALS: &[&str] = &[
-        "CBP",
-        "CPUID",
-        "DCB",
-        "DWT",
-        "FPB",
-        "FPU",
-        "ITM",
-        "MPU",
-        "NVIC",
-        "SCB",
-        "SYST",
-        "TPIU",
-    ];
-
-    let mut fields = vec![];
-    let mut exprs = vec![];
-    if *target == Target::CortexM {
-        items.push(quote! {
-            pub use cortex_m::peripheral::Peripherals as CorePeripherals;
-        });
-
-        // NOTE re-export only core peripherals available on *all* Cortex-M devices
-        // (if we want to re-export all core peripherals available for the target then we are going
-        // to need to replicate the `#[cfg]` stuff that cortex-m uses and that would require all
-        // device crates to define the custom `#[cfg]`s that cortex-m uses in their build.rs ...)
-        items.push(quote! {
-            pub use cortex_m::peripheral::CPUID;
-            pub use cortex_m::peripheral::DCB;
-            pub use cortex_m::peripheral::DWT;
-            pub use cortex_m::peripheral::MPU;
-            pub use cortex_m::peripheral::NVIC;
-            pub use cortex_m::peripheral::SCB;
-            pub use cortex_m::peripheral::SYST;
-        });
-    }
-
-    for p in &d.peripherals {
-        if *target == Target::CortexM && CORE_PERIPHERALS.contains(&&*p.name.to_uppercase()) {
-            // Core peripherals are handled above
-            continue;
-        }
-
-        ::generate::peripheral(p, &d.peripherals, items, &d.defaults)?;
-
-        if p.registers
-            .as_ref()
-            .map(|v| &v[..])
-            .unwrap_or(&[])
-            .is_empty() && p.derived_from.is_none()
-        {
-            // No register block will be generated so don't put this peripheral
-            // in the `Peripherals` struct
-            continue;
-        }
-
-        let p = p.name.to_sanitized_upper_case();
-        let id = Ident::new(&*p);
-        fields.push(quote! {
-            #[doc = #p]
-            pub #id: #id
-        });
-        exprs.push(quote!(#id: #id { _marker: PhantomData }));
-    }
-
-    let take = match *target {
-        Target::CortexM => Some(Ident::new("cortex_m")),
-        Target::Msp430 => Some(Ident::new("msp430")),
-        Target::None => None,
-    }.map(|krate| quote! {
-        /// Returns all the peripherals *once*
-        #[inline]
-        pub fn take() -> Option<Self> {
-            #krate::interrupt::free(|_| {
-                if unsafe { DEVICE_PERIPHERALS } {
-                    None
-                } else {
-                    Some(unsafe { Peripherals::steal() })
-                }
-            })
-        }
-    });
-
-    items.push(quote! {
-        // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
-        // crate as that would let you `take` the device peripherals more than once (one per minor
-        // version)
-        #[no_mangle]
-        static mut DEVICE_PERIPHERALS: bool = false;
-
-        /// All the peripherals
-        #[allow(non_snake_case)]
-        pub struct Peripherals {
-            #(#fields,)*
-        }
-
-        impl Peripherals {
-            #take
-
-            /// Unchecked version of `Peripherals::take`
-            pub unsafe fn steal() -> Self {
-                debug_assert!(!DEVICE_PERIPHERALS);
-
-                DEVICE_PERIPHERALS = true;
-
-                Peripherals {
-                    #(#exprs,)*
-                }
-            }
-        }
-    });
-
-    Ok(())
-}
-
-/// Generates code for `src/interrupt.rs`
-pub fn interrupt(
-    device: &Device,
-    target: &Target,
-    peripherals: &[Peripheral],
-    items: &mut Vec<Tokens>,
-) {
-    let interrupts = peripherals
-        .iter()
-        .flat_map(|p| p.interrupt.iter())
-        .map(|i| (i.value, i))
-        .collect::<HashMap<_, _>>();
-
-    let mut interrupts = interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
-    interrupts.sort_by_key(|i| i.value);
-
-    let mut arms = vec![];
-    let mut elements = vec![];
-    let mut names = vec![];
-    let mut variants = vec![];
-
-    // Current position in the vector table
-    let mut pos = 0;
-    let mut mod_items = vec![];
-    mod_items.push(quote! {
-        use bare_metal::Nr;
-    });
-    for interrupt in &interrupts {
-        while pos < interrupt.value {
-            elements.push(quote!(None));
-            pos += 1;
-        }
-        pos += 1;
-
-        let name_uc = Ident::new(interrupt.name.to_sanitized_upper_case());
-        let description = format!(
-            "{} - {}",
-            interrupt.value,
-            interrupt
-                .description
-                .as_ref()
-                .map(|s| util::respace(s))
-                .unwrap_or_else(|| interrupt.name.clone())
-        );
-
-        let value = util::unsuffixed(u64(interrupt.value));
-
-        variants.push(quote! {
-            #[doc = #description]
-            #name_uc,
-        });
-
-        arms.push(quote! {
-            Interrupt::#name_uc => #value,
-        });
-
-        elements.push(quote!(Some(#name_uc)));
-        names.push(name_uc);
-    }
-
-    let aliases = names
-        .iter()
-        .map(|n| {
-            format!(
-                "
-.weak {0}
-{0} = DH_TRAMPOLINE",
-                n
-            )
-        })
-        .collect::<Vec<_>>()
-        .concat();
-
-    let n = util::unsuffixed(u64(pos));
-    match *target {
-        Target::CortexM => {
-            let is_armv6 = match device.cpu {
-                Some(ref cpu) => cpu.name.starts_with("CM0"),
-                None => true, // default to armv6 when the <cpu> section is missing
-            };
-
-            if is_armv6 {
-                // Cortex-M0(+) are ARMv6 and don't have `b.w` (branch with 16 MB range). This
-                // can cause linker errors when the handler is too far away. Instead of a small
-                // inline assembly shim, we generate a function for those targets and let the
-                // compiler do the work (sacrificing a few bytes of code).
-                mod_items.push(quote! {
-                    #[cfg(feature = "rt")]
-                    extern "C" {
-                        fn DEFAULT_HANDLER();
-                    }
-
-                    #[cfg(feature = "rt")]
-                    #[allow(non_snake_case)]
-                    #[no_mangle]
-                    pub unsafe extern "C" fn DH_TRAMPOLINE() {
-                        DEFAULT_HANDLER();
-                    }
-                });
-            } else {
-                mod_items.push(quote! {
-                    #[cfg(all(target_arch = "arm", feature = "rt"))]
-                    global_asm!("
-                    .thumb_func
-                    DH_TRAMPOLINE:
-                        b DEFAULT_HANDLER
-                    ");
-
-                    /// Hack to compile on x86
-                    #[cfg(all(target_arch = "x86_64", feature = "rt"))]
-                    global_asm!("
-                    DH_TRAMPOLINE:
-                        jmp DEFAULT_HANDLER
-                    ");
-                })
-            }
-
-            mod_items.push(quote! {
-                #[cfg(feature = "rt")]
-                global_asm!(#aliases);
-
-                #[cfg(feature = "rt")]
-                extern "C" {
-                    #(fn #names();)*
-                }
-
-                #[allow(private_no_mangle_statics)]
-                #[cfg(feature = "rt")]
-                #[doc(hidden)]
-                #[link_section = ".vector_table.interrupts"]
-                #[no_mangle]
-                #[used]
-                pub static INTERRUPTS: [Option<unsafe extern "C" fn()>; #n] = [
-                    #(#elements,)*
-                ];
-            });
-        }
-        Target::Msp430 => {
-            mod_items.push(quote! {
-                #[cfg(feature = "rt")]
-                global_asm!("
-                DH_TRAMPOLINE:
-                    jmp DEFAULT_HANDLER
-                ");
-
-                #[cfg(feature = "rt")]
-                global_asm!(#aliases);
-
-                #[cfg(feature = "rt")]
-                extern "msp430-interrupt" {
-                    #(fn #names();)*
-                }
-
-                #[allow(private_no_mangle_statics)]
-                #[cfg(feature = "rt")]
-                #[doc(hidden)]
-                #[link_section = ".vector_table.interrupts"]
-                #[no_mangle]
-                #[used]
-                pub static INTERRUPTS:
-                    [Option<unsafe extern "msp430-interrupt" fn()>; #n] = [
-                        #(#elements,)*
-                    ];
-            });
-        }
-        Target::None => {}
-    }
-
-    mod_items.push(quote! {
-        /// Enumeration of all the interrupts
-        pub enum Interrupt {
-            #(#variants)*
-        }
-
-        unsafe impl Nr for Interrupt {
-            #[inline]
-            fn nr(&self) -> u8 {
-                match *self {
-                    #(#arms)*
-                }
-            }
-        }
-    });
-
-    if *target != Target::None {
-        let abi = match *target {
-            Target::Msp430 => "msp430-interrupt",
-            _ => "C",
-        };
-        mod_items.push(quote! {
-            #[cfg(feature = "rt")]
-            #[macro_export]
-            macro_rules! interrupt {
-                ($NAME:ident, $path:path, locals: {
-                    $($lvar:ident:$lty:ty = $lval:expr;)*
-                }) => {
-                    #[allow(non_snake_case)]
-                    mod $NAME {
-                        pub struct Locals {
-                            $(
-                                pub $lvar: $lty,
-                            )*
-                        }
-                    }
-
-                    #[allow(non_snake_case)]
-                    #[no_mangle]
-                    pub extern #abi fn $NAME() {
-                        // check that the handler exists
-                        let _ = $crate::interrupt::Interrupt::$NAME;
-
-                        static mut LOCALS: self::$NAME::Locals =
-                            self::$NAME::Locals {
-                                $(
-                                    $lvar: $lval,
-                                )*
-                            };
-
-                        // type checking
-                        let f: fn(&mut self::$NAME::Locals) = $path;
-                        f(unsafe { &mut LOCALS });
-                    }
-                };
-                ($NAME:ident, $path:path) => {
-                    #[allow(non_snake_case)]
-                    #[no_mangle]
-                    pub extern #abi fn $NAME() {
-                        // check that the handler exists
-                        let _ = $crate::interrupt::Interrupt::$NAME;
-
-                        // type checking
-                        let f: fn() = $path;
-                        f();
-                    }
-                }
-            }
-        });
-    }
-
-    if interrupts.len() > 0 {
-        items.push(quote! {
-            pub use interrupt::Interrupt;
-
-            #[doc(hidden)]
-            pub mod interrupt {
-                #(#mod_items)*
-            }
-        });
-    }
-}
-
-pub fn peripheral(
-    p: &Peripheral,
-    all_peripherals: &[Peripheral],
-    items: &mut Vec<Tokens>,
-    defaults: &Defaults,
-) -> Result<()> {
-    let name_pc = Ident::new(&*p.name.to_sanitized_upper_case());
-    let address = util::hex(p.base_address);
-    let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
-
-    let name_sc = Ident::new(&*p.name.to_sanitized_snake_case());
-    let (base, derived) = if let Some(base) = p.derived_from.as_ref() {
-        // TODO Verify that base exists
-        // TODO We don't handle inheritance style `derivedFrom`, we should raise
-        // an error in that case
-        (Ident::new(&*base.to_sanitized_snake_case()), true)
-    } else {
-        (name_sc.clone(), false)
-    };
-
-    items.push(quote! {
-        #[doc = #description]
-        pub struct #name_pc { _marker: PhantomData<*const ()> }
-
-        unsafe impl Send for #name_pc {}
-
-        impl #name_pc {
-            /// Returns a pointer to the register block
-            pub fn ptr() -> *const #base::RegisterBlock {
-                #address as *const _
-            }
-        }
-
-        impl Deref for #name_pc {
-            type Target = #base::RegisterBlock;
-
-            fn deref(&self) -> &#base::RegisterBlock {
-                unsafe { &*#name_pc::ptr() }
-            }
-        }
-    });
-
-    if derived {
-        return Ok(())
-    }
-
-    let registers = p.registers.as_ref().map(|x| x.as_ref()).unwrap_or(&[][..]);
-
-    // No `struct RegisterBlock` can be generated
-    if registers.is_empty() {
-        // Drop the `pub const` definition of the peripheral
-        items.pop();
-        return Ok(());
-    }
-
-    let mut mod_items = vec![];
-    mod_items.push(::generate::register_block(registers, defaults)?);
-
-    for register in registers {
-        ::generate::register(
-            register,
-            registers,
-            p,
-            all_peripherals,
-            defaults,
-            &mut mod_items,
-        )?;
-    }
-
-    let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
-    items.push(quote! {
-        #[doc = #description]
-        pub mod #name_sc {
-            use vcell::VolatileCell;
-
-            #(#mod_items)*
-        }
-    });
-
-    Ok(())
-}
-
-struct RegisterBlockField {
-    field: syn::Field,
-    description: String,
-    offset: u32,
-    size: u32,
-}
-
-fn register_block(registers: &[Register], defs: &Defaults) -> Result<Tokens> {
-    let mut fields = Tokens::new();
-    // enumeration of reserved fields
-    let mut i = 0;
-    // offset from the base address, in bytes
-    let mut offset = 0;
-    let mut registers_expanded = vec![];
-
-    // If svd register arrays can't be converted to rust arrays (non sequential adresses, non
-    // numeral indexes, or not containing all elements from 0 to size) they will be expanded
-    for register in registers {
-        let register_size = register
-            .size
-            .or(defs.size)
-            .ok_or_else(|| format!("Register {} has no `size` field", register.name))?;
-
-        match *register {
-            Register::Single(ref info) => registers_expanded.push(RegisterBlockField {
-                field: util::convert_svd_register(register),
-                description: info.description.clone(),
-                offset: info.address_offset,
-                size: register_size,
-            }),
-            Register::Array(ref info, ref array_info) => {
-                let sequential_addresses = register_size == array_info.dim_increment * BITS_PER_BYTE;
-
-                // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
-                let sequential_indexes = array_info.dim_index.as_ref().map_or(true, |dim_index| {
-                    dim_index
-                        .iter()
-                        .map(|element| element.parse::<u32>())
-                        .eq((0..array_info.dim).map(Ok))
-                });
-
-                let array_convertible = sequential_indexes && sequential_addresses;
-
-                if array_convertible {
-                    registers_expanded.push(RegisterBlockField {
-                        field: util::convert_svd_register(&register),
-                        description: info.description.clone(),
-                        offset: info.address_offset,
-                        size: register_size * array_info.dim,
-                    });
-                } else {
-                    let mut field_num = 0;
-                    for field in util::expand_svd_register(register).iter() {
-                        registers_expanded.push(RegisterBlockField {
-                            field: field.clone(),
-                            description: info.description.clone(),
-                            offset: info.address_offset + field_num * array_info.dim_increment,
-                            size: register_size,
-                        });
-                        field_num += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    registers_expanded.sort_by_key(|x| x.offset);
-
-    for register in registers_expanded {
-        let pad = if let Some(pad) = register.offset.checked_sub(offset) {
-            pad
-        } else {
-            writeln!(
-                io::stderr(),
-                "WARNING {} overlaps with another register at offset {}. \
-                 Ignoring.",
-                register.field.ident.unwrap(),
-                register.offset
-            ).ok();
-            continue;
-        };
-
-        if pad != 0 {
-            let name = Ident::new(format!("_reserved{}", i));
-            let pad = pad as usize;
-            fields.append(quote! {
-                #name : [u8; #pad],
-            });
-            i += 1;
-        }
-
-        let comment = &format!(
-            "0x{:02x} - {}",
-            register.offset,
-            util::respace(&register.description),
-        )[..];
-
-        fields.append(quote! {
-            #[doc = #comment]
-        });
-
-        register.field.to_tokens(&mut fields);
-        Ident::new(",").to_tokens(&mut fields);
-
-        offset = register.offset + register.size / BITS_PER_BYTE;
-    }
-
-    Ok(quote! {
-        /// Register block
-        #[repr(C)]
-        pub struct RegisterBlock {
-            #fields
-        }
-    })
-}
-
-fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Ident> {
-    match write_constraint {
-        Some(&WriteConstraint::Range(ref range))
-            if range.min as u64 == 0 && range.max as u64 == (1u64 << width) - 1 =>
-        {
-            // the SVD has acknowledged that it's safe to write
-            // any value that can fit in the field
-            None
-        }
-        None if width == 1 => {
-            // the field is one bit wide, so we assume it's legal to write
-            // either value into it or it wouldn't exist; despite that
-            // if a writeConstraint exists then respect it
-            None
-        }
-        _ => Some(Ident::new("unsafe")),
-    }
-}
-
-pub fn register(
+pub fn render(
     register: &Register,
     all_registers: &[Register],
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
     defs: &Defaults,
-    items: &mut Vec<Tokens>,
-) -> Result<()> {
+) -> Result<Vec<Tokens>> {
     let access = util::access_of(register);
     let name = util::name_of(register);
     let name_pc = Ident::new(&*name.to_sanitized_upper_case());
@@ -802,18 +140,18 @@ pub fn register(
         }
     });
 
-    if let Some(fields) = register.fields.as_ref() {
+    if let Some(cur_fields) = register.fields.as_ref() {
         // filter out all reserved fields, as we should not generate code for
         // them
-        let fields: Vec<Field> = fields
+        let cur_fields: Vec<Field> = cur_fields
             .clone()
             .into_iter()
             .filter(|field| field.name.to_lowercase() != "reserved")
             .collect();
 
-        if !fields.is_empty() {
-            ::generate::fields(
-                &fields,
+        if !cur_fields.is_empty() {
+            fields(
+                &cur_fields,
                 register,
                 all_registers,
                 peripheral,
@@ -843,7 +181,8 @@ pub fn register(
         });
     }
 
-    items.push(quote! {
+    let mut out = vec![];
+    out.push(quote! {
         #[doc = #description]
         pub struct #name_pc {
             register: VolatileCell<#rty>
@@ -855,7 +194,7 @@ pub fn register(
         }
     });
 
-    Ok(())
+    Ok(out)
 }
 
 pub fn fields(
@@ -956,7 +295,7 @@ pub fn fields(
                 ((self.bits >> OFFSET) & MASK as #rty) #cast
             };
 
-            if let Some((evs, base)) = util::lookup(
+            if let Some((evs, base)) = lookup(
                 f.evs,
                 fields,
                 parent,
@@ -1244,7 +583,7 @@ pub fn fields(
             let mask = &f.mask;
             let width = f.width;
 
-            if let Some((evs, base)) = util::lookup(
+            if let Some((evs, base)) = lookup(
                 &f.evs,
                 fields,
                 parent,
@@ -1374,7 +713,6 @@ pub fn fields(
                     });
                 }
 
-
                 proxy_items.push(quote! {
                     /// Writes `variant` to the field
                     #[inline]
@@ -1462,4 +800,230 @@ pub fn fields(
     }
 
     Ok(())
+}
+
+fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Ident> {
+    match write_constraint {
+        Some(&WriteConstraint::Range(ref range))
+            if range.min as u64 == 0 && range.max as u64 == (1u64 << width) - 1 =>
+        {
+            // the SVD has acknowledged that it's safe to write
+            // any value that can fit in the field
+            None
+        }
+        None if width == 1 => {
+            // the field is one bit wide, so we assume it's legal to write
+            // either value into it or it wouldn't exist; despite that
+            // if a writeConstraint exists then respect it
+            None
+        }
+        _ => Some(Ident::new("unsafe")),
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Base<'a> {
+    pub peripheral: Option<&'a str>,
+    pub register: Option<&'a str>,
+    pub field: &'a str,
+}
+
+fn lookup<'a>(
+    evs: &'a [EnumeratedValues],
+    fields: &'a [Field],
+    register: &'a Register,
+    all_registers: &'a [Register],
+    peripheral: &'a Peripheral,
+    all_peripherals: &'a [Peripheral],
+    usage: Usage,
+) -> Result<Option<(&'a EnumeratedValues, Option<Base<'a>>)>> {
+    let evs = evs.iter()
+        .map(|evs| {
+            if let Some(ref base) = evs.derived_from {
+                let mut parts = base.split('.');
+
+                match (parts.next(), parts.next(), parts.next(), parts.next()) {
+                    (
+                        Some(base_peripheral),
+                        Some(base_register),
+                        Some(base_field),
+                        Some(base_evs),
+                    ) => lookup_in_peripherals(
+                        base_peripheral,
+                        base_register,
+                        base_field,
+                        base_evs,
+                        all_peripherals,
+                    ),
+                    (Some(base_register), Some(base_field), Some(base_evs), None) => {
+                        lookup_in_peripheral(
+                            None,
+                            base_register,
+                            base_field,
+                            base_evs,
+                            all_registers,
+                            peripheral,
+                        )
+                    }
+                    (Some(base_field), Some(base_evs), None, None) => {
+                        lookup_in_fields(base_evs, base_field, fields, register)
+                    }
+                    (Some(base_evs), None, None, None) => lookup_in_register(base_evs, register),
+                    _ => unreachable!(),
+                }
+            } else {
+                Ok((evs, None))
+            }
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    for &(ref evs, ref base) in evs.iter() {
+        if evs.usage == Some(usage) {
+            return Ok(Some((*evs, base.clone())));
+        }
+    }
+
+    Ok(evs.first().cloned())
+}
+
+fn lookup_in_fields<'f>(
+    base_evs: &str,
+    base_field: &str,
+    fields: &'f [Field],
+    register: &Register,
+) -> Result<(&'f EnumeratedValues, Option<Base<'f>>)> {
+    if let Some(base_field) = fields.iter().find(|f| f.name == base_field) {
+        return lookup_in_field(base_evs, None, None, base_field);
+    } else {
+        Err(format!(
+            "Field {} not found in register {}",
+            base_field, register.name
+        ))?
+    }
+}
+
+fn lookup_in_peripheral<'p>(
+    base_peripheral: Option<&'p str>,
+    base_register: &'p str,
+    base_field: &str,
+    base_evs: &str,
+    all_registers: &'p [Register],
+    peripheral: &'p Peripheral,
+) -> Result<(&'p EnumeratedValues, Option<Base<'p>>)> {
+    if let Some(register) = all_registers.iter().find(|r| r.name == base_register) {
+        if let Some(field) = register
+            .fields
+            .as_ref()
+            .map(|fs| &**fs)
+            .unwrap_or(&[])
+            .iter()
+            .find(|f| f.name == base_field)
+        {
+            lookup_in_field(base_evs, Some(base_register), base_peripheral, field)
+        } else {
+            Err(format!(
+                "No field {} in register {}",
+                base_field, register.name
+            ))?
+        }
+    } else {
+        Err(format!(
+            "No register {} in peripheral {}",
+            base_register, peripheral.name
+        ))?
+    }
+}
+
+fn lookup_in_field<'f>(
+    base_evs: &str,
+    base_register: Option<&'f str>,
+    base_peripheral: Option<&'f str>,
+    field: &'f Field,
+) -> Result<(&'f EnumeratedValues, Option<Base<'f>>)> {
+    for evs in &field.enumerated_values {
+        if evs.name.as_ref().map(|s| &**s) == Some(base_evs) {
+            return Ok((
+                evs,
+                Some(Base {
+                    field: &field.name,
+                    register: base_register,
+                    peripheral: base_peripheral,
+                }),
+            ));
+        }
+    }
+
+    Err(format!(
+        "No EnumeratedValues {} in field {}",
+        base_evs, field.name
+    ))?
+}
+
+fn lookup_in_register<'r>(
+    base_evs: &str,
+    register: &'r Register,
+) -> Result<(&'r EnumeratedValues, Option<Base<'r>>)> {
+    let mut matches = vec![];
+
+    for f in register.fields.as_ref().map(|v| &**v).unwrap_or(&[]) {
+        if let Some(evs) = f.enumerated_values
+            .iter()
+            .find(|evs| evs.name.as_ref().map(|s| &**s) == Some(base_evs))
+        {
+            matches.push((evs, &f.name))
+        }
+    }
+
+    match matches.first() {
+        None => Err(format!(
+            "EnumeratedValues {} not found in register {}",
+            base_evs, register.name
+        ))?,
+        Some(&(evs, field)) => if matches.len() == 1 {
+            return Ok((
+                evs,
+                Some(Base {
+                    field: field,
+                    register: None,
+                    peripheral: None,
+                }),
+            ));
+        } else {
+            let fields = matches
+                .iter()
+                .map(|&(ref f, _)| &f.name)
+                .collect::<Vec<_>>();
+            Err(format!(
+                "Fields {:?} have an \
+                 enumeratedValues named {}",
+                fields, base_evs
+            ))?
+        },
+    }
+}
+
+fn lookup_in_peripherals<'p>(
+    base_peripheral: &'p str,
+    base_register: &'p str,
+    base_field: &str,
+    base_evs: &str,
+    all_peripherals: &'p [Peripheral],
+) -> Result<(&'p EnumeratedValues, Option<Base<'p>>)> {
+    if let Some(peripheral) = all_peripherals.iter().find(|p| p.name == base_peripheral) {
+        let all_registers = peripheral
+            .registers
+            .as_ref()
+            .map(|x| x.as_ref())
+            .unwrap_or(&[][..]);
+        lookup_in_peripheral(
+            Some(base_peripheral),
+            base_register,
+            base_field,
+            base_evs,
+            all_registers,
+            peripheral,
+        )
+    } else {
+        Err(format!("No peripheral {}", base_peripheral))?
+    }
 }
