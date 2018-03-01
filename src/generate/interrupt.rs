@@ -169,6 +169,7 @@ pub fn render(device: &Device, target: &Target, peripherals: &[Peripheral]) -> R
                     ];
             });
         }
+        Target::RISCV => {}
         Target::None => {}
     }
 

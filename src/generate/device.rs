@@ -62,6 +62,13 @@ pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
                 extern crate msp430_rt;
             });
         }
+        Target::RISCV => {
+            out.push(quote! {
+                extern crate riscv;
+                #[cfg(feature = "rt")]
+                extern crate riscv_rt;
+            });
+        }
         Target::None => {}
     }
 
@@ -141,6 +148,7 @@ pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
     let take = match *target {
         Target::CortexM => Some(Ident::new("cortex_m")),
         Target::Msp430 => Some(Ident::new("msp430")),
+        Target::RISCV => Some(Ident::new("riscv")),
         Target::None => None,
     }.map(|krate| {
         quote! {
