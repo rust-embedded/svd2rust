@@ -25,6 +25,7 @@ use errors::*;
 pub enum Target {
     CortexM,
     Msp430,
+    RISCV,
     None,
 }
 
@@ -33,6 +34,7 @@ impl Target {
         Ok(match s {
             "cortex-m" => Target::CortexM,
             "msp430" => Target::Msp430,
+            "riscv" => Target::RISCV,
             "none" => Target::None,
             _ => bail!("unknown target {}", s),
         })
