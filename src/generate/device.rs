@@ -124,6 +124,7 @@ pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
             continue;
         }
 
+
         out.extend(peripheral::render(p, &d.peripherals, &d.defaults)?);
 
         if p.registers

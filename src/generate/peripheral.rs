@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use either::Either;
 use quote::{ToTokens, Tokens};
-use svd::{Cluster, Defaults, Peripheral, Register};
+use svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register};
 use syn::{self, Ident};
 
 use errors::*;
@@ -31,6 +31,7 @@ pub fn render(
         (name_sc.clone(), false)
     };
 
+    // Insert the peripheral structure
     out.push(quote! {
         #[doc = #description]
         pub struct #name_pc { _marker: PhantomData<*const ()> }
@@ -53,6 +54,8 @@ pub fn render(
         }
     });
 
+    // Derived peripherals do not require re-implementation, and will instead
+    // use a single definition of the non-derived version
     if derived {
         return Ok(out);
     }
@@ -65,19 +68,21 @@ pub fn render(
 
     // No `struct RegisterBlock` can be generated
     if registers.is_empty() && clusters.is_empty() {
-        // Drop the `#name_pc` definition of the peripheral
+        // Drop the definition of the peripheral
         out.pop();
         return Ok(out);
     }
 
+    // Push any register or cluster blocks into the output
     let mut mod_items = vec![];
     mod_items.push(register_or_cluster_block(ercs, defaults, None)?);
 
-    // Push all cluster related information into the peripheral module.
+    // Push all cluster related information into the peripheral module
     for c in &clusters {
         mod_items.push(cluster_block(c, defaults, p, all_peripherals)?);
     }
 
+    // Push all regsiter realted information into the peripheral module
     for reg in registers {
         mod_items.extend(register::render(
             reg,
@@ -126,9 +131,9 @@ fn register_or_cluster_block(
             pad
         } else {
             eprintln!(
-                "WARNING {} overlaps with another register at offset {}. \
+                "WARNING {:?} overlaps with another register block at offset {}. \
                  Ignoring.",
-                reg_block_field.field.ident.unwrap(),
+                reg_block_field.field.ident,
                 reg_block_field.offset
             );
             continue;
@@ -173,6 +178,8 @@ fn register_or_cluster_block(
     })
 }
 
+/// Expand a list of parsed `Register`s or `Cluster`s, and render them to
+/// `RegisterBlockField`s containing `Field`s.
 fn expand(
     ercs: &[Either<Register, Cluster>],
     defs: &Defaults,
@@ -192,21 +199,64 @@ fn expand(
     Ok(ercs_expanded)
 }
 
+/// Recursively calculate the size of a cluster. A cluster's size is the sum of
+/// all of its children clusters and registers
+fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
+    // Cluster size is the summation of the size of each of the cluster's children.
+    let mut offset = 0;
+    let mut size = 0;
+
+    for c in &info.children {
+        size += match *c {
+            Either::Left(ref reg) => {
+                let pad = reg.address_offset.checked_sub(offset)
+                .ok_or_else(||
+                    format!("Warning! overlap while calculating Register Size within a Cluster! Cluster contents may be incorrectly aligned!"))?
+                * BITS_PER_BYTE;
+
+
+                let reg_size: u32 = expand_register(reg, defs, None)?
+                    .iter()
+                    .map(|rbf| rbf.size)
+                    .sum();
+
+                pad + reg_size
+            }
+            Either::Right(ref clust) => {
+                let pad = clust.address_offset.checked_sub(offset)
+                    .ok_or_else(||
+                        format!("Warning! overlap while calculating Cluster Size within a Cluster! Cluster contents may be incorrectly aligned!"))?
+                    * BITS_PER_BYTE;
+
+                pad + cluster_size_in_bits(clust, defs)?
+            }
+        };
+
+        offset = size / BITS_PER_BYTE;
+    }
+    Ok(size)
+}
+
+/// Render a given cluster (and any children) into `RegisterBlockField`s
 fn expand_cluster(cluster: &Cluster, defs: &Defaults) -> Result<Vec<RegisterBlockField>> {
     let mut cluster_expanded = vec![];
 
+
     let cluster_size = cluster
         .size
-        .or(defs.size)
-        .ok_or_else(|| format!("Cluster {} has no `size` field", cluster.name))?;
+        .ok_or_else(|| format!("Cluster {} has no explictly defined size", cluster.name))
+        .or_else(|_e| cluster_size_in_bits(cluster, defs))
+        .chain_err(|| format!("Cluster {} has no determinable `size` field", cluster.name))?;
 
     match *cluster {
-        Cluster::Single(ref info) => cluster_expanded.push(RegisterBlockField {
-            field: convert_svd_cluster(cluster),
-            description: info.description.clone(),
-            offset: info.address_offset,
-            size: cluster_size,
-        }),
+        Cluster::Single(ref info) => {
+            cluster_expanded.push(RegisterBlockField {
+                field: convert_svd_cluster(cluster),
+                description: info.description.clone(),
+                offset: info.address_offset,
+                size: cluster_size,
+            })
+        },
         Cluster::Array(ref info, ref array_info) => {
             let sequential_addresses = cluster_size == array_info.dim_increment * BITS_PER_BYTE;
 
@@ -260,12 +310,14 @@ fn expand_register(
         .ok_or_else(|| format!("Register {} has no `size` field", register.name))?;
 
     match *register {
-        Register::Single(ref info) => register_expanded.push(RegisterBlockField {
-            field: convert_svd_register(register, name),
-            description: info.description.clone(),
-            offset: info.address_offset,
-            size: register_size,
-        }),
+        Register::Single(ref info) => {
+            register_expanded.push(RegisterBlockField {
+                field: convert_svd_register(register, name),
+                description: info.description.clone(),
+                offset: info.address_offset,
+                size: register_size,
+            })
+        },
         Register::Array(ref info, ref array_info) => {
             let sequential_addresses = register_size == array_info.dim_increment * BITS_PER_BYTE;
 
@@ -304,6 +356,7 @@ fn expand_register(
     Ok(register_expanded)
 }
 
+/// Render a Cluster Block into `Tokens`
 fn cluster_block(
     c: &Cluster,
     defaults: &Defaults,
@@ -430,6 +483,7 @@ fn expand_svd_register(register: &Register, name: Option<&str>) -> Vec<syn::Fiel
     out
 }
 
+/// Convert a parsed `Register` into its `Field` equivalent
 fn convert_svd_register(register: &Register, name: Option<&str>) -> syn::Field {
     let name_to_ty = |name: &String, ns: Option<&str>| -> syn::Ty {
         let ident = if let Some(ns) = ns {
@@ -553,6 +607,7 @@ fn expand_svd_cluster(cluster: &Cluster) -> Vec<syn::Field> {
     out
 }
 
+/// Convert a parsed `Cluster` into its `Field` equivalent
 fn convert_svd_cluster(cluster: &Cluster) -> syn::Field {
     let name_to_ty = |name: &String| -> syn::Ty {
         syn::Ty::Path(
