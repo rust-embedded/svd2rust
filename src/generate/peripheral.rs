@@ -97,8 +97,6 @@ pub fn render(
     out.push(quote! {
         #[doc = #description]
         pub mod #name_sc {
-            use vcell::VolatileCell;
-
             #(#mod_items)*
         }
     });
@@ -401,9 +399,6 @@ fn cluster_block(
         /// Register block
         #[doc = #description]
         pub mod #name_sc {
-            #[allow(unused_imports)]
-            use vcell::VolatileCell;
-
             #(#mod_items)*
         }
     })

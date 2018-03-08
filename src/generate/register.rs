@@ -186,7 +186,7 @@ pub fn render(
     out.push(quote! {
         #[doc = #description]
         pub struct #name_pc {
-            register: VolatileCell<#rty>
+            register: ::vcell::VolatileCell<#rty>
         }
 
         #[doc = #description]
