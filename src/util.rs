@@ -1,9 +1,10 @@
 use std::borrow::Cow;
 
 use inflections::Inflect;
-use svd::{Access, Register};
+use svd::{Access, Cluster, Register};
 use syn::Ident;
 use quote::Tokens;
+use either::Either;
 
 use errors::*;
 
@@ -237,4 +238,26 @@ impl U32Ext for u32 {
             ))?,
         })
     }
+}
+
+/// Return only the clusters from the slice of either register or clusters.
+pub fn only_clusters(ercs: &[Either<Register, Cluster>]) -> Vec<&Cluster> {
+    let clusters: Vec<&Cluster> = ercs.iter()
+        .filter_map(|x| match *x {
+            Either::Right(ref x) => Some(x),
+            _ => None,
+        })
+        .collect();
+    clusters
+}
+
+/// Return only the registers the given slice of either register or clusters.
+pub fn only_registers(ercs: &[Either<Register, Cluster>]) -> Vec<&Register> {
+    let registers: Vec<&Register> = ercs.iter()
+        .filter_map(|x| match *x {
+            Either::Left(ref x) => Some(x),
+            _ => None,
+        })
+        .collect();
+    registers
 }
