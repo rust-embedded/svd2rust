@@ -12,25 +12,36 @@ use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
 use generate::register;
 
 pub fn render(
-    p: &Peripheral,
+    p_original: &Peripheral,
     all_peripherals: &[Peripheral],
     defaults: &Defaults,
     nightly: bool,
 ) -> Result<Vec<Tokens>> {
     let mut out = vec![];
 
+    let p_derivedfrom = p_original.derived_from.as_ref().and_then(|s| {
+        all_peripherals.iter().find(|x| x.name == *s)
+    });
+
+    let p_merged = p_derivedfrom.map(|x| p_original.derive_from(x));
+    let p = p_merged.as_ref().unwrap_or(p_original);
+
+    if p_original.derived_from.is_some() && p_derivedfrom.is_none() {
+        eprintln!("Couldn't find derivedFrom original: {} for {}, skipping",
+            p_original.derived_from.as_ref().unwrap(), p_original.name);
+        return Ok(out);
+    }
+
     let name_pc = Ident::new(&*p.name.to_sanitized_upper_case());
     let address = util::hex(p.base_address);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
+    let derive_regs = p_derivedfrom.is_some() && p_original.registers.is_none();
 
     let name_sc = Ident::new(&*p.name.to_sanitized_snake_case());
-    let (base, derived) = if let Some(base) = p.derived_from.as_ref() {
-        // TODO Verify that base exists
-        // TODO We don't handle inheritance style `derivedFrom`, we should raise
-        // an error in that case
-        (Ident::new(&*base.to_sanitized_snake_case()), true)
+    let base = if derive_regs {
+        Ident::new(&*p_derivedfrom.unwrap().name.to_sanitized_snake_case());
     } else {
-        (name_sc.clone(), false)
+        name_sc.clone();
     };
 
     // Insert the peripheral structure
@@ -56,9 +67,9 @@ pub fn render(
         }
     });
 
-    // Derived peripherals do not require re-implementation, and will instead
-    // use a single definition of the non-derived version
-    if derived {
+    // Derived peripherals may not require re-implementation, and will instead
+    // use a single definition of the non-derived version.
+    if derive_regs {
         return Ok(out);
     }
 
