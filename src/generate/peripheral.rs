@@ -197,40 +197,27 @@ fn expand(
     Ok(ercs_expanded)
 }
 
-/// Recursively calculate the size of a cluster. A cluster's size is the sum of
-/// all of its children clusters and registers
+/// Recursively calculate the size of a cluster. A cluster's size is the maximum
+/// end position of its recursive children.
 fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
-    // Cluster size is the summation of the size of each of the cluster's children.
-    let mut offset = 0;
     let mut size = 0;
 
     for c in &info.children {
-        size += match *c {
+        let end = match *c {
             Either::Left(ref reg) => {
-                let pad = reg.address_offset.checked_sub(offset)
-                .ok_or_else(||
-                    format!("Warning! overlap while calculating Register Size within a Cluster! Cluster contents may be incorrectly aligned!"))?
-                * BITS_PER_BYTE;
-
-
                 let reg_size: u32 = expand_register(reg, defs, None)?
                     .iter()
                     .map(|rbf| rbf.size)
                     .sum();
 
-                pad + reg_size
+                (reg.address_offset * BITS_PER_BYTE) + reg_size
             }
             Either::Right(ref clust) => {
-                let pad = clust.address_offset.checked_sub(offset)
-                    .ok_or_else(||
-                        format!("Warning! overlap while calculating Cluster Size within a Cluster! Cluster contents may be incorrectly aligned!"))?
-                    * BITS_PER_BYTE;
-
-                pad + cluster_size_in_bits(clust, defs)?
+                (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, defs)?
             }
         };
 
-        offset = size / BITS_PER_BYTE;
+        size = size.max(end);
     }
     Ok(size)
 }
