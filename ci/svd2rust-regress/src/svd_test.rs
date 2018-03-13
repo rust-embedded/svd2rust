@@ -7,13 +7,9 @@ use reqwest;
 use std::path::PathBuf;
 
 static CRATES_ALL: &[&str] = &["bare-metal = \"0.1.0\"", "vcell = \"0.1.0\""];
-
 static CRATES_MSP430: &[&str] = &["msp430 = \"0.1.0\""];
-
 static CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.4.0\"", "cortex-m-rt = \"0.3.0\""];
-
 static CRATES_RISCV: &[&str] = &["riscv = \"0.1.4\"", "riscv-rt = \"0.1.3\""];
-
 static PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
 
 fn path_helper(input: &[&str]) -> PathBuf {
@@ -84,8 +80,6 @@ pub fn test(t: &TestCase, bin_path: &PathBuf) -> Result<()> {
 
     // Create a new cargo project. It is necesary to set the user, otherwise
     //   cargo init will not work (when running in a container with no user set)
-    // TODO: Will fail if directory already exists
-
     Command::new("cargo")
         .env("USER", user)
         .arg("init")
@@ -99,7 +93,6 @@ pub fn test(t: &TestCase, bin_path: &PathBuf) -> Result<()> {
         .capture_outputs(true, "cargo init", None, None)?;
 
     // Add some crates to the Cargo.toml of our new project
-    // TODO: Only add the right crates for this arch to make the compilation faster
     let svd_toml = path_helper_base(&chip_dir, &["Cargo.toml"]);
     let mut file = OpenOptions::new()
         .write(true)

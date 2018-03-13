@@ -142,10 +142,6 @@ fn main() {
                 );
             }
             Err(e) => {
-                // TODO: I think this is the right ordering. I don't think we
-                // care about any reads until we are done with the parallel part,
-                // though performance probably doesn't matter because each iter
-                // takes ~minutes
                 any_fails.store(true, Ordering::Release);
                 eprintln!(
                     "Failed: {} - {} seconds - {:?}",
