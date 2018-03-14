@@ -104,11 +104,96 @@ pub fn render(
     Ok(out)
 }
 
+#[derive(Clone, Debug)]
 struct RegisterBlockField {
     field: syn::Field,
     description: String,
     offset: u32,
     size: u32,
+}
+
+#[derive(Clone, Debug)]
+struct Region {
+    fields: Vec<RegisterBlockField>,
+    offset: u32,
+    end: u32,
+}
+
+/// FieldRegions keeps track of overlapping field regions,
+/// merging fields into appropriate regions as we process them.
+/// This allows us to reason about when to create a union
+/// rather than a struct.
+#[derive(Default, Debug)]
+struct FieldRegions {
+    /// The set of regions we know about.  This is maintained
+    /// in sorted order, keyed by Region::offset.
+    regions: Vec<Region>,
+}
+
+impl FieldRegions {
+    /// Track a field.  If the field overlaps with 1 or more existing
+    /// entries, they will be merged together.
+    fn add(&mut self, field: &RegisterBlockField) {
+
+        // When merging, this holds the indices in self.regions
+        // that the input `field` will be merging with.
+        let mut indices = Vec::new();
+
+        let field_start = field.offset;
+        let field_end = field_start + field.size / BITS_PER_BYTE;
+
+        // The region that we're going to insert
+        let mut new_region = Region {
+            fields: vec![field.clone()],
+            offset: field.offset,
+            end: field.offset + field.size / BITS_PER_BYTE
+        };
+
+        // Locate existing region(s) that we intersect with and
+        // fold them into the new region we're creating.  There
+        // may be multiple regions that we intersect with, so
+        // we keep looping to find them all.
+        for (idx, mut f) in self.regions.iter_mut().enumerate() {
+            let f_start = f.offset;
+            let f_end = f.end;
+
+            // Compute intersection range
+            let begin = f_start.max(field_start);
+            let end = f_end.min(field_end);
+
+            if end > begin {
+                // We're going to remove this element and fold it
+                // into our new region
+                indices.push(idx);
+
+                // Expand the existing entry
+                new_region.offset = new_region.offset.min(f_start);
+                new_region.end = new_region.end.max(f_end);
+
+                // And merge in the fields
+                new_region.fields.append(&mut f.fields);
+            }
+        }
+
+        // Now remove the entries that we collapsed together.
+        // We do this in reverse order to ensure that the indices
+        // are stable in the face of removal.
+        for idx in indices.iter().rev() {
+            self.regions.remove(*idx);
+        }
+
+        new_region.fields.sort_by_key(|f| f.offset);
+
+        // maintain the regions ordered by starting offset
+        let idx = self.regions.binary_search_by_key(&new_region.offset, |r| r.offset);
+        match idx {
+            Ok(idx) => {
+                panic!("we shouldn't exist in the vec, but are at idx {} {:#?}\n{:#?}",
+                    idx, new_region, self.regions);
+            }
+            Err(idx) => self.regions.insert(idx, new_region)
+        }
+    }
 }
 
 fn register_or_cluster_block(
@@ -117,34 +202,47 @@ fn register_or_cluster_block(
     name: Option<&str>,
 ) -> Result<Tokens> {
     let mut fields = Tokens::new();
-    // enumeration of reserved fields
-    let mut i = 0;
-    // offset from the base address, in bytes
-    let mut offset = 0;
 
     let ercs_expanded = expand(ercs, defs, name)?;
 
-    for reg_block_field in ercs_expanded {
-        let pad = if let Some(pad) = reg_block_field.offset.checked_sub(offset) {
-            pad
-        } else {
-            eprintln!(
-                "WARNING {:?} overlaps with another register block at offset {}. \
-                 Ignoring.",
-                reg_block_field.field.ident,
-                reg_block_field.offset
-            );
-            continue;
-        };
+    // Locate conflicting regions; we'll need to use unions to represent them.
+    let mut regions = FieldRegions::default();
 
-        if pad != 0 {
-            let name = Ident::new(format!("_reserved{}", i));
-            let pad = pad as usize;
-            fields.append(quote! {
-                #name : [u8; #pad],
-            });
-            i += 1;
+    for reg_block_field in &ercs_expanded {
+        regions.add(reg_block_field);
+    }
+
+    // The end of the region from the prior iteration of the loop
+    let mut last_end = None;
+
+    for (i, region) in regions.regions.iter().enumerate() {
+        // Check if we need padding
+        if let Some(end) = last_end {
+            let pad = region.offset - end;
+            if pad != 0 {
+                let name = Ident::new(format!("_reserved{}", i));
+                let pad = pad as usize;
+                fields.append(quote! {
+                    #name : [u8; #pad],
+                });
+            }
         }
+
+        last_end = Some(region.end);
+
+        if region.fields.len() > 1 {
+            // TODO: this is where we'd emit a union container
+            eprintln!("WARNING: overlaps for region offset={}-{}. \
+                Using the first one of these:",
+                region.offset, region.end-1);
+
+            for f in &region.fields {
+                eprintln!("  {:?} {}-{}", f.field.ident, f.offset,
+                    (f.offset + f.size / BITS_PER_BYTE)-1);
+            }
+        }
+
+        let reg_block_field = &region.fields[0];
 
         let comment = &format!(
             "0x{:02x} - {}",
@@ -158,8 +256,6 @@ fn register_or_cluster_block(
 
         reg_block_field.field.to_tokens(&mut fields);
         Ident::new(",").to_tokens(&mut fields);
-
-        offset = reg_block_field.offset + reg_block_field.size / BITS_PER_BYTE;
     }
 
     let name = Ident::new(match name {
