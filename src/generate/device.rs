@@ -43,6 +43,7 @@ pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
         #![allow(non_camel_case_types)]
         #![feature(const_fn)]
         #![feature(try_from)]
+        #![feature(untagged_unions)]
         #![no_std]
     });
 

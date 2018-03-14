@@ -202,6 +202,7 @@ fn register_or_cluster_block(
     name: Option<&str>,
 ) -> Result<Tokens> {
     let mut fields = Tokens::new();
+    let mut helper_types = Tokens::new();
 
     let ercs_expanded = expand(ercs, defs, name)?;
 
@@ -230,32 +231,48 @@ fn register_or_cluster_block(
 
         last_end = Some(region.end);
 
-        if region.fields.len() > 1 {
-            // TODO: this is where we'd emit a union container
-            eprintln!("WARNING: overlaps for region offset={}-{}. \
-                Using the first one of these:",
-                region.offset, region.end-1);
+        let mut region_fields = Tokens::new();
 
-            for f in &region.fields {
-                eprintln!("  {:?} {}-{}", f.field.ident, f.offset,
-                    (f.offset + f.size / BITS_PER_BYTE)-1);
-            }
+        for reg_block_field in &region.fields {
+            let comment = &format!(
+                "0x{:02x} - {}",
+                reg_block_field.offset,
+                util::respace(&reg_block_field.description),
+            )[..];
+
+            region_fields.append(quote! {
+                #[doc = #comment]
+            });
+
+
+            reg_block_field.field.to_tokens(&mut region_fields);
+            Ident::new(",").to_tokens(&mut region_fields);
         }
 
-        let reg_block_field = &region.fields[0];
+        if region.fields.len() > 1 {
+            // TODO: come up with nicer naming.  Right now we're using the
+            // region index as a unique-within-this-block identifier counter.
+            let name = Ident::new(format!("u{}", i));
 
-        let comment = &format!(
-            "0x{:02x} - {}",
-            reg_block_field.offset,
-            util::respace(&reg_block_field.description),
-        )[..];
+            // TODO: if we only have a single region and that region is a
+            // union, the overall RegisterBlock could be a union
 
-        fields.append(quote! {
-            #[doc = #comment]
-        });
+            helper_types.append(quote! {
+                /// Union container for a set of overlapping registers
+                #[repr(C)]
+                pub union #name {
+                    #region_fields
+                }
+            });
 
-        reg_block_field.field.to_tokens(&mut fields);
-        Ident::new(",").to_tokens(&mut fields);
+            fields.append(quote! {
+                #name: #name
+            });
+            Ident::new(",").to_tokens(&mut fields);
+
+        } else {
+            fields.append(&region_fields);
+        }
     }
 
     let name = Ident::new(match name {
@@ -269,6 +286,8 @@ fn register_or_cluster_block(
         pub struct #name {
             #fields
         }
+
+        #helper_types
     })
 }
 
