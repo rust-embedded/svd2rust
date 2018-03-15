@@ -119,6 +119,67 @@ struct Region {
     end: u32,
 }
 
+impl Region {
+    /// Find the longest common prefix of the identifier names
+    /// for the fields in this region, if any.
+    fn common_prefix(&self) -> Option<String> {
+        let mut char_vecs = Vec::new();
+        let mut min_len = usize::max_value();
+
+        for f in &self.fields {
+            match f.field.ident {
+                None => return None,
+                Some(ref ident) => {
+                    let chars : Vec<char> = ident.as_ref().chars().collect();
+                    min_len = min_len.min(chars.len());
+                    char_vecs.push(chars);
+                }
+            }
+        }
+
+        let mut result = String::new();
+
+        for i in 0..min_len {
+            let c = char_vecs[0][i];
+            for v in &char_vecs {
+                if v[i] != c {
+                    break;
+                }
+            }
+
+            // This character position is the same across
+            // all variants, so emit it into the result
+            result.push(c);
+        }
+
+        if result.is_empty() {
+            None
+        } else {
+            Some(result)
+        }
+    }
+
+    /// Return a description of this region
+    fn description(&self) -> String {
+        let mut result = String::new();
+        for f in &self.fields {
+            // In the Atmel SVDs the union variants all tend to
+            // have the same description.  Rather than emitting
+            // the same text three times over, only join in the
+            // text from the other variants if it is different.
+            // This isn't a foolproof way of emitting the most
+            // reasonable short description, but it's good enough.
+            if f.description != result {
+                if result.len() > 0 {
+                    result.push(' ');
+                }
+                result.push_str(&f.description);
+            }
+        }
+        result
+    }
+}
+
 /// FieldRegions keeps track of overlapping field regions,
 /// merging fields into appropriate regions as we process them.
 /// This allows us to reason about when to create a union
@@ -213,6 +274,8 @@ fn register_or_cluster_block(
         regions.add(reg_block_field);
     }
 
+    let block_is_union = regions.regions.len() == 1 && regions.regions[0].fields.len() > 1;
+
     // The end of the region from the prior iteration of the loop
     let mut last_end = None;
 
@@ -249,24 +312,33 @@ fn register_or_cluster_block(
             Ident::new(",").to_tokens(&mut region_fields);
         }
 
-        if region.fields.len() > 1 {
-            // TODO: come up with nicer naming.  Right now we're using the
-            // region index as a unique-within-this-block identifier counter.
-            let name = Ident::new(format!("u{}", i));
+        if region.fields.len() > 1 && !block_is_union {
+            let (type_name, name) = match region.common_prefix() {
+                Some(prefix) => {
+                    (Ident::new(format!("{}_union", prefix)),
+                    Ident::new(prefix))
+                }
+                // If we can't find a common prefix for the name, fall back to the
+                // region index as a unique-within-this-block identifier counter.
+                None => {
+                   let ident = Ident::new(format!("u{}", i));
+                   (ident.clone(), ident)
+                }
+            };
 
-            // TODO: if we only have a single region and that region is a
-            // union, the overall RegisterBlock could be a union
+            let description = region.description();
 
             helper_types.append(quote! {
-                /// Union container for a set of overlapping registers
+                #[doc = #description]
                 #[repr(C)]
-                pub union #name {
+                pub union #type_name {
                     #region_fields
                 }
             });
 
             fields.append(quote! {
-                #name: #name
+                #[doc = #description]
+                pub #name: #type_name
             });
             Ident::new(",").to_tokens(&mut fields);
 
@@ -280,10 +352,16 @@ fn register_or_cluster_block(
         None => "RegisterBlock".into(),
     });
 
+    let block_type = if block_is_union {
+        Ident::new("union")
+    } else {
+        Ident::new("struct")
+    };
+
     Ok(quote! {
         /// Register block
         #[repr(C)]
-        pub struct #name {
+        pub #block_type #name {
             #fields
         }
 
