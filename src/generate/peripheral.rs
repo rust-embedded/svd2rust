@@ -297,6 +297,12 @@ fn register_or_cluster_block(
         let mut region_fields = Tokens::new();
 
         for reg_block_field in &region.fields {
+            if reg_block_field.offset != region.offset {
+                eprintln!("WARNING: field {:?} has different offset {} than its union container {}",
+                    reg_block_field.field.ident,
+                    reg_block_field.offset,
+                    region.offset);
+            }
             let comment = &format!(
                 "0x{:02x} - {}",
                 reg_block_field.offset,
