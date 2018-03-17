@@ -9,6 +9,12 @@
 
 # [API](https://docs.rs/svd2rust)
 
+# Testing Locally
+
+`svd2rust-regress` is a helper program for regression testing changes against `svd2rust`. This tool can be used locally to check modifications of `svd2rust` locally before submitting a PR.
+
+Check out the [svd2rust-regress README](ci/svd2rust-regress/README.md) for information on how to use this tool.
+
 ## License
 
 Licensed under either of
