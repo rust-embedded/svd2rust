@@ -37,9 +37,9 @@ pub fn render(
 
     let name_sc = Ident::new(&*p.name.to_sanitized_snake_case());
     let base = if derive_regs {
-        Ident::new(&*p_derivedfrom.unwrap().name.to_sanitized_snake_case());
+        Ident::new(&*p_derivedfrom.unwrap().name.to_sanitized_snake_case())
     } else {
-        name_sc.clone();
+        name_sc.clone()
     };
 
     // Insert the peripheral structure
