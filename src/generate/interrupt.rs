@@ -151,7 +151,7 @@ pub fn render(device: &Device, target: &Target, peripherals: &[Peripheral]) -> R
                 #[cfg(feature = "rt")]
                 global_asm!("
                 DH_TRAMPOLINE:
-                    jmp DEFAULT_HANDLER
+                    br #DEFAULT_HANDLER
                 ");
 
                 #[cfg(feature = "rt")]
