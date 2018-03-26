@@ -2,4 +2,4 @@ status = [
   "continuous-integration/travis-ci/push",
   "continuous-integration/appveyor/branch"
 ]
-timeout_sec = 7200
+timeout_sec = 14400
