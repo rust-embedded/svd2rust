@@ -108,16 +108,19 @@ fn main() {
         None => &default_svd2rust,
     };
 
-    let default_rustfmt: Option<PathBuf> = if let Some(v) = Command::new("rustup")
+    let default_rustfmt: Option<PathBuf> = if let Some((v, true)) = Command::new("rustup")
         .args(&["which", "rustfmt"])
         .output()
         .ok()
-        .map(|v| v.stdout)
+        .map(|o| (o.stdout, o.status.success()))
     {
         Some(String::from_utf8_lossy(&v).into_owned().trim().into())
     } else {
+        if opt.format && opt.rustfmt_bin_path.is_none() {
+            panic!("rustfmt binary not found, is rustup and rustfmt-preview installed?");
+        }
         None
-    }; // FIXME: capture error and assure exit is 0
+    };
 
     let rustfmt_bin_path = match (&opt.rustfmt_bin_path, opt.format) {
         (_, false) => None,
