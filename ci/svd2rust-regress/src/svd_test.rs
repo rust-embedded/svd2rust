@@ -61,7 +61,9 @@ impl CommandHelper for Output {
         };
 
         if cant_fail && !self.status.success() {
-            return Err(ErrorKind::ProcessFailed(name.into(), stdout.cloned(), stderr.cloned()).into())
+            return Err(
+                ErrorKind::ProcessFailed(name.into(), stdout.cloned(), stderr.cloned()).into(),
+            );
         }
 
         Ok(())
@@ -134,6 +136,7 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
         &Msp430 => "msp430",
         &RiscV => "riscv",
     };
+
     Command::new(bin_path)
         .args(&["-i", &chip_svd])
         .args(&["--target", &target])

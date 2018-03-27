@@ -10,13 +10,14 @@ mod errors;
 mod svd_test;
 mod tests;
 
+use error_chain::ChainedError;
 use rayon::prelude::*;
+use std::fs::File;
+use std::io::Read;
 use std::path::PathBuf;
 use std::process::{exit, Command};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
-use std::fs::File;
-use std::io::Read;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -122,8 +123,14 @@ fn main() {
         (_, false) => None,
         (&Some(ref path), true) => Some(path),
         (&None, true) => {
-            if default_rustfmt.is_none() {
-                eprintln!("Warning: No rustfmt found, formatting will be skipped")
+            // FIXME: Use Option::filter instead when stable, rust-lang/rust#45860
+            if default_rustfmt
+                .iter()
+                .filter(|p| p.is_file())
+                .next()
+                .is_none()
+            {
+                panic!("No rustfmt found");
             }
             default_rustfmt.as_ref()
         }
@@ -181,22 +188,28 @@ fn main() {
                 any_fails.store(true, Ordering::Release);
                 let additional_info = if opt.verbose > 0 {
                     match e.kind() {
-                        &errors::ErrorKind::ProcessFailed(ref command, _, ref stderr) if command == "cargo check" => {
+                        &errors::ErrorKind::ProcessFailed(ref command, _, Some(ref stderr))
+                            if command == "cargo check" =>
+                        {
                             let mut buf = String::new();
                             // Unwrap is safe
-                            File::open(stderr.as_ref().unwrap()).expect("Couldn't open file").read_to_string(&mut buf).expect("Couldn't read file to string");
+                            File::open(stderr)
+                                .expect("Couldn't open file")
+                                .read_to_string(&mut buf)
+                                .expect("Couldn't read file to string");
+                            buf.insert_str(0, &format!("\n---{:?}---\n", stderr.as_os_str()));
                             buf
                         }
-                        _ => "".into()
+                        _ => "".into(),
                     }
                 } else {
                     "".into()
                 };
                 eprintln!(
-                    "Failed: {} - {} seconds - {}{}",
+                    "Failed: {} - {} seconds. {}{}",
                     t.name(),
                     start.elapsed().as_secs(),
-                    e,
+                    e.display_chain().to_string().trim_right(),
                     additional_info,
                 );
             }

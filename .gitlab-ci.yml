@@ -14,4 +14,4 @@ regress:nightly:
     - cargo build --release
     - cd ci/svd2rust-regress
     - rm -rf ./output
-    - cargo run --release -- --long-test
+    - cargo run --release -- --long-test --format --verbose

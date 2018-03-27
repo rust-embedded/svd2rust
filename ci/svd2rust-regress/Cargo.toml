@@ -1,7 +1,7 @@
 [package]
 name = "svd2rust-regress"
 version = "0.1.0"
-authors = ["James Munns <james.munns@gmail.com>"]
+authors = ["James Munns <james.munns@gmail.com>", "The svd2rust developers"]
 
 [dependencies]
 reqwest = "0.8"

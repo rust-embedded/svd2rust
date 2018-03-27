@@ -15,7 +15,10 @@
 
 ### Preconditions
 
-By default, `svd2rust-regress` assumes you have already built `svd2rust` in the root of this repository in `--release` mode. If this is not possible, it is possible to specify the path to an `svd2rust` binary (see **Options** below).
+By default, `svd2rust-regress` assumes you have already built `svd2rust` in the root of this repository in `--release` mode.
+If this is not possible, it is possible to specify the path to an `svd2rust` binary (see **Options** below).
+
+You'll also need to have `rustfmt` version > v0.4.0 to use the `--format` flag, you can install `rustfmt` with `rustup component add rustfmt-preview`.
 
 ### Output
 
@@ -30,7 +33,7 @@ Passed: spansion_mb9af12x_k - 23 seconds
 Fail results look like this:
 
 ```text
-Failed: si_five_e310x - 0 seconds - Error(Msg("Process Failed! - cargo check"), State { next_error: None, backtrace: None })
+Failed: si_five_e310x - 0 seconds. Error: Process Failed - cargo check
 ```
 
 If all test cases passed, the return code will be `0`. If any test cases failed, the return code will be `1`.
@@ -42,24 +45,32 @@ Here are the options for running `svd2rust-regress`:
 
 ```text
 svd2rust-regress 0.1.0
-James Munns <james.munns@gmail.com>
+James Munns <james.munns@gmail.com>:The svd2rust developers
 
 USAGE:
     svd2rust-regress [FLAGS] [OPTIONS]
 
 FLAGS:
     -b, --bad-tests    Include tests expected to fail (will cause a non-zero return code)
+    -f, --format       Enable formatting with `rustfmt`
     -h, --help         Prints help information
     -l, --long-test    Run a long test (it's very long)
     -V, --version      Prints version information
+    -v, --verbose      Use verbose output
 
 OPTIONS:
-    -a, --architecture <arch>         Filter by architecture, case sensitive, may be combined with other filters Options
-                                      are: "CortexM", "RiscV", and "Msp430"
-    -p, --svd2rust-path <bin_path>    Path to an `svd2rust` binary, relative or absolute. Defaults to
-                                      `target/release/svd2rust[.exe]` of this repository (which must be already built)
-    -c, --chip <chip>                 Filter by chip name, case sensitive, may be combined with other filters
-    -m, --manufacturer <mfgr>         Filter by manufacturer, case sensitive, may be combined with other filters
+    -a, --architecture <arch>
+            Filter by architecture, case sensitive, may be combined with other filters Options are: "CortexM", "RiscV",
+            and "Msp430"
+    -p, --svd2rust-path <bin_path>
+            Path to an `svd2rust` binary, relative or absolute. Defaults to `target/release/svd2rust[.exe]` of this
+            repository (which must be already built)
+    -c, --chip <chip>                            Filter by chip name, case sensitive, may be combined with other filters
+    -m, --manufacturer <mfgr>
+            Filter by manufacturer, case sensitive, may be combined with other filters
+
+        --rustfmt_bin_path <rustfmt_bin_path>
+            Path to an `rustfmt` binary, relative or absolute. Defaults to `$(rustup which rustfmt)`
 ```
 
 ### Filters
@@ -93,3 +104,5 @@ cargo run --release -- --long-test -c MB9AF12xK -m Fujitsu
      Running `target/release/svd2rust-regress --long-test -c MB9AF12xK -m Fujitsu`
 Passed: fujitsu_mb9af12x_k - 19 seconds
 ```
+
+Note that you may have to pass `--long-test` to enable some chips as they are known to take a long time to compile.

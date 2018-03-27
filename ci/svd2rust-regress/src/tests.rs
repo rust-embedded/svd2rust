@@ -76,7 +76,7 @@ use self::RunWhen::*;
 /// that are not valid in Rust ident
 const BLACKLIST_CHARS: &'static [char] = &['(', ')', '[', ']'];
 
-/// Lovingly stolen from `svd2rust`. Probably could be `Cow`, but I'm lazy
+/// Lovingly stolen from `svd2rust`. Probably could be `Cow`
 pub trait ToSanitizedSnakeCase {
     fn to_sanitized_snake_case(&self) -> String;
 }

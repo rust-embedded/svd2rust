@@ -1,7 +1,7 @@
-use std::path;
+use std::path::PathBuf;
 error_chain!{
     errors {
-        ProcessFailed(command: String, stderr: Option<path::PathBuf>, stdout: Option<path::PathBuf>) {
+        ProcessFailed(command: String, stderr: Option<PathBuf>, stdout: Option<PathBuf>) {
             description("Process Failed")
             display("Process Failed - {}", command)
         }
