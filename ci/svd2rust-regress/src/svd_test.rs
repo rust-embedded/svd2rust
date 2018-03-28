@@ -1,10 +1,10 @@
 use errors::*;
-use std::io::prelude::*;
+use reqwest;
 use std::fs::{remove_dir_all, File, OpenOptions};
+use std::io::prelude::*;
+use std::path::PathBuf;
 use std::process::{Command, Output};
 use tests::TestCase;
-use reqwest;
-use std::path::PathBuf;
 
 static CRATES_ALL: &[&str] = &["bare-metal = \"0.1.0\"", "vcell = \"0.1.0\""];
 static CRATES_MSP430: &[&str] = &["msp430 = \"0.1.0\""];
@@ -50,25 +50,27 @@ impl CommandHelper for Output {
         stdout: Option<&PathBuf>,
         stderr: Option<&PathBuf>,
     ) -> Result<()> {
-        if cant_fail && !self.status.success() {
-            bail!(format!("Process Failed! - {}", name))
-        }
-
         if let Some(out) = stdout {
             let out_payload = String::from_utf8_lossy(&self.stdout);
             file_helper(&out_payload, out)?;
-        }
+        };
 
         if let Some(err) = stderr {
             let err_payload = String::from_utf8_lossy(&self.stderr);
             file_helper(&err_payload, err)?;
+        };
+
+        if cant_fail && !self.status.success() {
+            return Err(
+                ErrorKind::ProcessFailed(name.into(), stdout.cloned(), stderr.cloned()).into(),
+            );
         }
 
         Ok(())
     }
 }
 
-pub fn test(t: &TestCase, bin_path: &PathBuf) -> Result<()> {
+pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>) -> Result<()> {
     let user = match ::std::env::var("USER") {
         Ok(val) => val,
         Err(_) => "rusttester".into(),
@@ -134,11 +136,10 @@ pub fn test(t: &TestCase, bin_path: &PathBuf) -> Result<()> {
         &Msp430 => "msp430",
         &RiscV => "riscv",
     };
+
     Command::new(bin_path)
-        .arg("-i")
-        .arg(&chip_svd)
-        .arg("--target")
-        .arg(target)
+        .args(&["-i", &chip_svd])
+        .args(&["--target", &target])
         .current_dir(&chip_dir)
         .output()
         .chain_err(|| "failed to execute process")?
@@ -149,16 +150,15 @@ pub fn test(t: &TestCase, bin_path: &PathBuf) -> Result<()> {
             Some(&svd2rust_err_file),
         )?;
 
-    // TODO: rustfmt < 0.4.0 seems to mangle some doc comments. Omit until this is fixed
-    // Run `cargo fmt`, capturing stderr to a log file
-    // let cargo_fmt_err_file = path_helper_base(&chip_dir, &["cargo-fmt.err.log"]);
-    // Command::new("cargo")
-    //     .arg("fmt")
-    //     .current_dir(&chip_dir)
-    //     .output()
-    //     .chain_err(|| "failed to format")?
-    //     .capture_outputs(false, "cargo fmt", None, Some(&cargo_fmt_err_file))?;
-
+    if let Some(rustfmt_bin_path) = rustfmt_bin_path {
+        // Run `cargo fmt`, capturing stderr to a log file
+        let fmt_err_file = path_helper_base(&chip_dir, &["rustfmt.err.log"]);
+        Command::new(rustfmt_bin_path)
+            .arg(lib_rs_file)
+            .output()
+            .chain_err(|| "failed to format")?
+            .capture_outputs(false, "rustfmt", None, Some(&fmt_err_file))?;
+    }
     // Run `cargo check`, capturing stderr to a log file
     let cargo_check_err_file = path_helper_base(&chip_dir, &["cargo-check.err.log"]);
     Command::new("cargo")
