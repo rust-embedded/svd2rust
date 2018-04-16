@@ -79,7 +79,7 @@ fn run() -> Result<()> {
         .read_to_string(xml)
         .chain_err(|| "couldn't read the SVD file")?;
 
-    let device = svd::parse(xml);
+    let device = svd::parse(util::trim_utf8_bom(xml));
 
     let items = generate::device::render(&device, &target)?;
 
