@@ -261,3 +261,12 @@ pub fn only_registers(ercs: &[Either<Register, Cluster>]) -> Vec<&Register> {
         .collect();
     registers
 }
+
+/// Return the &str trimed BOM if it contains UTF-8 BOM.
+pub fn trim_utf8_bom(s: &str) -> &str {
+    if s.len() > 2 && s.as_bytes().starts_with(&[0xefu8, 0xbbu8, 0xbfu8]) {
+        &s[3..]
+    } else {
+        s
+    }
+}
