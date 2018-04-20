@@ -181,7 +181,7 @@ struct FieldRegions {
 impl FieldRegions {
     /// Track a field.  If the field overlaps with 1 or more existing
     /// entries, they will be merged together.
-    fn add(&mut self, field: &RegisterBlockField) {
+    fn add(&mut self, field: &RegisterBlockField) -> Result<()> {
 
         // When merging, this holds the indices in self.regions
         // that the input `field` will be merging with.
@@ -236,11 +236,17 @@ impl FieldRegions {
         let idx = self.regions.binary_search_by_key(&new_region.offset, |r| r.offset);
         match idx {
             Ok(idx) => {
-                panic!("we shouldn't exist in the vec, but are at idx {} {:#?}\n{:#?}",
+                bail!("we shouldn't exist in the vec, but are at idx {} {:#?}\n{:#?}",
                     idx, new_region, self.regions);
             }
             Err(idx) => self.regions.insert(idx, new_region)
-        }
+        };
+
+        Ok(())
+    }
+
+    pub fn is_union(&self) -> bool {
+        self.regions.len() == 1 && self.regions[0].fields.len() > 1
     }
 }
 
@@ -258,10 +264,10 @@ fn register_or_cluster_block(
     let mut regions = FieldRegions::default();
 
     for reg_block_field in &ercs_expanded {
-        regions.add(reg_block_field);
+        regions.add(reg_block_field)?;
     }
 
-    let block_is_union = regions.regions.len() == 1 && regions.regions[0].fields.len() > 1;
+    let block_is_union = regions.is_union();
 
     // The end of the region from the prior iteration of the loop
     let mut last_end = None;
