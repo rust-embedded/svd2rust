@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::cmp::Ordering;
 
 use either::Either;
 use quote::{ToTokens, Tokens};
@@ -120,43 +121,29 @@ struct Region {
 }
 
 impl Region {
-    /// Find the longest common prefix of the identifier names
-    /// for the fields in this region, if any.
-    fn common_prefix(&self) -> Option<String> {
-        let mut char_vecs = Vec::new();
-        let mut min_len = usize::max_value();
-
-        for f in &self.fields {
-            match f.field.ident {
-                None => return None,
-                Some(ref ident) => {
-                    let chars : Vec<char> = ident.as_ref().chars().collect();
-                    min_len = min_len.min(chars.len());
-                    char_vecs.push(chars);
+    fn shortest_ident(&self) -> Option<String> {
+        let mut idents: Vec<_> = self.fields
+            .iter()
+            .filter_map(|f| {
+                match f.field.ident {
+                    None => None,
+                    Some(ref ident) => {
+                        Some(ident.as_ref())
+                    }
                 }
+            })
+            .collect();
+        if idents.is_empty() {
+            return None;
+        }
+        idents.sort_by(|a, b| {
+            // Sort by length and then content
+            match a.len().cmp(&b.len()) {
+                Ordering::Equal => a.cmp(b),
+                cmp @ _ => cmp
             }
-        }
-
-        let mut result = String::new();
-
-        for i in 0..min_len {
-            let c = char_vecs[0][i];
-            for v in &char_vecs {
-                if v[i] != c {
-                    break;
-                }
-            }
-
-            // This character position is the same across
-            // all variants, so emit it into the result
-            result.push(c);
-        }
-
-        if result.is_empty() {
-            None
-        } else {
-            Some(result)
-        }
+        });
+        Some(idents[0].to_owned())
     }
 
     /// Return a description of this region
@@ -298,6 +285,8 @@ fn register_or_cluster_block(
 
         for reg_block_field in &region.fields {
             if reg_block_field.offset != region.offset {
+                // TODO: need to emit padding for this case.
+                // Happens for freescale_mkl43z4
                 eprintln!("WARNING: field {:?} has different offset {} than its union container {}",
                     reg_block_field.field.ident,
                     reg_block_field.offset,
@@ -319,15 +308,15 @@ fn register_or_cluster_block(
         }
 
         if region.fields.len() > 1 && !block_is_union {
-            let (type_name, name) = match region.common_prefix() {
+            let (type_name, name) = match region.shortest_ident() {
                 Some(prefix) => {
-                    (Ident::new(format!("{}_union", prefix)),
+                    (Ident::new(format!("{}Union", prefix.to_sanitized_upper_case())),
                     Ident::new(prefix))
                 }
-                // If we can't find a common prefix for the name, fall back to the
-                // region index as a unique-within-this-block identifier counter.
+                // If we can't find a name, fall back to theregion index as a
+                // unique-within-this-block identifier counter.
                 None => {
-                   let ident = Ident::new(format!("u{}", i));
+                   let ident = Ident::new(format!("U{}", i));
                    (ident.clone(), ident)
                 }
             };
