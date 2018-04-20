@@ -7,7 +7,7 @@ use svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register};
 use syn::{self, Ident};
 
 use errors::*;
-use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
+use util::{self, ToSanitizedPascalCase, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
 
 use generate::register;
 
@@ -316,10 +316,10 @@ fn register_or_cluster_block(
         if region.fields.len() > 1 && !block_is_union {
             let (type_name, name) = match region.shortest_ident() {
                 Some(prefix) => {
-                    (Ident::new(format!("{}Union", prefix.to_sanitized_upper_case())),
+                    (Ident::new(format!("{}Union", prefix.to_sanitized_pascal_case())),
                     Ident::new(prefix))
                 }
-                // If we can't find a name, fall back to theregion index as a
+                // If we can't find a name, fall back to the region index as a
                 // unique-within-this-block identifier counter.
                 None => {
                    let ident = Ident::new(format!("U{}", i));
