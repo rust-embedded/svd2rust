@@ -410,6 +410,25 @@
 
 // NOTE This file is for documentation only
 
+#![recursion_limit = "128"]
+
+extern crate cast;
+extern crate either;
+#[macro_use]
+extern crate error_chain;
+extern crate inflections;
+#[macro_use]
+pub extern crate quote;
+pub extern crate svd_parser as svd;
+extern crate syn;
+
+mod errors;
+pub mod generate;
+mod util;
+pub mod target;
+
+use target::Target;
+
 /// Assigns a handler to an interrupt
 ///
 /// This macro takes two arguments: the name of an interrupt and the path to the
