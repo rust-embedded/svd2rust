@@ -50,7 +50,6 @@ fn run() -> Result<()> {
         .arg(
             Arg::with_name("input")
                 .help("Input SVD file")
-                .required(true)
                 .short("i")
                 .takes_value(true)
                 .value_name("FILE"),
@@ -74,10 +73,21 @@ fn run() -> Result<()> {
         .unwrap_or(Ok(Target::CortexM))?;
 
     let xml = &mut String::new();
-    File::open(matches.value_of("input").unwrap())
-        .chain_err(|| "couldn't open the SVD file")?
-        .read_to_string(xml)
-        .chain_err(|| "couldn't read the SVD file")?;
+    match matches.value_of("input") {
+        Some(file) => {
+            File::open(file)
+                .chain_err(|| "couldn't open the SVD file")?
+                .read_to_string(xml)
+                .chain_err(|| "couldn't read the SVD file")?;
+        }
+        None => {
+            let stdin = std::io::stdin();
+            stdin
+                .lock()
+                .read_to_string(xml)
+                .chain_err(|| "couldn't read from stdin")?;
+        }
+    }
 
     let device = svd::parse(xml);
 
