@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.12.1] - 2018-05-06
+
+### Added
+
+- Code generation for `<cluster>`s
+
+- SVD files can now be read from stdin
+
+- RISCV support
+
+### Fixed
+
+- Make the generated code work with recent nightlies by switching from the deprecated
+`macro_reexport` feature to the `use_extern_macros` feature, which is planned for stabilization.
+
+- Relocation errors on MSP430
+
+- Code generated for 1-bit enumerated fields
+
+- Handle the case where `dimIndex` information is missing.
+
+- Relocation errors (link errors) on MSP430
+
 ## [v0.12.0] - 2018-01-15
 
 ### Changed
@@ -318,6 +341,7 @@ peripheral.register.write(|w| w.field().set());
 - Initial version of the `svd2rust` tool
 
 [Unreleased]: https://github.com/japaric/svd2rust/compare/v0.12.0...HEAD
+[v0.12.1]: https://github.com/japaric/svd2rust/compare/v0.12.0...v0.12.1
 [v0.12.0]: https://github.com/japaric/svd2rust/compare/v0.11.4...v0.12.0
 [v0.11.4]: https://github.com/japaric/svd2rust/compare/v0.11.3...v0.11.4
 [v0.11.3]: https://github.com/japaric/svd2rust/compare/v0.11.2...v0.11.3

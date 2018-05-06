@@ -97,6 +97,8 @@
 //!   architecture.
 //! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.1.x if targeting the
 //!   MSP430 architecture.
+//! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.2.x if targeting the
+//!   RISCV architecture.
 //!
 //! # Peripheral API
 //!
