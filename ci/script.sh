@@ -39,8 +39,8 @@ main() {
     echo 'cortex-m-rt = "0.3.0"' >> $td/Cargo.toml
     echo 'vcell = "0.1.0"' >> $td/Cargo.toml
     echo 'msp430 = "0.1.0"' >> $td/Cargo.toml
-    echo 'riscv = "0.1.4"' >> $td/Cargo.toml
-    echo 'riscv-rt = "0.1.3"' >> $td/Cargo.toml
+    # echo 'riscv = "0.1.4"' >> $td/Cargo.toml
+    # echo 'riscv-rt = "0.1.3"' >> $td/Cargo.toml
     echo '[profile.dev]' >> $td/Cargo.toml
     echo 'incremental = false' >> $td/Cargo.toml
 
@@ -393,9 +393,9 @@ main() {
                 cd $td &&
                     curl -LO \
                          https://github.com/pftbest/msp430g2553/raw/v0.1.0/msp430g2553.svd
-                cd $td &&
-                    curl -LO \
-                         https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
+                # cd $td &&
+                #     curl -LO \
+                #          https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
             )
 
             target/$TARGET/release/svd2rust --target msp430 -i $td/msp430g2553.svd | \
@@ -408,8 +408,8 @@ main() {
 
             cargo check --manifest-path $td/Cargo.toml
 
-            target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd | \
-                ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
+            # target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd | \
+                # ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
 
             cargo check --manifest-path $td/Cargo.toml
         ;;
