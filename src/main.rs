@@ -14,7 +14,6 @@ extern crate syn;
 mod errors;
 mod generate;
 mod util;
-mod target;
 
 use std::fs::File;
 use std::{io, process};
@@ -22,7 +21,14 @@ use std::{io, process};
 use clap::{App, Arg};
 
 use errors::*;
-use target::Target;
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum Target {
+    CortexM,
+    Msp430,
+    RISCV,
+    None,
+}
 
 impl Target {
     fn parse(s: &str) -> Result<Self> {
