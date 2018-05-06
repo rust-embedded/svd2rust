@@ -4090,8 +4090,8 @@ pub const TESTS: &'static [&'static TestCase] = &[
         mfgr: SiFive,
         chip: "E310x",
         svd_url: Some("https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd"),
-        should_pass: true,
-        run_when: Always,
+        should_pass: false,
+        run_when: Never,
     },
     &TestCase {
         arch: Msp430,

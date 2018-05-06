@@ -30,7 +30,7 @@ pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
     if *target != Target::None {
         out.push(quote! {
             #![cfg_attr(feature = "rt", feature(global_asm))]
-            #![cfg_attr(feature = "rt", feature(macro_reexport))]
+            #![cfg_attr(feature = "rt", feature(use_extern_macros))]
             #![cfg_attr(feature = "rt", feature(used))]
         });
     }
@@ -50,17 +50,19 @@ pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
         Target::CortexM => {
             out.push(quote! {
                 extern crate cortex_m;
-                #[macro_reexport(default_handler, exception)]
                 #[cfg(feature = "rt")]
                 extern crate cortex_m_rt;
+                #[cfg(feature = "rt")]
+                pub use cortex_m_rt::{default_handler, exception};
             });
         }
         Target::Msp430 => {
             out.push(quote! {
                 extern crate msp430;
-                #[macro_reexport(default_handler)]
                 #[cfg(feature = "rt")]
                 extern crate msp430_rt;
+                #[cfg(feature = "rt")]
+                pub use msp430_rt::default_handler;
             });
         }
         Target::RISCV => {
