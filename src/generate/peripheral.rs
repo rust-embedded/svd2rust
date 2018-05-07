@@ -118,6 +118,8 @@ struct Region {
     fields: Vec<RegisterBlockField>,
     offset: u32,
     end: u32,
+    /// This is only used for regions with `fields.len() > 1`
+    pub ident: Option<String>,
 }
 
 impl Region {
@@ -146,6 +148,77 @@ impl Region {
         Some(idents[0].to_owned())
     }
 
+    fn common_ident(&self) -> Option<String> {
+        // https://stackoverflow.com/a/40296745/4284367
+        fn split_keep(text: &str) -> Vec<&str> {
+            let mut result = Vec::new();
+            let mut last = 0;
+            for (index, matched) in text.match_indices(|c: char| c.is_numeric() || !c.is_alphabetic()) {
+                if last != index {
+                    result.push(&text[last..index]);
+                }
+                result.push(matched);
+                last = index + matched.len();
+            }
+            if last < text.len() {
+                result.push(&text[last..]);
+            }
+            result
+        }
+
+        let idents: Vec<_> = self.fields
+            .iter()
+            .filter_map(|f| {
+                match f.field.ident {
+                    None => None,
+                    Some(ref ident) => {
+                        Some(ident.as_ref())
+                    }
+                }
+            })
+            .collect();
+
+        if idents.is_empty() {
+            return None;
+        }
+
+        let x: Vec<_> = idents
+            .iter()
+            .map(|i| split_keep(i))
+            .collect();
+        let mut index = 0;
+        let first = x.get(0).unwrap();
+        // Get first elem, check against all other, break on mismatch
+        'outer: while index < first.len() {
+            for ident_match in x.iter().skip(1) {
+                if let Some(match_) = ident_match.get(index) {
+                    if match_ != first.get(index).unwrap() {
+                        break 'outer;
+                    }
+                } else {
+                    break 'outer;
+                }
+            }
+            index += 1;
+        }
+        if index <= 1 {
+            None
+        } else {
+            if first.get(index).is_some() && first.get(index).unwrap().chars().all(|c| c.is_numeric()) {
+                Some(first.iter().take(index).cloned().collect())
+            } else {
+                Some(first.iter().take(index - 1).cloned().collect())
+            }
+        }
+    }
+
+    fn compute_ident(&self) -> Option<String>{
+        if let Some(ident) = self.common_ident() {
+            Some(ident)
+        } else {
+            self.shortest_ident()
+        }
+    }
     /// Return a description of this region
     fn description(&self) -> String {
         let mut result = String::new();
@@ -194,7 +267,8 @@ impl FieldRegions {
         let mut new_region = Region {
             fields: vec![field.clone()],
             offset: field.offset,
-            end: field.offset + field.size / BITS_PER_BYTE
+            end: field.offset + field.size / BITS_PER_BYTE,
+            ident: None,
         };
 
         // Locate existing region(s) that we intersect with and
@@ -248,6 +322,26 @@ impl FieldRegions {
     pub fn is_union(&self) -> bool {
         self.regions.len() == 1 && self.regions[0].fields.len() > 1
     }
+
+    /// Resolves type name conflicts
+    pub fn resolve_idents(&mut self) -> Result<()> {
+        let idents: Vec<_> = {
+            self.regions.iter_mut()
+            .filter(|r| r.fields.len() > 1)
+            .map(|r| {
+                r.ident = r.compute_ident();
+                r.ident.clone()
+            }).collect()
+        };
+        self.regions.iter_mut()
+            .filter(|r| r.ident.is_some())
+            .filter(|r| r.fields.len() > 1 && (idents.iter().filter(|ident| **ident == r.ident).count() > 1))
+            .inspect(|r| eprintln!("WARNING: Found type name conflict with region {:?}, renamed to {:?}", r.ident, r.shortest_ident()))
+            .for_each(|r| {
+                r.ident = r.shortest_ident();
+            });
+        Ok(())
+    }
 }
 
 fn register_or_cluster_block(
@@ -268,7 +362,8 @@ fn register_or_cluster_block(
     }
 
     let block_is_union = regions.is_union();
-
+    // We need to compute the idents of each register/union block first to make sure no conflicts exists.
+    regions.resolve_idents()?;
     // The end of the region from the prior iteration of the loop
     let mut last_end = None;
 
@@ -314,7 +409,7 @@ fn register_or_cluster_block(
         }
 
         if region.fields.len() > 1 && !block_is_union {
-            let (type_name, name) = match region.shortest_ident() {
+            let (type_name, name) = match region.ident.clone() {
                 Some(prefix) => {
                     (Ident::new(format!("{}Union", prefix.to_sanitized_pascal_case())),
                     Ident::new(prefix))
