@@ -70,7 +70,7 @@ impl CommandHelper for Output {
     }
 }
 
-pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>, verbosity: u8) -> Result<Option<String>> {
+pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>, nightly: bool, verbosity: u8) -> Result<Option<String>> {
     let user = match ::std::env::var("USER") {
         Ok(val) => val,
         Err(_) => "rusttester".into(),
@@ -141,7 +141,11 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
         &RiscV => "riscv",
     };
     string.push_str(&format!("{}\n", svd2rust_err_file.display()));
-    string.push_str(&Command::new(bin_path)
+    let mut svd2rust_bin = Command::new(bin_path);
+    if nightly {
+        svd2rust_bin.arg("--nightly");
+    }
+    string.push_str(&svd2rust_bin
         .args(&["-i", &chip_svd])
         .args(&["--target", &target])
         .current_dir(&chip_dir)

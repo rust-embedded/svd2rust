@@ -32,6 +32,11 @@ struct Opt {
     /// (which must be already built)
     #[structopt(short = "p", long = "svd2rust-path", parse(from_os_str))]
     bin_path: Option<PathBuf>,
+    
+    // TODO: Consider using the same strategy cargo uses for passing args to rustc via `--`
+    /// Run svd2rust with `--nightly`
+    #[structopt(long = "nightly")]
+    nightly: bool,
 
     /// Filter by chip name, case sensitive, may be combined with other filters
     #[structopt(short = "c", long = "chip", raw(validator = "validate_chips"))]
@@ -211,7 +216,7 @@ fn main() {
     tests.par_iter().for_each(|t| {
         let start = Instant::now();
 
-        match svd_test::test(t, &bin_path, rustfmt_bin_path, opt.verbose) {
+        match svd_test::test(t, &bin_path, rustfmt_bin_path, opt.nightly, opt.verbose) {
             Ok(s) => {
                 if let Some(s) = s {
                     eprintln!(
@@ -222,7 +227,7 @@ fn main() {
                     );
                 } else {
                     eprintln!(
-                        "Passed: {} - {} seconds\n",
+                        "Passed: {} - {} seconds",
                         t.name(),
                         start.elapsed().as_secs()
                     );
@@ -232,9 +237,7 @@ fn main() {
                 any_fails.store(true, Ordering::Release);
                 let additional_info = if opt.verbose > 0 {
                     match e.kind() {
-                        &errors::ErrorKind::ProcessFailed(ref command, _, Some(ref stderr))
-                            if command == "cargo check" =>
-                        {
+                        &errors::ErrorKind::ProcessFailed(_, _, Some(ref stderr)) => {
                             let mut buf = String::new();
                             // Unwrap is safe
                             File::open(stderr)
