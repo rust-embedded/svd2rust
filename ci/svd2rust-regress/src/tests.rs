@@ -706,9 +706,9 @@ pub const TESTS: &'static [&'static TestCase] = &[
         arch: CortexM,
         mfgr: Atmel,
         chip: "ATSAMD21G18A",
-        svd_url: None,
-        should_pass: false,
-        run_when: Never,
+        svd_url: Some("https://raw.githubusercontent.com/wez/atsamd21-rs/master/svd/ATSAMD21G18A.svd"),
+        should_pass: true,
+        run_when: NotShort,
     },
     &TestCase {
         arch: CortexM,
