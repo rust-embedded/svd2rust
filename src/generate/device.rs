@@ -9,7 +9,7 @@ use Target;
 use generate::{interrupt, peripheral};
 
 /// Whole device generation
-pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
+pub fn render(d: &Device, target: &Target, nightly: bool) -> Result<Vec<Tokens>> {
     let mut out = vec![];
 
     let doc = format!(
@@ -43,9 +43,14 @@ pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
         #![allow(non_camel_case_types)]
         #![feature(const_fn)]
         #![feature(try_from)]
-        #![feature(untagged_unions)]
         #![no_std]
     });
+
+    if nightly {
+        out.push(quote! {
+            #![feature(untagged_unions)]
+        });
+    }
 
     match *target {
         Target::CortexM => {
@@ -128,7 +133,7 @@ pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
         }
 
 
-        out.extend(peripheral::render(p, &d.peripherals, &d.defaults)?);
+        out.extend(peripheral::render(p, &d.peripherals, &d.defaults, nightly)?);
 
         if p.registers
             .as_ref()

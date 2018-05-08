@@ -15,6 +15,7 @@ pub fn render(
     p: &Peripheral,
     all_peripherals: &[Peripheral],
     defaults: &Defaults,
+    nightly: bool,
 ) -> Result<Vec<Tokens>> {
     let mut out = vec![];
 
@@ -76,11 +77,11 @@ pub fn render(
 
     // Push any register or cluster blocks into the output
     let mut mod_items = vec![];
-    mod_items.push(register_or_cluster_block(ercs, defaults, None)?);
+    mod_items.push(register_or_cluster_block(ercs, defaults, None, nightly)?);
 
     // Push all cluster related information into the peripheral module
     for c in &clusters {
-        mod_items.push(cluster_block(c, defaults, p, all_peripherals)?);
+        mod_items.push(cluster_block(c, defaults, p, all_peripherals, nightly)?);
     }
 
     // Push all regsiter realted information into the peripheral module
@@ -345,6 +346,84 @@ impl FieldRegions {
 }
 
 fn register_or_cluster_block(
+    ercs: &[Either<Register, Cluster>],
+    defs: &Defaults,
+    name: Option<&str>,
+    nightly: bool,
+) -> Result<Tokens> {
+    if nightly {
+        register_or_cluster_block_nightly(ercs, defs, name)
+    } else {
+        register_or_cluster_block_stable(ercs, defs, name)
+    }
+}
+
+fn register_or_cluster_block_stable(
+    ercs: &[Either<Register, Cluster>],
+    defs: &Defaults,
+    name: Option<&str>,
+) -> Result<Tokens> {
+    let mut fields = Tokens::new();
+    // enumeration of reserved fields
+    let mut i = 0;
+    // offset from the base address, in bytes
+    let mut offset = 0;
+
+    let ercs_expanded = expand(ercs, defs, name)?;
+
+    for reg_block_field in ercs_expanded {
+        let pad = if let Some(pad) = reg_block_field.offset.checked_sub(offset) {
+            pad
+        } else {
+            eprintln!(
+                "WARNING {:?} overlaps with another register block at offset {}. \
+                 Ignoring.",
+                reg_block_field.field.ident,
+                reg_block_field.offset
+            );
+            continue;
+        };
+
+        if pad != 0 {
+            let name = Ident::new(format!("_reserved{}", i));
+            let pad = pad as usize;
+            fields.append(quote! {
+                #name : [u8; #pad],
+            });
+            i += 1;
+        }
+
+        let comment = &format!(
+            "0x{:02x} - {}",
+            reg_block_field.offset,
+            util::respace(&reg_block_field.description),
+        )[..];
+
+        fields.append(quote! {
+            #[doc = #comment]
+        });
+
+        reg_block_field.field.to_tokens(&mut fields);
+        Ident::new(",").to_tokens(&mut fields);
+
+        offset = reg_block_field.offset + reg_block_field.size / BITS_PER_BYTE;
+    }
+
+    let name = Ident::new(match name {
+        Some(name) => name.to_sanitized_upper_case(),
+        None => "RegisterBlock".into(),
+    });
+
+    Ok(quote! {
+        /// Register block
+        #[repr(C)]
+        pub struct #name {
+            #fields
+        }
+    })
+}
+
+fn register_or_cluster_block_nightly(
     ercs: &[Either<Register, Cluster>],
     defs: &Defaults,
     name: Option<&str>,
@@ -636,6 +715,7 @@ fn cluster_block(
     defaults: &Defaults,
     p: &Peripheral,
     all_peripherals: &[Peripheral],
+    nightly: bool,
 ) -> Result<Tokens> {
     let mut mod_items: Vec<Tokens> = vec![];
 
@@ -649,7 +729,7 @@ fn cluster_block(
     }.replace("[%s]", "")
         .replace("%s", "");
     let name_sc = Ident::new(&*mod_name.to_sanitized_snake_case());
-    let reg_block = register_or_cluster_block(&c.children, defaults, Some(&mod_name))?;
+    let reg_block = register_or_cluster_block(&c.children, defaults, Some(&mod_name), nightly)?;
 
     // Generate definition for each of the registers.
     let registers = util::only_registers(&c.children);
@@ -666,7 +746,7 @@ fn cluster_block(
     // Generate the sub-cluster blocks.
     let clusters = util::only_clusters(&c.children);
     for c in &clusters {
-        mod_items.push(cluster_block(c, defaults, p, all_peripherals)?);
+        mod_items.push(cluster_block(c, defaults, p, all_peripherals, nightly)?);
     }
 
     Ok(quote! {
