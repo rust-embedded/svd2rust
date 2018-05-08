@@ -39,7 +39,7 @@ trait CommandHelper {
         name: &str,
         stdout: Option<&PathBuf>,
         stderr: Option<&PathBuf>,
-    ) -> Result<()>;
+    ) -> Result<String>;
 }
 
 impl CommandHelper for Output {
@@ -49,14 +49,14 @@ impl CommandHelper for Output {
         name: &str,
         stdout: Option<&PathBuf>,
         stderr: Option<&PathBuf>,
-    ) -> Result<()> {
+    ) -> Result<String> {
         if let Some(out) = stdout {
             let out_payload = String::from_utf8_lossy(&self.stdout);
             file_helper(&out_payload, out)?;
         };
 
+        let err_payload = String::from_utf8_lossy(&self.stderr);
         if let Some(err) = stderr {
-            let err_payload = String::from_utf8_lossy(&self.stderr);
             file_helper(&err_payload, err)?;
         };
 
@@ -66,11 +66,11 @@ impl CommandHelper for Output {
             );
         }
 
-        Ok(())
+        Ok(err_payload.to_string())
     }
 }
 
-pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>) -> Result<()> {
+pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>, verbosity: u8) -> Result<Option<String>> {
     let user = match ::std::env::var("USER") {
         Ok(val) => val,
         Err(_) => "rusttester".into(),
@@ -79,6 +79,10 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
     // Remove the existing chip directory, if it exists
     let chip_dir = path_helper(&["output", &t.name()]);
     let _ = remove_dir_all(&chip_dir);
+
+    // This string is used to build the output from stderr
+    // FIXME: Make string.push_str only work when verbosity > 1
+    let mut string = String::new();
 
     // Create a new cargo project. It is necesary to set the user, otherwise
     //   cargo init will not work (when running in a container with no user set)
@@ -136,8 +140,8 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
         &Msp430 => "msp430",
         &RiscV => "riscv",
     };
-
-    Command::new(bin_path)
+    string.push_str(&format!("{}\n", svd2rust_err_file.display()));
+    string.push_str(&Command::new(bin_path)
         .args(&["-i", &chip_svd])
         .args(&["--target", &target])
         .current_dir(&chip_dir)
@@ -148,25 +152,30 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
             "svd2rust",
             Some(&lib_rs_file),
             Some(&svd2rust_err_file),
-        )?;
+        )?
+    );
 
     if let Some(rustfmt_bin_path) = rustfmt_bin_path {
         // Run `cargo fmt`, capturing stderr to a log file
-        let fmt_err_file = path_helper_base(&chip_dir, &["rustfmt.err.log"]);
-        Command::new(rustfmt_bin_path)
+        let rustfmt_err_file = path_helper_base(&chip_dir, &["rustfmt.err.log"]);
+        string.push_str(&format!("\n\n{}\n", rustfmt_err_file.display()));
+        string.push_str(&Command::new(rustfmt_bin_path)
             .arg(lib_rs_file)
             .output()
             .chain_err(|| "failed to format")?
-            .capture_outputs(false, "rustfmt", None, Some(&fmt_err_file))?;
+            .capture_outputs(false, "rustfmt", None, Some(&rustfmt_err_file))?
+        );
     }
     // Run `cargo check`, capturing stderr to a log file
     let cargo_check_err_file = path_helper_base(&chip_dir, &["cargo-check.err.log"]);
-    Command::new("cargo")
+    string.push_str(&format!("\n\n{}\n", cargo_check_err_file.display()));
+    string.push_str(&Command::new("cargo")
         .arg("check")
         .current_dir(&chip_dir)
         .output()
         .chain_err(|| "failed to check")?
-        .capture_outputs(true, "cargo check", None, Some(&cargo_check_err_file))?;
+        .capture_outputs(true, "cargo check", None, Some(&cargo_check_err_file))?
+    );
 
-    Ok(())
+    Ok(if verbosity > 1 {Some(string)} else {None})
 }

@@ -54,6 +54,10 @@ struct Opt {
     #[structopt(short = "f", long = "format")]
     format: bool,
 
+    /// Print all available test using the specified filters
+    #[structopt(long = "list")]
+    list: bool,
+
     /// Path to an `rustfmt` binary, relative or absolute.
     /// Defaults to `$(rustup which rustfmt)`
     #[structopt(long = "rustfmt_bin_path", parse(from_os_str))]
@@ -195,6 +199,11 @@ fn main() {
         .filter(|t| opt.bad_tests || t.should_pass)
         .collect::<Vec<_>>();
 
+    if opt.list {
+        // FIXME: Prettier output
+        eprintln!("{:?}", tests.iter().map(|t| t.name()).collect::<Vec<_>>());
+        exit(0);
+    }
     let any_fails = AtomicBool::new(false);
 
     // TODO: It would be more efficient to reuse directories, so we don't
@@ -202,14 +211,22 @@ fn main() {
     tests.par_iter().for_each(|t| {
         let start = Instant::now();
 
-        match svd_test::test(t, &bin_path, rustfmt_bin_path) {
-            Ok(()) => {
-                // TODO: If verbosity is > 1, print every logged stderr
-                eprintln!(
-                    "Passed: {} - {} seconds",
-                    t.name(),
-                    start.elapsed().as_secs()
-                );
+        match svd_test::test(t, &bin_path, rustfmt_bin_path, opt.verbose) {
+            Ok(s) => {
+                if let Some(s) = s {
+                    eprintln!(
+                        "Passed: {} - {} seconds\n{}",
+                        t.name(),
+                        start.elapsed().as_secs(),
+                        s
+                    );
+                } else {
+                    eprintln!(
+                        "Passed: {} - {} seconds\n",
+                        t.name(),
+                        start.elapsed().as_secs()
+                    );
+                }
             }
             Err(e) => {
                 any_fails.store(true, Ordering::Release);
