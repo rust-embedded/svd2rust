@@ -34,16 +34,16 @@ struct Opt {
     bin_path: Option<PathBuf>,
 
     /// Filter by chip name, case sensitive, may be combined with other filters
-    #[structopt(short = "c", long = "chip")]
-    chip: Option<String>,
+    #[structopt(short = "c", long = "chip", raw(validator = "validate_chips"))]
+    chip: Vec<String>,
 
     /// Filter by manufacturer, case sensitive, may be combined with other filters
-    #[structopt(short = "m", long = "manufacturer")]
+    #[structopt(short = "m", long = "manufacturer", raw(validator = "validate_manufacturer"))]
     mfgr: Option<String>,
 
     /// Filter by architecture, case sensitive, may be combined with other filters
     /// Options are: "CortexM", "RiscV", and "Msp430"
-    #[structopt(short = "a", long = "architecture")]
+    #[structopt(short = "a", long = "architecture", raw(validator = "validate_architecture"))]
     arch: Option<String>,
 
     /// Include tests expected to fail (will cause a non-zero return code)
@@ -65,6 +65,30 @@ struct Opt {
     // TODO: Specify smaller subset of tests? Maybe with tags?
     // TODO: Early fail
     // TODO: Compile svd2rust?
+}
+
+fn validate_chips(s: String) -> Result<(), String>{
+    if tests::TESTS.iter().any(|t| t.chip == s) {
+        Ok(())
+    } else {
+        Err(format!("Chip `{}` has not been specified", s))
+    }
+}
+
+fn validate_architecture(s: String) -> Result<(), String>{
+    if tests::TESTS.iter().any(|t| format!("{:?}", t.arch) == s) {
+        Ok(())
+    } else {
+        Err(format!("Architecture `{}` has not been specified", s))
+    }
+}
+
+fn validate_manufacturer(s: String) -> Result<(), String>{
+    if tests::TESTS.iter().any(|t| format!("{:?}", t.mfgr) == s) {
+        Ok(())
+    } else {
+        Err(format!("Manufacturer `{}` has not been specified", s))
+    }
 }
 
 /// Validate any assumptions made by this program
@@ -161,8 +185,8 @@ fn main() {
         })
         // Specify chip - note: may match multiple
         .filter(|t| {
-            if let Some(ref chip) = opt.chip {
-                chip == t.chip
+            if !opt.chip.is_empty() {
+                opt.chip.iter().any(|c| c == t.chip)
             } else {
                 true
             }
