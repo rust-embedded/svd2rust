@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::cmp::Ordering;
 
 use either::Either;
 use quote::{ToTokens, Tokens};
@@ -6,7 +7,7 @@ use svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register};
 use syn::{self, Ident};
 
 use errors::*;
-use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
+use util::{self, ToSanitizedPascalCase, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
 
 use generate::register;
 
@@ -14,6 +15,7 @@ pub fn render(
     p: &Peripheral,
     all_peripherals: &[Peripheral],
     defaults: &Defaults,
+    nightly: bool,
 ) -> Result<Vec<Tokens>> {
     let mut out = vec![];
 
@@ -75,11 +77,11 @@ pub fn render(
 
     // Push any register or cluster blocks into the output
     let mut mod_items = vec![];
-    mod_items.push(register_or_cluster_block(ercs, defaults, None)?);
+    mod_items.push(register_or_cluster_block(ercs, defaults, None, nightly)?);
 
     // Push all cluster related information into the peripheral module
     for c in &clusters {
-        mod_items.push(cluster_block(c, defaults, p, all_peripherals)?);
+        mod_items.push(cluster_block(c, defaults, p, all_peripherals, nightly)?);
     }
 
     // Push all regsiter realted information into the peripheral module
@@ -104,6 +106,7 @@ pub fn render(
     Ok(out)
 }
 
+#[derive(Clone, Debug)]
 struct RegisterBlockField {
     field: syn::Field,
     description: String,
@@ -111,7 +114,251 @@ struct RegisterBlockField {
     size: u32,
 }
 
+#[derive(Clone, Debug)]
+struct Region {
+    fields: Vec<RegisterBlockField>,
+    offset: u32,
+    end: u32,
+    /// This is only used for regions with `fields.len() > 1`
+    pub ident: Option<String>,
+}
+
+impl Region {
+    fn shortest_ident(&self) -> Option<String> {
+        let mut idents: Vec<_> = self.fields
+            .iter()
+            .filter_map(|f| {
+                match f.field.ident {
+                    None => None,
+                    Some(ref ident) => {
+                        Some(ident.as_ref())
+                    }
+                }
+            })
+            .collect();
+        if idents.is_empty() {
+            return None;
+        }
+        idents.sort_by(|a, b| {
+            // Sort by length and then content
+            match a.len().cmp(&b.len()) {
+                Ordering::Equal => a.cmp(b),
+                cmp @ _ => cmp
+            }
+        });
+        Some(idents[0].to_owned())
+    }
+
+    fn common_ident(&self) -> Option<String> {
+        // https://stackoverflow.com/a/40296745/4284367
+        fn split_keep(text: &str) -> Vec<&str> {
+            let mut result = Vec::new();
+            let mut last = 0;
+            for (index, matched) in text.match_indices(|c: char| c.is_numeric() || !c.is_alphabetic()) {
+                if last != index {
+                    result.push(&text[last..index]);
+                }
+                result.push(matched);
+                last = index + matched.len();
+            }
+            if last < text.len() {
+                result.push(&text[last..]);
+            }
+            result
+        }
+
+        let idents: Vec<_> = self.fields
+            .iter()
+            .filter_map(|f| {
+                match f.field.ident {
+                    None => None,
+                    Some(ref ident) => {
+                        Some(ident.as_ref())
+                    }
+                }
+            })
+            .collect();
+
+        if idents.is_empty() {
+            return None;
+        }
+
+        let x: Vec<_> = idents
+            .iter()
+            .map(|i| split_keep(i))
+            .collect();
+        let mut index = 0;
+        let first = x.get(0).unwrap();
+        // Get first elem, check against all other, break on mismatch
+        'outer: while index < first.len() {
+            for ident_match in x.iter().skip(1) {
+                if let Some(match_) = ident_match.get(index) {
+                    if match_ != first.get(index).unwrap() {
+                        break 'outer;
+                    }
+                } else {
+                    break 'outer;
+                }
+            }
+            index += 1;
+        }
+        if index <= 1 {
+            None
+        } else {
+            if first.get(index).is_some() && first.get(index).unwrap().chars().all(|c| c.is_numeric()) {
+                Some(first.iter().take(index).cloned().collect())
+            } else {
+                Some(first.iter().take(index - 1).cloned().collect())
+            }
+        }
+    }
+
+    fn compute_ident(&self) -> Option<String>{
+        if let Some(ident) = self.common_ident() {
+            Some(ident)
+        } else {
+            self.shortest_ident()
+        }
+    }
+    /// Return a description of this region
+    fn description(&self) -> String {
+        let mut result = String::new();
+        for f in &self.fields {
+            // In the Atmel SVDs the union variants all tend to
+            // have the same description.  Rather than emitting
+            // the same text three times over, only join in the
+            // text from the other variants if it is different.
+            // This isn't a foolproof way of emitting the most
+            // reasonable short description, but it's good enough.
+            if f.description != result {
+                if result.len() > 0 {
+                    result.push(' ');
+                }
+                result.push_str(&f.description);
+            }
+        }
+        result
+    }
+}
+
+/// FieldRegions keeps track of overlapping field regions,
+/// merging fields into appropriate regions as we process them.
+/// This allows us to reason about when to create a union
+/// rather than a struct.
+#[derive(Default, Debug)]
+struct FieldRegions {
+    /// The set of regions we know about.  This is maintained
+    /// in sorted order, keyed by Region::offset.
+    regions: Vec<Region>,
+}
+
+impl FieldRegions {
+    /// Track a field.  If the field overlaps with 1 or more existing
+    /// entries, they will be merged together.
+    fn add(&mut self, field: &RegisterBlockField) -> Result<()> {
+
+        // When merging, this holds the indices in self.regions
+        // that the input `field` will be merging with.
+        let mut indices = Vec::new();
+
+        let field_start = field.offset;
+        let field_end = field_start + field.size / BITS_PER_BYTE;
+
+        // The region that we're going to insert
+        let mut new_region = Region {
+            fields: vec![field.clone()],
+            offset: field.offset,
+            end: field.offset + field.size / BITS_PER_BYTE,
+            ident: None,
+        };
+
+        // Locate existing region(s) that we intersect with and
+        // fold them into the new region we're creating.  There
+        // may be multiple regions that we intersect with, so
+        // we keep looping to find them all.
+        for (idx, mut f) in self.regions.iter_mut().enumerate() {
+            let f_start = f.offset;
+            let f_end = f.end;
+
+            // Compute intersection range
+            let begin = f_start.max(field_start);
+            let end = f_end.min(field_end);
+
+            if end > begin {
+                // We're going to remove this element and fold it
+                // into our new region
+                indices.push(idx);
+
+                // Expand the existing entry
+                new_region.offset = new_region.offset.min(f_start);
+                new_region.end = new_region.end.max(f_end);
+
+                // And merge in the fields
+                new_region.fields.append(&mut f.fields);
+            }
+        }
+
+        // Now remove the entries that we collapsed together.
+        // We do this in reverse order to ensure that the indices
+        // are stable in the face of removal.
+        for idx in indices.iter().rev() {
+            self.regions.remove(*idx);
+        }
+
+        new_region.fields.sort_by_key(|f| f.offset);
+
+        // maintain the regions ordered by starting offset
+        let idx = self.regions.binary_search_by_key(&new_region.offset, |r| r.offset);
+        match idx {
+            Ok(idx) => {
+                bail!("we shouldn't exist in the vec, but are at idx {} {:#?}\n{:#?}",
+                    idx, new_region, self.regions);
+            }
+            Err(idx) => self.regions.insert(idx, new_region)
+        };
+
+        Ok(())
+    }
+
+    pub fn is_union(&self) -> bool {
+        self.regions.len() == 1 && self.regions[0].fields.len() > 1
+    }
+
+    /// Resolves type name conflicts
+    pub fn resolve_idents(&mut self) -> Result<()> {
+        let idents: Vec<_> = {
+            self.regions.iter_mut()
+            .filter(|r| r.fields.len() > 1)
+            .map(|r| {
+                r.ident = r.compute_ident();
+                r.ident.clone()
+            }).collect()
+        };
+        self.regions.iter_mut()
+            .filter(|r| r.ident.is_some())
+            .filter(|r| r.fields.len() > 1 && (idents.iter().filter(|ident| **ident == r.ident).count() > 1))
+            .inspect(|r| eprintln!("WARNING: Found type name conflict with region {:?}, renamed to {:?}", r.ident, r.shortest_ident()))
+            .for_each(|r| {
+                r.ident = r.shortest_ident();
+            });
+        Ok(())
+    }
+}
+
 fn register_or_cluster_block(
+    ercs: &[Either<Register, Cluster>],
+    defs: &Defaults,
+    name: Option<&str>,
+    nightly: bool,
+) -> Result<Tokens> {
+    if nightly {
+        register_or_cluster_block_nightly(ercs, defs, name)
+    } else {
+        register_or_cluster_block_stable(ercs, defs, name)
+    }
+}
+
+fn register_or_cluster_block_stable(
     ercs: &[Either<Register, Cluster>],
     defs: &Defaults,
     name: Option<&str>,
@@ -176,6 +423,127 @@ fn register_or_cluster_block(
     })
 }
 
+fn register_or_cluster_block_nightly(
+    ercs: &[Either<Register, Cluster>],
+    defs: &Defaults,
+    name: Option<&str>,
+) -> Result<Tokens> {
+    let mut fields = Tokens::new();
+    let mut helper_types = Tokens::new();
+
+    let ercs_expanded = expand(ercs, defs, name)?;
+
+    // Locate conflicting regions; we'll need to use unions to represent them.
+    let mut regions = FieldRegions::default();
+
+    for reg_block_field in &ercs_expanded {
+        regions.add(reg_block_field)?;
+    }
+
+    let block_is_union = regions.is_union();
+    // We need to compute the idents of each register/union block first to make sure no conflicts exists.
+    regions.resolve_idents()?;
+    // The end of the region from the prior iteration of the loop
+    let mut last_end = None;
+
+    for (i, region) in regions.regions.iter().enumerate() {
+        // Check if we need padding
+        if let Some(end) = last_end {
+            let pad = region.offset - end;
+            if pad != 0 {
+                let name = Ident::new(format!("_reserved{}", i));
+                let pad = pad as usize;
+                fields.append(quote! {
+                    #name : [u8; #pad],
+                });
+            }
+        }
+
+        last_end = Some(region.end);
+
+        let mut region_fields = Tokens::new();
+
+        for reg_block_field in &region.fields {
+            if reg_block_field.offset != region.offset {
+                // TODO: need to emit padding for this case.
+                // Happens for freescale_mkl43z4
+                eprintln!("WARNING: field {:?} has different offset {} than its union container {}",
+                    reg_block_field.field.ident,
+                    reg_block_field.offset,
+                    region.offset);
+            }
+            let comment = &format!(
+                "0x{:02x} - {}",
+                reg_block_field.offset,
+                util::respace(&reg_block_field.description),
+            )[..];
+
+            region_fields.append(quote! {
+                #[doc = #comment]
+            });
+
+
+            reg_block_field.field.to_tokens(&mut region_fields);
+            Ident::new(",").to_tokens(&mut region_fields);
+        }
+
+        if region.fields.len() > 1 && !block_is_union {
+            let (type_name, name) = match region.ident.clone() {
+                Some(prefix) => {
+                    (Ident::new(format!("{}Union", prefix.to_sanitized_pascal_case())),
+                    Ident::new(prefix))
+                }
+                // If we can't find a name, fall back to the region index as a
+                // unique-within-this-block identifier counter.
+                None => {
+                   let ident = Ident::new(format!("U{}", i));
+                   (ident.clone(), ident)
+                }
+            };
+
+            let description = region.description();
+
+            helper_types.append(quote! {
+                #[doc = #description]
+                #[repr(C)]
+                pub union #type_name {
+                    #region_fields
+                }
+            });
+
+            fields.append(quote! {
+                #[doc = #description]
+                pub #name: #type_name
+            });
+            Ident::new(",").to_tokens(&mut fields);
+
+        } else {
+            fields.append(&region_fields);
+        }
+    }
+
+    let name = Ident::new(match name {
+        Some(name) => name.to_sanitized_upper_case(),
+        None => "RegisterBlock".into(),
+    });
+
+    let block_type = if block_is_union {
+        Ident::new("union")
+    } else {
+        Ident::new("struct")
+    };
+
+    Ok(quote! {
+        /// Register block
+        #[repr(C)]
+        pub #block_type #name {
+            #fields
+        }
+
+        #helper_types
+    })
+}
+
 /// Expand a list of parsed `Register`s or `Cluster`s, and render them to
 /// `RegisterBlockField`s containing `Field`s.
 fn expand(
@@ -197,40 +565,27 @@ fn expand(
     Ok(ercs_expanded)
 }
 
-/// Recursively calculate the size of a cluster. A cluster's size is the sum of
-/// all of its children clusters and registers
+/// Recursively calculate the size of a cluster. A cluster's size is the maximum
+/// end position of its recursive children.
 fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
-    // Cluster size is the summation of the size of each of the cluster's children.
-    let mut offset = 0;
     let mut size = 0;
 
     for c in &info.children {
-        size += match *c {
+        let end = match *c {
             Either::Left(ref reg) => {
-                let pad = reg.address_offset.checked_sub(offset)
-                .ok_or_else(||
-                    format!("Warning! overlap while calculating Register Size within a Cluster! Cluster contents may be incorrectly aligned!"))?
-                * BITS_PER_BYTE;
-
-
                 let reg_size: u32 = expand_register(reg, defs, None)?
                     .iter()
                     .map(|rbf| rbf.size)
                     .sum();
 
-                pad + reg_size
+                (reg.address_offset * BITS_PER_BYTE) + reg_size
             }
             Either::Right(ref clust) => {
-                let pad = clust.address_offset.checked_sub(offset)
-                    .ok_or_else(||
-                        format!("Warning! overlap while calculating Cluster Size within a Cluster! Cluster contents may be incorrectly aligned!"))?
-                    * BITS_PER_BYTE;
-
-                pad + cluster_size_in_bits(clust, defs)?
+                (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, defs)?
             }
         };
 
-        offset = size / BITS_PER_BYTE;
+        size = size.max(end);
     }
     Ok(size)
 }
@@ -360,6 +715,7 @@ fn cluster_block(
     defaults: &Defaults,
     p: &Peripheral,
     all_peripherals: &[Peripheral],
+    nightly: bool,
 ) -> Result<Tokens> {
     let mut mod_items: Vec<Tokens> = vec![];
 
@@ -373,7 +729,7 @@ fn cluster_block(
     }.replace("[%s]", "")
         .replace("%s", "");
     let name_sc = Ident::new(&*mod_name.to_sanitized_snake_case());
-    let reg_block = register_or_cluster_block(&c.children, defaults, Some(&mod_name))?;
+    let reg_block = register_or_cluster_block(&c.children, defaults, Some(&mod_name), nightly)?;
 
     // Generate definition for each of the registers.
     let registers = util::only_registers(&c.children);
@@ -390,7 +746,7 @@ fn cluster_block(
     // Generate the sub-cluster blocks.
     let clusters = util::only_clusters(&c.children);
     for c in &clusters {
-        mod_items.push(cluster_block(c, defaults, p, all_peripherals)?);
+        mod_items.push(cluster_block(c, defaults, p, all_peripherals, nightly)?);
     }
 
     Ok(quote! {

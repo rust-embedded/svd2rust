@@ -61,6 +61,11 @@ fn run() -> Result<()> {
                 .takes_value(true)
                 .value_name("ARCH"),
         )
+        .arg(
+            Arg::with_name("nightly_features")
+                .long("nightly")
+                .help("Enable features only available to nightly rustc")
+        )
         .version(concat!(
             env!("CARGO_PKG_VERSION"),
             include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
@@ -91,7 +96,9 @@ fn run() -> Result<()> {
 
     let device = svd::parse(xml);
 
-    let items = generate::device::render(&device, &target)?;
+    let nightly = matches.is_present("nightly_features");
+
+    let items = generate::device::render(&device, &target, nightly)?;
 
     println!(
         "{}",
