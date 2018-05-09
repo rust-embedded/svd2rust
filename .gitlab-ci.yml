@@ -15,4 +15,4 @@ regress:nightly:
     - rustup component add rustfmt-preview
     - cd ci/svd2rust-regress
     - rm -rf ./output
-    - cargo run --release -- --long-test --format --verbose
+    - cargo run --release -- --long-test --format --verbose --nightly
