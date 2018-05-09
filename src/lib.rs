@@ -409,6 +409,13 @@
 //! If the "rt" Cargo feature of the svd2rust generated crate is enabled the crate will populate the
 //! part of the vector table that contains the interrupt vectors and provide an
 //! [`interrupt!`](macro.interrupt.html) macro that can be used to register interrupt handlers.
+//! 
+//! ## the `--nightly` flag
+//!
+//! The `--nightly` flag can be passed to `svd2rust` to enable features in the generated api that are only available to a nightly
+//! compiler. These features are
+//! 
+//! - `#[feature(untagged_unions)]` for overlapping/overloaded registers
 
 // NOTE This file is for documentation only
 
