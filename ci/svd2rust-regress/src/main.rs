@@ -80,7 +80,7 @@ fn validate_chips(s: String) -> Result<(), String>{
     if tests::TESTS.iter().any(|t| t.chip == s) {
         Ok(())
     } else {
-        Err(format!("Chip `{}` has not been specified", s))
+        Err(format!("Chip `{}` is not a valid value", s))
     }
 }
 
@@ -88,7 +88,7 @@ fn validate_architecture(s: String) -> Result<(), String>{
     if tests::TESTS.iter().any(|t| format!("{:?}", t.arch) == s) {
         Ok(())
     } else {
-        Err(format!("Architecture `{}` has not been specified", s))
+        Err(format!("Architecture `{}` is not a valid value", s))
     }
 }
 
@@ -96,7 +96,7 @@ fn validate_manufacturer(s: String) -> Result<(), String>{
     if tests::TESTS.iter().any(|t| format!("{:?}", t.mfgr) == s) {
         Ok(())
     } else {
-        Err(format!("Manufacturer `{}` has not been specified", s))
+        Err(format!("Manufacturer `{}` is not a valid value", s))
     }
 }
 
@@ -209,6 +209,10 @@ fn main() {
         eprintln!("{:?}", tests.iter().map(|t| t.name()).collect::<Vec<_>>());
         exit(0);
     }
+    if tests.is_empty() {
+        eprintln!("No tests run, you might want to use `--bad-tests` and/or `--long-test`");
+    }
+
     let any_fails = AtomicBool::new(false);
 
     // TODO: It would be more efficient to reuse directories, so we don't
