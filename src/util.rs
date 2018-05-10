@@ -14,6 +14,26 @@ pub const BITS_PER_BYTE: u32 = 8;
 /// that are not valid in Rust ident
 const BLACKLIST_CHARS : &[char] = &['(', ')', '[', ']', '/', ' '];
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum Target {
+    CortexM,
+    Msp430,
+    RISCV,
+    None,
+}
+
+impl Target {
+    pub fn parse(s: &str) -> Result<Self> {
+        Ok(match s {
+            "cortex-m" => Target::CortexM,
+            "msp430" => Target::Msp430,
+            "riscv" => Target::RISCV,
+            "none" => Target::None,
+            _ => bail!("unknown target {}", s),
+        })
+    }
+}
+
 pub trait ToSanitizedPascalCase {
     fn to_sanitized_pascal_case(&self) -> Cow<str>;
 }
