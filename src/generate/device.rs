@@ -9,7 +9,7 @@ use Target;
 use generate::{interrupt, peripheral};
 
 /// Whole device generation
-pub fn render(d: &Device, target: &Target, nightly: bool) -> Result<Vec<Tokens>> {
+pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String) -> Result<Vec<Tokens>> {
     let mut out = vec![];
 
     let doc = format!(
@@ -42,6 +42,13 @@ pub fn render(d: &Device, target: &Target, nightly: bool) -> Result<Vec<Tokens>>
         #![allow(non_camel_case_types)]
         #![no_std]
     });
+
+    if *target != Target::CortexM {
+        out.push(quote! {
+            #![feature(const_fn)]
+            #![feature(try_From)]
+        });
+    }
 
     if nightly {
         out.push(quote! {
@@ -93,7 +100,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool) -> Result<Vec<Tokens>>
         });
     }
 
-    out.extend(interrupt::render(target, &d.peripherals)?);
+    out.extend(interrupt::render(target, &d.peripherals, device_x)?);
 
     const CORE_PERIPHERALS: &[&str] = &[
         "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU"

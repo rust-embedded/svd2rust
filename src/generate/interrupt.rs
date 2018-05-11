@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Write;
 
 use cast::u64;
 use quote::Tokens;
@@ -10,7 +11,11 @@ use util::{self, ToSanitizedUpperCase};
 use Target;
 
 /// Generates code for `src/interrupt.rs`
-pub fn render(target: &Target, peripherals: &[Peripheral]) -> Result<Vec<Tokens>> {
+pub fn render(
+    target: &Target,
+    peripherals: &[Peripheral],
+    device_x: &mut String,
+) -> Result<Vec<Tokens>> {
     let interrupts = peripherals
         .iter()
         .flat_map(|p| p.interrupt.iter())
@@ -32,7 +37,7 @@ pub fn render(target: &Target, peripherals: &[Peripheral]) -> Result<Vec<Tokens>
     let mut mod_items = vec![];
     for interrupt in &interrupts {
         while pos < interrupt.value {
-            elements.push(quote!(None));
+            elements.push(quote!(Vector { _reserved: 0 }));
             pos += 1;
         }
         pos += 1;
@@ -63,42 +68,87 @@ pub fn render(target: &Target, peripherals: &[Peripheral]) -> Result<Vec<Tokens>
             #value => Ok(Interrupt::#name_uc),
         });
 
-        elements.push(quote!(Some(#name_uc)));
+        elements.push(quote!(Vector { _handler: #name_uc }));
         names.push(name_uc);
     }
-
-    let aliases = names
-        .iter()
-        .map(|n| {
-            format!(
-                "
-.weak {0}
-{0} = DH_TRAMPOLINE",
-                n
-            )
-        })
-        .collect::<Vec<_>>()
-        .concat();
 
     let n = util::unsuffixed(u64(pos));
     match *target {
         Target::CortexM => {
+            for name in &names {
+                writeln!(device_x, "PROVIDE({} = DefaultHandler);" ,name).unwrap();
+            }
+
             root.push(quote! {
                 #[cfg(feature = "rt")]
                 extern "C" {
                     #(fn #names();)*
                 }
 
+                #[doc(hidden)]
+                pub union Vector {
+                    _handler: unsafe extern "C" fn(),
+                    _reserved: u32,
+                }
+
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
                 #[link_section = ".vector_table.interrupts"]
                 #[no_mangle]
-                pub static __INTERRUPTS: [Option<unsafe extern "C" fn()>; #n] = [
+                pub static __INTERRUPTS: [Vector; #n] = [
                     #(#elements,)*
                 ];
+
+                /// Macro to override a device specific interrupt handler
+                #[cfg(feature = "rt")]
+                #[macro_export]
+                macro_rules! interrupt {
+                    ($Name:ident, $handler:path,state: $State:ty = $initial_state:expr) => {
+                        #[allow(unsafe_code)]
+                        #[no_mangle]
+                        pub unsafe extern "C" fn $Name() {
+                            static mut STATE: $State = $initial_state;
+
+                            // check that this interrupt exists
+                            let _ = $crate::Interrupt::$Name;
+
+                            // validate the signature of the user provided handler
+                            let f: fn(&mut $State) = $handler;
+
+                            f(&mut STATE)
+                        }
+                    };
+
+                    ($Name:ident, $handler:path) => {
+                        #[allow(unsafe_code)]
+                        #[no_mangle]
+                        pub unsafe extern "C" fn $Name() {
+                            // check that this interrupt exists
+                            let _ = $crate::Interrupt::$Name;
+
+                            // validate the signature of the user provided handler
+                            let f: fn() = $handler;
+
+                            f()
+                        }
+                    };
+                }
             });
         }
         Target::Msp430 => {
+            let aliases = names
+                .iter()
+                .map(|n| {
+                    format!(
+                        "
+.weak {0}
+{0} = DH_TRAMPOLINE",
+                        n
+                    )
+                })
+                .collect::<Vec<_>>()
+                .concat();
+
             mod_items.push(quote! {
                 #[cfg(feature = "rt")]
                 global_asm!("
@@ -114,6 +164,12 @@ pub fn render(target: &Target, peripherals: &[Peripheral]) -> Result<Vec<Tokens>
                     #(fn #names();)*
                 }
 
+                #[doc(hidden)]
+                pub union Vector {
+                    _handler: unsafe extern "msp430-interrupt" fn(),
+                    _reserved: u32,
+                }
+
                 #[allow(private_no_mangle_statics)]
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
@@ -121,7 +177,7 @@ pub fn render(target: &Target, peripherals: &[Peripheral]) -> Result<Vec<Tokens>
                 #[no_mangle]
                 #[used]
                 pub static INTERRUPTS:
-                    [Option<unsafe extern "msp430-interrupt" fn()>; #n] = [
+                    [Vector; #n] = [
                         #(#elements,)*
                     ];
             });
@@ -151,6 +207,8 @@ pub fn render(target: &Target, peripherals: &[Peripheral]) -> Result<Vec<Tokens>
     } else {
         mod_items.push(quote! {
             use core::convert::TryFrom;
+
+            #interrupt_enum
 
             #[derive(Debug, Copy, Clone)]
             pub struct TryFromInterruptError(());
