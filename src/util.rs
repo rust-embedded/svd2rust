@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashSet;
 
 use inflections::Inflect;
 use svd::{Access, Cluster, Register};
@@ -148,6 +149,13 @@ pub fn name_of(register: &Register) -> Cow<str> {
     }
 }
 
+pub fn set_name_of(register: &mut Register, name: String) {
+    match *register {
+        Register::Single(ref mut info) => info.name = name,
+        Register::Array(ref mut info, _) => info.name = name,
+    }
+}
+
 pub fn access_of(register: &Register) -> Access {
     register.access.unwrap_or_else(|| {
         if let Some(ref fields) = register.fields {
@@ -260,4 +268,31 @@ pub fn only_registers(ercs: &[Either<Register, Cluster>]) -> Vec<&Register> {
         })
         .collect();
     registers
+}
+
+/// Renames registers if their name occurs multiple times
+pub fn registers_with_uniq_names<'a, I: Iterator<Item = &'a Register>>(registers: I) -> Vec<Cow<'a, Register>> {
+    let (capacity, _) = registers.size_hint();
+    let mut seen = HashSet::with_capacity(capacity);
+    registers.map(|register| {
+        let mut n = 1;
+        let mut name = name_of(&*register);
+        let mut dup = false;
+        // Count up `n` until register name is not already present
+        // in `seen`
+        while seen.contains(&name) {
+            dup = true;
+            n += 1;
+            name = Cow::Owned(format!("{}_{}", name_of(&*register), n));
+        }
+        seen.insert(name.clone());
+
+        if dup {
+            let mut register = register.clone();
+            set_name_of(&mut register, name.into_owned());
+            Cow::Owned(register)
+        } else {
+            Cow::Borrowed(register)
+        }
+    }).collect()
 }
