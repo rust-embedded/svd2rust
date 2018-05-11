@@ -39,11 +39,14 @@ impl ToSanitizedSnakeCase for str {
             }
         }
 
-        let s = self.replace(BLACKLIST_CHARS, "");
+        let s = santitize_underscores(
+            &self.replace(BLACKLIST_CHARS, "")
+                .to_snake_case()
+        );
 
         match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_snake_case()))
+                Cow::from(format!("_{}", s))
             }
             _ => {
                 keywords! {
@@ -111,32 +114,45 @@ impl ToSanitizedSnakeCase for str {
 
 impl ToSanitizedUpperCase for str {
     fn to_sanitized_upper_case(&self) -> Cow<str> {
-        let s = self.replace(BLACKLIST_CHARS, "");
+        let s = santitize_underscores(
+            &self.replace(BLACKLIST_CHARS, "")
+                .to_upper_case()
+        );
 
         match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_upper_case()))
+                Cow::from(format!("_{}", s))
             }
-            _ => Cow::from(s.to_upper_case()),
+            _ => Cow::from(s),
         }
     }
 }
 
 impl ToSanitizedPascalCase for str {
     fn to_sanitized_pascal_case(&self) -> Cow<str> {
-        let s = self.replace(BLACKLIST_CHARS, "");
+        let s = santitize_underscores(
+            &self.replace(BLACKLIST_CHARS, "")
+                .to_pascal_case()
+        );
 
         match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_pascal_case()))
+                Cow::from(format!("_{}", s))
             }
-            _ => Cow::from(s.to_pascal_case()),
+            _ => Cow::from(s),
         }
     }
 }
 
 pub fn respace(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn santitize_underscores(s: &str) -> String {
+    s.split('_')
+        .filter(|part| part.len() > 0)
+        .collect::<Vec<_>>()
+        .join("_")
 }
 
 pub fn name_of(register: &Register) -> Cow<str> {
