@@ -1,5 +1,6 @@
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::hash::Hash;
+use std::collections::{HashMap, HashSet};
 
 use inflections::Inflect;
 use svd::{Access, Cluster, Register};
@@ -295,4 +296,48 @@ pub fn registers_with_uniq_names<'a, I: Iterator<Item = &'a Register>>(registers
             Cow::Borrowed(register)
         }
     }).collect()
+}
+
+fn count_occurrences<'a, K, I>(iter: I) -> HashMap<K, usize>
+where
+    K: Eq + Hash,
+    I: Iterator<Item = K>,
+{
+    let mut counts = HashMap::new();
+    for k in iter {
+        let count = counts.entry(k)
+            .or_insert(0);
+        *count += 1;
+    }
+    counts
+}
+
+// Generically rename identifiers that occur multiple times into a
+// series where both `sc` and `pc` end in `…_1`, `…_2`, and so on.
+pub fn rename_identifiers<E, K, G, S>(entries: &mut Vec<E>, getter: G, setter: S)
+where
+    K: Eq + Hash + Clone,
+    G: Fn(&E) -> K,
+    S: Fn(&mut E, usize),
+{
+    let counts = count_occurrences(
+        entries.iter()
+            .map(|entry| getter(entry))
+    );
+    // Rename identifiers that occur multiple times into a
+    // series where both `sc` and `pc` end in `…_1`,
+    // `…_2`, and so on.
+    let mut indexes = HashMap::<K, usize>::new();
+    for entry in entries.iter_mut() {
+        let key = getter(entry);
+        match counts.get(&key) {
+            Some(count) if *count > 1 => {
+                let index = indexes.entry(key).or_insert(0);
+                *index += 1;
+
+                setter(entry, *index);
+            }
+            _ => {}
+        }
+    }
 }

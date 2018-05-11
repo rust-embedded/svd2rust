@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use cast::u64;
 use either::Either;
 use quote::Tokens;
@@ -343,32 +341,12 @@ pub fn fields(
                     })
                     .collect::<Result<Vec<_>>>()?;
 
-                // Count identifiers
-                let mut sc_counts = HashMap::<String, usize>::new();
-                for variant in variants.iter() {
-                    let sc_count = sc_counts.entry(
-                        variant.sc.as_ref().to_owned()
-                    ).or_insert(0);
-                    *sc_count += 1;
-                }
-                // Rename identifiers that occur multiple times into a
-                // series where both `sc` and `pc` end in `…_1`,
-                // `…_2`, and so on.
-                let mut sc_indexes = HashMap::<String, usize>::new();
-                for variant in variants.iter_mut() {
-                    match sc_counts.get(variant.sc.as_ref()) {
-                        Some(count) if *count > 1 => {
-                            let sc_index = sc_indexes.entry(
-                                variant.sc.as_ref().to_owned()
-                            ).or_insert(0);
-                            *sc_index += 1;
-
-                            variant.sc = Ident::new(format!("{}_{}", variant.sc, *sc_index));
-                            variant.pc = Ident::new(format!("{}_{}", variant.pc, *sc_index));
-                        }
-                        _ => {}
-                    }
-                }
+                util::rename_identifiers(&mut variants,
+                                         |variant| variant.sc.as_ref().to_owned(),
+                                         |variant, n| {
+                                             variant.sc = Ident::new(format!("{}_{}", variant.sc, n));
+                                             variant.pc = Ident::new(format!("{}_{}", variant.pc, n));
+                                         });
 
                 let pc_r = &f.pc_r;
                 if let Some(ref base) = base {
@@ -679,7 +657,7 @@ pub fn fields(
                     }
                 });
 
-                let variants = evs.values
+                let mut variants = evs.values
                     .iter()
                     // filter out all reserved variants, as we should not
                     // generate code for them
@@ -705,6 +683,13 @@ pub fn fields(
                         },
                     )
                     .collect::<Result<Vec<_>>>()?;
+
+                util::rename_identifiers(&mut variants,
+                                         |variant| variant.sc.as_ref().to_owned(),
+                                         |variant, n| {
+                                             variant.sc = Ident::new(format!("{}_{}", variant.sc, n));
+                                             variant.pc = Ident::new(format!("{}_{}", variant.pc, n));
+                                         });
 
                 if variants.len() == 1 << f.width {
                     unsafety = None;
