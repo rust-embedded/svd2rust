@@ -56,8 +56,8 @@ deploy:
 branches:
   only:
     - /^v\d+\.\d+\.\d+.*$/
-    - auto
-    - try
+    - staging
+    - trying
 
 notifications:
   - provider: Email
