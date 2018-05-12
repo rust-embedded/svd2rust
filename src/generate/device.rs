@@ -113,18 +113,10 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
             pub use cortex_m::peripheral::Peripherals as CorePeripherals;
         });
 
-        // NOTE re-export only core peripherals available on *all* Cortex-M devices
-        // (if we want to re-export all core peripherals available for the target then we are going
-        // to need to replicate the `#[cfg]` stuff that cortex-m uses and that would require all
-        // device crates to define the custom `#[cfg]`s that cortex-m uses in their build.rs ...)
         out.push(quote! {
-            pub use cortex_m::peripheral::CPUID;
-            pub use cortex_m::peripheral::DCB;
-            pub use cortex_m::peripheral::DWT;
-            pub use cortex_m::peripheral::MPU;
-            pub use cortex_m::peripheral::NVIC;
-            pub use cortex_m::peripheral::SCB;
-            pub use cortex_m::peripheral::SYST;
+            pub use cortex_m::peripheral::{
+                CBP, CPUID, DCB, DWT, FPB, FPU, ITM, MPU, NVIC, SCB, SYST, TPIU,
+            };
         });
     }
 
@@ -133,7 +125,6 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
             // Core peripherals are handled above
             continue;
         }
-
 
         out.extend(peripheral::render(p, &d.peripherals, &d.defaults, nightly)?);
 
