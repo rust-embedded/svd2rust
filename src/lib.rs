@@ -426,6 +426,12 @@
 
 /// Assigns a handler to an interrupt
 ///
+/// **NOTE** The `interrupt!` macro on Cortex-M device crates is closer in syntax to the
+/// [`exception!`] macro. This documentation doesn't apply to it. For the exact syntax of this macro
+/// check the documentation of the device crate you are using.
+///
+/// [`exception!`]: https://docs.rs/cortex-m-rt/0.5.0/cortex_m_rt/macro.exception.html
+///
 /// This macro takes two arguments: the name of an interrupt and the path to the
 /// function that will be used as the handler of that interrupt. That function
 /// must have signature `fn()`.
