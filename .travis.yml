@@ -12,27 +12,38 @@ matrix:
   include:
     # Nightly, for testing
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Atmel
-      rust: nightly
+      rust: beta
+
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Freescale
-      rust: nightly
+      rust: beta
+
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Fujitsu
-      rust: nightly
+      rust: beta
+
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Holtek
-      rust: nightly
+      rust: beta
+
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Nordic
-      rust: nightly
+      rust: beta
+
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Nuvoton
-      rust: nightly
+      rust: beta
+
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=NXP
-      rust: nightly
+      rust: beta
+
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=SiliconLabs
-      rust: nightly
+      rust: beta
+
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Spansion
-      rust: nightly
+      rust: beta
+
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=STMicro
-      rust: nightly
+      rust: beta
+
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Toshiba
-      rust: nightly
+      rust: beta
+
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=OTHER
       rust: nightly
 
