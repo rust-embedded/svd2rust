@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.13.0] - 2018-05-12
+
+### Added
+
+- `svd2rust` now emits unions for registers that overlap (have the same address). Before `svd2rust`
+  would generate code for only one instance of overlapping registers for memory location. This
+  feature requires passing the `--nightly` to `svd2rust` as it generates code that requires a
+  nightly compiler to build.
+
+- `svd2rust` now also blacklists the `/` (backslash) and ` ` (space) characters. `svd2rust` removes
+  all blacklisted characters from peripheral, register, bitfield and enumeratedValues names.
+
+### Changed
+
+- This crate now compiles on the stable and beta channels.
+
+- [breaking-change] when the target is the cortex-m architecture `svd2rust` generates three files in
+  the current directory, instead of dumping the generated code to stdout.
+
+- [breaking-change] the syntax and expansion of the `interrupt!` macro has changed when the target
+  is the Cortex-M architecture.
+
+- [breaking-change] the code generated for the Cortex-M architecture now depends on newer versions
+  of the bare-metal, cortex-m and cortex-m-rt crates.
+
+- [breaking-change] when the target is the Cortex-M architecture the "rt" feature of the device
+  crate must enable the "device" feature of the cortex-m-rt dependency.
+
+### Removed
+
+- [breaking-change] `Interrupt` no longer implements the unstable `TryFrom` trait when the target is
+  the Cortex-M architecture.
+
 ## [v0.12.1] - 2018-05-06
 
 ### Added
@@ -340,7 +373,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.13.0...HEAD
+[v0.13.0]: https://github.com/japaric/svd2rust/compare/v0.12.1...v0.13.0
 [v0.12.1]: https://github.com/japaric/svd2rust/compare/v0.12.0...v0.12.1
 [v0.12.0]: https://github.com/japaric/svd2rust/compare/v0.11.4...v0.12.0
 [v0.11.4]: https://github.com/japaric/svd2rust/compare/v0.11.3...v0.11.4

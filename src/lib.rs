@@ -31,9 +31,10 @@
 //! When targeting the Cortex-M architecture `svd2rust` will generate three files in the current
 //! directory:
 //!
-//! - build.rs
-//! - device.x
-//! - lib.rs
+//! - `build.rs`, build script that places `device.x` somewhere the linker can find.
+//! - `device.x`, linker script that weakly aliases all the interrupt handlers to the default
+//! exception handler (`DefaultHandler`).
+//! - `lib.rs`, the generated code.
 //!
 //! All these files must be included in the same device crate. The `lib.rs` file contains several
 //! inlined modules and its not formatted. It's recommend to split it out using the [`form`] tool
@@ -60,8 +61,11 @@
 //! [dependencies]
 //! bare-metal = "0.2.0"
 //! cortex-m = "0.5.0"
-//! cortex-m-rt = "0.5.0"
 //! vcell = "0.1.0"
+//!
+//! [dependencies.cortex-m-rt]
+//! optional = true
+//! version = "0.5.0"
 //!
 //! [features]
 //! rt = ["cortex-m-rt/device"]
@@ -98,8 +102,11 @@
 //! [dependencies]
 //! bare-metal = "0.2.0"
 //! msp430 = "0.1.0"
-//! msp430-rt = "0.1.0"
 //! vcell = "0.1.0"
+//!
+//! [dependencies.msp430-rt]
+//! optional = true
+//! version = "0.1.0"
 //!
 //! [features]
 //! rt = ["msp430"]
