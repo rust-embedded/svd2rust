@@ -18,87 +18,92 @@
 //!
 //! # Usage
 //!
-//! `svd2rust` supports Cortex-M and MSP430 microcontrollers. The generated
-//! crate can be tailored for either architecture using the `--target` flag. The
-//! flag accepts "cortex-m", "msp430" and "none" as values. "none" can be used
-//! to generate a crate that's architecture agnostic and that should work for
-//! architectures that `svd2rust` doesn't currently know about like the Cortex-A
-//! architecture.
+//! `svd2rust` supports Cortex-M, MSP430 and RISCV microcontrollers. The generated crate can be
+//! tailored for either architecture using the `--target` flag. The flag accepts "cortex-m",
+//! "msp430", "riscv" and "none" as values. "none" can be used to generate a crate that's
+//! architecture agnostic and that should work for architectures that `svd2rust` doesn't currently
+//! know about like the Cortex-A architecture.
 //!
-//! If the `--target` flag is omitted `svd2rust` assumes the target is the
-//! Cortex-M architecture.
+//! If the `--target` flag is omitted `svd2rust` assumes the target is the Cortex-M architecture.
 //!
-//! ```
-//! $ svd2rust -i STM32F30x.svd | rustfmt | tee src/lib.rs
-//! //! Peripheral access API for STM32F30X microcontrollers
-//! //! (generated using svd2rust v0.12.0)
+//! ## target = cortex-m
 //!
-//! #![deny(missing_docs)]
-//! #![deny(warnings)]
-//! #![no_std]
+//! When targeting the Cortex-M architecture `svd2rust` will generate three files in the current
+//! directory:
 //!
-//! extern crate bare_metal;
-//! extern crate cortex_m;
-//! #[cfg(feature = "rt")]
-//! extern crate cortex_m_rt;
-//! extern crate vcell;
+//! - build.rs
+//! - device.x
+//! - lib.rs
 //!
-//! use cortex_m::peripheral::Peripheral;
+//! All these files must be included in the same device crate. The `lib.rs` file contains several
+//! inlined modules and its not formatted. It's recommend to split it out using the [`form`] tool
+//! and then format the output using `rustfmt` / `cargo fmt`:
 //!
-//! /// Interrupts
-//! pub mod interrupt {
-//!     // ..
-//! }
+//! [`form`]: https://crates.io/crates/form
 //!
-//! /// General-purpose I/Os
-//! pub mod gpioa {
-//!     pub struct RegisterBlock {
-//!         /// GPIO port mode register
-//!         pub moder: MODER,
-//!         ..
-//!     }
-//!     ..
-//! }
+//! ``` text
+//! $ svd2rust -i STM32F30x.svd
 //!
-//! /// General-purpose I/Os
-//! pub struct GPIOA { _marker: PhantomData<*const ()> }
+//! $ rm -rf src
 //!
-//! unsafe impl Send for GPIOA {}
+//! $ form -i lib.rs -o src/ && rm lib.rs
 //!
-//! impl GPIOA {
-//!     /// Returns a pointer to the register block
-//!     pub fn ptr() -> *const gpioa::RegisterBlock {
-//!         0x4800_0000 as *const _
-//!     }
-//! }
-//!
-//! impl core::ops::Deref for GPIOA {
-//!     type Target = gpioa::RegisterBlock;
-//!
-//!     fn deref(&self) -> &gpioa::RegisterBlock {
-//!         unsafe { &*GPIOA::ptr() }
-//!     }
-//! }
-//!
-//! // ..
+//! $ cargo fmt
 //! ```
 //!
-//! # Dependencies
+//! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
+//! `bare-metal` v0.2.x, `cortex-m` v0.5.x, `cortex-m-rt` v0.5.x and `vcell` v0.1.x. Furthermore the
+//! "device" feature of `cortex-m-rt` must be enabled when the "rt" feature is enabled. The
+//! `Cargo.toml` of the device crate will look like this:
 //!
-//! The generated crate depends on:
+//! ``` toml
+//! [dependencies]
+//! bare-metal = "0.2.0"
+//! cortex-m = "0.5.0"
+//! cortex-m-rt = "0.5.0"
+//! vcell = "0.1.0"
+//!
+//! [features]
+//! rt = ["cortex-m-rt/device"]
+//! ```
+//!
+//! ## target != cortex-m
+//!
+//! When the target is msp430, riscv or none `svd2rust` will emit all the generated code to stdout.
+//! Like in the cortex-m case we recommend you use `form` and `rustfmt` on the output:
+//!
+//! ``` console
+//! $ svd2rust -i *.svd --target msp430 > lib.rs
+//!
+//! $ rm -rf src
+//!
+//! $ form -i lib.rs -o src/ && rm lib.rs
+//!
+//! $ cargo fmt
+//! ```
+//!
+//! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
 //!
 //! - [`bare-metal`](https://crates.io/crates/bare-metal) v0.1.x
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
-//! - [`cortex-m-rt`](https://crates.io/crates/cortex-m-rt) v0.3.x if targeting
-//!   the Cortex-M architecture.
-//! - [`cortex-m`](https://crates.io/crates/cortex-m) v0.4.x if targeting the
-//!   Cortex-M architecture.
-//! - [`msp430`](https://crates.io/crates/msp430) v0.1.x if targeting the MSP430
-//!   architecture.
-//! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.1.x if targeting the
-//!   MSP430 architecture.
-//! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.2.x if targeting the
-//!   RISCV architecture.
+//! - [`msp430`](https://crates.io/crates/msp430) v0.1.x if target = msp430.
+//! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.1.x if target = msp430.
+//! - [`riscv`](https://crates.io/crates/riscv) v0.2.x if target = riscv.
+//! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.2.x if target = riscv.
+//!
+//! The `*-rt` dependencies must be optional only enabled when the "rt" feature is enabled. The
+//! `Cargo.toml` of the device crate will look like this for an msp430 target:
+//!
+//! ``` toml
+//! [dependencies]
+//! bare-metal = "0.2.0"
+//! msp430 = "0.1.0"
+//! msp430-rt = "0.1.0"
+//! vcell = "0.1.0"
+//!
+//! [features]
+//! rt = ["msp430"]
+//! ```
 //!
 //! # Peripheral API
 //!
@@ -409,17 +414,23 @@
 //! If the "rt" Cargo feature of the svd2rust generated crate is enabled the crate will populate the
 //! part of the vector table that contains the interrupt vectors and provide an
 //! [`interrupt!`](macro.interrupt.html) macro that can be used to register interrupt handlers.
-//! 
+//!
 //! ## the `--nightly` flag
 //!
 //! The `--nightly` flag can be passed to `svd2rust` to enable features in the generated api that are only available to a nightly
 //! compiler. These features are
-//! 
+//!
 //! - `#[feature(untagged_unions)]` for overlapping/overloaded registers
 
 // NOTE This file is for documentation only
 
 /// Assigns a handler to an interrupt
+///
+/// **NOTE** The `interrupt!` macro on Cortex-M device crates is closer in syntax to the
+/// [`exception!`] macro. This documentation doesn't apply to it. For the exact syntax of this macro
+/// check the documentation of the device crate you are using.
+///
+/// [`exception!`]: https://docs.rs/cortex-m-rt/0.5.0/cortex_m_rt/macro.exception.html
 ///
 /// This macro takes two arguments: the name of an interrupt and the path to the
 /// function that will be used as the handler of that interrupt. That function

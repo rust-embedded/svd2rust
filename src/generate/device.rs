@@ -9,7 +9,7 @@ use Target;
 use generate::{interrupt, peripheral};
 
 /// Whole device generation
-pub fn render(d: &Device, target: &Target, nightly: bool) -> Result<Vec<Tokens>> {
+pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String) -> Result<Vec<Tokens>> {
     let mut out = vec![];
 
     let doc = format!(
@@ -27,7 +27,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool) -> Result<Vec<Tokens>>
         });
     }
 
-    if *target != Target::None {
+    if *target != Target::None && *target != Target::CortexM {
         out.push(quote! {
             #![cfg_attr(feature = "rt", feature(global_asm))]
             #![cfg_attr(feature = "rt", feature(use_extern_macros))]
@@ -37,14 +37,18 @@ pub fn render(d: &Device, target: &Target, nightly: bool) -> Result<Vec<Tokens>>
 
     out.push(quote! {
         #![doc = #doc]
-        #![allow(private_no_mangle_statics)]
         #![deny(missing_docs)]
         #![deny(warnings)]
         #![allow(non_camel_case_types)]
-        #![feature(const_fn)]
-        #![feature(try_from)]
         #![no_std]
     });
+
+    if *target != Target::CortexM {
+        out.push(quote! {
+            #![feature(const_fn)]
+            #![feature(try_From)]
+        });
+    }
 
     if nightly {
         out.push(quote! {
@@ -58,8 +62,6 @@ pub fn render(d: &Device, target: &Target, nightly: bool) -> Result<Vec<Tokens>>
                 extern crate cortex_m;
                 #[cfg(feature = "rt")]
                 extern crate cortex_m_rt;
-                #[cfg(feature = "rt")]
-                pub use cortex_m_rt::{default_handler, exception};
             });
         }
         Target::Msp430 => {
@@ -98,7 +100,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool) -> Result<Vec<Tokens>>
         });
     }
 
-    out.extend(interrupt::render(d, target, &d.peripherals)?);
+    out.extend(interrupt::render(target, &d.peripherals, device_x)?);
 
     const CORE_PERIPHERALS: &[&str] = &[
         "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU"
@@ -111,18 +113,10 @@ pub fn render(d: &Device, target: &Target, nightly: bool) -> Result<Vec<Tokens>>
             pub use cortex_m::peripheral::Peripherals as CorePeripherals;
         });
 
-        // NOTE re-export only core peripherals available on *all* Cortex-M devices
-        // (if we want to re-export all core peripherals available for the target then we are going
-        // to need to replicate the `#[cfg]` stuff that cortex-m uses and that would require all
-        // device crates to define the custom `#[cfg]`s that cortex-m uses in their build.rs ...)
         out.push(quote! {
-            pub use cortex_m::peripheral::CPUID;
-            pub use cortex_m::peripheral::DCB;
-            pub use cortex_m::peripheral::DWT;
-            pub use cortex_m::peripheral::MPU;
-            pub use cortex_m::peripheral::NVIC;
-            pub use cortex_m::peripheral::SCB;
-            pub use cortex_m::peripheral::SYST;
+            pub use cortex_m::peripheral::{
+                CBP, CPUID, DCB, DWT, FPB, FPU, ITM, MPU, NVIC, SCB, SYST, TPIU,
+            };
         });
     }
 
@@ -131,7 +125,6 @@ pub fn render(d: &Device, target: &Target, nightly: bool) -> Result<Vec<Tokens>>
             // Core peripherals are handled above
             continue;
         }
-
 
         out.extend(peripheral::render(p, &d.peripherals, &d.defaults, nightly)?);
 
@@ -180,6 +173,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool) -> Result<Vec<Tokens>>
         // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
         // crate as that would let you `take` the device peripherals more than once (one per minor
         // version)
+        #[allow(private_no_mangle_statics)]
         #[no_mangle]
         static mut DEVICE_PERIPHERALS: bool = false;
 
