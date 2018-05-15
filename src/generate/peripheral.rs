@@ -7,7 +7,7 @@ use svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register};
 use syn::{self, Ident};
 
 use errors::*;
-use util::{self, ToSanitizedPascalCase, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
+use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
 
 use generate::register;
 
@@ -490,7 +490,7 @@ fn register_or_cluster_block_nightly(
         if region.fields.len() > 1 && !block_is_union {
             let (type_name, name) = match region.ident.clone() {
                 Some(prefix) => {
-                    (Ident::new(format!("{}Union", prefix.to_sanitized_pascal_case())),
+                    (Ident::new(format!("{}_UNION", prefix.to_sanitized_upper_case())),
                     Ident::new(prefix))
                 }
                 // If we can't find a name, fall back to the region index as a
