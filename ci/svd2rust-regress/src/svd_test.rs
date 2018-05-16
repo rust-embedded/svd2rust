@@ -1,16 +1,19 @@
 use errors::*;
 use reqwest;
-use std::fs::{remove_dir_all, File, OpenOptions};
+use std::fs::{self, File, OpenOptions};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Output};
 use tests::TestCase;
 
-static CRATES_ALL: &[&str] = &["bare-metal = \"0.1.0\"", "vcell = \"0.1.0\""];
+static CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.0\""];
 static CRATES_MSP430: &[&str] = &["msp430 = \"0.1.0\""];
-static CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.4.0\"", "cortex-m-rt = \"0.3.0\""];
+static CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.5.0\"", "cortex-m-rt = \"0.5.0\""];
 static CRATES_RISCV: &[&str] = &["riscv = \"0.1.4\"", "riscv-rt = \"0.1.3\""];
 static PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
+static FEATURES_ALL: &[&str] = &["[features]"];
+static FEATURES_CORTEX_M: &[&str] = &["const-fn = [\"bare-metal/const-fn\", \"cortex-m/const-fn\"]"];
+static FEATURES_EMPTY: &[&str] = &[];
 
 fn path_helper(input: &[&str]) -> PathBuf {
     input.iter().collect()
@@ -78,7 +81,12 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
 
     // Remove the existing chip directory, if it exists
     let chip_dir = path_helper(&["output", &t.name()]);
-    let _ = remove_dir_all(&chip_dir);
+    if let Err(err) = fs::remove_dir_all(&chip_dir) {
+        match err.kind() {
+            ::std::io::ErrorKind::NotFound => (),
+            _ => Err(err).chain_err(|| "While removing chip directory")?
+        }
+    }
 
     // This string is used to build the output from stderr
     let mut string = String::new();
@@ -109,11 +117,16 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
     let crates = CRATES_ALL
         .iter()
         .chain(match &t.arch {
-            &CortexM => CRATES_CORTEX_M.iter(),
-            &RiscV => CRATES_RISCV.iter(),
-            &Msp430 => CRATES_MSP430.iter(),
+            CortexM => CRATES_CORTEX_M.iter(),
+            RiscV => CRATES_RISCV.iter(),
+            Msp430 => CRATES_MSP430.iter(),
         })
-        .chain(PROFILE_ALL.iter());
+        .chain(PROFILE_ALL.iter())
+        .chain(FEATURES_ALL.iter())
+        .chain(match &t.arch {
+            CortexM => FEATURES_CORTEX_M.iter(),
+            _ => FEATURES_EMPTY.iter(),
+        });
 
     for c in crates {
         writeln!(file, "{}", c).chain_err(|| "Failed to append to file!")?;
@@ -132,6 +145,7 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
     file_helper(&svd, &svd_file)?;
 
     // Generate the lib.rs from the SVD file using the specified `svd2rust` binary
+    // If the architecture is cortex-m we move the generated lib.rs file to src/
     let lib_rs_file = path_helper_base(&chip_dir, &["src", "lib.rs"]);
     let svd2rust_err_file = path_helper_base(&chip_dir, &["svd2rust.err.log"]);
     let target = match &t.arch {
@@ -153,7 +167,7 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
     output.capture_outputs(
         true,
         "svd2rust",
-        Some(&lib_rs_file),
+        if t.arch != CortexM { Some(&lib_rs_file) } else { None }, // use Option.filter
         Some(&svd2rust_err_file)
     )?;
 
@@ -161,7 +175,14 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
         string.push_str(&format!("{}\n", svd2rust_err_file.display()));
         string.push_str(&String::from_utf8_lossy(&output.stderr)); 
     }
-    
+
+    match &t.arch {
+        &CortexM => {
+            fs::rename(path_helper_base(&chip_dir, &["lib.rs"]), &lib_rs_file).chain_err(|| "While moving lib.rs file")?
+        }
+        _ => (),
+    }
+
     if let Some(rustfmt_bin_path) = rustfmt_bin_path {
         // Run `cargo fmt`, capturing stderr to a log file
         let rustfmt_err_file = path_helper_base(&chip_dir, &["rustfmt.err.log"]);

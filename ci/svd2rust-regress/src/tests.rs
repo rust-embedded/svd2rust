@@ -1,6 +1,6 @@
 use inflections::Inflect;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Architecture {
     // TODO: Coming soon!
     // Avr,

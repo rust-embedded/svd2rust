@@ -68,11 +68,14 @@ struct Opt {
     #[structopt(long = "rustfmt_bin_path", parse(from_os_str))]
     rustfmt_bin_path: Option<PathBuf>,
 
+    /// Specify what rustup toolchain to use when compiling chip(s)
+    #[structopt(long = "toolchain", env = "RUSTUP_TOOLCHAIN")]
+    rustup_toolchain: Option<String>,
+
     /// Use verbose output
     #[structopt(long = "verbose", short = "v", parse(from_occurrences))]
     verbose: u8,
     // TODO: Specify smaller subset of tests? Maybe with tags?
-    // TODO: Early fail
     // TODO: Compile svd2rust?
 }
 
@@ -171,6 +174,12 @@ fn main() {
             default_rustfmt.as_ref()
         }
     };
+
+    // Set RUSTUP_TOOLCHAIN if needed
+    if let Some(toolchain) = &opt.rustup_toolchain {
+        ::std::env::set_var("RUSTUP_TOOLCHAIN", toolchain);
+    }
+
     // collect enabled tests
     let tests = tests::TESTS
         .iter()
