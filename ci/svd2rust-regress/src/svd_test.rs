@@ -39,7 +39,7 @@ trait CommandHelper {
         name: &str,
         stdout: Option<&PathBuf>,
         stderr: Option<&PathBuf>,
-    ) -> Result<String>;
+    ) -> Result<()>;
 }
 
 impl CommandHelper for Output {
@@ -49,14 +49,14 @@ impl CommandHelper for Output {
         name: &str,
         stdout: Option<&PathBuf>,
         stderr: Option<&PathBuf>,
-    ) -> Result<String> {
+    ) -> Result<()> {
         if let Some(out) = stdout {
             let out_payload = String::from_utf8_lossy(&self.stdout);
             file_helper(&out_payload, out)?;
         };
 
-        let err_payload = String::from_utf8_lossy(&self.stderr);
         if let Some(err) = stderr {
+            let err_payload = String::from_utf8_lossy(&self.stderr);
             file_helper(&err_payload, err)?;
         };
 
@@ -66,7 +66,7 @@ impl CommandHelper for Output {
             );
         }
 
-        Ok(err_payload.to_string())
+        Ok(())
     }
 }
 
@@ -81,7 +81,6 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
     let _ = remove_dir_all(&chip_dir);
 
     // This string is used to build the output from stderr
-    // FIXME: Make string.push_str only work when verbosity > 1
     let mut string = String::new();
 
     // Create a new cargo project. It is necesary to set the user, otherwise
@@ -140,46 +139,66 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
         &Msp430 => "msp430",
         &RiscV => "riscv",
     };
-    string.push_str(&format!("{}\n", svd2rust_err_file.display()));
     let mut svd2rust_bin = Command::new(bin_path);
     if nightly {
         svd2rust_bin.arg("--nightly");
     }
-    string.push_str(&svd2rust_bin
+
+    let output = svd2rust_bin
         .args(&["-i", &chip_svd])
         .args(&["--target", &target])
         .current_dir(&chip_dir)
         .output()
-        .chain_err(|| "failed to execute process")?
-        .capture_outputs(
-            true,
-            "svd2rust",
-            Some(&lib_rs_file),
-            Some(&svd2rust_err_file),
-        )?
-    );
+        .chain_err(|| "failed to execute process")?;
+    output.capture_outputs(
+        true,
+        "svd2rust",
+        Some(&lib_rs_file),
+        Some(&svd2rust_err_file)
+    )?;
 
+    if verbosity > 1 {
+        string.push_str(&format!("{}\n", svd2rust_err_file.display()));
+        string.push_str(&String::from_utf8_lossy(&output.stderr)); 
+    }
+    
     if let Some(rustfmt_bin_path) = rustfmt_bin_path {
         // Run `cargo fmt`, capturing stderr to a log file
         let rustfmt_err_file = path_helper_base(&chip_dir, &["rustfmt.err.log"]);
-        string.push_str(&format!("\n\n{}\n", rustfmt_err_file.display()));
-        string.push_str(&Command::new(rustfmt_bin_path)
+        
+        let output = Command::new(rustfmt_bin_path)
             .arg(lib_rs_file)
             .output()
-            .chain_err(|| "failed to format")?
-            .capture_outputs(false, "rustfmt", None, Some(&rustfmt_err_file))?
-        );
+            .chain_err(|| "failed to format")?;
+        output.capture_outputs(
+            false,
+            "rustfmt",
+            None,
+            Some(&rustfmt_err_file)
+        )?;
+
+        if verbosity > 1 {
+            string.push_str(&format!("\n\n{}\n", rustfmt_err_file.display()));
+            string.push_str(&String::from_utf8_lossy(&output.stderr)); 
+        }
     }
     // Run `cargo check`, capturing stderr to a log file
     let cargo_check_err_file = path_helper_base(&chip_dir, &["cargo-check.err.log"]);
-    string.push_str(&format!("\n\n{}\n", cargo_check_err_file.display()));
-    string.push_str(&Command::new("cargo")
+    let output = Command::new("cargo")
         .arg("check")
         .current_dir(&chip_dir)
         .output()
-        .chain_err(|| "failed to check")?
-        .capture_outputs(true, "cargo check", None, Some(&cargo_check_err_file))?
-    );
+        .chain_err(|| "failed to check")?;
+    output.capture_outputs(
+        true,
+        "cargo check",
+        None,
+        Some(&cargo_check_err_file)
+        )?;
 
+    if verbosity > 1 {
+        string.push_str(&format!("\n\n{}\n", cargo_check_err_file.display()));
+        string.push_str(&String::from_utf8_lossy(&output.stderr)); 
+    }
     Ok(if verbosity > 1 {Some(string)} else {None})
 }
