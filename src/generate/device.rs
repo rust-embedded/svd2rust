@@ -46,7 +46,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
     if *target != Target::CortexM {
         out.push(quote! {
             #![feature(const_fn)]
-            #![feature(try_From)]
+            #![feature(try_from)]
         });
     }
 
