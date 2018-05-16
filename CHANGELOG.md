@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.13.1] - 2018-05-16
+
+### Fixed
+
+- Fixed code generation for non Cortex-M targets. `svd2rust` was generating a feature gate with the
+wrong name.
+
+- Fixed the example Cargo.toml for msp430 in the documentation.
+
 ## [v0.13.0] - 2018-05-12
 
 ### Added
