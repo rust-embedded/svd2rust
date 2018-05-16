@@ -382,7 +382,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.13.1...HEAD
+[v0.13.1]: https://github.com/japaric/svd2rust/compare/v0.13.0...v0.13.1
 [v0.13.0]: https://github.com/japaric/svd2rust/compare/v0.12.1...v0.13.0
 [v0.12.1]: https://github.com/japaric/svd2rust/compare/v0.12.0...v0.12.1
 [v0.12.0]: https://github.com/japaric/svd2rust/compare/v0.11.4...v0.12.0
