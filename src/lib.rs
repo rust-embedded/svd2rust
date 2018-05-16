@@ -100,7 +100,7 @@
 //!
 //! ``` toml
 //! [dependencies]
-//! bare-metal = "0.2.0"
+//! bare-metal = "0.1.0"
 //! msp430 = "0.1.0"
 //! vcell = "0.1.0"
 //!
@@ -109,7 +109,7 @@
 //! version = "0.1.0"
 //!
 //! [features]
-//! rt = ["msp430"]
+//! rt = ["msp430-rt"]
 //! ```
 //!
 //! # Peripheral API
