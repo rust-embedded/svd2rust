@@ -444,22 +444,20 @@ fn register_or_cluster_block_nightly(
     // We need to compute the idents of each register/union block first to make sure no conflicts exists.
     regions.resolve_idents()?;
     // The end of the region from the prior iteration of the loop
-    let mut last_end = None;
+    let mut last_end = 0;
 
     for (i, region) in regions.regions.iter().enumerate() {
         // Check if we need padding
-        if let Some(end) = last_end {
-            let pad = region.offset - end;
-            if pad != 0 {
-                let name = Ident::new(format!("_reserved{}", i));
-                let pad = pad as usize;
-                fields.append(quote! {
-                    #name : [u8; #pad],
-                });
-            }
+        let pad = region.offset - last_end;
+        if pad != 0 {
+            let name = Ident::new(format!("_reserved{}", i));
+            let pad = pad as usize;
+            fields.append(quote! {
+                #name : [u8; #pad],
+            });
         }
 
-        last_end = Some(region.end);
+        last_end = region.end;
 
         let mut region_fields = Tokens::new();
 
