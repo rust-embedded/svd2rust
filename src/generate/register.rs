@@ -685,6 +685,7 @@ pub fn fields(
                     let variants_doc = variants.iter().map(|v| &*v.doc);
                     mod_items.push(quote! {
                         #[doc = #pc_w_doc]
+                        #[derive(Clone, Copy, Debug, PartialEq)]
                         pub enum #pc_w {
                             #(#[doc = #variants_doc]
                             #variants_pc),*
