@@ -1,4 +1,6 @@
 use std::borrow::Cow;
+use std::hash::Hash;
+use std::collections::{HashMap, HashSet};
 
 use inflections::Inflect;
 use svd::{Access, Cluster, Register};
@@ -37,11 +39,14 @@ impl ToSanitizedSnakeCase for str {
             }
         }
 
-        let s = self.replace(BLACKLIST_CHARS, "");
+        let s = santitize_underscores(
+            &self.replace(BLACKLIST_CHARS, "")
+                .to_snake_case()
+        );
 
         match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_snake_case()))
+                Cow::from(format!("_{}", s))
             }
             _ => {
                 keywords! {
@@ -109,32 +114,45 @@ impl ToSanitizedSnakeCase for str {
 
 impl ToSanitizedUpperCase for str {
     fn to_sanitized_upper_case(&self) -> Cow<str> {
-        let s = self.replace(BLACKLIST_CHARS, "");
+        let s = santitize_underscores(
+            &self.replace(BLACKLIST_CHARS, "")
+                .to_upper_case()
+        );
 
         match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_upper_case()))
+                Cow::from(format!("_{}", s))
             }
-            _ => Cow::from(s.to_upper_case()),
+            _ => Cow::from(s),
         }
     }
 }
 
 impl ToSanitizedPascalCase for str {
     fn to_sanitized_pascal_case(&self) -> Cow<str> {
-        let s = self.replace(BLACKLIST_CHARS, "");
+        let s = santitize_underscores(
+            &self.replace(BLACKLIST_CHARS, "")
+                .to_pascal_case()
+        );
 
         match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_pascal_case()))
+                Cow::from(format!("_{}", s))
             }
-            _ => Cow::from(s.to_pascal_case()),
+            _ => Cow::from(s),
         }
     }
 }
 
 pub fn respace(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn santitize_underscores(s: &str) -> String {
+    s.split('_')
+        .filter(|part| part.len() > 0)
+        .collect::<Vec<_>>()
+        .join("_")
 }
 
 pub fn name_of(register: &Register) -> Cow<str> {
@@ -145,6 +163,13 @@ pub fn name_of(register: &Register) -> Cow<str> {
         } else {
             info.name.replace("%s", "").into()
         },
+    }
+}
+
+pub fn set_name_of(register: &mut Register, name: String) {
+    match *register {
+        Register::Single(ref mut info) => info.name = name,
+        Register::Array(ref mut info, _) => info.name = name,
     }
 }
 
@@ -260,4 +285,75 @@ pub fn only_registers(ercs: &[Either<Register, Cluster>]) -> Vec<&Register> {
         })
         .collect();
     registers
+}
+
+/// Renames registers if their name occurs multiple times
+pub fn registers_with_uniq_names<'a, I: Iterator<Item = &'a Register>>(registers: I) -> Vec<Cow<'a, Register>> {
+    let (capacity, _) = registers.size_hint();
+    let mut seen = HashSet::with_capacity(capacity);
+    registers.map(|register| {
+        let mut n = 1;
+        let mut name = name_of(&*register);
+        let mut dup = false;
+        // Count up `n` until register name is not already present
+        // in `seen`
+        while seen.contains(&name) {
+            dup = true;
+            n += 1;
+            name = Cow::Owned(format!("{}_{}", name_of(&*register), n));
+        }
+        seen.insert(name.clone());
+
+        if dup {
+            let mut register = register.clone();
+            set_name_of(&mut register, name.into_owned());
+            Cow::Owned(register)
+        } else {
+            Cow::Borrowed(register)
+        }
+    }).collect()
+}
+
+fn count_occurrences<'a, K, I>(iter: I) -> HashMap<K, usize>
+where
+    K: Eq + Hash,
+    I: Iterator<Item = K>,
+{
+    let mut counts = HashMap::new();
+    for k in iter {
+        let count = counts.entry(k)
+            .or_insert(0);
+        *count += 1;
+    }
+    counts
+}
+
+// Generically rename identifiers that occur multiple times into a
+// series where both `sc` and `pc` end in `…_1`, `…_2`, and so on.
+pub fn rename_identifiers<E, K, G, S>(entries: &mut Vec<E>, getter: G, setter: S)
+where
+    K: Eq + Hash + Clone,
+    G: Fn(&E) -> K,
+    S: Fn(&mut E, usize),
+{
+    let counts = count_occurrences(
+        entries.iter()
+            .map(|entry| getter(entry))
+    );
+    // Rename identifiers that occur multiple times into a
+    // series where both `sc` and `pc` end in `…_1`,
+    // `…_2`, and so on.
+    let mut indexes = HashMap::<K, usize>::new();
+    for entry in entries.iter_mut() {
+        let key = getter(entry);
+        match counts.get(&key) {
+            Some(count) if *count > 1 => {
+                let index = indexes.entry(key).or_insert(0);
+                *index += 1;
+
+                setter(entry, *index);
+            }
+            _ => {}
+        }
+    }
 }

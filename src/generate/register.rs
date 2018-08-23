@@ -313,7 +313,7 @@ pub fn fields(
                 }
 
                 let has_reserved_variant = evs.values.len() != (1 << f.width);
-                let variants = evs.values
+                let mut variants = evs.values
                     .iter()
                     // filter out all reserved variants, as we should not
                     // generate code for them
@@ -330,6 +330,7 @@ pub fn fields(
                             format!("EnumeratedValue {} has no <value> field",
                                     ev.name)
                         })?);
+
                         Ok(Variant {
                             description: description,
                             sc: sc,
@@ -339,6 +340,13 @@ pub fn fields(
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
+
+                util::rename_identifiers(&mut variants,
+                                         |variant| variant.sc.as_ref().to_owned(),
+                                         |variant, n| {
+                                             variant.sc = Ident::new(format!("{}_{}", variant.sc, n));
+                                             variant.pc = Ident::new(format!("{}_{}", variant.pc, n));
+                                         });
 
                 let pc_r = &f.pc_r;
                 if let Some(ref base) = base {
@@ -649,7 +657,7 @@ pub fn fields(
                     }
                 });
 
-                let variants = evs.values
+                let mut variants = evs.values
                     .iter()
                     // filter out all reserved variants, as we should not
                     // generate code for them
@@ -675,6 +683,13 @@ pub fn fields(
                         },
                     )
                     .collect::<Result<Vec<_>>>()?;
+
+                util::rename_identifiers(&mut variants,
+                                         |variant| variant.sc.as_ref().to_owned(),
+                                         |variant, n| {
+                                             variant.sc = Ident::new(format!("{}_{}", variant.sc, n));
+                                             variant.pc = Ident::new(format!("{}_{}", variant.pc, n));
+                                         });
 
                 if variants.len() == 1 << f.width {
                     unsafety = None;

@@ -730,11 +730,15 @@ fn cluster_block(
     let reg_block = register_or_cluster_block(&c.children, defaults, Some(&mod_name), nightly)?;
 
     // Generate definition for each of the registers.
-    let registers = util::only_registers(&c.children);
+    let registers_cow = util::registers_with_uniq_names(
+        util::only_registers(&c.children)
+            .into_iter()
+    );
+    let registers: Vec<&Register> = registers_cow.iter().map(|cow| &**cow).collect();
     for reg in &registers {
         mod_items.extend(register::render(
             reg,
-            &registers,
+            &registers[..],
             p,
             all_peripherals,
             defaults,
