@@ -261,3 +261,36 @@ pub fn only_registers(ercs: &[Either<Register, Cluster>]) -> Vec<&Register> {
         .collect();
     registers
 }
+
+/// Return a String which can be used as text in the #[doc] attribute
+pub fn normalize_docstring<S: Into<String>>(doc_string: S) -> String {
+    respace(&doc_string.into())
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn normalize_docstring_ensures_correct_spacing()
+    {
+        let expected = "Some docstring - Line\\[0:10\\]";
+        assert_eq!(expected, normalize_docstring(format!("Some docstring{}-{}Line[0:10]", " ", " ")));
+        assert_eq!(expected, normalize_docstring(format!("Some docstring{}-{}Line[0:10]", "  ", "   ")));
+        assert_eq!(expected, normalize_docstring(format!("Some docstring{}-{}Line[0:10]", "\n", "\n\n")));
+        assert_eq!(expected, normalize_docstring(format!("Some docstring{}-{}Line[0:10]", "\r", "\r\r")));
+        assert_eq!(expected, normalize_docstring(format!("Some docstring{}-{}Line[0:10]", "\t", "\t\t")));
+        assert_eq!(expected, normalize_docstring(format!("Some docstring{}-{}Line[0:10]", "\r\n\t", "\n\t\r")));
+        assert_eq!(expected, normalize_docstring(format!("Some docstring{}-{}Line[0:10]", "\r\n", "\n\r")));
+    }
+
+    #[test]
+    fn normalize_dcostring_escapes_brackets_in_docstring()
+    {
+        let expected = "Some docstring - Line\\[0:10\\]";
+        assert_eq!("Some docstring - Line\\[0:10\\]", normalize_docstring("Some docstring - Line[0:10]"));
+    }
+}

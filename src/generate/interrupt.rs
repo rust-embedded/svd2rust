@@ -43,15 +43,14 @@ pub fn render(
         pos += 1;
 
         let name_uc = Ident::new(interrupt.name.to_sanitized_upper_case());
-        let description = format!(
+        let description = util::normalize_docstring(format!(
             "{} - {}",
             interrupt.value,
             interrupt
                 .description
                 .as_ref()
-                .map(|s| util::respace(s))
-                .unwrap_or_else(|| interrupt.name.clone())
-        );
+                .unwrap_or(&interrupt.name)
+        ));
 
         let value = util::unsuffixed(u64(interrupt.value));
 
