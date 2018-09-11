@@ -31,7 +31,10 @@ pub fn render(
         rsize.next_power_of_two()
     };
     let rty = rsize.to_ty()?;
-    let description = util::respace(&register.description);
+    let description = util::normalize_docstring(format!(
+        "{}",
+        &register.description
+    ));
 
     let unsafety = unsafety(register.write_constraint.as_ref(), rsize);
 
@@ -374,7 +377,10 @@ pub fn fields(
                     }
                 }
 
-                let description = &f.description;
+                let description = util::normalize_docstring(format!(
+                     "{}",
+                     &f.description
+                ));
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
                     #[doc = #description]
@@ -390,7 +396,7 @@ pub fn fields(
                     let mut vars = variants
                         .iter()
                         .map(|v| {
-                            let desc = v.description;
+                            let desc = util::normalize_docstring(format!("{}", &v.description));
                             let pc = &v.pc;
                             quote! {
                                 #[doc = #desc]
@@ -601,7 +607,7 @@ pub fn fields(
                 }
 
                 let pc_w = &f.pc_w;
-                let pc_w_doc = format!("Values that can be written to the field `{}`", f.name);
+                let pc_w_doc = util::normalize_docstring(format!("Values that can be written to the field `{}`", f.name));
 
                 let base_pc_w = base.as_ref().map(|base| {
                     let pc = base.field.to_sanitized_upper_case();
@@ -728,7 +734,7 @@ pub fn fields(
                     let pc = &v.pc;
                     let sc = &v.sc;
 
-                    let doc = util::respace(&v.doc);
+                    let doc = util::normalize_docstring(format!("{}", &v.doc));
                     if let Some(enum_) = base_pc_w.as_ref() {
                         proxy_items.push(quote! {
                             #[doc = #doc]
@@ -788,7 +794,7 @@ pub fn fields(
                 }
             });
 
-            let description = &f.description;
+            let description = util::normalize_docstring(format!("{}", &f.description));
             let sc = &f.sc;
             w_impl_items.push(quote! {
                 #[doc = #description]
