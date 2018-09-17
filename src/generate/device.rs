@@ -124,6 +124,9 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
     if *target == Target::CortexM {
         out.push(quote! {
             pub use cortex_m::peripheral::Peripherals as CorePeripherals;
+            #[cfg(feature = "rt")]
+            pub use cortex_m_rt::interrupt;
+            pub use Interrupt as interrupt;
         });
 
         if fpu_present {
