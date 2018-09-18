@@ -18,7 +18,7 @@ test_svd() {
     rustfmt src/lib.rs || true
     popd
 
-    cargo check --manifest-path $td/Cargo.toml
+    cargo check --all-features --manifest-path $td/Cargo.toml
 }
 
 main() {
@@ -28,7 +28,7 @@ main() {
         return
     fi
 
-    cross build --target $TARGET --release
+    cross build --all-features --target $TARGET --release
 
     case $TRAVIS_OS_NAME in
         linux)
