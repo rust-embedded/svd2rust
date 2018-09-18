@@ -126,7 +126,8 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
             continue;
         }
 
-        out.extend(peripheral::render(p, &d.peripherals, &d.defaults, nightly)?);
+        let rendered = peripheral::render(p, &d.peripherals, &d.defaults, nightly)?;
+        out.extend(rendered.tokens);
 
         if p.registers
             .as_ref()

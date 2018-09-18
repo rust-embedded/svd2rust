@@ -11,6 +11,9 @@ extern crate quote;
 extern crate svd_parser as svd;
 extern crate syn;
 
+#[cfg(feature = "cargo-setup")]
+extern crate toml;
+
 mod errors;
 mod generate;
 mod util;

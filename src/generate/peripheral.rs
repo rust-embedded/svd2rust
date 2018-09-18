@@ -11,13 +11,22 @@ use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
 
 use generate::register;
 
+/// A collection of Tokens and available feature flags
+pub struct RenderOutput {
+    pub tokens: Vec<Tokens>,
+    pub features: Vec<String>,
+}
+
 pub fn render(
     p: &Peripheral,
     all_peripherals: &[Peripheral],
     defaults: &Defaults,
     nightly: bool,
-) -> Result<Vec<Tokens>> {
-    let mut out = vec![];
+) -> Result<RenderOutput> {
+    let mut output = RenderOutput {
+        tokens: vec![],
+        features: vec![],
+    };
 
     let name_pc = Ident::new(&*p.name.to_sanitized_upper_case());
     let address = util::hex(p.base_address);
@@ -34,9 +43,10 @@ pub fn render(
     };
 
     let snake_name = p.name.to_sanitized_snake_case();
+    output.features.push(String::from(snake_name.clone()));
 
     // Insert the peripheral structure
-    out.push(quote! {
+    output.tokens.push(quote! {
         #[doc = #description]
         #[cfg(feature = #snake_name)]
         pub struct #name_pc { _marker: PhantomData<*const ()> }
@@ -65,7 +75,7 @@ pub fn render(
     // Derived peripherals do not require re-implementation, and will instead
     // use a single definition of the non-derived version
     if derived {
-        return Ok(out);
+        return Ok(output);
     }
 
     // erc: *E*ither *R*egister or *C*luster
@@ -77,8 +87,8 @@ pub fn render(
     // No `struct RegisterBlock` can be generated
     if registers.is_empty() && clusters.is_empty() {
         // Drop the definition of the peripheral
-        out.pop();
-        return Ok(out);
+        output.tokens.pop();
+        return Ok(output);
     }
 
     // Push any register or cluster blocks into the output
@@ -102,7 +112,7 @@ pub fn render(
     }
 
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
-    out.push(quote! {
+    output.tokens.push(quote! {
         #[doc = #description]
         #[cfg(feature = #snake_name)]
         pub mod #name_sc {
@@ -110,7 +120,7 @@ pub fn render(
         }
     });
 
-    Ok(out)
+    Ok(output)
 }
 
 #[derive(Clone, Debug)]
@@ -132,17 +142,13 @@ struct Region {
 
 impl Region {
     fn shortest_ident(&self) -> Option<String> {
-        let mut idents: Vec<_> = self.fields
+        let mut idents: Vec<_> = self
+            .fields
             .iter()
-            .filter_map(|f| {
-                match f.field.ident {
-                    None => None,
-                    Some(ref ident) => {
-                        Some(ident.as_ref())
-                    }
-                }
-            })
-            .collect();
+            .filter_map(|f| match f.field.ident {
+                None => None,
+                Some(ref ident) => Some(ident.as_ref()),
+            }).collect();
         if idents.is_empty() {
             return None;
         }
@@ -150,7 +156,7 @@ impl Region {
             // Sort by length and then content
             match a.len().cmp(&b.len()) {
                 Ordering::Equal => a.cmp(b),
-                cmp @ _ => cmp
+                cmp @ _ => cmp,
             }
         });
         Some(idents[0].to_owned())
@@ -161,7 +167,9 @@ impl Region {
         fn split_keep(text: &str) -> Vec<&str> {
             let mut result = Vec::new();
             let mut last = 0;
-            for (index, matched) in text.match_indices(|c: char| c.is_numeric() || !c.is_alphabetic()) {
+            for (index, matched) in
+                text.match_indices(|c: char| c.is_numeric() || !c.is_alphabetic())
+            {
                 if last != index {
                     result.push(&text[last..index]);
                 }
@@ -174,26 +182,19 @@ impl Region {
             result
         }
 
-        let idents: Vec<_> = self.fields
+        let idents: Vec<_> = self
+            .fields
             .iter()
-            .filter_map(|f| {
-                match f.field.ident {
-                    None => None,
-                    Some(ref ident) => {
-                        Some(ident.as_ref())
-                    }
-                }
-            })
-            .collect();
+            .filter_map(|f| match f.field.ident {
+                None => None,
+                Some(ref ident) => Some(ident.as_ref()),
+            }).collect();
 
         if idents.is_empty() {
             return None;
         }
 
-        let x: Vec<_> = idents
-            .iter()
-            .map(|i| split_keep(i))
-            .collect();
+        let x: Vec<_> = idents.iter().map(|i| split_keep(i)).collect();
         let mut index = 0;
         let first = x.get(0).unwrap();
         // Get first elem, check against all other, break on mismatch
@@ -212,7 +213,9 @@ impl Region {
         if index <= 1 {
             None
         } else {
-            if first.get(index).is_some() && first.get(index).unwrap().chars().all(|c| c.is_numeric()) {
+            if first.get(index).is_some()
+                && first.get(index).unwrap().chars().all(|c| c.is_numeric())
+            {
                 Some(first.iter().take(index).cloned().collect())
             } else {
                 Some(first.iter().take(index - 1).cloned().collect())
@@ -220,7 +223,7 @@ impl Region {
         }
     }
 
-    fn compute_ident(&self) -> Option<String>{
+    fn compute_ident(&self) -> Option<String> {
         if let Some(ident) = self.common_ident() {
             Some(ident)
         } else {
@@ -263,7 +266,6 @@ impl FieldRegions {
     /// Track a field.  If the field overlaps with 1 or more existing
     /// entries, they will be merged together.
     fn add(&mut self, field: &RegisterBlockField) -> Result<()> {
-
         // When merging, this holds the indices in self.regions
         // that the input `field` will be merging with.
         let mut indices = Vec::new();
@@ -315,13 +317,19 @@ impl FieldRegions {
         new_region.fields.sort_by_key(|f| f.offset);
 
         // maintain the regions ordered by starting offset
-        let idx = self.regions.binary_search_by_key(&new_region.offset, |r| r.offset);
+        let idx = self
+            .regions
+            .binary_search_by_key(&new_region.offset, |r| r.offset);
         match idx {
             Ok(idx) => {
-                bail!("we shouldn't exist in the vec, but are at idx {} {:#?}\n{:#?}",
-                    idx, new_region, self.regions);
+                bail!(
+                    "we shouldn't exist in the vec, but are at idx {} {:#?}\n{:#?}",
+                    idx,
+                    new_region,
+                    self.regions
+                );
             }
-            Err(idx) => self.regions.insert(idx, new_region)
+            Err(idx) => self.regions.insert(idx, new_region),
         };
 
         Ok(())
@@ -334,18 +342,26 @@ impl FieldRegions {
     /// Resolves type name conflicts
     pub fn resolve_idents(&mut self) -> Result<()> {
         let idents: Vec<_> = {
-            self.regions.iter_mut()
-            .filter(|r| r.fields.len() > 1)
-            .map(|r| {
-                r.ident = r.compute_ident();
-                r.ident.clone()
-            }).collect()
+            self.regions
+                .iter_mut()
+                .filter(|r| r.fields.len() > 1)
+                .map(|r| {
+                    r.ident = r.compute_ident();
+                    r.ident.clone()
+                }).collect()
         };
-        self.regions.iter_mut()
+        self.regions
+            .iter_mut()
             .filter(|r| r.ident.is_some())
-            .filter(|r| r.fields.len() > 1 && (idents.iter().filter(|ident| **ident == r.ident).count() > 1))
-            .inspect(|r| eprintln!("WARNING: Found type name conflict with region {:?}, renamed to {:?}", r.ident, r.shortest_ident()))
-            .for_each(|r| {
+            .filter(|r| {
+                r.fields.len() > 1 && (idents.iter().filter(|ident| **ident == r.ident).count() > 1)
+            }).inspect(|r| {
+                eprintln!(
+                    "WARNING: Found type name conflict with region {:?}, renamed to {:?}",
+                    r.ident,
+                    r.shortest_ident()
+                )
+            }).for_each(|r| {
                 r.ident = r.shortest_ident();
             });
         Ok(())
@@ -385,8 +401,7 @@ fn register_or_cluster_block_stable(
             eprintln!(
                 "WARNING {:?} overlaps with another register block at offset {}. \
                  Ignoring.",
-                reg_block_field.field.ident,
-                reg_block_field.offset
+                reg_block_field.field.ident, reg_block_field.offset
             );
             continue;
         };
@@ -472,10 +487,10 @@ fn register_or_cluster_block_nightly(
             if reg_block_field.offset != region.offset {
                 // TODO: need to emit padding for this case.
                 // Happens for freescale_mkl43z4
-                eprintln!("WARNING: field {:?} has different offset {} than its union container {}",
-                    reg_block_field.field.ident,
-                    reg_block_field.offset,
-                    region.offset);
+                eprintln!(
+                    "WARNING: field {:?} has different offset {} than its union container {}",
+                    reg_block_field.field.ident, reg_block_field.offset, region.offset
+                );
             }
             let comment = &format!(
                 "0x{:02x} - {}",
@@ -487,22 +502,21 @@ fn register_or_cluster_block_nightly(
                 #[doc = #comment]
             });
 
-
             reg_block_field.field.to_tokens(&mut region_fields);
             Ident::new(",").to_tokens(&mut region_fields);
         }
 
         if region.fields.len() > 1 && !block_is_union {
             let (type_name, name) = match region.ident.clone() {
-                Some(prefix) => {
-                    (Ident::new(format!("{}_UNION", prefix.to_sanitized_upper_case())),
-                    Ident::new(prefix))
-                }
+                Some(prefix) => (
+                    Ident::new(format!("{}_UNION", prefix.to_sanitized_upper_case())),
+                    Ident::new(prefix),
+                ),
                 // If we can't find a name, fall back to the region index as a
                 // unique-within-this-block identifier counter.
                 None => {
-                   let ident = Ident::new(format!("U{}", i));
-                   (ident.clone(), ident)
+                    let ident = Ident::new(format!("U{}", i));
+                    (ident.clone(), ident)
                 }
             };
 
@@ -521,7 +535,6 @@ fn register_or_cluster_block_nightly(
                 pub #name: #type_name
             });
             Ident::new(",").to_tokens(&mut fields);
-
         } else {
             fields.append(&region_fields);
         }
@@ -599,7 +612,6 @@ fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
 fn expand_cluster(cluster: &Cluster, defs: &Defaults) -> Result<Vec<RegisterBlockField>> {
     let mut cluster_expanded = vec![];
 
-
     let cluster_size = cluster
         .size
         .ok_or_else(|| format!("Cluster {} has no explictly defined size", cluster.name))
@@ -607,14 +619,12 @@ fn expand_cluster(cluster: &Cluster, defs: &Defaults) -> Result<Vec<RegisterBloc
         .chain_err(|| format!("Cluster {} has no determinable `size` field", cluster.name))?;
 
     match *cluster {
-        Cluster::Single(ref info) => {
-            cluster_expanded.push(RegisterBlockField {
-                field: convert_svd_cluster(cluster),
-                description: info.description.clone(),
-                offset: info.address_offset,
-                size: cluster_size,
-            })
-        },
+        Cluster::Single(ref info) => cluster_expanded.push(RegisterBlockField {
+            field: convert_svd_cluster(cluster),
+            description: info.description.clone(),
+            offset: info.address_offset,
+            size: cluster_size,
+        }),
         Cluster::Array(ref info, ref array_info) => {
             let sequential_addresses = cluster_size == array_info.dim_increment * BITS_PER_BYTE;
 
@@ -668,14 +678,12 @@ fn expand_register(
         .ok_or_else(|| format!("Register {} has no `size` field", register.name))?;
 
     match *register {
-        Register::Single(ref info) => {
-            register_expanded.push(RegisterBlockField {
-                field: convert_svd_register(register, name),
-                description: info.description.clone(),
-                offset: info.address_offset,
-                size: register_size,
-            })
-        },
+        Register::Single(ref info) => register_expanded.push(RegisterBlockField {
+            field: convert_svd_register(register, name),
+            description: info.description.clone(),
+            offset: info.address_offset,
+            size: register_size,
+        }),
         Register::Array(ref info, ref array_info) => {
             let sequential_addresses = register_size == array_info.dim_increment * BITS_PER_BYTE;
 
@@ -732,7 +740,7 @@ fn cluster_block(
         Cluster::Single(ref info) => &info.name,
         Cluster::Array(ref info, ref _ai) => &info.name,
     }.replace("[%s]", "")
-        .replace("%s", "");
+    .replace("%s", "");
     let name_sc = Ident::new(&*mod_name.to_sanitized_snake_case());
     let reg_block = register_or_cluster_block(&c.children, defaults, Some(&mod_name), nightly)?;
 
@@ -771,7 +779,9 @@ fn expand_svd_register(register: &Register, name: Option<&str>) -> Vec<syn::Fiel
     let name_to_ty = |name: &String, ns: Option<&str>| -> syn::Ty {
         let ident = if let Some(ns) = ns {
             Cow::Owned(
-                String::from("self::") + &ns.to_sanitized_snake_case() + "::"
+                String::from("self::")
+                    + &ns.to_sanitized_snake_case()
+                    + "::"
                     + &name.to_sanitized_upper_case(),
             )
         } else {
@@ -782,12 +792,10 @@ fn expand_svd_register(register: &Register, name: Option<&str>) -> Vec<syn::Fiel
             None,
             syn::Path {
                 global: false,
-                segments: vec![
-                    syn::PathSegment {
-                        ident: Ident::new(ident),
-                        parameters: syn::PathParameters::none(),
-                    },
-                ],
+                segments: vec![syn::PathSegment {
+                    ident: Ident::new(ident),
+                    parameters: syn::PathParameters::none(),
+                }],
             },
         )
     };
@@ -844,7 +852,9 @@ fn convert_svd_register(register: &Register, name: Option<&str>) -> syn::Field {
     let name_to_ty = |name: &String, ns: Option<&str>| -> syn::Ty {
         let ident = if let Some(ns) = ns {
             Cow::Owned(
-                String::from("self::") + &ns.to_sanitized_snake_case() + "::"
+                String::from("self::")
+                    + &ns.to_sanitized_snake_case()
+                    + "::"
                     + &name.to_sanitized_upper_case(),
             )
         } else {
@@ -855,12 +865,10 @@ fn convert_svd_register(register: &Register, name: Option<&str>) -> syn::Field {
             None,
             syn::Path {
                 global: false,
-                segments: vec![
-                    syn::PathSegment {
-                        ident: Ident::new(ident),
-                        parameters: syn::PathParameters::none(),
-                    },
-                ],
+                segments: vec![syn::PathSegment {
+                    ident: Ident::new(ident),
+                    parameters: syn::PathParameters::none(),
+                }],
             },
         )
     };
@@ -906,12 +914,10 @@ fn expand_svd_cluster(cluster: &Cluster) -> Vec<syn::Field> {
             None,
             syn::Path {
                 global: false,
-                segments: vec![
-                    syn::PathSegment {
-                        ident: Ident::new(name.to_sanitized_upper_case()),
-                        parameters: syn::PathParameters::none(),
-                    },
-                ],
+                segments: vec![syn::PathSegment {
+                    ident: Ident::new(name.to_sanitized_upper_case()),
+                    parameters: syn::PathParameters::none(),
+                }],
             },
         )
     };
@@ -970,12 +976,10 @@ fn convert_svd_cluster(cluster: &Cluster) -> syn::Field {
             None,
             syn::Path {
                 global: false,
-                segments: vec![
-                    syn::PathSegment {
-                        ident: Ident::new(name.to_sanitized_upper_case()),
-                        parameters: syn::PathParameters::none(),
-                    },
-                ],
+                segments: vec![syn::PathSegment {
+                    ident: Ident::new(name.to_sanitized_upper_case()),
+                    parameters: syn::PathParameters::none(),
+                }],
             },
         )
     };
