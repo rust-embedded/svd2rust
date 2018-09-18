@@ -101,6 +101,8 @@ fn run() -> Result<()> {
     let nightly = matches.is_present("nightly_features");
 
     let mut device_x = String::new();
+
+    #[allow(unused)] // Required because `features` is used conditionally
     let RenderOutput { tokens, features } =
         generate::device::render(&device, &target, nightly, &mut device_x)?;
 
@@ -109,12 +111,7 @@ fn run() -> Result<()> {
         writeln!(File::create("device.x").unwrap(), "{}", device_x).unwrap();
         writeln!(File::create("build.rs").unwrap(), "{}", build_rs()).unwrap();
     } else {
-        println!(
-            "{}",
-            quote! {
-                #(#tokens)*
-            }
-        );
+        println!("{}", quote!(#(#tokens)*));
     }
 
     // Only generate `Cargo.toml` when feature was selected
