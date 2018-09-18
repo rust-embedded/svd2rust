@@ -3,7 +3,7 @@ use svd::Device;
 use syn::Ident;
 
 use errors::*;
-use util::{self, ToSanitizedUpperCase};
+use util::{self, ToSanitizedUpperCase, ToSanitizedSnakeCase};
 use Target;
 
 use generate::{interrupt, peripheral};
@@ -139,13 +139,18 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
             continue;
         }
 
-        let p = p.name.to_sanitized_upper_case();
-        let id = Ident::new(&*p);
+        let upper_name = p.name.to_sanitized_upper_case();
+        let snake_name = p.name.to_sanitized_snake_case();
+        let id = Ident::new(&*upper_name);
         fields.push(quote! {
-            #[doc = #p]
+            #[doc = #upper_name]
+            #[cfg(feature = #snake_name)]
             pub #id: #id
         });
-        exprs.push(quote!(#id: #id { _marker: PhantomData }));
+        exprs.push(quote!{
+            #[cfg(feature = #snake_name)]
+            #id: #id { _marker: PhantomData }
+        });
     }
 
     let take = match *target {
