@@ -3,14 +3,28 @@ use svd::Device;
 use syn::Ident;
 
 use errors::*;
-use util::{self, ToSanitizedUpperCase, ToSanitizedSnakeCase};
+use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase};
 use Target;
 
 use generate::{interrupt, peripheral};
 
+/// A collection of Tokens and available feature flags
+pub struct RenderOutput {
+    pub tokens: Vec<Tokens>,
+    pub features: Vec<String>,
+}
+
 /// Whole device generation
-pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String) -> Result<Vec<Tokens>> {
-    let mut out = vec![];
+pub fn render(
+    d: &Device,
+    target: &Target,
+    nightly: bool,
+    device_x: &mut String,
+) -> Result<RenderOutput> {
+    let mut output = RenderOutput {
+        tokens: vec![],
+        features: vec![],
+    };
 
     let doc = format!(
         "Peripheral access API for {0} microcontrollers \
@@ -22,20 +36,20 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
     );
 
     if *target == Target::Msp430 {
-        out.push(quote! {
+        output.tokens.push(quote! {
             #![feature(abi_msp430_interrupt)]
         });
     }
 
     if *target != Target::None && *target != Target::CortexM {
-        out.push(quote! {
+        output.tokens.push(quote! {
             #![cfg_attr(feature = "rt", feature(global_asm))]
             #![cfg_attr(feature = "rt", feature(use_extern_macros))]
             #![cfg_attr(feature = "rt", feature(used))]
         });
     }
 
-    out.push(quote! {
+    output.tokens.push(quote! {
         #![doc = #doc]
         #![deny(missing_docs)]
         #![deny(warnings)]
@@ -44,28 +58,28 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
     });
 
     if *target != Target::CortexM {
-        out.push(quote! {
+        output.tokens.push(quote! {
             #![feature(const_fn)]
             #![feature(try_from)]
         });
     }
 
     if nightly {
-        out.push(quote! {
+        output.tokens.push(quote! {
             #![feature(untagged_unions)]
         });
     }
 
     match *target {
         Target::CortexM => {
-            out.push(quote! {
+            output.tokens.push(quote! {
                 extern crate cortex_m;
                 #[cfg(feature = "rt")]
                 extern crate cortex_m_rt;
             });
         }
         Target::Msp430 => {
-            out.push(quote! {
+            output.tokens.push(quote! {
                 extern crate msp430;
                 #[cfg(feature = "rt")]
                 extern crate msp430_rt;
@@ -74,7 +88,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
             });
         }
         Target::RISCV => {
-            out.push(quote! {
+            output.tokens.push(quote! {
                 extern crate riscv;
                 #[cfg(feature = "rt")]
                 extern crate riscv_rt;
@@ -83,7 +97,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         Target::None => {}
     }
 
-    out.push(quote! {
+    output.tokens.push(quote! {
         extern crate bare_metal;
         extern crate vcell;
 
@@ -94,26 +108,28 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
     if let Some(cpu) = d.cpu.as_ref() {
         let bits = util::unsuffixed(cpu.nvic_priority_bits as u64);
 
-        out.push(quote! {
+        output.tokens.push(quote! {
             /// Number available in the NVIC for configuring priority
             pub const NVIC_PRIO_BITS: u8 = #bits;
         });
     }
 
-    out.extend(interrupt::render(target, &d.peripherals, device_x)?);
+    output
+        .tokens
+        .extend(interrupt::render(target, &d.peripherals, device_x)?);
 
     const CORE_PERIPHERALS: &[&str] = &[
-        "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU"
+        "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU",
     ];
 
     let mut fields = vec![];
     let mut exprs = vec![];
     if *target == Target::CortexM {
-        out.push(quote! {
+        output.tokens.push(quote! {
             pub use cortex_m::peripheral::Peripherals as CorePeripherals;
         });
 
-        out.push(quote! {
+        output.tokens.push(quote! {
             pub use cortex_m::peripheral::{
                 CBP, CPUID, DCB, DWT, FPB, FPU, ITM, MPU, NVIC, SCB, SYST, TPIU,
             };
@@ -126,14 +142,16 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
             continue;
         }
 
-        let rendered = peripheral::render(p, &d.peripherals, &d.defaults, nightly)?;
-        out.extend(rendered.tokens);
+        output
+            .tokens
+            .extend(peripheral::render(p, &d.peripherals, &d.defaults, nightly)?);
 
         if p.registers
             .as_ref()
             .map(|v| &v[..])
             .unwrap_or(&[])
-            .is_empty() && p.derived_from.is_none()
+            .is_empty()
+            && p.derived_from.is_none()
         {
             // No register block will be generated so don't put this peripheral
             // in the `Peripherals` struct
@@ -142,6 +160,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
 
         let upper_name = p.name.to_sanitized_upper_case();
         let snake_name = p.name.to_sanitized_snake_case();
+        output.features.push(String::from(snake_name.clone()));
         let id = Ident::new(&*upper_name);
         fields.push(quote! {
             #[doc = #upper_name]
@@ -175,7 +194,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         }
     });
 
-    out.push(quote! {
+    output.tokens.push(quote! {
         // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
         // crate as that would let you `take` the device peripherals more than once (one per minor
         // version)
@@ -205,5 +224,5 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         }
     });
 
-    Ok(out)
+    Ok(output)
 }

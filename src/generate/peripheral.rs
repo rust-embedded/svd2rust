@@ -11,22 +11,13 @@ use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
 
 use generate::register;
 
-/// A collection of Tokens and available feature flags
-pub struct RenderOutput {
-    pub tokens: Vec<Tokens>,
-    pub features: Vec<String>,
-}
-
 pub fn render(
     p: &Peripheral,
     all_peripherals: &[Peripheral],
     defaults: &Defaults,
     nightly: bool,
-) -> Result<RenderOutput> {
-    let mut output = RenderOutput {
-        tokens: vec![],
-        features: vec![],
-    };
+) -> Result<Vec<Tokens>> {
+    let mut out = vec![];
 
     let name_pc = Ident::new(&*p.name.to_sanitized_upper_case());
     let address = util::hex(p.base_address);
@@ -43,10 +34,9 @@ pub fn render(
     };
 
     let snake_name = p.name.to_sanitized_snake_case();
-    output.features.push(String::from(snake_name.clone()));
 
     // Insert the peripheral structure
-    output.tokens.push(quote! {
+    out.push(quote! {
         #[doc = #description]
         #[cfg(feature = #snake_name)]
         pub struct #name_pc { _marker: PhantomData<*const ()> }
@@ -75,7 +65,7 @@ pub fn render(
     // Derived peripherals do not require re-implementation, and will instead
     // use a single definition of the non-derived version
     if derived {
-        return Ok(output);
+        return Ok(out);
     }
 
     // erc: *E*ither *R*egister or *C*luster
@@ -87,8 +77,8 @@ pub fn render(
     // No `struct RegisterBlock` can be generated
     if registers.is_empty() && clusters.is_empty() {
         // Drop the definition of the peripheral
-        output.tokens.pop();
-        return Ok(output);
+        out.pop();
+        return Ok(out);
     }
 
     // Push any register or cluster blocks into the output
@@ -112,7 +102,7 @@ pub fn render(
     }
 
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
-    output.tokens.push(quote! {
+    out.push(quote! {
         #[doc = #description]
         #[cfg(feature = #snake_name)]
         pub mod #name_sc {
@@ -120,7 +110,7 @@ pub fn render(
         }
     });
 
-    Ok(output)
+    Ok(out)
 }
 
 #[derive(Clone, Debug)]
