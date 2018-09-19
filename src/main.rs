@@ -117,7 +117,7 @@ fn run() -> Result<()> {
     // Only generate `Cargo.toml` when feature was selected
     #[cfg(feature = "cargo-setup")]
     writeln!(
-        File::create("build.rs").unwrap(),
+        File::create("Cargo.toml").unwrap(),
         "{}",
         generate::cargo::generate_skeleton(features)
     ).unwrap();
