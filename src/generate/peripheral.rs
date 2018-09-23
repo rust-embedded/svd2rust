@@ -341,8 +341,8 @@ impl FieldRegions {
                 r.fields.len() > 1 && (idents.iter().filter(|ident| **ident == r.ident).count() > 1)
             })
             .inspect(|r| {
-                eprintln!(
-                    "WARNING: Found type name conflict with region {:?}, renamed to {:?}",
+                warn!(
+                    "Found type name conflict with region {:?}, renamed to {:?}",
                     r.ident,
                     r.shortest_ident()
                 )
@@ -384,8 +384,8 @@ fn register_or_cluster_block_stable(
         let pad = if let Some(pad) = reg_block_field.offset.checked_sub(offset) {
             pad
         } else {
-            eprintln!(
-                "WARNING {:?} overlaps with another register block at offset {}. \
+            warn!(
+                "{:?} overlaps with another register block at offset {}. \
                  Ignoring.",
                 reg_block_field.field.ident, reg_block_field.offset
             );
@@ -473,8 +473,8 @@ fn register_or_cluster_block_nightly(
             if reg_block_field.offset != region.offset {
                 // TODO: need to emit padding for this case.
                 // Happens for freescale_mkl43z4
-                eprintln!(
-                    "WARNING: field {:?} has different offset {} than its union container {}",
+                warn!(
+                    "field {:?} has different offset {} than its union container {}",
                     reg_block_field.field.ident, reg_block_field.offset, region.offset
                 );
             }
