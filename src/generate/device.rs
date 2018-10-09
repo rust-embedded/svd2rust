@@ -188,8 +188,6 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
 
             /// Unchecked version of `Peripherals::take`
             pub unsafe fn steal() -> Self {
-                debug_assert!(!DEVICE_PERIPHERALS);
-
                 DEVICE_PERIPHERALS = true;
 
                 Peripherals {
