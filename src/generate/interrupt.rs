@@ -159,7 +159,9 @@ pub fn render(
             #(#variants)*
         }
 
-        unsafe impl ::bare_metal::Nr for Interrupt {
+        pub use ::bare_metal::Nr;
+
+        unsafe impl Nr for Interrupt {
             #[inline]
             fn nr(&self) -> u8 {
                 match *self {
