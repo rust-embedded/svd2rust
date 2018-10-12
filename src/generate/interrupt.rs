@@ -169,27 +169,25 @@ pub fn render(
                 }
             }
         }
+
+        #[derive(Debug, Copy, Clone)]
+        pub struct TryFromInterruptError(());
+
+        impl Interrupt {
+            #[inline]
+            pub fn try_from(value: u8) -> Result<Self, TryFromInterruptError> {
+                match value {
+                    #(#from_arms)*
+                    _ => Err(TryFromInterruptError(())),
+                }
+            }
+        }
     };
 
     if target == Target::CortexM {
         root.push(interrupt_enum);
     } else {
-        mod_items.push(quote! {
-            #interrupt_enum
-
-            #[derive(Debug, Copy, Clone)]
-            pub struct TryFromInterruptError(());
-
-            impl Interrupt {
-                #[inline]
-                pub fn try_from(value: u8) -> Result<Self, TryFromInterruptError> {
-                    match value {
-                        #(#from_arms)*
-                        _ => Err(TryFromInterruptError(())),
-                    }
-                }
-            }
-        });
+        mod_items.push(interrupt_enum);
     }
 
     if target != Target::None {
