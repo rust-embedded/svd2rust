@@ -252,13 +252,13 @@ pub fn fields(
                 description.push_str(&*util::respace(d));
             }
             Ok(F {
-                _pc_w: _pc_w,
-                _sc: _sc,
-                description: description,
-                pc_r: pc_r,
-                pc_w: pc_w,
-                bits: bits,
-                width: width,
+                _pc_w,
+                _sc,
+                description,
+                pc_r,
+                pc_w,
+                bits,
+                width,
                 access: f.access,
                 evs: &f.enumerated_values,
                 sc: Ident::new(&*sc),
@@ -331,11 +331,11 @@ pub fn fields(
                                     ev.name)
                         })?);
                         Ok(Variant {
-                            description: description,
-                            sc: sc,
+                            description,
+                            sc,
                             pc: Ident::new(&*ev.name
                                            .to_sanitized_upper_case()),
-                            value: value,
+                            value,
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -670,7 +670,7 @@ pub fn fields(
                                            .to_sanitized_upper_case()),
                             sc: Ident::new(&*ev.name
                                            .to_sanitized_snake_case()),
-                            value: value,
+                            value,
                         })
                         },
                     )
@@ -984,7 +984,7 @@ fn lookup_in_register<'r>(
             return Ok((
                 evs,
                 Some(Base {
-                    field: field,
+                    field,
                     register: None,
                     peripheral: None,
                 }),
