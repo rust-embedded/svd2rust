@@ -106,7 +106,7 @@ pub fn render(
         let rv = register
             .reset_value
             .or(defs.reset_value)
-            .map(|rv| util::hex(rv))
+            .map(util::hex)
             .ok_or_else(|| format!("Register {} has no reset value", register.name))?;
 
         w_impl_items.push(quote! {
@@ -494,7 +494,7 @@ pub fn fields(
                         let pc = &v.pc;
                         let sc = &v.sc;
 
-                        let is_variant = if sc.as_ref().starts_with("_") {
+                        let is_variant = if sc.as_ref().starts_with('_') {
                             Ident::new(&*format!("is{}", sc))
                         } else {
                             Ident::new(&*format!("is_{}", sc))
@@ -981,14 +981,14 @@ fn lookup_in_register<'r>(
             base_evs, register.name
         ))?,
         Some(&(evs, field)) => if matches.len() == 1 {
-            return Ok((
+            Ok((
                 evs,
                 Some(Base {
                     field: field,
                     register: None,
                     peripheral: None,
                 }),
-            ));
+            ))
         } else {
             let fields = matches
                 .iter()
@@ -1049,7 +1049,7 @@ fn periph_all_registers<'a>(p: &'a Peripheral) -> Vec<&'a Register> {
             Either::Left(ref reg) => {
                 par.push(reg);
             }
-            Either::Right(ref cluster) => for ref c in cluster.children.iter() {
+            Either::Right(ref cluster) => for c in cluster.children.iter() {
                 rem.push(c);
             },
         }

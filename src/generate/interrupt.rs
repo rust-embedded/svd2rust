@@ -308,7 +308,7 @@ pub fn render(
         }
     }
 
-    if interrupts.len() > 0 {
+    if !interrupts.is_empty() {
         root.push(quote! {
             #[doc(hidden)]
             pub mod interrupt {
