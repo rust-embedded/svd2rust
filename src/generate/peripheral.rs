@@ -21,7 +21,7 @@ pub fn render(
 
     let name_pc = Ident::new(&*p.name.to_sanitized_upper_case());
     let address = util::hex(p.base_address);
-    let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
+    let description = util::escape_brackets(util::respace(p.description.as_ref().unwrap_or(&p.name)).as_ref());
 
     let name_sc = Ident::new(&*p.name.to_sanitized_snake_case());
     let (base, derived) = if let Some(base) = p.derived_from.as_ref() {
@@ -95,7 +95,7 @@ pub fn render(
         )?);
     }
 
-    let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
+    let description = util::escape_brackets(util::respace(p.description.as_ref().unwrap_or(&p.name)).as_ref());
     out.push(quote! {
         #[doc = #description]
         pub mod #name_sc {
@@ -396,7 +396,7 @@ fn register_or_cluster_block_stable(
         let comment = &format!(
             "0x{:02x} - {}",
             reg_block_field.offset,
-            util::respace(&reg_block_field.description),
+            util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
         )[..];
 
         fields.append(quote! {
@@ -473,13 +473,12 @@ fn register_or_cluster_block_nightly(
             let comment = &format!(
                 "0x{:02x} - {}",
                 reg_block_field.offset,
-                util::respace(&reg_block_field.description),
+                util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
             )[..];
 
             region_fields.append(quote! {
                 #[doc = #comment]
             });
-
 
             reg_block_field.field.to_tokens(&mut region_fields);
             Ident::new(",").to_tokens(&mut region_fields);
@@ -718,7 +717,7 @@ fn cluster_block(
     let mut mod_items: Vec<Tokens> = vec![];
 
     // name_sc needs to take into account array type.
-    let description = util::respace(&c.description);
+    let description = util::escape_brackets(util::respace(&c.description).as_ref());
 
     // Generate the register block.
     let mod_name = match *c {

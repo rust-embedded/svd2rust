@@ -31,7 +31,7 @@ pub fn render(
         rsize.next_power_of_two()
     };
     let rty = rsize.to_ty()?;
-    let description = util::respace(&register.description);
+    let description = util::escape_brackets(util::respace(&register.description).as_ref());
 
     let unsafety = unsafety(register.write_constraint.as_ref(), rsize);
 
@@ -728,7 +728,7 @@ pub fn fields(
                     let pc = &v.pc;
                     let sc = &v.sc;
 
-                    let doc = util::respace(&v.doc);
+                    let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
                     if let Some(enum_) = base_pc_w.as_ref() {
                         proxy_items.push(quote! {
                             #[doc = #doc]

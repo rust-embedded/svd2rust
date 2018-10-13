@@ -137,6 +137,33 @@ pub fn respace(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+pub fn escape_brackets(s: &str) -> String {
+    s.split('[')
+        .fold("".to_string(), |acc, x| {
+            if acc == "" {
+                x.to_string()
+            } else {
+                if acc.ends_with("\\") {
+                    acc.to_owned() + "[" + &x.to_string()
+                } else {
+                    acc.to_owned() + "\\[" + &x.to_string()
+                }
+            }
+        })
+        .split(']')
+        .fold("".to_string(), |acc, x| {
+            if acc == "" {
+                x.to_string()
+            } else {
+                if acc.ends_with("\\") {
+                    acc.to_owned() + "[" + &x.to_string()
+                } else {
+                    acc.to_owned() + "\\[" + &x.to_string()
+                }
+            }
+        })
+}
+
 pub fn name_of(register: &Register) -> Cow<str> {
     match *register {
         Register::Single(ref info) => Cow::from(&*info.name),
