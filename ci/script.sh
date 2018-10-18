@@ -41,8 +41,8 @@ main() {
 
     # test crate
     cargo init --name foo $td
-    echo 'cortex-m = "0.5.0"' >> $td/Cargo.toml
-    echo 'cortex-m-rt = "0.5.0"' >> $td/Cargo.toml
+    echo 'cortex-m = "0.5.7"' >> $td/Cargo.toml
+    echo 'cortex-m-rt = "0.6.4"' >> $td/Cargo.toml
     echo 'vcell = "0.1.0"' >> $td/Cargo.toml
     echo '[profile.dev]' >> $td/Cargo.toml
     echo 'incremental = false' >> $td/Cargo.toml
