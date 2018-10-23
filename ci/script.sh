@@ -14,6 +14,9 @@ test_svd() {
 
     mv lib.rs src/lib.rs
 
+    # include Cargo features into test toml
+    cat CargoFeatures.toml >> $td/Cargo.toml
+
     # ignore rustfmt errors
     rustfmt src/lib.rs || true
     popd
