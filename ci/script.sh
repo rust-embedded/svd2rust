@@ -14,7 +14,11 @@ test_svd() {
 
     mv lib.rs src/lib.rs
 
+    # Save off "clean" Cargo toml
+    mv $td/Cargo.toml $td/Cargo.toml.bkp
+
     # include Cargo features into test toml
+    cat Cargo.toml.bkp > $td/Cargo.toml
     cat CargoFeatures.toml >> $td/Cargo.toml
 
     # ignore rustfmt errors
@@ -24,6 +28,9 @@ test_svd() {
     cat $td/Cargo.toml
 
     cargo check --all-features --manifest-path $td/Cargo.toml
+
+    # Restore pre-feature'd Cargo toml
+    mv $td/Cargo.toml.bkp $td/Cargo.toml
 }
 
 main() {
