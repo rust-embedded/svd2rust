@@ -21,6 +21,8 @@ test_svd() {
     rustfmt src/lib.rs || true
     popd
 
+    cat $td/Cargo.toml
+
     cargo check --all-features --manifest-path $td/Cargo.toml
 }
 
