@@ -12,7 +12,7 @@ pub const BITS_PER_BYTE: u32 = 8;
 
 /// List of chars that some vendors use in their peripheral/field names but
 /// that are not valid in Rust ident
-const BLACKLIST_CHARS: &'static [char] = &['(', ')', '[', ']', '/', ' '];
+const BLACKLIST_CHARS : &[char] = &['(', ')', '[', ']', '/', ' '];
 
 pub trait ToSanitizedPascalCase {
     fn to_sanitized_pascal_case(&self) -> Cow<str>;

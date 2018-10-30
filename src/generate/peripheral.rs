@@ -143,7 +143,7 @@ impl Region {
             // Sort by length and then content
             match a.len().cmp(&b.len()) {
                 Ordering::Equal => a.cmp(b),
-                cmp @ _ => cmp
+                cmp => cmp
             }
         });
         Some(idents[0].to_owned())
@@ -188,12 +188,12 @@ impl Region {
             .map(|i| split_keep(i))
             .collect();
         let mut index = 0;
-        let first = x.get(0).unwrap();
+        let first = &x[0];
         // Get first elem, check against all other, break on mismatch
         'outer: while index < first.len() {
             for ident_match in x.iter().skip(1) {
                 if let Some(match_) = ident_match.get(index) {
-                    if match_ != first.get(index).unwrap() {
+                    if match_ != &first[index] {
                         break 'outer;
                     }
                 } else {
@@ -205,7 +205,7 @@ impl Region {
         if index <= 1 {
             None
         } else {
-            if first.get(index).is_some() && first.get(index).unwrap().chars().all(|c| c.is_numeric()) {
+            if first.get(index).is_some() && first[index].chars().all(|c| c.is_numeric()) {
                 Some(first.iter().take(index).cloned().collect())
             } else {
                 Some(first.iter().take(index - 1).cloned().collect())
@@ -231,7 +231,7 @@ impl Region {
             // This isn't a foolproof way of emitting the most
             // reasonable short description, but it's good enough.
             if f.description != result {
-                if result.len() > 0 {
+                if !result.is_empty() {
                     result.push(' ');
                 }
                 result.push_str(&f.description);
@@ -553,8 +553,8 @@ fn expand(
 
     for erc in ercs {
         ercs_expanded.extend(match erc {
-            &Either::Left(ref register) => expand_register(register, defs, name)?,
-            &Either::Right(ref cluster) => expand_cluster(cluster, defs)?,
+            Either::Left(ref register) => expand_register(register, defs, name)?,
+            Either::Right(ref cluster) => expand_cluster(cluster, defs)?,
         });
     }
 
@@ -806,9 +806,9 @@ fn expand_svd_register(register: &Register, name: Option<&str>) -> Vec<syn::Fiel
 
             for (idx, _i) in indices.iter().zip(0..) {
                 let nb_name = if has_brackets {
-                    info.name.replace("[%s]", format!("{}", idx).as_str())
+                    info.name.replace("[%s]", idx)
                 } else {
-                    info.name.replace("%s", format!("{}", idx).as_str())
+                    info.name.replace("%s", idx)
                 };
 
                 let ty_name = if has_brackets {
@@ -930,9 +930,9 @@ fn expand_svd_cluster(cluster: &Cluster) -> Vec<syn::Field> {
 
             for (idx, _i) in indices.iter().zip(0..) {
                 let name = if has_brackets {
-                    info.name.replace("[%s]", format!("{}", idx).as_str())
+                    info.name.replace("[%s]", idx)
                 } else {
-                    info.name.replace("%s", format!("{}", idx).as_str())
+                    info.name.replace("%s", idx)
                 };
 
                 let ty_name = if has_brackets {
