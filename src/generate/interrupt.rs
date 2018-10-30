@@ -320,7 +320,7 @@ pub fn render(
 
         if *target != Target::CortexM {
             root.push(quote! {
-                pub use interrupt::Interrupt;
+                pub use self::interrupt::Interrupt;
             });
         }
     }
