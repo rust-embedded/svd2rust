@@ -193,6 +193,8 @@ pub fn render(
                     _reserved: u32,
                 }
 
+                #[allow(renamed_and_removed_lints)]
+                // This currently breaks on nightly, to be removed with the line above once 1.31 is stable
                 #[allow(private_no_mangle_statics)]
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
@@ -318,7 +320,7 @@ pub fn render(
 
         if *target != Target::CortexM {
             root.push(quote! {
-                pub use interrupt::Interrupt;
+                pub use self::interrupt::Interrupt;
             });
         }
     }
