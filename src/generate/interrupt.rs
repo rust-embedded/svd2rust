@@ -50,6 +50,8 @@ pub fn render(
                 .description
                 .as_ref()
                 .map(|s| util::respace(s))
+                .as_ref()
+                .map(|s| util::escape_brackets(s))
                 .unwrap_or_else(|| interrupt.name.clone())
         );
 
