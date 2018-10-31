@@ -823,7 +823,7 @@ fn expand_svd_register(register: &Register, name: Option<&str>) -> Vec<syn::Fiel
                     ident: Some(ident),
                     vis: syn::Visibility::Public,
                     attrs: vec![],
-                    ty: ty,
+                    ty,
                 });
             }
         }
@@ -884,7 +884,7 @@ fn convert_svd_register(register: &Register, name: Option<&str>) -> syn::Field {
                 ident: Some(ident),
                 vis: syn::Visibility::Public,
                 attrs: vec![],
-                ty: ty,
+                ty,
             }
         }
     }
@@ -947,7 +947,7 @@ fn expand_svd_cluster(cluster: &Cluster) -> Vec<syn::Field> {
                     ident: Some(ident),
                     vis: syn::Visibility::Public,
                     attrs: vec![],
-                    ty: ty,
+                    ty,
                 });
             }
         }
@@ -999,7 +999,7 @@ fn convert_svd_cluster(cluster: &Cluster) -> syn::Field {
                 ident: Some(ident),
                 vis: syn::Visibility::Public,
                 attrs: vec![],
-                ty: ty,
+                ty,
             }
         }
     }
