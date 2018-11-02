@@ -50,6 +50,8 @@ pub fn render(
                 .description
                 .as_ref()
                 .map(|s| util::respace(s))
+                .as_ref()
+                .map(|s| util::escape_brackets(s))
                 .unwrap_or_else(|| interrupt.name.clone())
         );
 
@@ -193,6 +195,8 @@ pub fn render(
                     _reserved: u32,
                 }
 
+                #[allow(renamed_and_removed_lints)]
+                // This currently breaks on nightly, to be removed with the line above once 1.31 is stable
                 #[allow(private_no_mangle_statics)]
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
@@ -308,7 +312,7 @@ pub fn render(
         }
     }
 
-    if interrupts.len() > 0 {
+    if !interrupts.is_empty() {
         root.push(quote! {
             #[doc(hidden)]
             pub mod interrupt {
@@ -318,7 +322,7 @@ pub fn render(
 
         if *target != Target::CortexM {
             root.push(quote! {
-                pub use interrupt::Interrupt;
+                pub use self::interrupt::Interrupt;
             });
         }
     }

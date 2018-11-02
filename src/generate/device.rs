@@ -198,6 +198,8 @@ pub fn render(
         // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
         // crate as that would let you `take` the device peripherals more than once (one per minor
         // version)
+        #[allow(renamed_and_removed_lints)]
+        // This currently breaks on nightly, to be removed with the line above once 1.31 is stable
         #[allow(private_no_mangle_statics)]
         #[no_mangle]
         static mut DEVICE_PERIPHERALS: bool = false;

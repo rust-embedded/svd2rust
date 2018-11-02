@@ -31,7 +31,7 @@ pub fn render(
         rsize.next_power_of_two()
     };
     let rty = rsize.to_ty()?;
-    let description = util::respace(&register.description);
+    let description = util::escape_brackets(util::respace(&register.description).as_ref());
 
     let unsafety = unsafety(register.write_constraint.as_ref(), rsize);
 
@@ -106,7 +106,7 @@ pub fn render(
         let rv = register
             .reset_value
             .or(defs.reset_value)
-            .map(|rv| util::hex(rv))
+            .map(util::hex)
             .ok_or_else(|| format!("Register {} has no reset value", register.name))?;
 
         w_impl_items.push(quote! {
@@ -252,13 +252,13 @@ pub fn fields(
                 description.push_str(&*util::respace(d));
             }
             Ok(F {
-                _pc_w: _pc_w,
-                _sc: _sc,
-                description: description,
-                pc_r: pc_r,
-                pc_w: pc_w,
-                bits: bits,
-                width: width,
+                _pc_w,
+                _sc,
+                description,
+                pc_r,
+                pc_w,
+                bits,
+                width,
                 access: f.access,
                 evs: &f.enumerated_values,
                 sc: Ident::new(&*sc),
@@ -331,11 +331,11 @@ pub fn fields(
                                     ev.name)
                         })?);
                         Ok(Variant {
-                            description: description,
-                            sc: sc,
+                            description,
+                            sc,
                             pc: Ident::new(&*ev.name
                                            .to_sanitized_upper_case()),
-                            value: value,
+                            value,
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -494,7 +494,7 @@ pub fn fields(
                         let pc = &v.pc;
                         let sc = &v.sc;
 
-                        let is_variant = if sc.as_ref().starts_with("_") {
+                        let is_variant = if sc.as_ref().starts_with('_') {
                             Ident::new(&*format!("is{}", sc))
                         } else {
                             Ident::new(&*format!("is_{}", sc))
@@ -670,7 +670,7 @@ pub fn fields(
                                            .to_sanitized_upper_case()),
                             sc: Ident::new(&*ev.name
                                            .to_sanitized_snake_case()),
-                            value: value,
+                            value,
                         })
                         },
                     )
@@ -728,7 +728,7 @@ pub fn fields(
                     let pc = &v.pc;
                     let sc = &v.sc;
 
-                    let doc = util::respace(&v.doc);
+                    let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
                     if let Some(enum_) = base_pc_w.as_ref() {
                         proxy_items.push(quote! {
                             #[doc = #doc]
@@ -981,14 +981,14 @@ fn lookup_in_register<'r>(
             base_evs, register.name
         ))?,
         Some(&(evs, field)) => if matches.len() == 1 {
-            return Ok((
+            Ok((
                 evs,
                 Some(Base {
-                    field: field,
+                    field,
                     register: None,
                     peripheral: None,
                 }),
-            ));
+            ))
         } else {
             let fields = matches
                 .iter()
@@ -1049,7 +1049,7 @@ fn periph_all_registers<'a>(p: &'a Peripheral) -> Vec<&'a Register> {
             Either::Left(ref reg) => {
                 par.push(reg);
             }
-            Either::Right(ref cluster) => for ref c in cluster.children.iter() {
+            Either::Right(ref cluster) => for c in cluster.children.iter() {
                 rem.push(c);
             },
         }
