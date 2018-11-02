@@ -18,7 +18,7 @@ test_svd() {
     mv $td/Cargo.toml $td/Cargo.toml.bkp
 
     # include Cargo features into test toml
-    cat Cargo.toml.bkp > $td/Cargo.toml
+    cat $td/Cargo.toml.bkp > $td/Cargo.toml
     cat CargoFeatures.toml >> $td/Cargo.toml
 
     # ignore rustfmt errors
@@ -53,8 +53,8 @@ main() {
 
     # test crate
     cargo init --name foo $td
-    echo 'cortex-m = "=0.5.4"' >> $td/Cargo.toml
-    echo 'cortex-m-rt = "=0.5.4"' >> $td/Cargo.toml
+    echo 'cortex-m = "0.5.4"' >> $td/Cargo.toml
+    echo 'cortex-m-rt = "0.5.4"' >> $td/Cargo.toml
     echo 'vcell = "0.1.0"' >> $td/Cargo.toml
     echo '[profile.dev]' >> $td/Cargo.toml
     echo 'incremental = false' >> $td/Cargo.toml
