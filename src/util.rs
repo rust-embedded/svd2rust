@@ -156,9 +156,9 @@ pub fn escape_brackets(s: &str) -> String {
                 x.to_string()
             } else {
                 if acc.ends_with("\\") {
-                    acc.to_owned() + "[" + &x.to_string()
+                    acc.to_owned() + "]" + &x.to_string()
                 } else {
-                    acc.to_owned() + "\\[" + &x.to_string()
+                    acc.to_owned() + "\\]" + &x.to_string()
                 }
             }
         })
