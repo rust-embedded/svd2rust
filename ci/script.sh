@@ -10,7 +10,7 @@ test_svd() {
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
     local cwd=$(pwd)
     pushd $td
-    $cwd/target/$TARGET/release/svd2rust -i ${1}.svd
+    $cwd/target/$TARGET/release/svd2rust -p -i ${1}.svd
 
     mv lib.rs src/lib.rs
 

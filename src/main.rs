@@ -10,8 +10,6 @@ extern crate inflections;
 extern crate quote;
 extern crate svd_parser as svd;
 extern crate syn;
-
-#[cfg(feature = "cargo-setup")]
 extern crate toml;
 
 mod errors;
@@ -69,6 +67,11 @@ fn run() -> Result<()> {
             Arg::with_name("nightly_features")
                 .long("nightly")
                 .help("Enable features only available to nightly rustc"),
+        ).arg(
+            Arg::with_name("conditional_peripherals")
+                .long("cond-periphs")
+                .short("p")
+                .help("Wrap each generated peripheral in a conditional feature"),
         ).version(concat!(
             env!("CARGO_PKG_VERSION"),
             include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
@@ -99,12 +102,13 @@ fn run() -> Result<()> {
     let device = svd::parse(xml);
 
     let nightly = matches.is_present("nightly_features");
+    let conditional = matches.is_present("conditional_peripherals");
 
     let mut device_x = String::new();
 
     #[allow(unused)] // Required because `features` is used conditionally
     let RenderOutput { tokens, features } =
-        generate::device::render(&device, &target, nightly, &mut device_x)?;
+        generate::device::render(&device, &target, nightly, conditional, &mut device_x)?;
 
     if target == Target::CortexM {
         writeln!(File::create("lib.rs").unwrap(), "{}", quote!(#(#tokens)*)).unwrap();
@@ -115,12 +119,13 @@ fn run() -> Result<()> {
     }
 
     // Only generate `Cargo.toml` when feature was selected
-    #[cfg(feature = "cargo-setup")]
-    writeln!(
-        File::create("CargoFeatures.toml").unwrap(),
-        "{}",
-        generate::cargo::generate_skeleton(features)
-    ).unwrap();
+    if conditional {
+        writeln!(
+            File::create("CargoFeatures.toml").unwrap(),
+            "{}",
+            generate::cargo::generate_skeleton(features)
+        ).unwrap();
+    }
 
     Ok(())
 }

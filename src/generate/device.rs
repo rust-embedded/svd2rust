@@ -19,6 +19,7 @@ pub fn render(
     d: &Device,
     target: &Target,
     nightly: bool,
+    conditional: bool,
     device_x: &mut String,
 ) -> Result<RenderOutput> {
     let mut output = RenderOutput {
@@ -97,13 +98,27 @@ pub fn render(
         Target::None => {}
     }
 
-    output.tokens.push(quote! {
-        extern crate bare_metal;
-        extern crate vcell;
+    // If conditionals are used, and NO peripherals are selected,
+    // certain imports may be unused
+    if conditional {
+        output.tokens.push(quote! {
+            extern crate bare_metal;
+            extern crate vcell;
 
-        use core::ops::Deref;
-        use core::marker::PhantomData;
-    });
+            #[allow(unused_imports)]
+            use core::ops::Deref;
+            #[allow(unused_imports)]
+            use core::marker::PhantomData;
+        });
+    } else {
+        output.tokens.push(quote! {
+            extern crate bare_metal;
+            extern crate vcell;
+
+            use core::ops::Deref;
+            use core::marker::PhantomData;
+        });
+    }
 
     if let Some(cpu) = d.cpu.as_ref() {
         let bits = util::unsuffixed(cpu.nvic_priority_bits as u64);
@@ -144,7 +159,7 @@ pub fn render(
 
         output
             .tokens
-            .extend(peripheral::render(p, &d.peripherals, &d.defaults, nightly)?);
+            .extend(peripheral::render(p, &d.peripherals, &d.defaults, nightly, conditional)?);
 
         if p.registers
             .as_ref()
@@ -162,15 +177,30 @@ pub fn render(
         let snake_name = p.name.to_sanitized_snake_case();
         output.features.push(String::from(snake_name.clone()));
         let id = Ident::new(&*upper_name);
-        fields.push(quote! {
-            #[doc = #upper_name]
-            #[cfg(feature = #snake_name)]
-            pub #id: #id
-        });
-        exprs.push(quote!{
-            #[cfg(feature = #snake_name)]
-            #id: #id { _marker: PhantomData }
-        });
+
+        // Should we allow for conditional compilation of each peripheral?
+        if conditional {
+            // Yes, annotate each item with a feature gate
+            fields.push(quote! {
+                #[doc = #upper_name]
+                #[cfg(feature = #snake_name)]
+                pub #id: #id
+            });
+            exprs.push(quote!{
+                #[cfg(feature = #snake_name)]
+                #id: #id { _marker: PhantomData }
+            });
+        } else {
+            // No, all peripherals will always be generated
+            fields.push(quote! {
+                #[doc = #upper_name]
+                pub #id: #id
+            });
+            exprs.push(quote!{
+                #id: #id { _marker: PhantomData }
+            });
+        }
+
     }
 
     let take = match *target {
