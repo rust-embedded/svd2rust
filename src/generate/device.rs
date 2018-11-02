@@ -91,6 +91,9 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         use core::marker::PhantomData;
     });
 
+    // Retaining the previous assumption
+    let mut fpu_present = true;
+
     if let Some(cpu) = d.cpu.as_ref() {
         let bits = util::unsuffixed(cpu.nvic_priority_bits as u64);
 
@@ -98,13 +101,23 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
             /// Number available in the NVIC for configuring priority
             pub const NVIC_PRIO_BITS: u8 = #bits;
         });
+
+        fpu_present = cpu.fpu_present;
     }
 
     out.extend(interrupt::render(target, &d.peripherals, device_x)?);
 
-    const CORE_PERIPHERALS: &[&str] = &[
-        "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU"
-    ];
+    let core_peripherals: &[&str];
+
+    if fpu_present {
+        core_peripherals = &[
+            "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU"
+        ];
+    } else {
+        core_peripherals = &[
+            "CBP", "CPUID", "DCB", "DWT", "FPB", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU"
+        ];
+    }
 
     let mut fields = vec![];
     let mut exprs = vec![];
@@ -113,15 +126,23 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
             pub use cortex_m::peripheral::Peripherals as CorePeripherals;
         });
 
-        out.push(quote! {
-            pub use cortex_m::peripheral::{
-                CBP, CPUID, DCB, DWT, FPB, FPU, ITM, MPU, NVIC, SCB, SYST, TPIU,
-            };
-        });
+        if fpu_present {
+            out.push(quote! {
+                pub use cortex_m::peripheral::{
+                    CBP, CPUID, DCB, DWT, FPB, FPU, ITM, MPU, NVIC, SCB, SYST, TPIU,
+                };
+            });
+        } else {
+            out.push(quote! {
+                pub use cortex_m::peripheral::{
+                    CBP, CPUID, DCB, DWT, FPB, ITM, MPU, NVIC, SCB, SYST, TPIU,
+                };
+            });
+        }
     }
 
     for p in &d.peripherals {
-        if *target == Target::CortexM && CORE_PERIPHERALS.contains(&&*p.name.to_uppercase()) {
+        if *target == Target::CortexM && core_peripherals.contains(&&*p.name.to_uppercase()) {
             // Core peripherals are handled above
             continue;
         }
