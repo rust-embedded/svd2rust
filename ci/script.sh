@@ -18,7 +18,7 @@ test_svd() {
     rustfmt src/lib.rs || true
     popd
 
-    cargo check --manifest-path $td/Cargo.toml
+    cargo check --all-features --manifest-path $td/Cargo.toml
 }
 
 main() {
@@ -39,18 +39,11 @@ main() {
             ;;
     esac
 
-    # test crate
-    cargo init --name foo $td
-    echo 'cortex-m = "0.5.0"' >> $td/Cargo.toml
-    echo 'cortex-m-rt = "0.5.0"' >> $td/Cargo.toml
-    echo 'vcell = "0.1.0"' >> $td/Cargo.toml
-    echo '[profile.dev]' >> $td/Cargo.toml
-    echo 'incremental = false' >> $td/Cargo.toml
+    mkdir -p $td/src
 
     case $VENDOR in
         Atmel)
-            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+
 
             # BAD-SVD missing resetValue
             # test_svd AT91SAM9CN11
@@ -135,8 +128,7 @@ main() {
         ;;
 
         Freescale)
-            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+
 
             # BAD-SVD bad enumeratedValue value
             # test_svd MKV56F20
@@ -286,8 +278,7 @@ main() {
         ;;
 
         Fujitsu)
-            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+
 
             # OK
             test_svd MB9AF10xN
@@ -393,8 +384,7 @@ main() {
         ;;
 
         Holtek)
-            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+
 
             # OK
             test_svd ht32f125x
@@ -404,18 +394,6 @@ main() {
 
         # test other targets (architectures)
         OTHER)
-            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.1.0"' >> $td/Cargo.toml
-
-            echo '[dependencies.msp430]' >> $td/Cargo.toml
-            echo 'version = "0.1.0"' >> $td/Cargo.toml
-
-            # echo '[dependencies.riscv]' >> $td/Cargo.toml
-            # echo 'version = "0.2.0"' >> $td/Cargo.toml
-
-            # echo '[dependencies.riscv-rt]' >> $td/Cargo.toml
-            # echo 'version = "0.2.0"' >> $td/Cargo.toml
-
             (
                 cd $td &&
                     curl -LO \
@@ -425,25 +403,21 @@ main() {
                 #          https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
             )
 
-            target/$TARGET/release/svd2rust --target msp430 -i $td/msp430g2553.svd | \
-                ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
+            target/$TARGET/release/svd2rust --target msp430 -i $td/msp430g2553.svd
+            mv $td/lib.rs $td/src/lib.rs
+            rustfmt $td/src/lib.rs || true
 
-            cargo check --manifest-path $td/Cargo.toml
+            cargo check  --all-features --manifest-path $td/Cargo.toml
 
-            target/$TARGET/release/svd2rust --target none -i $td/msp430g2553.svd | \
-                ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
+            # target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd
+            # mv $td/lib.rs $td/src/lib.rs
+            # rustfmt $td/src/lib.rs || true
 
-            cargo check --manifest-path $td/Cargo.toml
-
-            # target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd | \
-                # ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
-
-            cargo check --manifest-path $td/Cargo.toml
+            # cargo check  --all-features --manifest-path $td/Cargo.toml
         ;;
 
         Nordic)
-            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+
 
             # BAD-SVD two enumeratedValues have the same value
             # test_svd nrf52
@@ -453,8 +427,7 @@ main() {
         ;;
 
         Nuvoton)
-            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+
 
             # OK
             test_svd M051_Series
@@ -462,8 +435,7 @@ main() {
         ;;
 
         NXP)
-            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+
 
             # BAD-SVD two enumeratedValues have the same name
             # test_svd LPC11Exx_v5
@@ -501,8 +473,7 @@ main() {
         ;;
 
         SiliconLabs)
-            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+
 
             # #99 regression tests
             test_svd SIM3C1x4_SVD
@@ -520,8 +491,7 @@ main() {
         ;;
 
         Spansion)
-            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+
 
             # OK
             test_svd MB9AF12xK
@@ -618,8 +588,7 @@ main() {
         ;;
 
         STMicro)
-            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+
 
             # OK
             test_svd STM32F030
@@ -671,8 +640,7 @@ main() {
         ;;
 
         Toshiba)
-            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+
 
             # BAD-SVD resetValue is bigger than the register size
             # test_svd M365

@@ -10,19 +10,21 @@ extern crate inflections;
 extern crate quote;
 extern crate svd_parser as svd;
 extern crate syn;
+extern crate toml;
 
 mod errors;
 mod generate;
 mod util;
 
 use std::fs::File;
-use std::process;
 use std::io::{self, Write};
+use std::process;
 
-use quote::Tokens;
 use clap::{App, Arg};
+use quote::Tokens;
 
 use errors::*;
+use generate::device::RenderOutput;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Target {
@@ -55,24 +57,20 @@ fn run() -> Result<()> {
                 .short("i")
                 .takes_value(true)
                 .value_name("FILE"),
-        )
-        .arg(
+        ).arg(
             Arg::with_name("target")
                 .long("target")
                 .help("Target architecture")
                 .takes_value(true)
                 .value_name("ARCH"),
-        )
-        .arg(
+        ).arg(
             Arg::with_name("nightly_features")
                 .long("nightly")
-                .help("Enable features only available to nightly rustc")
-        )
-        .version(concat!(
+                .help("Enable features only available to nightly rustc"),
+        ).version(concat!(
             env!("CARGO_PKG_VERSION"),
             include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
-        ))
-        .get_matches();
+        )).get_matches();
 
     let target = matches
         .value_of("target")
@@ -99,22 +97,27 @@ fn run() -> Result<()> {
     let device = svd::parse(xml);
 
     let nightly = matches.is_present("nightly_features");
+    let conditional = matches.is_present("conditional_peripherals");
 
     let mut device_x = String::new();
-    let items = generate::device::render(&device, &target, nightly, &mut device_x)?;
+
+    #[allow(unused)] // Required because `features` is used conditionally
+    let RenderOutput { tokens, features } =
+        generate::device::render(&device, &target, nightly, conditional, &mut device_x)?;
+
+    writeln!(File::create("lib.rs").unwrap(), "{}", quote!(#(#tokens)*)).unwrap();
 
     if target == Target::CortexM {
-        writeln!(File::create("lib.rs").unwrap(), "{}", quote!(#(#items)*)).unwrap();
         writeln!(File::create("device.x").unwrap(), "{}", device_x).unwrap();
         writeln!(File::create("build.rs").unwrap(), "{}", build_rs()).unwrap();
-    } else {
-        println!(
-            "{}",
-            quote! {
-                #(#items)*
-            }
-        );
     }
+
+    // Write a Cargo.toml
+    writeln!(
+        File::create("Cargo.toml").chain_err(|| "Failed to create Cargo.toml")?,
+        "{}",
+        generate::cargo::generate_skeleton(&device.name, &target, features, env!("CARGO_PKG_VERSION"))
+    ).chain_err(|| "Failed to write Cargo.toml")?;
 
     Ok(())
 }
