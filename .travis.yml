@@ -11,42 +11,42 @@ env:
 matrix:
   include:
     # Nightly, for testing
-    # - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Atmel
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Atmel
 
-    # - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Freescale
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Freescale
 
-    # - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Fujitsu
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Fujitsu
 
-    # - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Holtek
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Holtek
 
-    # - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Nordic
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Nordic
 
-    # - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Nuvoton
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Nuvoton
 
-    # - env: TARGET=x86_64-unknown-linux-gnu VENDOR=NXP
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=NXP
 
-    # - env: TARGET=x86_64-unknown-linux-gnu VENDOR=SiliconLabs
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=SiliconLabs
 
-    # - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Spansion
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Spansion
 
-    # - env: TARGET=x86_64-unknown-linux-gnu VENDOR=STMicro
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=STMicro
 
-    # - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Toshiba
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Toshiba
 
-    # - env: TARGET=x86_64-unknown-linux-gnu VENDOR=OTHER
-    #   rust: nightly
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=OTHER
+      rust: nightly
 
-    # # Linux
-    # - env: TARGET=i686-unknown-linux-gnu
-    # - env: TARGET=i686-unknown-linux-musl
-    # - env: TARGET=x86_64-unknown-linux-gnu
-    # - env: TARGET=x86_64-unknown-linux-musl
+    # Linux
+    - env: TARGET=i686-unknown-linux-gnu
+    - env: TARGET=i686-unknown-linux-musl
+    - env: TARGET=x86_64-unknown-linux-gnu
+    - env: TARGET=x86_64-unknown-linux-musl
 
-    # # OSX
-    # - env: TARGET=i686-apple-darwin
-    #   os: osx
-    # - env: TARGET=x86_64-apple-darwin
-    #   os: osx
+    # OSX
+    - env: TARGET=i686-apple-darwin
+      os: osx
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
 
     # Windows
     - env: TARGET=x86_64-pc-windows-msvc
