@@ -67,11 +67,6 @@ fn run() -> Result<()> {
             Arg::with_name("nightly_features")
                 .long("nightly")
                 .help("Enable features only available to nightly rustc"),
-        ).arg(
-            Arg::with_name("conditional_peripherals")
-                .long("cond-periphs")
-                .short("p")
-                .help("Wrap each generated peripheral in a conditional feature"),
         ).version(concat!(
             env!("CARGO_PKG_VERSION"),
             include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
@@ -110,22 +105,19 @@ fn run() -> Result<()> {
     let RenderOutput { tokens, features } =
         generate::device::render(&device, &target, nightly, conditional, &mut device_x)?;
 
+    writeln!(File::create("lib.rs").unwrap(), "{}", quote!(#(#tokens)*)).unwrap();
+
     if target == Target::CortexM {
-        writeln!(File::create("lib.rs").unwrap(), "{}", quote!(#(#tokens)*)).unwrap();
         writeln!(File::create("device.x").unwrap(), "{}", device_x).unwrap();
         writeln!(File::create("build.rs").unwrap(), "{}", build_rs()).unwrap();
-    } else {
-        println!("{}", quote!(#(#tokens)*));
     }
 
-    // Only generate `Cargo.toml` when feature was selected
-    if conditional {
-        writeln!(
-            File::create("CargoFeatures.toml").unwrap(),
-            "{}",
-            generate::cargo::generate_skeleton(features)
-        ).unwrap();
-    }
+    // Write a Cargo.toml
+    writeln!(
+        File::create("Cargo.toml").chain_err(|| "Failed to create Cargo.toml")?,
+        "{}",
+        generate::cargo::generate_skeleton(&device.name, &target, features, env!("CARGO_PKG_VERSION"))
+    ).chain_err(|| "Failed to write Cargo.toml")?;
 
     Ok(())
 }
