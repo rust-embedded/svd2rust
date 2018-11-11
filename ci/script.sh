@@ -22,6 +22,11 @@ test_svd() {
 }
 
 main() {
+    if [ $TRAVIS_OS_NAME = windows ]; then
+        cargo check --target $TARGET
+        return
+    fi
+
     cross check --target $TARGET
 
     if [ -z ${VENDOR-} ]; then
