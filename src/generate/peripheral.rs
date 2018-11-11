@@ -131,13 +131,22 @@ pub fn render(
     }
 
     let description = util::escape_brackets(util::respace(p.description.as_ref().unwrap_or(&p.name)).as_ref());
-    out.push(quote! {
-        #[doc = #description]
-        #[cfg(feature = #snake_name)]
-        pub mod #name_sc {
-            #(#mod_items)*
-        }
-    });
+    if conditional {
+        out.push(quote! {
+            #[doc = #description]
+            #[cfg(feature = #snake_name)]
+            pub mod #name_sc {
+                #(#mod_items)*
+            }
+        });
+    } else {
+        out.push(quote! {
+            #[doc = #description]
+            pub mod #name_sc {
+                #(#mod_items)*
+            }
+        });
+    }
 
     Ok(out)
 }
