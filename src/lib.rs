@@ -53,8 +53,8 @@
 //! ```
 //!
 //! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
-//! `bare-metal` v0.2.x, `cortex-m` v0.5.x, `cortex-m-rt` v0.6.x and `vcell` v0.1.x. Furthermore the
-//! "device" feature of `cortex-m-rt` must be enabled when the "rt" feature is enabled. The
+//! `bare-metal` v0.2.x, `cortex-m` v0.5.x, `cortex-m-rt` >=v0.6.5 and `vcell` v0.1.x. Furthermore
+//! the "device" feature of `cortex-m-rt` must be enabled when the "rt" feature is enabled. The
 //! `Cargo.toml` of the device crate will look like this:
 //!
 //! ``` toml
@@ -65,7 +65,7 @@
 //!
 //! [dependencies.cortex-m-rt]
 //! optional = true
-//! version = "0.5.0"
+//! version = "0.6.5"
 //!
 //! [features]
 //! rt = ["cortex-m-rt/device"]
