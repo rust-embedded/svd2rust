@@ -423,7 +423,7 @@
 //! [`interrupt!`](macro.interrupt.html) macro (non Cortex-M targets) or [`interrupt`] attribute
 //! (Cortex-M) that can be used to register interrupt handlers.
 //!
-//! [`interrupt`]: TODO(add link here)
+//! [`interrupt`]: https://docs.rs/cortex-m-rt-macros/0.1/cortex_m_rt_macros/attr.interrupt.html
 //!
 //! ## the `--nightly` flag
 //!
