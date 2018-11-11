@@ -80,6 +80,8 @@ branches:
   only:
     - staging
     - trying
+    # release tags
+    - /^v\d+\.\d+\.\d+.*$/
 
 notifications:
   email:
