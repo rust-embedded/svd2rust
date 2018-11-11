@@ -43,8 +43,6 @@ main() {
 
     case $VENDOR in
         Atmel)
-
-
             # BAD-SVD missing resetValue
             # test_svd AT91SAM9CN11
             # test_svd AT91SAM9CN12
@@ -128,8 +126,6 @@ main() {
         ;;
 
         Freescale)
-
-
             # BAD-SVD bad enumeratedValue value
             # test_svd MKV56F20
             # test_svd MKV56F22
@@ -278,8 +274,6 @@ main() {
         ;;
 
         Fujitsu)
-
-
             # OK
             test_svd MB9AF10xN
             test_svd MB9AF10xR
@@ -384,8 +378,6 @@ main() {
         ;;
 
         Holtek)
-
-
             # OK
             test_svd ht32f125x
             test_svd ht32f175x
@@ -430,8 +422,6 @@ main() {
         ;;
 
         Nordic)
-
-
             # BAD-SVD two enumeratedValues have the same value
             # test_svd nrf52
 
@@ -440,16 +430,12 @@ main() {
         ;;
 
         Nuvoton)
-
-
             # OK
             test_svd M051_Series
             test_svd NUC100_Series
         ;;
 
         NXP)
-
-
             # BAD-SVD two enumeratedValues have the same name
             # test_svd LPC11Exx_v5
             # test_svd LPC11Uxx_v7
@@ -467,8 +453,6 @@ main() {
             # test_svd LPC178x_7x_v0.8
             # test_svd LPC408x_7x_v0.7
             # test_svd LPC11Axxv0.6
-
-
             # BAD-SVD bad identifier: contains a '.'
             # test_svd LPC11D14_svd_v4
             # test_svd LPC13xx_svd_v1
@@ -486,8 +470,6 @@ main() {
         ;;
 
         SiliconLabs)
-
-
             # #99 regression tests
             test_svd SIM3C1x4_SVD
             test_svd SIM3C1x6_SVD
@@ -504,8 +486,6 @@ main() {
         ;;
 
         Spansion)
-
-
             # OK
             test_svd MB9AF12xK
             test_svd MB9AF12xL
@@ -601,8 +581,6 @@ main() {
         ;;
 
         STMicro)
-
-
             # OK
             test_svd STM32F030
             test_svd STM32F031x
@@ -653,8 +631,6 @@ main() {
         ;;
 
         Toshiba)
-
-
             # BAD-SVD resetValue is bigger than the register size
             # test_svd M365
             # test_svd M367

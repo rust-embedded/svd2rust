@@ -11,7 +11,7 @@ pub fn generate_skeleton(
     skeleton += &generate_header(chip_name, version);
     skeleton += &generate_dependencies(target);
     skeleton += &generate_profiles();
-    skeleton += &generate_features(features);
+    skeleton += &generate_features(target, features);
 
     skeleton
 }
@@ -35,7 +35,6 @@ fn generate_dependencies(target: &Target) -> String {
     deps += "\n";
     deps += "[dependencies]\n";
     deps += "vcell = \"0.1.0\"\n";
-    deps += "\n";
 
     match target {
         Target::CortexM => {
@@ -50,6 +49,7 @@ version = \"0.5.0\"
         Target::Msp430 => {
             deps += "bare-metal = \"0.1.0\"\n";
             deps += "msp430 = \"0.1.0\"\n";
+            deps += "msp430-rt = \"0.1.0\"\n";
         }
         Target::RISCV => {
             deps += "bare-metal = \"0.1.0\"\n";
@@ -65,16 +65,17 @@ version = \"0.5.0\"
 }
 
 fn generate_profiles() -> String {
-    format!(
-"
-[profile.dev]
-incremental = false
-",
-    )
+    let mut out = String::new();
+    out += "\n";
+    out += "[profile.dev]\n";
+    out += "incremental = false\n";
+    out += "\n";
+
+    out
 }
 
-fn generate_features(features: Vec<String>) -> String {
-    format!(
+fn generate_features(target: &Target, features: Vec<String>) -> String {
+    let mut out = format!(
         "
 [features]
 
@@ -83,16 +84,31 @@ fn generate_features(features: Vec<String>) -> String {
 # each peripheral (as a feature flag) necessary for your use, or select the `all`
 # feature to activate all peripherals (selecting all will increase compile time)
 all = [ {} ]
-default = []
-rt = [\"cortex-m-rt/device\"]
 
-# Individual Peripherals
-{}
+default = []
 ",
         features.iter().map(|feat| format!("'{}'", feat)).collect::<Vec<_>>().join(", "),
-        features.iter().fold(String::new(), |mut s, f| {
+    );
+
+    match target {
+        Target::CortexM => {
+            out += "rt = [\"cortex-m-rt/device\"]\n";
+        }
+        Target::Msp430 => {
+            out += "rt = [\"msp430-rt/device\"]\n";
+        }
+        Target::RISCV => {
+            out += "rt = [\"riscv-rt/device\"]\n";
+        }
+        Target::None => {},
+    };
+
+    out += "\n";
+    out += "# Individual Peripherals\n";
+    out += &features.iter().fold(String::new(), |mut s, f| {
             s.push_str(&format!("{} = []\n", f));
             s
-        })
-    )
+    });
+
+    out
 }
