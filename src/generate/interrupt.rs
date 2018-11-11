@@ -233,18 +233,14 @@ pub fn render(
         root.push(interrupt_enum);
     } else {
         mod_items.push(quote! {
-            use core::convert::TryFrom;
-
             #interrupt_enum
 
             #[derive(Debug, Copy, Clone)]
             pub struct TryFromInterruptError(());
 
-            impl TryFrom<u8> for Interrupt {
-                type Error = TryFromInterruptError;
-
+            impl Interrupt {
                 #[inline]
-                fn try_from(value: u8) -> Result<Self, Self::Error> {
+                pub fn try_from(value: u8) -> Result<Self, TryFromInterruptError> {
                     match value {
                         #(#from_arms)*
                         _ => Err(TryFromInterruptError(())),
