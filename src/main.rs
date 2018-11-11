@@ -16,6 +16,7 @@ mod errors;
 mod generate;
 mod util;
 
+use util::ToSanitizedSnakeCase;
 use std::fs::File;
 use std::io::{self, Write};
 use std::process;
@@ -112,11 +113,13 @@ fn run() -> Result<()> {
         writeln!(File::create("build.rs").unwrap(), "{}", build_rs()).unwrap();
     }
 
+    let snake_device = device.name.to_sanitized_snake_case();
+
     // Write a Cargo.toml
     writeln!(
         File::create("Cargo.toml").chain_err(|| "Failed to create Cargo.toml")?,
         "{}",
-        generate::cargo::generate_skeleton(&device.name, &target, features, env!("CARGO_PKG_VERSION"))
+        generate::cargo::generate_skeleton(&snake_device, &target, features, env!("CARGO_PKG_VERSION"))
     ).chain_err(|| "Failed to write Cargo.toml")?;
 
     Ok(())
