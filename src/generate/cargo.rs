@@ -49,12 +49,20 @@ version = \"0.5.0\"
         Target::Msp430 => {
             deps += "bare-metal = \"0.1.0\"\n";
             deps += "msp430 = \"0.1.0\"\n";
-            deps += "msp430-rt = \"0.1.0\"\n";
+            deps += "
+[dependencies.msp430-rt]
+optional = true
+version = \"0.1.0\"
+";
         }
         Target::RISCV => {
             deps += "bare-metal = \"0.1.0\"\n";
             deps += "riscv = \"0.2.0\"\n";
-            deps += "riscv-rt = \"0.2.0\"\n";
+            deps += "
+[dependencies.riscv-rt]
+optional = true
+version = \"0.2.0\"
+";
         }
         Target::None => {
             // No dependencies
