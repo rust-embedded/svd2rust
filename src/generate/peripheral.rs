@@ -16,7 +16,6 @@ pub fn render(
     all_peripherals: &[Peripheral],
     defaults: &Defaults,
     nightly: bool,
-    conditional: bool,
 ) -> Result<Vec<Tokens>> {
     let mut out = vec![];
 
@@ -37,59 +36,33 @@ pub fn render(
     let snake_name = p.name.to_sanitized_snake_case();
 
     // Insert the peripheral structure
-    // Should we allow for conditional compilation of each peripheral?
-    if conditional {
-        // Yes, we want to be able to conditionally compile each peripheral,
-        // so place each peripheral behind a feature gate
-        out.push(quote! {
-            #[doc = #description]
-            #[cfg(feature = #snake_name)]
-            pub struct #name_pc { _marker: PhantomData<*const ()> }
+    // We want to be able to conditionally compile each peripheral,
+    // so place each peripheral behind a feature gate
+    out.push(quote! {
+        #[doc = #description]
+        #[cfg(feature = #snake_name)]
+        pub struct #name_pc { _marker: PhantomData<*const ()> }
 
-            #[cfg(feature = #snake_name)]
-            unsafe impl Send for #name_pc {}
+        #[cfg(feature = #snake_name)]
+        unsafe impl Send for #name_pc {}
 
-            #[cfg(feature = #snake_name)]
-            impl #name_pc {
-                /// Returns a pointer to the register block
-                pub fn ptr() -> *const #base::RegisterBlock {
-                    #address as *const _
-                }
+        #[cfg(feature = #snake_name)]
+        impl #name_pc {
+            /// Returns a pointer to the register block
+            pub fn ptr() -> *const #base::RegisterBlock {
+                #address as *const _
             }
+        }
 
-            #[cfg(feature = #snake_name)]
-            impl Deref for #name_pc {
-                type Target = #base::RegisterBlock;
+        #[cfg(feature = #snake_name)]
+        impl Deref for #name_pc {
+            type Target = #base::RegisterBlock;
 
-                fn deref(&self) -> &#base::RegisterBlock {
-                    unsafe { &*#name_pc::ptr() }
-                }
+            fn deref(&self) -> &#base::RegisterBlock {
+                unsafe { &*#name_pc::ptr() }
             }
-        });
-    } else {
-        // No, we do not want condtional compilation, always build all peripherals
-        out.push(quote! {
-            #[doc = #description]
-            pub struct #name_pc { _marker: PhantomData<*const ()> }
-
-            unsafe impl Send for #name_pc {}
-
-            impl #name_pc {
-                /// Returns a pointer to the register block
-                pub fn ptr() -> *const #base::RegisterBlock {
-                    #address as *const _
-                }
-            }
-
-            impl Deref for #name_pc {
-                type Target = #base::RegisterBlock;
-
-                fn deref(&self) -> &#base::RegisterBlock {
-                    unsafe { &*#name_pc::ptr() }
-                }
-            }
-        });
-    }
+        }
+    });
 
     // Derived peripherals do not require re-implementation, and will instead
     // use a single definition of the non-derived version
@@ -131,22 +104,13 @@ pub fn render(
     }
 
     let description = util::escape_brackets(util::respace(p.description.as_ref().unwrap_or(&p.name)).as_ref());
-    if conditional {
-        out.push(quote! {
-            #[doc = #description]
-            #[cfg(feature = #snake_name)]
-            pub mod #name_sc {
-                #(#mod_items)*
-            }
-        });
-    } else {
-        out.push(quote! {
-            #[doc = #description]
-            pub mod #name_sc {
-                #(#mod_items)*
-            }
-        });
-    }
+    out.push(quote! {
+        #[doc = #description]
+        #[cfg(feature = #snake_name)]
+        pub mod #name_sc {
+            #(#mod_items)*
+        }
+    });
 
     Ok(out)
 }

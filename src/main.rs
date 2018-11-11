@@ -96,15 +96,11 @@ fn run() -> Result<()> {
     }
 
     let device = svd::parse(xml);
-
     let nightly = matches.is_present("nightly_features");
-    let conditional = matches.is_present("conditional_peripherals");
-
     let mut device_x = String::new();
 
-    #[allow(unused)] // Required because `features` is used conditionally
     let RenderOutput { tokens, features } =
-        generate::device::render(&device, &target, nightly, conditional, &mut device_x)?;
+        generate::device::render(&device, &target, nightly, &mut device_x)?;
 
     writeln!(File::create("lib.rs").unwrap(), "{}", quote!(#(#tokens)*)).unwrap();
 

@@ -403,15 +403,28 @@ main() {
                 #          https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
             )
 
-            target/$TARGET/release/svd2rust --target msp430 -i $td/msp430g2553.svd
+            local cwd=$(pwd)
+
+            # Test MSP430
+            pushd $td
+
+            $cwd/target/$TARGET/release/svd2rust --target msp430 -i $td/msp430g2553.svd
             mv $td/lib.rs $td/src/lib.rs
             rustfmt $td/src/lib.rs || true
 
+            popd
+
             cargo check  --all-features --manifest-path $td/Cargo.toml
+
+            # Test RISC-V
+
+            # pushd $td
 
             # target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd
             # mv $td/lib.rs $td/src/lib.rs
             # rustfmt $td/src/lib.rs || true
+
+            # popd
 
             # cargo check  --all-features --manifest-path $td/Cargo.toml
         ;;
