@@ -100,64 +100,6 @@ pub fn render(
                 pub static __INTERRUPTS: [Vector; #n] = [
                     #(#elements,)*
                 ];
-
-                /// Macro to override a device specific interrupt handler
-                ///
-                /// # Syntax
-                ///
-                /// ``` ignore
-                /// interrupt!(
-                ///     // Name of the interrupt
-                ///     $Name:ident,
-                ///
-                ///     // Path to the interrupt handler (a function)
-                ///     $handler:path,
-                ///
-                ///     // Optional, state preserved across invocations of the handler
-                ///     state: $State:ty = $initial_state:expr,
-                /// );
-                /// ```
-                ///
-                /// Where `$Name` must match the name of one of the variants of the `Interrupt`
-                /// enum.
-                ///
-                /// The handler must have signature `fn()` is no state was associated to it;
-                /// otherwise its signature must be `fn(&mut $State)`.
-                #[cfg(feature = "rt")]
-                #[macro_export]
-                macro_rules! interrupt {
-                    ($Name:ident, $handler:path,state: $State:ty = $initial_state:expr) => {
-                        #[allow(unsafe_code)]
-                        #[deny(private_no_mangle_fns)] // raise an error if this item is not accessible
-                        #[no_mangle]
-                        pub unsafe extern "C" fn $Name() {
-                            static mut STATE: $State = $initial_state;
-
-                            // check that this interrupt exists
-                            let _ = $crate::Interrupt::$Name;
-
-                            // validate the signature of the user provided handler
-                            let f: fn(&mut $State) = $handler;
-
-                            f(&mut STATE)
-                        }
-                    };
-
-                    ($Name:ident, $handler:path) => {
-                        #[allow(unsafe_code)]
-                        #[deny(private_no_mangle_fns)] // raise an error if this item is not accessible
-                        #[no_mangle]
-                        pub unsafe extern "C" fn $Name() {
-                            // check that this interrupt exists
-                            let _ = $crate::Interrupt::$Name;
-
-                            // validate the signature of the user provided handler
-                            let f: fn() = $handler;
-
-                            f()
-                        }
-                    };
-                }
             });
         }
         Target::Msp430 => {
@@ -309,14 +251,14 @@ pub fn render(
     }
 
     if !interrupts.is_empty() {
-        root.push(quote! {
-            #[doc(hidden)]
-            pub mod interrupt {
-                #(#mod_items)*
-            }
-        });
-
         if *target != Target::CortexM {
+            root.push(quote! {
+                #[doc(hidden)]
+                pub mod interrupt {
+                    #(#mod_items)*
+                }
+            });
+
             root.push(quote! {
                 pub use self::interrupt::Interrupt;
             });

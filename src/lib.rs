@@ -53,19 +53,19 @@
 //! ```
 //!
 //! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
-//! `bare-metal` v0.2.x, `cortex-m` v0.5.x, `cortex-m-rt` v0.5.x and `vcell` v0.1.x. Furthermore the
-//! "device" feature of `cortex-m-rt` must be enabled when the "rt" feature is enabled. The
+//! `bare-metal` v0.2.x, `cortex-m` v0.5.x, `cortex-m-rt` >=v0.6.5 and `vcell` v0.1.x. Furthermore
+//! the "device" feature of `cortex-m-rt` must be enabled when the "rt" feature is enabled. The
 //! `Cargo.toml` of the device crate will look like this:
 //!
 //! ``` toml
 //! [dependencies]
 //! bare-metal = "0.2.0"
-//! cortex-m = "0.5.0"
+//! cortex-m = "0.6.4"
 //! vcell = "0.1.0"
 //!
 //! [dependencies.cortex-m-rt]
 //! optional = true
-//! version = "0.5.0"
+//! version = "0.6.5"
 //!
 //! [features]
 //! rt = ["cortex-m-rt/device"]
@@ -420,7 +420,10 @@
 //!
 //! If the "rt" Cargo feature of the svd2rust generated crate is enabled the crate will populate the
 //! part of the vector table that contains the interrupt vectors and provide an
-//! [`interrupt!`](macro.interrupt.html) macro that can be used to register interrupt handlers.
+//! [`interrupt!`](macro.interrupt.html) macro (non Cortex-M targets) or [`interrupt`] attribute
+//! (Cortex-M) that can be used to register interrupt handlers.
+//!
+//! [`interrupt`]: https://docs.rs/cortex-m-rt-macros/0.1/cortex_m_rt_macros/attr.interrupt.html
 //!
 //! ## the `--nightly` flag
 //!
