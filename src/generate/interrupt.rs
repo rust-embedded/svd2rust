@@ -264,7 +264,7 @@ pub fn render(
             });
 
             root.push(quote! {
-                pub use interrupt::Interrupt;
+                pub use self::interrupt::Interrupt;
             });
         }
     }
