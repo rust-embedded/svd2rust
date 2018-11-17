@@ -1,8 +1,7 @@
 use cast::u64;
-use either::Either;
 use quote::Tokens;
-use crate::svd::{Access, BitRange, Cluster, Defaults, EnumeratedValues, Field, Peripheral, Register,
-          Usage, WriteConstraint};
+use svd::{Access, BitRange, Defaults, EnumeratedValues, Field, Peripheral, Register,
+          RegisterCluster, Usage, WriteConstraint};
 use syn::Ident;
 
 use crate::errors::*;
@@ -31,7 +30,7 @@ pub fn render(
         rsize.next_power_of_two()
     };
     let rty = rsize.to_ty()?;
-    let description = util::escape_brackets(util::respace(&register.description).as_ref());
+    let description = util::escape_brackets(util::respace(&register.description.clone().unwrap()).as_ref());
 
     let unsafety = unsafety(register.write_constraint.as_ref(), rsize);
 
@@ -222,7 +221,8 @@ pub fn fields(
 
     impl<'a> F<'a> {
         fn from(f: &'a Field) -> Result<Self> {
-            let BitRange { offset, width } = f.bit_range;
+            // TODO(AJM) - do we need to do anything with this range type?
+            let BitRange { offset, width, range_type: _ } = f.bit_range;
             let sc = f.name.to_sanitized_snake_case();
             let pc = f.name.to_sanitized_upper_case();
             let pc_r = Ident::new(&*format!("{}R", pc));
@@ -1014,7 +1014,7 @@ fn lookup_in_peripherals<'p>(
 
 fn periph_all_registers<'a>(p: &'a Peripheral) -> Vec<&'a Register> {
     let mut par: Vec<&Register> = Vec::new();
-    let mut rem: Vec<&Either<Register, Cluster>> = Vec::new();
+    let mut rem: Vec<&RegisterCluster> = Vec::new();
     if p.registers.is_none() {
         return par;
     }
@@ -1033,10 +1033,10 @@ fn periph_all_registers<'a>(p: &'a Peripheral) -> Vec<&'a Register> {
 
         let b = b.unwrap();
         match *b {
-            Either::Left(ref reg) => {
+            RegisterCluster::Register(ref reg) => {
                 par.push(reg);
             }
-            Either::Right(ref cluster) => for c in cluster.children.iter() {
+            RegisterCluster::Cluster(ref cluster) => for c in cluster.children.iter() {
                 rem.push(c);
             },
         }

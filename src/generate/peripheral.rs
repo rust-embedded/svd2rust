@@ -1,9 +1,8 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
 
-use either::Either;
 use quote::{ToTokens, Tokens};
-use crate::svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register};
+use svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register, RegisterCluster};
 use syn::{self, Ident};
 use log::warn;
 
@@ -356,7 +355,7 @@ impl FieldRegions {
 }
 
 fn register_or_cluster_block(
-    ercs: &[Either<Register, Cluster>],
+    ercs: &[RegisterCluster],
     defs: &Defaults,
     name: Option<&str>,
     nightly: bool,
@@ -369,7 +368,7 @@ fn register_or_cluster_block(
 }
 
 fn register_or_cluster_block_stable(
-    ercs: &[Either<Register, Cluster>],
+    ercs: &[RegisterCluster],
     defs: &Defaults,
     name: Option<&str>,
 ) -> Result<Tokens> {
@@ -433,7 +432,7 @@ fn register_or_cluster_block_stable(
 }
 
 fn register_or_cluster_block_nightly(
-    ercs: &[Either<Register, Cluster>],
+    ercs: &[RegisterCluster],
     defs: &Defaults,
     name: Option<&str>,
 ) -> Result<Tokens> {
@@ -552,7 +551,7 @@ fn register_or_cluster_block_nightly(
 /// Expand a list of parsed `Register`s or `Cluster`s, and render them to
 /// `RegisterBlockField`s containing `Field`s.
 fn expand(
-    ercs: &[Either<Register, Cluster>],
+    ercs: &[RegisterCluster],
     defs: &Defaults,
     name: Option<&str>,
 ) -> Result<Vec<RegisterBlockField>> {
@@ -560,8 +559,8 @@ fn expand(
 
     for erc in ercs {
         ercs_expanded.extend(match erc {
-            Either::Left(ref register) => expand_register(register, defs, name)?,
-            Either::Right(ref cluster) => expand_cluster(cluster, defs)?,
+            RegisterCluster::Register(ref register) => expand_register(register, defs, name)?,
+            RegisterCluster::Cluster(ref cluster) => expand_cluster(cluster, defs)?,
         });
     }
 
@@ -577,7 +576,7 @@ fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
 
     for c in &info.children {
         let end = match *c {
-            Either::Left(ref reg) => {
+            RegisterCluster::Register(ref reg) => {
                 let reg_size: u32 = expand_register(reg, defs, None)?
                     .iter()
                     .map(|rbf| rbf.size)
@@ -585,7 +584,7 @@ fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
 
                 (reg.address_offset * BITS_PER_BYTE) + reg_size
             }
-            Either::Right(ref clust) => {
+            RegisterCluster::Cluster(ref clust) => {
                 (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, defs)?
             }
         };
@@ -665,7 +664,7 @@ fn expand_register(
     match *register {
         Register::Single(ref info) => register_expanded.push(RegisterBlockField {
             field: convert_svd_register(register, name),
-            description: info.description.clone(),
+            description: info.description.clone().unwrap(),
             offset: info.address_offset,
             size: register_size,
         }),
@@ -685,7 +684,7 @@ fn expand_register(
             if array_convertible {
                 register_expanded.push(RegisterBlockField {
                     field: convert_svd_register(&register, name),
-                    description: info.description.clone(),
+                    description: info.description.clone().unwrap(),
                     offset: info.address_offset,
                     size: register_size * array_info.dim,
                 });
@@ -693,7 +692,7 @@ fn expand_register(
                 for (field_num, field) in expand_svd_register(register, name).iter().enumerate() {
                     register_expanded.push(RegisterBlockField {
                         field: field.clone(),
-                        description: info.description.clone(),
+                        description: info.description.clone().unwrap(),
                         offset: info.address_offset + field_num as u32 * array_info.dim_increment,
                         size: register_size,
                     });

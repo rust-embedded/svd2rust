@@ -467,7 +467,7 @@ pub enum SvdError {
 pub fn generate(xml: &str, target: Target, nightly: bool) -> Result<Generation> {
     use std::fmt::Write;
 
-    let device = svd::parse(xml);
+    let device = svd::parse(xml).unwrap(); //TODO(AJM)
     let mut device_x = String::new();
     let items = generate::device::render(&device, target, nightly, &mut device_x)
         .or(Err(SvdError::Render))?;

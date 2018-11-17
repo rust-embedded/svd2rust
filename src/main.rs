@@ -92,7 +92,7 @@ fn run() -> Result<()> {
         }
     }
 
-    let device = svd::parse(xml);
+    let device = svd::parse(xml).unwrap(); //TODO(AJM)
 
     let nightly = matches.is_present("nightly_features");
 
