@@ -2,9 +2,8 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
-use either::Either;
 use quote::{ToTokens, Tokens};
-use svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register, RegisterInfo};
+use svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register, RegisterCluster, RegisterInfo};
 use syn::{self, Ident};
 
 use errors::*;
@@ -118,7 +117,7 @@ pub fn render(
     }
 
     // Build up an alternate erc list by expanding any derived registers
-    let mut alt_erc :Vec<Either<Register,Cluster>> = registers.iter().filter_map(|r| {
+    let mut alt_erc :Vec<RegisterCluster> = registers.iter().filter_map(|r| {
         match r.derived_from {
             Some(ref derived) => {
                 let ancestor = match reg_map.get(derived) {
@@ -131,27 +130,27 @@ pub fn render(
 
                 let d = match **ancestor {
                     Register::Array(ref info, ref array_info) => {
-                        Some(Either::Left(Register::Array(derive_reg_info(*r, info), array_info.clone())))
+                        Some(Register::Array(derive_reg_info(*r, info), array_info.clone()).into())
                     }
                     Register::Single(ref info) => {
-                        Some(Either::Left(Register::Single(derive_reg_info(*r, info))))
+                        Some(Register::Single(derive_reg_info(*r, info)).into())
                     }
                 };
 
                 d
             }
-            None => Some(Either::Left((*r).clone())),
+            None => Some((*r).clone().into()),
         }
     }).collect();
 
     // Now add the clusters to our alternate erc list
     let clusters = util::only_clusters(ercs);
     for cluster in &clusters {
-        alt_erc.push(Either::Right((*cluster).clone()));
+        alt_erc.push((*cluster).clone().into());
     }
 
     // And revise registers, clusters and ercs to refer to our expanded versions
-    let registers: &[&Register] = &util::only_registers(&alt_erc)[..];
+    let registers: &[&Register] = &util::only_registers(alt_erc.as_slice())[..];
     let clusters = util::only_clusters(ercs);
     let ercs = &alt_erc;
 
@@ -164,7 +163,7 @@ pub fn render(
 
     // Push any register or cluster blocks into the output
     let mut mod_items = vec![];
-    mod_items.push(register_or_cluster_block(ercs, defaults, None, nightly)?);
+    mod_items.push(register_or_cluster_block(ercs.as_slice(), defaults, None, nightly)?);
 
     // Push all cluster related information into the peripheral module
     for c in &clusters {
@@ -433,7 +432,7 @@ impl FieldRegions {
 }
 
 fn register_or_cluster_block(
-    ercs: &[Either<Register, Cluster>],
+    ercs: &[RegisterCluster],
     defs: &Defaults,
     name: Option<&str>,
     nightly: bool,
@@ -446,7 +445,7 @@ fn register_or_cluster_block(
 }
 
 fn register_or_cluster_block_stable(
-    ercs: &[Either<Register, Cluster>],
+    ercs: &[RegisterCluster],
     defs: &Defaults,
     name: Option<&str>,
 ) -> Result<Tokens> {
@@ -511,7 +510,7 @@ fn register_or_cluster_block_stable(
 }
 
 fn register_or_cluster_block_nightly(
-    ercs: &[Either<Register, Cluster>],
+    ercs: &[RegisterCluster],
     defs: &Defaults,
     name: Option<&str>,
 ) -> Result<Tokens> {
@@ -631,7 +630,7 @@ fn register_or_cluster_block_nightly(
 /// Expand a list of parsed `Register`s or `Cluster`s, and render them to
 /// `RegisterBlockField`s containing `Field`s.
 fn expand(
-    ercs: &[Either<Register, Cluster>],
+    ercs: &[RegisterCluster],
     defs: &Defaults,
     name: Option<&str>,
 ) -> Result<Vec<RegisterBlockField>> {
@@ -639,8 +638,8 @@ fn expand(
 
     for erc in ercs {
         ercs_expanded.extend(match erc {
-            Either::Left(ref register) => expand_register(register, defs, name)?,
-            Either::Right(ref cluster) => expand_cluster(cluster, defs)?,
+            RegisterCluster::Register(ref register) => expand_register(register, defs, name)?,
+            RegisterCluster::Cluster(ref cluster) => expand_cluster(cluster, defs)?,
         });
     }
 
@@ -656,7 +655,7 @@ fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
 
     for c in &info.children {
         let end = match *c {
-            Either::Left(ref reg) => {
+            RegisterCluster::Register(ref reg) => {
                 let reg_size: u32 = expand_register(reg, defs, None)?
                     .iter()
                     .map(|rbf| rbf.size)
@@ -664,7 +663,7 @@ fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
 
                 (reg.address_offset * BITS_PER_BYTE) + reg_size
             }
-            Either::Right(ref clust) => {
+            RegisterCluster::Cluster(ref clust) => {
                 (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, defs)?
             }
         };
