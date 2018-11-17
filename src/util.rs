@@ -12,7 +12,7 @@ pub const BITS_PER_BYTE: u32 = 8;
 
 /// List of chars that some vendors use in their peripheral/field names but
 /// that are not valid in Rust ident
-const BLACKLIST_CHARS: &'static [char] = &['(', ')', '[', ']', '/', ' '];
+const BLACKLIST_CHARS : &[char] = &['(', ')', '[', ']', '/', ' '];
 
 pub trait ToSanitizedPascalCase {
     fn to_sanitized_pascal_case(&self) -> Cow<str>;
@@ -49,6 +49,8 @@ impl ToSanitizedSnakeCase for str {
                     abstract,
                     alignof,
                     as,
+                    async,
+                    await,
                     become,
                     box,
                     break,
@@ -88,6 +90,7 @@ impl ToSanitizedSnakeCase for str {
                     super,
                     trait,
                     true,
+                    try,
                     type,
                     typeof,
                     unsafe,
@@ -135,6 +138,33 @@ impl ToSanitizedPascalCase for str {
 
 pub fn respace(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+pub fn escape_brackets(s: &str) -> String {
+    s.split('[')
+        .fold("".to_string(), |acc, x| {
+            if acc == "" {
+                x.to_string()
+            } else {
+                if acc.ends_with("\\") {
+                    acc.to_owned() + "[" + &x.to_string()
+                } else {
+                    acc.to_owned() + "\\[" + &x.to_string()
+                }
+            }
+        })
+        .split(']')
+        .fold("".to_string(), |acc, x| {
+            if acc == "" {
+                x.to_string()
+            } else {
+                if acc.ends_with("\\") {
+                    acc.to_owned() + "]" + &x.to_string()
+                } else {
+                    acc.to_owned() + "\\]" + &x.to_string()
+                }
+            }
+        })
 }
 
 pub fn name_of(register: &Register) -> Cow<str> {

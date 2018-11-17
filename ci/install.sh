@@ -2,7 +2,9 @@ set -euxo pipefail
 
 main() {
     local sort=
-    if [ $TRAVIS_OS_NAME = linux ]; then
+    if [ $TRAVIS_OS_NAME = windows ]; then
+        return
+    elif [ $TRAVIS_OS_NAME = linux ]; then
         sort=sort
     else
         sort=gsort

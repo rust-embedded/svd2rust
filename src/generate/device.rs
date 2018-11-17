@@ -43,13 +43,6 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         #![no_std]
     });
 
-    if *target != Target::CortexM {
-        out.push(quote! {
-            #![feature(const_fn)]
-            #![feature(try_from)]
-        });
-    }
-
     if nightly {
         out.push(quote! {
             #![feature(untagged_unions)]
@@ -91,6 +84,9 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         use core::marker::PhantomData;
     });
 
+    // Retaining the previous assumption
+    let mut fpu_present = true;
+
     if let Some(cpu) = d.cpu.as_ref() {
         let bits = util::unsuffixed(cpu.nvic_priority_bits as u64);
 
@@ -98,30 +94,51 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
             /// Number available in the NVIC for configuring priority
             pub const NVIC_PRIO_BITS: u8 = #bits;
         });
+
+        fpu_present = cpu.fpu_present;
     }
 
     out.extend(interrupt::render(target, &d.peripherals, device_x)?);
 
-    const CORE_PERIPHERALS: &[&str] = &[
-        "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU"
-    ];
+    let core_peripherals: &[&str];
+
+    if fpu_present {
+        core_peripherals = &[
+            "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU"
+        ];
+    } else {
+        core_peripherals = &[
+            "CBP", "CPUID", "DCB", "DWT", "FPB", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU"
+        ];
+    }
 
     let mut fields = vec![];
     let mut exprs = vec![];
     if *target == Target::CortexM {
         out.push(quote! {
             pub use cortex_m::peripheral::Peripherals as CorePeripherals;
+            #[cfg(feature = "rt")]
+            pub use cortex_m_rt::interrupt;
+            pub use self::Interrupt as interrupt;
         });
 
-        out.push(quote! {
-            pub use cortex_m::peripheral::{
-                CBP, CPUID, DCB, DWT, FPB, FPU, ITM, MPU, NVIC, SCB, SYST, TPIU,
-            };
-        });
+        if fpu_present {
+            out.push(quote! {
+                pub use cortex_m::peripheral::{
+                    CBP, CPUID, DCB, DWT, FPB, FPU, ITM, MPU, NVIC, SCB, SYST, TPIU,
+                };
+            });
+        } else {
+            out.push(quote! {
+                pub use cortex_m::peripheral::{
+                    CBP, CPUID, DCB, DWT, FPB, ITM, MPU, NVIC, SCB, SYST, TPIU,
+                };
+            });
+        }
     }
 
     for p in &d.peripherals {
-        if *target == Target::CortexM && CORE_PERIPHERALS.contains(&&*p.name.to_uppercase()) {
+        if *target == Target::CortexM && core_peripherals.contains(&&*p.name.to_uppercase()) {
             // Core peripherals are handled above
             continue;
         }
@@ -173,6 +190,8 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
         // crate as that would let you `take` the device peripherals more than once (one per minor
         // version)
+        #[allow(renamed_and_removed_lints)]
+        // This currently breaks on nightly, to be removed with the line above once 1.31 is stable
         #[allow(private_no_mangle_statics)]
         #[no_mangle]
         static mut DEVICE_PERIPHERALS: bool = false;
