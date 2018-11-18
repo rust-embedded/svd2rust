@@ -57,19 +57,22 @@ main() {
             echo '[dependencies.bare-metal]' >> $td/Cargo.toml
             echo 'version = "0.2.0"' >> $td/Cargo.toml
 
-            # BAD-SVD missing resetValue
+            # OK
+            # NOTE it would take too long to test all these so we only test a few
             # test_svd AT91SAM9CN11
-            # test_svd AT91SAM9CN12
+            test_svd AT91SAM9CN12
             # test_svd AT91SAM9G10
             # test_svd AT91SAM9G15
             # test_svd AT91SAM9G20
             # test_svd AT91SAM9G25
-            # test_svd AT91SAM9G35
+            test_svd AT91SAM9G35
             # test_svd AT91SAM9M10
-            # test_svd AT91SAM9M11
-            # test_svd AT91SAM9N12
+            test_svd AT91SAM9M11
+            test_svd AT91SAM9N12
             # test_svd AT91SAM9X25
-            # test_svd AT91SAM9X35
+            test_svd AT91SAM9X35
+
+            # BAD-SVD duplicate enumeration values
             # test_svd ATSAM3A4C
             # test_svd ATSAM3A8C
             # test_svd ATSAM3N00A
@@ -115,10 +118,12 @@ main() {
             # test_svd ATSAM4S8C
             # test_svd ATSAM4SD32B
             # test_svd ATSAM4SD32C
+
+            # OK
             # test_svd ATSAMA5D31
             # test_svd ATSAMA5D33
             # test_svd ATSAMA5D34
-            # test_svd ATSAMA5D35
+            test_svd ATSAMA5D35
 
             # FIXME(#107) "failed to resolve. Use of undeclared type or module `sercom0`"
             # test_svd ATSAMD21E15A
