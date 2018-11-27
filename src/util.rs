@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 
+use either::Either;
 use inflections::Inflect;
+use quote::Tokens;
 use svd::{Access, Cluster, Register};
 use syn::Ident;
-use quote::Tokens;
-use either::Either;
 
 use errors::*;
 
@@ -12,7 +12,7 @@ pub const BITS_PER_BYTE: u32 = 8;
 
 /// List of chars that some vendors use in their peripheral/field names but
 /// that are not valid in Rust ident
-const BLACKLIST_CHARS : &[char] = &['(', ')', '[', ']', '/', ' '];
+const BLACKLIST_CHARS: &[char] = &['(', ')', '[', ']', '/', ' '];
 
 pub trait ToSanitizedPascalCase {
     fn to_sanitized_pascal_case(&self) -> Cow<str>;
@@ -170,11 +170,13 @@ pub fn escape_brackets(s: &str) -> String {
 pub fn name_of(register: &Register) -> Cow<str> {
     match *register {
         Register::Single(ref info) => Cow::from(&*info.name),
-        Register::Array(ref info, _) => if info.name.contains("[%s]") {
-            info.name.replace("[%s]", "").into()
-        } else {
-            info.name.replace("%s", "").into()
-        },
+        Register::Array(ref info, _) => {
+            if info.name.contains("[%s]") {
+                info.name.replace("[%s]", "").into()
+            } else {
+                info.name.replace("%s", "").into()
+            }
+        }
     }
 }
 
@@ -272,7 +274,8 @@ impl U32Ext for u32 {
 
 /// Return only the clusters from the slice of either register or clusters.
 pub fn only_clusters(ercs: &[Either<Register, Cluster>]) -> Vec<&Cluster> {
-    let clusters: Vec<&Cluster> = ercs.iter()
+    let clusters: Vec<&Cluster> = ercs
+        .iter()
         .filter_map(|x| match *x {
             Either::Right(ref x) => Some(x),
             _ => None,
@@ -283,7 +286,8 @@ pub fn only_clusters(ercs: &[Either<Register, Cluster>]) -> Vec<&Cluster> {
 
 /// Return only the registers the given slice of either register or clusters.
 pub fn only_registers(ercs: &[Either<Register, Cluster>]) -> Vec<&Register> {
-    let registers: Vec<&Register> = ercs.iter()
+    let registers: Vec<&Register> = ercs
+        .iter()
         .filter_map(|x| match *x {
             Either::Left(ref x) => Some(x),
             _ => None,

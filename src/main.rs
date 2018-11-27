@@ -16,11 +16,11 @@ mod generate;
 mod util;
 
 use std::fs::File;
-use std::process;
 use std::io::{self, Write};
+use std::process;
 
-use quote::Tokens;
 use clap::{App, Arg};
+use quote::Tokens;
 
 use errors::*;
 
@@ -66,7 +66,7 @@ fn run() -> Result<()> {
         .arg(
             Arg::with_name("nightly_features")
                 .long("nightly")
-                .help("Enable features only available to nightly rustc")
+                .help("Enable features only available to nightly rustc"),
         )
         .version(concat!(
             env!("CARGO_PKG_VERSION"),

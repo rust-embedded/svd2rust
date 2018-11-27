@@ -78,7 +78,7 @@ pub fn render(
     match *target {
         Target::CortexM => {
             for name in &names {
-                writeln!(device_x, "PROVIDE({} = DefaultHandler);" ,name).unwrap();
+                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name).unwrap();
             }
 
             root.push(quote! {

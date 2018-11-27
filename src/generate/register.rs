@@ -1,8 +1,10 @@
 use cast::u64;
 use either::Either;
 use quote::Tokens;
-use svd::{Access, BitRange, Cluster, Defaults, EnumeratedValues, Field, Peripheral, Register,
-          Usage, WriteConstraint};
+use svd::{
+    Access, BitRange, Cluster, Defaults, EnumeratedValues, Field, Peripheral, Register, Usage,
+    WriteConstraint,
+};
 use syn::Ident;
 
 use errors::*;
@@ -313,28 +315,27 @@ pub fn fields(
                 }
 
                 let has_reserved_variant = evs.values.len() != (1 << f.width);
-                let variants = evs.values
+                let variants = evs
+                    .values
                     .iter()
                     // filter out all reserved variants, as we should not
                     // generate code for them
                     .filter(|field| field.name.to_lowercase() != "reserved")
                     .map(|ev| {
-                        let sc =
-                            Ident::new(&*ev.name.to_sanitized_snake_case());
-                        let description = ev.description
+                        let sc = Ident::new(&*ev.name.to_sanitized_snake_case());
+                        let description = ev
+                            .description
                             .as_ref()
                             .map(|s| &**s)
                             .unwrap_or("undocumented");
 
                         let value = u64(ev.value.ok_or_else(|| {
-                            format!("EnumeratedValue {} has no <value> field",
-                                    ev.name)
+                            format!("EnumeratedValue {} has no <value> field", ev.name)
                         })?);
                         Ok(Variant {
                             description,
                             sc,
-                            pc: Ident::new(&*ev.name
-                                           .to_sanitized_upper_case()),
+                            pc: Ident::new(&*ev.name.to_sanitized_upper_case()),
                             value,
                         })
                     })
@@ -529,15 +530,13 @@ pub fn fields(
                     }
                 });
 
-                let mut pc_r_impl_items = vec![
-                    quote! {
-                        /// Value of the field as raw bits
-                        #[inline]
-                        pub fn #bits(&self) -> #fty {
-                            self.bits
-                        }
-                    },
-                ];
+                let mut pc_r_impl_items = vec![quote! {
+                    /// Value of the field as raw bits
+                    #[inline]
+                    pub fn #bits(&self) -> #fty {
+                        self.bits
+                    }
+                }];
 
                 if f.width == 1 {
                     pc_r_impl_items.push(quote! {
@@ -649,31 +648,27 @@ pub fn fields(
                     }
                 });
 
-                let variants = evs.values
+                let variants = evs
+                    .values
                     .iter()
                     // filter out all reserved variants, as we should not
                     // generate code for them
                     .filter(|field| field.name.to_lowercase() != "reserved")
-                    .map(
-                        |ev| {
-                            let value = u64(ev.value.ok_or_else(|| {
-                            format!("EnumeratedValue {} has no `<value>` field",
-                                    ev.name)})?);
+                    .map(|ev| {
+                        let value = u64(ev.value.ok_or_else(|| {
+                            format!("EnumeratedValue {} has no `<value>` field", ev.name)
+                        })?);
 
-                            Ok(Variant {
-                            doc: ev.description
+                        Ok(Variant {
+                            doc: ev
+                                .description
                                 .clone()
-                                .unwrap_or_else(|| {
-                                    format!("`{:b}`", value)
-                                }),
-                            pc: Ident::new(&*ev.name
-                                           .to_sanitized_upper_case()),
-                            sc: Ident::new(&*ev.name
-                                           .to_sanitized_snake_case()),
+                                .unwrap_or_else(|| format!("`{:b}`", value)),
+                            pc: Ident::new(&*ev.name.to_sanitized_upper_case()),
+                            sc: Ident::new(&*ev.name.to_sanitized_snake_case()),
                             value,
                         })
-                        },
-                    )
+                    })
                     .collect::<Result<Vec<_>>>()?;
 
                 if variants.len() == 1 << f.width {
@@ -838,7 +833,8 @@ fn lookup<'a>(
     all_peripherals: &'a [Peripheral],
     usage: Usage,
 ) -> Result<Option<(&'a EnumeratedValues, Option<Base<'a>>)>> {
-    let evs = evs.iter()
+    let evs = evs
+        .iter()
         .map(|evs| {
             if let Some(ref base) = evs.derived_from {
                 let mut parts = base.split('.');
@@ -967,7 +963,8 @@ fn lookup_in_register<'r>(
     let mut matches = vec![];
 
     for f in register.fields.as_ref().map(|v| &**v).unwrap_or(&[]) {
-        if let Some(evs) = f.enumerated_values
+        if let Some(evs) = f
+            .enumerated_values
             .iter()
             .find(|evs| evs.name.as_ref().map(|s| &**s) == Some(base_evs))
         {
@@ -980,26 +977,28 @@ fn lookup_in_register<'r>(
             "EnumeratedValues {} not found in register {}",
             base_evs, register.name
         ))?,
-        Some(&(evs, field)) => if matches.len() == 1 {
-            Ok((
-                evs,
-                Some(Base {
-                    field,
-                    register: None,
-                    peripheral: None,
-                }),
-            ))
-        } else {
-            let fields = matches
-                .iter()
-                .map(|&(ref f, _)| &f.name)
-                .collect::<Vec<_>>();
-            Err(format!(
-                "Fields {:?} have an \
-                 enumeratedValues named {}",
-                fields, base_evs
-            ))?
-        },
+        Some(&(evs, field)) => {
+            if matches.len() == 1 {
+                Ok((
+                    evs,
+                    Some(Base {
+                        field,
+                        register: None,
+                        peripheral: None,
+                    }),
+                ))
+            } else {
+                let fields = matches
+                    .iter()
+                    .map(|&(ref f, _)| &f.name)
+                    .collect::<Vec<_>>();
+                Err(format!(
+                    "Fields {:?} have an \
+                     enumeratedValues named {}",
+                    fields, base_evs
+                ))?
+            }
+        }
     }
 }
 
@@ -1049,9 +1048,11 @@ fn periph_all_registers<'a>(p: &'a Peripheral) -> Vec<&'a Register> {
             Either::Left(ref reg) => {
                 par.push(reg);
             }
-            Either::Right(ref cluster) => for c in cluster.children.iter() {
-                rem.push(c);
-            },
+            Either::Right(ref cluster) => {
+                for c in cluster.children.iter() {
+                    rem.push(c);
+                }
+            }
         }
     }
     par
