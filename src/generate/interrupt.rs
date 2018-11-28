@@ -7,8 +7,8 @@ use svd::Peripheral;
 use syn::Ident;
 
 use errors::*;
+use target::Target;
 use util::{self, ToSanitizedUpperCase};
-use Target;
 
 /// Generates code for `src/interrupt.rs`
 pub fn render(

@@ -13,36 +13,17 @@ extern crate syn;
 
 mod errors;
 mod generate;
+mod target;
 mod util;
-
 use std::fs::File;
 use std::io::{self, Write};
 use std::process;
+use target::Target;
+use util::build_rs;
 
 use clap::{App, Arg};
-use quote::Tokens;
 
 use errors::*;
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum Target {
-    CortexM,
-    Msp430,
-    RISCV,
-    None,
-}
-
-impl Target {
-    fn parse(s: &str) -> Result<Self> {
-        Ok(match s {
-            "cortex-m" => Target::CortexM,
-            "msp430" => Target::Msp430,
-            "riscv" => Target::RISCV,
-            "none" => Target::None,
-            _ => bail!("unknown target {}", s),
-        })
-    }
-}
 
 fn run() -> Result<()> {
     use std::io::Read;
@@ -139,30 +120,5 @@ fn main() {
         }
 
         process::exit(1);
-    }
-}
-
-fn build_rs() -> Tokens {
-    quote! {
-        use std::env;
-        use std::fs::File;
-        use std::io::Write;
-        use std::path::PathBuf;
-
-        fn main() {
-            if env::var_os("CARGO_FEATURE_RT").is_some() {
-                // Put the linker script somewhere the linker can find it
-                let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
-                File::create(out.join("device.x"))
-                    .unwrap()
-                    .write_all(include_bytes!("device.x"))
-                    .unwrap();
-                println!("cargo:rustc-link-search={}", out.display());
-
-                println!("cargo:rerun-if-changed=device.x");
-            }
-
-            println!("cargo:rerun-if-changed=build.rs");
-        }
     }
 }

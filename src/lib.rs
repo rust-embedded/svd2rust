@@ -1,3 +1,4 @@
+#![recursion_limit = "128"]
 //! Peripheral API generator from [CMSIS-SVD] files
 //!
 //! [CMSIS-SVD]: http://www.keil.com/pack/doc/CMSIS/SVD/html/index.html
@@ -482,3 +483,19 @@ macro_rules! interrupt {
         $($lvar:ident: $lty:ty = $lval:expr;)+
     }) => {};
 }
+
+extern crate cast;
+extern crate clap;
+extern crate either;
+#[macro_use]
+extern crate error_chain;
+extern crate inflections;
+#[macro_use]
+extern crate quote;
+extern crate svd_parser as svd;
+extern crate syn;
+
+pub mod errors;
+pub mod generate;
+pub mod target;
+pub mod util;

@@ -3,8 +3,8 @@ use svd::Device;
 use syn::Ident;
 
 use errors::*;
+use target::Target;
 use util::{self, ToSanitizedUpperCase};
-use Target;
 
 use generate::{interrupt, peripheral};
 
