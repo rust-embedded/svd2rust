@@ -439,10 +439,12 @@ mod generate;
 mod util;
 
 pub use util::Target;
+use util::build_rs;
 
 pub struct Generation {
     pub lib_rs: String,
     pub device_x: String,
+    pub build_rs: String,
 }
 
 type Result<T> = std::result::Result<T, SvdError>;
@@ -472,6 +474,7 @@ pub fn generate(xml: &str, target: &Target, nightly: bool) -> Result<Generation>
     Ok(Generation {
         lib_rs: lib_rs,
         device_x: device_x,
+        build_rs: build_rs().to_string(),
     })
 }
 

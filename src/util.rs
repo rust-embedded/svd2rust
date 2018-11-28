@@ -311,3 +311,28 @@ pub fn only_registers(ercs: &[Either<Register, Cluster>]) -> Vec<&Register> {
         .collect();
     registers
 }
+
+pub fn build_rs() -> Tokens {
+    quote! {
+        use std::env;
+        use std::fs::File;
+        use std::io::Write;
+        use std::path::PathBuf;
+
+        fn main() {
+            if env::var_os("CARGO_FEATURE_RT").is_some() {
+                // Put the linker script somewhere the linker can find it
+                let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
+                File::create(out.join("device.x"))
+                    .unwrap()
+                    .write_all(include_bytes!("device.x"))
+                    .unwrap();
+                println!("cargo:rustc-link-search={}", out.display());
+
+                println!("cargo:rerun-if-changed=device.x");
+            }
+
+            println!("cargo:rerun-if-changed=build.rs");
+        }
+    }
+}
