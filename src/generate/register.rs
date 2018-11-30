@@ -249,7 +249,7 @@ pub fn fields(
             };
             if let Some(ref d) = f.description {
                 description.push_str(" - ");
-                description.push_str(&*util::respace(d));
+                description.push_str(&*util::respace(&util::escape_brackets(d)));
             }
             Ok(F {
                 _pc_w,
