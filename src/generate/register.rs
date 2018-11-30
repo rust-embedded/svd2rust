@@ -390,7 +390,7 @@ pub fn fields(
                     let mut vars = variants
                         .iter()
                         .map(|v| {
-                            let desc = v.description;
+                            let desc = util::escape_brackets(&v.description);
                             let pc = &v.pc;
                             quote! {
                                 #[doc = #desc]
