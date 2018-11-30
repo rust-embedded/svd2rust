@@ -193,6 +193,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         // version)
         #[allow(renamed_and_removed_lints)]
         // This currently breaks on nightly, to be removed with the line above once 1.31 is stable
+        #[allow(private_no_mangle_statics)]
         #[no_mangle]
         static mut DEVICE_PERIPHERALS: bool = false;
 
