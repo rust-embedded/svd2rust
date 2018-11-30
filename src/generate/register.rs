@@ -374,7 +374,7 @@ pub fn fields(
                     }
                 }
 
-                let description = &f.description;
+                let description = &util::escape_brackets(&f.description);
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
                     #[doc = #description]
