@@ -183,7 +183,9 @@ pub fn access_of(register: &Register) -> Access {
         if let Some(ref fields) = register.fields {
             if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
                 Access::ReadOnly
-            } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
+            } else if fields.iter().all(|f| f.access == Some(Access::WriteOnce)) {
+                Access::WriteOnce
+            } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly) || f.access == Some(Access::WriteOnce)) {
                 Access::WriteOnly
             } else {
                 Access::ReadWrite
