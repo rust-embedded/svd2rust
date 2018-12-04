@@ -249,7 +249,7 @@ pub fn fields(
             };
             if let Some(ref d) = f.description {
                 description.push_str(" - ");
-                description.push_str(&*util::respace(d));
+                description.push_str(&*util::respace(&util::escape_brackets(d)));
             }
             Ok(F {
                 _pc_w,
@@ -374,7 +374,7 @@ pub fn fields(
                     }
                 }
 
-                let description = &f.description;
+                let description = &util::escape_brackets(&f.description);
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
                     #[doc = #description]
@@ -390,7 +390,7 @@ pub fn fields(
                     let mut vars = variants
                         .iter()
                         .map(|v| {
-                            let desc = v.description;
+                            let desc = util::escape_brackets(&v.description);
                             let pc = &v.pc;
                             quote! {
                                 #[doc = #desc]
@@ -517,7 +517,7 @@ pub fn fields(
                     });
                 }
             } else {
-                let description = &f.description;
+                let description = &util::escape_brackets(&f.description);
                 let pc_r = &f.pc_r;
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
@@ -682,7 +682,7 @@ pub fn fields(
 
                 if base.is_none() {
                     let variants_pc = variants.iter().map(|v| &v.pc);
-                    let variants_doc = variants.iter().map(|v| &*v.doc);
+                    let variants_doc = variants.iter().map(|v| util::escape_brackets(&v.doc).to_owned());
                     mod_items.push(quote! {
                         #[doc = #pc_w_doc]
                         pub enum #pc_w {
@@ -788,7 +788,7 @@ pub fn fields(
                 }
             });
 
-            let description = &f.description;
+            let description = &util::escape_brackets(&f.description);
             let sc = &f.sc;
             w_impl_items.push(quote! {
                 #[doc = #description]
