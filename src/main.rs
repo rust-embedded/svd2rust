@@ -103,7 +103,7 @@ fn run() -> Result<()> {
     let mut device_x = String::new();
     let items = generate::device::render(&device, &target, nightly, &mut device_x)?;
 
-    writeln!(File::create("lib.rs").unwrap(), "{}", quote!(#(#tokens)*)).unwrap();
+    writeln!(File::create("lib.rs").unwrap(), "{}", quote!(#(#items)*)).unwrap();
 
     if target == Target::CortexM {
         writeln!(File::create("device.x").unwrap(), "{}", device_x).unwrap();
