@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.14.0] - 2018-12-07
+
+### Added
+
+- On Cortex-M targets the generated code includes a re-export of the
+  `cortex_m_rt::interrupt` attribute, but only when the `rt` feature is enabled.
+
+### Changed
+
+- [breaking-change] on non-Cortex targets Interrupt no longer implements the
+  `TryFrom` trait; it now provides an inherent `try_from` method.
+
+- [breaking-change] for non-Cortex targets svd2rust no longer outputs the
+  generated code to stdout; instead it writes it to a file named `lib.rs`.
+
+- Brackets generated in doc comments are now escaped to prevent warnings on
+  nightly where the compiler tries to interpret bracketed content as links to
+  structs, enums, etc.
+
+### Fixed
+
+- Some bugs around the generation of unions (see `--nightly` flag).
+
 ## [v0.13.1] - 2018-05-16
 
 ### Fixed

@@ -60,7 +60,7 @@
 //! ``` toml
 //! [dependencies]
 //! bare-metal = "0.2.0"
-//! cortex-m = "0.6.4"
+//! cortex-m = "0.5.8"
 //! vcell = "0.1.0"
 //!
 //! [dependencies.cortex-m-rt]
@@ -73,27 +73,17 @@
 //!
 //! ## target != cortex-m
 //!
-//! When the target is msp430, riscv or none `svd2rust` will emit all the generated code to stdout.
-//! Like in the cortex-m case we recommend you use `form` and `rustfmt` on the output:
-//!
-//! ``` console
-//! $ svd2rust -i *.svd --target msp430 > lib.rs
-//!
-//! $ rm -rf src
-//!
-//! $ form -i lib.rs -o src/ && rm lib.rs
-//!
-//! $ cargo fmt
-//! ```
+//! When the target is msp430, riscv or none `svd2rust` will emit only the `lib.rs` file. Like in
+//! the cortex-m case we recommend you use `form` and `rustfmt` on the output.
 //!
 //! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
 //!
-//! - [`bare-metal`](https://crates.io/crates/bare-metal) v0.1.x
+//! - [`bare-metal`](https://crates.io/crates/bare-metal) v0.2.x
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
 //! - [`msp430`](https://crates.io/crates/msp430) v0.1.x if target = msp430.
 //! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.1.x if target = msp430.
-//! - [`riscv`](https://crates.io/crates/riscv) v0.2.x if target = riscv.
-//! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.2.x if target = riscv.
+//! - [`riscv`](https://crates.io/crates/riscv) v0.3.x if target = riscv.
+//! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.3.x if target = riscv.
 //!
 //! The `*-rt` dependencies must be optional only enabled when the "rt" feature is enabled. The
 //! `Cargo.toml` of the device crate will look like this for an msp430 target:
