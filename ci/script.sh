@@ -430,20 +430,30 @@ main() {
                 #          https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
             )
 
-            target/$TARGET/release/svd2rust --target msp430 -i $td/msp430g2553.svd | \
-                ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
+            local cwd=$(pwd)
+
+            # Test MSP430
+            pushd $td
+
+            $cwd/target/$TARGET/release/svd2rust --target msp430 -i $td/msp430g2553.svd
+            mv $td/lib.rs $td/src/lib.rs
+            rustfmt $td/src/lib.rs || true
+
+            popd
 
             cargo check --manifest-path $td/Cargo.toml
 
-            target/$TARGET/release/svd2rust --target none -i $td/msp430g2553.svd | \
-                ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
+            # Test RISC-V
 
-            cargo check --manifest-path $td/Cargo.toml
+            # pushd $td
 
-            # target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd | \
-                # ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
+            # target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd
+            # mv $td/lib.rs $td/src/lib.rs
+            # rustfmt $td/src/lib.rs || true
 
-            cargo check --manifest-path $td/Cargo.toml
+            # popd
+
+            # cargo check --manifest-path $td/Cargo.toml
         ;;
 
         Nordic)
