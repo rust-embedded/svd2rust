@@ -48,12 +48,6 @@ pub fn render(
         #![no_std]
     });
 
-    if nightly {
-        out.push(quote! {
-            #![feature(untagged_unions)]
-        });
-    }
-
     match target {
         Target::CortexM => {
             out.push(quote! {
