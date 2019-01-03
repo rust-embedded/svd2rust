@@ -413,13 +413,16 @@ fn register_or_cluster_block(
                 let name = &reg_block_field.field.ident;
                 let mut_name = Ident::new(format!("{}_mut", name.as_ref().unwrap()));
                 let ty = &reg_block_field.field.ty;
-                let offset = reg_block_field.offset;
+                let offset = reg_block_field.offset as usize;
                 accessors.append(quote! {
+                    #[doc = #comment]
                     pub fn #name(&self) -> &#ty {
                         unsafe {
                             &*(((self as *const Self) as *const u8).add(#offset) as *const #ty)
                         }
                     }
+
+                    #[doc = #comment]
                     pub fn #mut_name(&self) -> &mut #ty {
                         unsafe {
                             &mut *(((self as *const Self) as *mut u8).add(#offset) as *mut #ty)
