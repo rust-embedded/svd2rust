@@ -33,5 +33,5 @@ either = "1.0.3"
 error-chain = "0.11.0"
 inflections = "1.1.0"
 quote = "0.3.15"
-svd-parser = { git = "https://github.com/japaric/svd", rev = "6aa4fdc138b91d7b9d2f0bd42fd1c85cb4fb5df9" }
+svd-parser = { git = "https://github.com/japaric/svd", rev = "1888f10063ee7f8f80e8e76e588d45fe59b88467" }
 syn = "0.11.11"
