@@ -43,12 +43,6 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         #![no_std]
     });
 
-    if nightly {
-        out.push(quote! {
-            #![feature(untagged_unions)]
-        });
-    }
-
     match *target {
         Target::CortexM => {
             out.push(quote! {

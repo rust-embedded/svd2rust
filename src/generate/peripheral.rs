@@ -435,86 +435,10 @@ fn register_or_cluster_block(
     ercs: &[RegisterCluster],
     defs: &Defaults,
     name: Option<&str>,
-    nightly: bool,
-) -> Result<Tokens> {
-    if nightly {
-        register_or_cluster_block_nightly(ercs, defs, name)
-    } else {
-        register_or_cluster_block_stable(ercs, defs, name)
-    }
-}
-
-fn register_or_cluster_block_stable(
-    ercs: &[RegisterCluster],
-    defs: &Defaults,
-    name: Option<&str>,
+    _nightly: bool,
 ) -> Result<Tokens> {
     let mut fields = Tokens::new();
-    // enumeration of reserved fields
-    let mut i = 0;
-    // offset from the base address, in bytes
-    let mut offset = 0;
-
-    let ercs_expanded = expand(ercs, defs, name)?;
-
-    for reg_block_field in ercs_expanded {
-        let pad = if let Some(pad) = reg_block_field.offset.checked_sub(offset) {
-            pad
-        } else {
-            eprintln!(
-                "WARNING {:?} overlaps with another register block at offset {}. \
-                 Ignoring.",
-                reg_block_field.field.ident,
-                reg_block_field.offset
-            );
-            continue;
-        };
-
-        if pad != 0 {
-            let name = Ident::new(format!("_reserved{}", i));
-            let pad = pad as usize;
-            fields.append(quote! {
-                #name : [u8; #pad],
-            });
-            i += 1;
-        }
-
-        let comment = &format!(
-            "0x{:02x} - {}",
-            reg_block_field.offset,
-            util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
-        )[..];
-
-        fields.append(quote! {
-            #[doc = #comment]
-        });
-
-        reg_block_field.field.to_tokens(&mut fields);
-        Ident::new(",").to_tokens(&mut fields);
-
-        offset = reg_block_field.offset + reg_block_field.size / BITS_PER_BYTE;
-    }
-
-    let name = Ident::new(match name {
-        Some(name) => name.to_sanitized_upper_case(),
-        None => "RegisterBlock".into(),
-    });
-
-    Ok(quote! {
-        /// Register block
-        #[repr(C)]
-        pub struct #name {
-            #fields
-        }
-    })
-}
-
-fn register_or_cluster_block_nightly(
-    ercs: &[RegisterCluster],
-    defs: &Defaults,
-    name: Option<&str>,
-) -> Result<Tokens> {
-    let mut fields = Tokens::new();
+    let mut accessors = Tokens::new();
     let mut helper_types = Tokens::new();
 
     let ercs_expanded = expand(ercs, defs, name)?;
@@ -562,15 +486,39 @@ fn register_or_cluster_block_nightly(
                 util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
             )[..];
 
+            if block_is_union {
+                let name = &reg_block_field.field.ident;
+                let mut_name = Ident::new(format!("{}_mut", name.as_ref().unwrap()));
+                let ty = &reg_block_field.field.ty;
+                let offset = reg_block_field.offset;
+                accessors.append(quote! {
+                    pub fn #name(&self) -> &#ty {
+                        unsafe {
+                            &*(((self as *const Self) as *const u8).add(#offset) as *const #ty)
+                        }
+                    }
+                    pub fn #mut_name(&self) -> &mut #ty {
+                        unsafe {
+                            &mut *(((self as *const Self) as *mut u8).add(#offset) as *mut #ty)
+                        }
+                    }
+                });
+
+            } else {
+
             region_fields.append(quote! {
                 #[doc = #comment]
             });
 
             reg_block_field.field.to_tokens(&mut region_fields);
             Ident::new(",").to_tokens(&mut region_fields);
+            }
         }
 
-        if region.fields.len() > 1 && !block_is_union {
+        if block_is_union {
+            continue
+        }
+        if region.fields.len() > 1 {
             let (type_name, name) = match region.ident.clone() {
                 Some(prefix) => {
                     (Ident::new(format!("{}_UNION", prefix.to_sanitized_upper_case())),
@@ -610,18 +558,24 @@ fn register_or_cluster_block_nightly(
         None => "RegisterBlock".into(),
     });
 
-    let block_type = if block_is_union {
-        Ident::new("union")
+    let accessors = if block_is_union {
+        quote! {
+            impl #name {
+                #accessors
+            }
+        }
     } else {
-        Ident::new("struct")
+        quote! {}
     };
 
     Ok(quote! {
         /// Register block
         #[repr(C)]
-        pub #block_type #name {
+        pub struct #name {
             #fields
         }
+
+        #accessors
 
         #helper_types
     })
