@@ -433,7 +433,7 @@ fn register_or_cluster_block(
 
     // We need to compute the idents of each register/union block first to make sure no conflicts exists.
     regions.resolve_idents()?;
-    // The end of the region from the prior iteration of the loop
+    // The end of the region for which we previously emitted a field into `fields`
     let mut last_end = 0;
 
     for (i, region) in regions.regions.iter().enumerate() {
@@ -447,20 +447,10 @@ fn register_or_cluster_block(
             });
         }
 
-        last_end = region.end;
-
         let mut region_fields = Tokens::new();
         let is_region_a_union = region.is_union();
 
         for reg_block_field in &region.fields {
-            if reg_block_field.offset != region.offset {
-                // TODO: need to emit padding for this case.
-                // Happens for freescale_mkl43z4
-                eprintln!("WARNING: field {:?} has different offset {} than its union container {}",
-                    reg_block_field.field.ident,
-                    reg_block_field.offset,
-                    region.offset);
-            }
             let comment = &format!(
                 "0x{:02x} - {}",
                 reg_block_field.offset,
@@ -488,7 +478,6 @@ fn register_or_cluster_block(
                         }
                     }
                 });
-
             } else {
                 region_fields.append(quote! {
                     #[doc = #comment]
@@ -501,7 +490,26 @@ fn register_or_cluster_block(
 
         if !is_region_a_union {
             fields.append(&region_fields);
+        } else {
+            // Emit padding for the items that we're not emitting
+            // as fields so that subsequent fields have the correct
+            // alignment in the struct.  We could omit this and just
+            // not updated `last_end`, so that the padding check in
+            // the outer loop kicks in, but it is nice to be able to
+            // see that the padding is attributed to a union when
+            // visually inspecting the alignment in the struct.
+            //
+            // Include the computed ident for the union in the padding
+            // name, along with the region number, falling back to
+            // the offset and end in case we couldn't figure out a
+            // nice identifier.
+            let name = Ident::new(format!("_reserved_{}_{}", i, region.compute_ident().unwrap_or_else(|| format!("{}_{}", region.offset, region.end))));
+            let pad = (region.end - region.offset) as usize;
+            fields.append(quote! {
+                #name: [u8; #pad],
+            })
         }
+        last_end = region.end;
     }
 
     let name = Ident::new(match name {
