@@ -388,6 +388,7 @@ fn register_or_cluster_block(
                 have_accessors = true;
                 accessors.append(quote! {
                     #[doc = #comment]
+                    #[inline(always)]
                     pub fn #name(&self) -> &#ty {
                         unsafe {
                             &*(((self as *const Self) as *const u8).add(#offset) as *const #ty)
@@ -395,6 +396,7 @@ fn register_or_cluster_block(
                     }
 
                     #[doc = #comment]
+                    #[inline(always)]
                     pub fn #mut_name(&self) -> &mut #ty {
                         unsafe {
                             &mut *(((self as *const Self) as *mut u8).add(#offset) as *mut #ty)
