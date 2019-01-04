@@ -213,24 +213,9 @@ impl Region {
             self.shortest_ident()
         }
     }
-    /// Return a description of this region
-    fn description(&self) -> String {
-        let mut result = String::new();
-        for f in &self.fields {
-            // In the Atmel SVDs the union variants all tend to
-            // have the same description.  Rather than emitting
-            // the same text three times over, only join in the
-            // text from the other variants if it is different.
-            // This isn't a foolproof way of emitting the most
-            // reasonable short description, but it's good enough.
-            if f.description != result {
-                if !result.is_empty() {
-                    result.push(' ');
-                }
-                result.push_str(&f.description);
-            }
-        }
-        result
+
+    fn is_union(&self) -> bool {
+        self.fields.len() > 1
     }
 }
 
@@ -318,10 +303,6 @@ impl FieldRegions {
         Ok(())
     }
 
-    pub fn is_union(&self) -> bool {
-        self.regions.len() == 1 && self.regions[0].fields.len() > 1
-    }
-
     /// Resolves type name conflicts
     pub fn resolve_idents(&mut self) -> Result<()> {
         let idents: Vec<_> = {
@@ -362,7 +343,7 @@ fn register_or_cluster_block(
 ) -> Result<Tokens> {
     let mut fields = Tokens::new();
     let mut accessors = Tokens::new();
-    let mut helper_types = Tokens::new();
+    let mut have_accessors = false;
 
     let ercs_expanded = expand(ercs, defs, name)?;
 
@@ -373,7 +354,6 @@ fn register_or_cluster_block(
         regions.add(reg_block_field)?;
     }
 
-    let block_is_union = regions.is_union();
     // We need to compute the idents of each register/union block first to make sure no conflicts exists.
     regions.resolve_idents()?;
     // The end of the region from the prior iteration of the loop
@@ -393,6 +373,7 @@ fn register_or_cluster_block(
         last_end = region.end;
 
         let mut region_fields = Tokens::new();
+        let is_region_a_union = region.is_union();
 
         for reg_block_field in &region.fields {
             if reg_block_field.offset != region.offset {
@@ -409,11 +390,12 @@ fn register_or_cluster_block(
                 util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
             )[..];
 
-            if block_is_union {
+            if is_region_a_union {
                 let name = &reg_block_field.field.ident;
                 let mut_name = Ident::new(format!("{}_mut", name.as_ref().unwrap()));
                 let ty = &reg_block_field.field.ty;
                 let offset = reg_block_field.offset as usize;
+                have_accessors = true;
                 accessors.append(quote! {
                     #[doc = #comment]
                     pub fn #name(&self) -> &#ty {
@@ -431,49 +413,16 @@ fn register_or_cluster_block(
                 });
 
             } else {
+                region_fields.append(quote! {
+                    #[doc = #comment]
+                });
 
-            region_fields.append(quote! {
-                #[doc = #comment]
-            });
-
-            reg_block_field.field.to_tokens(&mut region_fields);
-            Ident::new(",").to_tokens(&mut region_fields);
+                reg_block_field.field.to_tokens(&mut region_fields);
+                Ident::new(",").to_tokens(&mut region_fields);
             }
         }
 
-        if block_is_union {
-            continue
-        }
-        if region.fields.len() > 1 {
-            let (type_name, name) = match region.ident.clone() {
-                Some(prefix) => (
-                    Ident::new(format!("{}_UNION", prefix.to_sanitized_upper_case())),
-                    Ident::new(prefix),
-                ),
-                // If we can't find a name, fall back to the region index as a
-                // unique-within-this-block identifier counter.
-                None => {
-                    let ident = Ident::new(format!("U{}", i));
-                    (ident.clone(), ident)
-                }
-            };
-
-            let description = region.description();
-
-            helper_types.append(quote! {
-                #[doc = #description]
-                #[repr(C)]
-                pub union #type_name {
-                    #region_fields
-                }
-            });
-
-            fields.append(quote! {
-                #[doc = #description]
-                pub #name: #type_name
-            });
-            Ident::new(",").to_tokens(&mut fields);
-        } else {
+        if !is_region_a_union {
             fields.append(&region_fields);
         }
     }
@@ -483,7 +432,7 @@ fn register_or_cluster_block(
         None => "RegisterBlock".into(),
     });
 
-    let accessors = if block_is_union {
+    let accessors = if have_accessors {
         quote! {
             impl #name {
                 #accessors
@@ -501,8 +450,6 @@ fn register_or_cluster_block(
         }
 
         #accessors
-
-        #helper_types
     })
 }
 
