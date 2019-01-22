@@ -422,7 +422,82 @@
 //!
 //! - `#[feature(untagged_unions)]` for overlapping/overloaded registers
 
-// NOTE This file is for documentation only
+#![recursion_limit = "128"]
+
+extern crate cast;
+extern crate either;
+#[macro_use]
+extern crate error_chain;
+extern crate inflections;
+#[macro_use]
+extern crate quote;
+extern crate svd_parser as svd;
+extern crate syn;
+
+mod errors;
+mod generate;
+mod util;
+
+pub use util::Target;
+
+pub struct Generation {
+    pub lib_rs: String,
+    pub device_specific: Option<DeviceSpecific>,
+
+    // Reserve the right to add more fields to this struct
+    _extensible: (),
+}
+
+pub struct DeviceSpecific {
+    pub device_x: String,
+    pub build_rs: String,
+
+    // Reserve the right to add more fields to this struct
+    _extensible: (),
+}
+
+type Result<T> = std::result::Result<T, SvdError>;
+#[derive(Debug)]
+pub enum SvdError {
+    Fmt,
+    Render,
+}
+
+/// Generates rust code for the specified svd content.
+pub fn generate(xml: &str, target: &Target, nightly: bool) -> Result<Generation> {
+    use std::fmt::Write;
+
+    let device = svd::parse(xml);
+    let mut device_x = String::new();
+    let items = generate::device::render(&device, target, nightly, &mut device_x)
+        .or(Err(SvdError::Render))?;
+
+    let mut lib_rs = String::new();
+    writeln!(
+        &mut lib_rs,
+        "{}",
+        quote! {
+            #(#items)*
+        }
+    )
+    .or(Err(SvdError::Fmt))?;
+
+    let device_specific = if device_x.is_empty() {
+        None
+    } else {
+        Some(DeviceSpecific {
+            device_x: device_x,
+            build_rs: util::build_rs().to_string(),
+            _extensible: (),
+        })
+    };
+
+    Ok(Generation {
+        lib_rs: lib_rs,
+        device_specific: device_specific,
+        _extensible: (),
+    })
+}
 
 /// Assigns a handler to an interrupt
 ///

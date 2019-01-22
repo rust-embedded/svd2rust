@@ -14,6 +14,26 @@ pub const BITS_PER_BYTE: u32 = 8;
 /// that are not valid in Rust ident
 const BLACKLIST_CHARS : &[char] = &['(', ')', '[', ']', '/', ' '];
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum Target {
+    CortexM,
+    Msp430,
+    RISCV,
+    None,
+}
+
+impl Target {
+    pub fn parse(s: &str) -> Result<Self> {
+        Ok(match s {
+            "cortex-m" => Target::CortexM,
+            "msp430" => Target::Msp430,
+            "riscv" => Target::RISCV,
+            "none" => Target::None,
+            _ => bail!("unknown target {}", s),
+        })
+    }
+}
+
 pub trait ToSanitizedPascalCase {
     fn to_sanitized_pascal_case(&self) -> Cow<str>;
 }
@@ -290,4 +310,29 @@ pub fn only_registers(ercs: &[Either<Register, Cluster>]) -> Vec<&Register> {
         })
         .collect();
     registers
+}
+
+pub fn build_rs() -> Tokens {
+    quote! {
+        use std::env;
+        use std::fs::File;
+        use std::io::Write;
+        use std::path::PathBuf;
+
+        fn main() {
+            if env::var_os("CARGO_FEATURE_RT").is_some() {
+                // Put the linker script somewhere the linker can find it
+                let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
+                File::create(out.join("device.x"))
+                    .unwrap()
+                    .write_all(include_bytes!("device.x"))
+                    .unwrap();
+                println!("cargo:rustc-link-search={}", out.display());
+
+                println!("cargo:rerun-if-changed=device.x");
+            }
+
+            println!("cargo:rerun-if-changed=build.rs");
+        }
+    }
 }
