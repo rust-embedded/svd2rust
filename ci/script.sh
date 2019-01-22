@@ -14,8 +14,6 @@ test_svd() {
 
     mv lib.rs src/lib.rs
 
-    # ignore rustfmt errors
-    rustfmt src/lib.rs || true
     popd
 
     cargo check --manifest-path $td/Cargo.toml
