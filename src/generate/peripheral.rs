@@ -51,6 +51,11 @@ pub fn render(
             pub fn ptr_mut() -> *mut #base::RegisterBlock {
                 #address as *mut _
             }
+            /// Destroys the zero sized handle in favor of a `&'static mut` reference to the
+            /// register block
+            pub fn into_static_mut(self) -> &'static mut #base::RegisterBlock {
+                unsafe { &mut*#name_pc::ptr_mut() }
+            }
         }
 
         impl Deref for #name_pc {
