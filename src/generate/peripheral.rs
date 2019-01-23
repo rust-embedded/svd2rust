@@ -54,6 +54,14 @@ pub fn render(
                 unsafe { &*#name_pc::ptr() }
             }
         }
+
+        impl DerefMut for #name_pc {
+            type Target = #base::RegisterBlock;
+
+            fn deref_mut(&mut self) -> &mut #base::RegisterBlock {
+                unsafe { &*#name_pc::ptr() }
+            }
+        }
     });
 
     // Derived peripherals do not require re-implementation, and will instead

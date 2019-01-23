@@ -80,7 +80,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         extern crate bare_metal;
         extern crate vcell;
 
-        use core::ops::Deref;
+        use core::ops::{Deref, DerefMut};
         use core::marker::PhantomData;
     });
 
