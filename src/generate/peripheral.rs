@@ -47,6 +47,10 @@ pub fn render(
             pub fn ptr() -> *const #base::RegisterBlock {
                 #address as *const _
             }
+            /// Returns a mutable pointer to the register block
+            pub fn ptr_mut() -> *mut #base::RegisterBlock {
+                #address as *mut _
+            }
         }
 
         impl Deref for #name_pc {
@@ -61,7 +65,7 @@ pub fn render(
             type Target = #base::RegisterBlock;
 
             fn deref_mut(&mut self) -> &mut #base::RegisterBlock {
-                unsafe { &*#name_pc::ptr() }
+                unsafe { &mut *#name_pc::ptr_mut() }
             }
         }
     });
