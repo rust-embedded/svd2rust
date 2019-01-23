@@ -39,6 +39,8 @@ pub fn render(
         pub struct #name_pc { _marker: PhantomData<*const ()> }
 
         unsafe impl Send for #name_pc {}
+        #[cfg(feature = "ownership")]
+        unsafe impl Sync for #name_pc {}
 
         impl #name_pc {
             /// Returns a pointer to the register block
