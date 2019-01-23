@@ -44,6 +44,20 @@ pub fn render(
         reg_impl_items.push(quote! {
             /// Modifies the contents of the register
             #[inline]
+            #[cfg(feature = "ownership")]
+            pub fn modify<F>(&mut self, f: F)
+            where
+                for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W
+            {
+                let bits = self.register.get();
+                let r = R { bits: bits };
+                let mut w = W { bits: bits };
+                f(&r, &mut w);
+                self.register.set(w.bits);
+            }
+            /// Modifies the contents of the register
+            #[inline]
+            #[cfg(not(feature = "ownership"))]
             pub fn modify<F>(&self, f: F)
             where
                 for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W
@@ -86,6 +100,18 @@ pub fn render(
         reg_impl_items.push(quote! {
             /// Writes to the register
             #[inline]
+            #[cfg(feature = "ownership")]
+            pub fn write<F>(&mut self, f: F)
+            where
+                F: FnOnce(&mut W) -> &mut W
+            {
+                let mut w = W::reset_value();
+                f(&mut w);
+                self.register.set(w.bits);
+            }
+            /// Writes to the register
+            #[inline]
+            #[cfg(not(feature = "ownership"))]
             pub fn write<F>(&self, f: F)
             where
                 F: FnOnce(&mut W) -> &mut W

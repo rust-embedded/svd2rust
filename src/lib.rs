@@ -54,8 +54,9 @@
 //!
 //! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
 //! `bare-metal` v0.2.x, `cortex-m` v0.5.x, `cortex-m-rt` >=v0.6.5 and `vcell` v0.1.x. Furthermore
-//! the "device" feature of `cortex-m-rt` must be enabled when the "rt" feature is enabled. The
-//! `Cargo.toml` of the device crate will look like this:
+//! the "device" feature of `cortex-m-rt` must be enabled when the "rt" feature is enabled.
+//! Additionally the crate must provide an opt-in "ownership" feature.
+//! The `Cargo.toml` of the device crate will look like this:
 //!
 //! ``` toml
 //! [dependencies]
@@ -69,6 +70,7 @@
 //!
 //! [features]
 //! rt = ["cortex-m-rt/device"]
+//! ownership = []
 //! ```
 //!
 //! ## target != cortex-m
@@ -100,6 +102,7 @@
 //!
 //! [features]
 //! rt = ["msp430-rt"]
+//! ownership = []
 //! ```
 //!
 //! # Peripheral API
@@ -219,7 +222,7 @@
 //!     pub fn read(&self) -> R { .. }
 //!
 //!     /// Writes to the register
-//!     pub fn write<F>(&mut self, f: F)
+//!     pub fn write<F>(&self, f: F)
 //!     where
 //!         F: FnOnce(&mut W) -> &mut W,
 //!     {
