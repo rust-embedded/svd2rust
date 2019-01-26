@@ -12,7 +12,7 @@
 //!
 //! # Installation
 //!
-//! ```
+//! ```bash
 //! $ cargo install svd2rust
 //! ```
 //!
@@ -109,7 +109,7 @@
 //! one of them) and the only way to get an instance of them is through the `Peripherals::take`
 //! method.
 //!
-//! ```
+//! ```ignore
 //! fn main() {
 //!     let mut peripherals = stm32f30x::Peripherals::take().unwrap();
 //!     peripherals.GPIOA.odr.write(|w| w.bits(1));
@@ -119,7 +119,7 @@
 //! This method can only be successfully called *once* -- that's why the method returns an `Option`.
 //! Subsequent calls to the method will result in a `None` value being returned.
 //!
-//! ```
+//! ```ignore
 //! fn main() {
 //!     let ok = stm32f30x::Peripherals::take().unwrap();
 //!     let panics = stm32f30x::Peripherals::take().unwrap();
@@ -130,7 +130,7 @@
 //! available on all the peripheral types. This method is a useful for implementing safe higher
 //! level abstractions.
 //!
-//! ```
+//! ```ignore
 //! struct PA0 { _0: () }
 //! impl PA0 {
 //!     fn is_high(&self) -> bool {
@@ -159,7 +159,7 @@
 //! memory. Each field in this `struct` represents one register in the register block associated to
 //! the peripheral.
 //!
-//! ```
+//! ```ignore
 //! /// Inter-integrated circuit
 //! pub mod i2c1 {
 //!     /// Register block
@@ -205,7 +205,7 @@
 //!
 //! (using `I2C`'s `CR2` register as an example)
 //!
-//! ``` rust
+//! ```ignore
 //! impl CR2 {
 //!     /// Modifies the contents of the register
 //!     pub fn modify<F>(&self, f: F)
@@ -232,7 +232,7 @@
 //! returns a proxy `R` struct that allows access to only the readable bits (i.e. not to the
 //! reserved or write-only bits) of the `CR2` register:
 //!
-//! ``` rust
+//! ```ignore
 //! /// Value read from the register
 //! impl R {
 //!     /// Bit 0 - Slave address bit 0 (master mode)
@@ -247,7 +247,7 @@
 //!
 //! Usage looks like this:
 //!
-//! ``` rust
+//! ```ignore
 //! // is the SADD0 bit of the CR2 register set?
 //! if i2c1.c2r.read().sadd0().bit() {
 //!     // yes
@@ -264,7 +264,7 @@
 //! register after a reset. The rest of `W` methods are "builder-like" and can be used to modify the
 //! writable bitfields of the `CR2` register.
 //!
-//! ``` rust
+//! ```ignore
 //! impl CR2W {
 //!     /// Reset value
 //!     pub fn reset_value() -> Self {
@@ -286,7 +286,7 @@
 //!
 //! Usage looks like this:
 //!
-//! ``` rust
+//! ```ignore
 //! // Starting from the reset value, `0x0000_0000`, change the bitfields SADD0
 //! // and SADD1 to `1` and `0b0011110` respectively and write that to the
 //! // register CR2.
@@ -309,7 +309,7 @@
 //!
 //! Usage looks like this:
 //!
-//! ``` rust
+//! ```ignore
 //! // Set the START bit to 1 while KEEPING the state of the other bits intact
 //! i2c1.cr2.modify(|_, w| unsafe { w.start().bit(true) });
 //!
@@ -326,7 +326,7 @@
 //!
 //! The new `read` API returns an enum that you can match:
 //!
-//! ```
+//! ```ignore
 //! match gpioa.dir.read().pin0() {
 //!     gpioa::dir::PIN0R::Input => { .. },
 //!     gpioa::dir::PIN0R::Output => { .. },
@@ -335,7 +335,7 @@
 //!
 //! or test for equality
 //!
-//! ```
+//! ```ignore
 //! if gpioa.dir.read().pin0() == gpio::dir::PIN0R::Input {
 //!     ..
 //! }
@@ -344,7 +344,7 @@
 //! It also provides convenience methods to check for a specific variant without
 //! having to import the enum:
 //!
-//! ```
+//! ```ignore
 //! if gpioa.dir.read().pin0().is_input() {
 //!     ..
 //! }
@@ -356,7 +356,7 @@
 //!
 //! The original `bits` method is available as well:
 //!
-//! ```
+//! ```ignore
 //! if gpioa.dir.read().pin0().bits() == 0 {
 //!     ..
 //! }
@@ -365,7 +365,7 @@
 //! And the new `write` API provides similar additions as well: `variant` lets you pick the value to
 //! write from an `enum`eration of the possible ones:
 //!
-//! ```
+//! ```ignore
 //! // enum DIRW { Input, Output }
 //! gpioa.dir.write(|w| w.pin0().variant(gpio::dir::PIN0W::Output));
 //! ```
@@ -373,14 +373,14 @@
 //! There are convenience methods to pick one of the variants without having to
 //! import the enum:
 //!
-//! ```
+//! ```ignore
 //! gpioa.dir.write(|w| w.pin0().output());
 //! ```
 //!
 //! The `bits` (or `bit`) method is still available but will become safe if it's
 //! impossible to write a reserved bit pattern into the register:
 //!
-//! ```
+//! ```ignore
 //! // safe because there are only two options: `0` or `1`
 //! gpioa.dir.write(|w| w.pin0().bit(true));
 //! ```
@@ -391,7 +391,7 @@
 //! of the device interrupts as an `Interrupt` `enum` in the root of the crate. This `enum` can be
 //! used with the `cortex-m` crate `NVIC` API.
 //!
-//! ```
+//! ```ignore
 //! extern crate cortex_m;
 //! extern crate stm32f30x;
 //!

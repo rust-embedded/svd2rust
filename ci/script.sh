@@ -20,6 +20,10 @@ test_svd() {
 }
 
 main() {
+    # Ensure that `cargo test` works to avoid surprising people, though it
+    # doesn't help with our actual coverage.
+    cargo test
+
     if [ $TRAVIS_OS_NAME = windows ]; then
         cargo check --target $TARGET
         return
