@@ -154,6 +154,7 @@ pub fn render(
 
     let interrupt_enum = quote! {
         /// Enumeration of all the interrupts
+        #[derive(Copy, Clone, Debug)]
         pub enum Interrupt {
             #(#variants)*
         }
