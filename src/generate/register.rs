@@ -96,7 +96,6 @@ pub fn render(
             .reset_value
             .or(defs.reset_value)
             .map(util::hex);
-            //.ok_or_else(|| format!("Register {} has no reset value", register.name))?;
         if let Some(rv) = rv {
             reg_impl_items.push(quote! {
                 /// Writes to the register
