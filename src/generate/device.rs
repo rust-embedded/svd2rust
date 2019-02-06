@@ -27,7 +27,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         });
     }
 
-    if *target != Target::None && *target != Target::CortexM {
+    if *target != Target::None && *target != Target::CortexM && *target != Target::RISCV {
         out.push(quote! {
             #![cfg_attr(feature = "rt", feature(global_asm))]
             #![cfg_attr(feature = "rt", feature(use_extern_macros))]
