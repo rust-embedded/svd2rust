@@ -414,10 +414,10 @@ main() {
             echo 'version = "0.1.0"' >> $td/Cargo.toml
 
             # echo '[dependencies.riscv]' >> $td/Cargo.toml
-            # echo 'version = "0.2.0"' >> $td/Cargo.toml
+            # echo 'version = "0.4.0"' >> $td/Cargo.toml
 
             # echo '[dependencies.riscv-rt]' >> $td/Cargo.toml
-            # echo 'version = "0.2.0"' >> $td/Cargo.toml
+            # echo 'version = "0.4.0"' >> $td/Cargo.toml
 
             (
                 cd $td &&
