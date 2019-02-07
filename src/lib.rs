@@ -82,8 +82,8 @@
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
 //! - [`msp430`](https://crates.io/crates/msp430) v0.1.x if target = msp430.
 //! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.1.x if target = msp430.
-//! - [`riscv`](https://crates.io/crates/riscv) v0.3.x if target = riscv.
-//! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.3.x if target = riscv.
+//! - [`riscv`](https://crates.io/crates/riscv) v0.4.x if target = riscv.
+//! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.4.x if target = riscv.
 //!
 //! The `*-rt` dependencies must be optional only enabled when the "rt" feature is enabled. The
 //! `Cargo.toml` of the device crate will look like this for an msp430 target:

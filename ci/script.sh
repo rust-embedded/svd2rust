@@ -413,19 +413,19 @@ main() {
             echo '[dependencies.msp430]' >> $td/Cargo.toml
             echo 'version = "0.1.0"' >> $td/Cargo.toml
 
-            # echo '[dependencies.riscv]' >> $td/Cargo.toml
-            # echo 'version = "0.2.0"' >> $td/Cargo.toml
+            echo '[dependencies.riscv]' >> $td/Cargo.toml
+            echo 'version = "0.4.0"' >> $td/Cargo.toml
 
-            # echo '[dependencies.riscv-rt]' >> $td/Cargo.toml
-            # echo 'version = "0.2.0"' >> $td/Cargo.toml
+            echo '[dependencies.riscv-rt]' >> $td/Cargo.toml
+            echo 'version = "0.4.0"' >> $td/Cargo.toml
 
             (
                 cd $td &&
                     curl -LO \
                          https://github.com/pftbest/msp430g2553/raw/v0.1.0/msp430g2553.svd
-                # cd $td &&
-                #     curl -LO \
-                #          https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
+                 cd $td &&
+                     curl -LO \
+                          https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
             )
 
             local cwd=$(pwd)
@@ -442,16 +442,15 @@ main() {
             cargo check --manifest-path $td/Cargo.toml
 
             # Test RISC-V
+            pushd $td
 
-            # pushd $td
+            $cwd/target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd
+            mv $td/lib.rs $td/src/lib.rs
+            rustfmt $td/src/lib.rs || true
 
-            # target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd
-            # mv $td/lib.rs $td/src/lib.rs
-            # rustfmt $td/src/lib.rs || true
+            popd
 
-            # popd
-
-            # cargo check --manifest-path $td/Cargo.toml
+            cargo check --manifest-path $td/Cargo.toml
         ;;
 
         Nordic)
