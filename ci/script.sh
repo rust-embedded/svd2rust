@@ -444,7 +444,7 @@ main() {
             # Test RISC-V
             pushd $td
 
-            target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd
+            $cwd/target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd
             mv $td/lib.rs $td/src/lib.rs
             rustfmt $td/src/lib.rs || true
 
