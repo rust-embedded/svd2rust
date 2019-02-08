@@ -464,7 +464,7 @@ pub enum SvdError {
 }
 
 /// Generates rust code for the specified svd content.
-pub fn generate(xml: &str, target: &Target, nightly: bool) -> Result<Generation> {
+pub fn generate(xml: &str, target: Target, nightly: bool) -> Result<Generation> {
     use std::fmt::Write;
 
     let device = svd::parse(xml);
@@ -486,15 +486,15 @@ pub fn generate(xml: &str, target: &Target, nightly: bool) -> Result<Generation>
         None
     } else {
         Some(DeviceSpecific {
-            device_x: device_x,
+            device_x,
             build_rs: util::build_rs().to_string(),
             _extensible: (),
         })
     };
 
     Ok(Generation {
-        lib_rs: lib_rs,
-        device_specific: device_specific,
+        lib_rs,
+        device_specific,
         _extensible: (),
     })
 }
