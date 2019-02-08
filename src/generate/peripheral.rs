@@ -3,13 +3,13 @@ use std::cmp::Ordering;
 
 use either::Either;
 use quote::{ToTokens, Tokens};
-use svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register};
+use crate::svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register};
 use syn::{self, Ident};
 
-use errors::*;
-use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
+use crate::errors::*;
+use crate::util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
 
-use generate::register;
+use crate::generate::register;
 
 pub fn render(
     p: &Peripheral,
@@ -276,7 +276,7 @@ impl FieldRegions {
         // fold them into the new region we're creating.  There
         // may be multiple regions that we intersect with, so
         // we keep looping to find them all.
-        for (idx, mut f) in self.regions.iter_mut().enumerate() {
+        for (idx, f) in self.regions.iter_mut().enumerate() {
             let f_start = f.offset;
             let f_end = f.end;
 

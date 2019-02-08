@@ -1,12 +1,12 @@
 use std::borrow::Cow;
 
 use inflections::Inflect;
-use svd::{Access, Cluster, Register};
+use crate::svd::{Access, Cluster, Register};
 use syn::Ident;
 use quote::Tokens;
 use either::Either;
 
-use errors::*;
+use crate::errors::*;
 
 pub const BITS_PER_BYTE: u32 = 8;
 
@@ -69,8 +69,8 @@ impl ToSanitizedSnakeCase for str {
                     abstract,
                     alignof,
                     as,
-                    async,
-                    await,
+                    r#async,
+                    r#await,
                     become,
                     box,
                     break,
@@ -110,7 +110,7 @@ impl ToSanitizedSnakeCase for str {
                     super,
                     trait,
                     true,
-                    try,
+                    r#try,
                     type,
                     typeof,
                     unsafe,

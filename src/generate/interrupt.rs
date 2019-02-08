@@ -3,12 +3,12 @@ use std::fmt::Write;
 
 use cast::u64;
 use quote::Tokens;
-use svd::Peripheral;
+use crate::svd::Peripheral;
 use syn::Ident;
 
-use errors::*;
-use util::{self, ToSanitizedUpperCase};
-use Target;
+use crate::errors::*;
+use crate::util::{self, ToSanitizedUpperCase};
+use crate::Target;
 
 /// Generates code for `src/interrupt.rs`
 pub fn render(

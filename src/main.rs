@@ -21,8 +21,8 @@ use std::io::{self, Write};
 
 use clap::{App, Arg};
 
-use errors::*;
-use util::{build_rs, Target};
+use crate::errors::*;
+use crate::util::{build_rs, Target};
 
 fn run() -> Result<()> {
     use std::io::Read;
