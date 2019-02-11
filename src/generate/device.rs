@@ -9,7 +9,12 @@ use Target;
 use generate::{interrupt, peripheral};
 
 /// Whole device generation
-pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String) -> Result<Vec<Tokens>> {
+pub fn render(
+    d: &Device,
+    target: Target,
+    nightly: bool,
+    device_x: &mut String,
+) -> Result<Vec<Tokens>> {
     let mut out = vec![];
 
     let doc = format!(
@@ -21,13 +26,13 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         env!("CARGO_PKG_VERSION")
     );
 
-    if *target == Target::Msp430 {
+    if target == Target::Msp430 {
         out.push(quote! {
             #![feature(abi_msp430_interrupt)]
         });
     }
 
-    if *target != Target::None && *target != Target::CortexM && *target != Target::RISCV {
+    if target != Target::None && target != Target::CortexM && target != Target::RISCV {
         out.push(quote! {
             #![cfg_attr(feature = "rt", feature(global_asm))]
             #![cfg_attr(feature = "rt", feature(use_extern_macros))]
@@ -49,7 +54,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         });
     }
 
-    match *target {
+    match target {
         Target::CortexM => {
             out.push(quote! {
                 extern crate cortex_m;
@@ -88,7 +93,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
     let mut fpu_present = true;
 
     if let Some(cpu) = d.cpu.as_ref() {
-        let bits = util::unsuffixed(cpu.nvic_priority_bits as u64);
+        let bits = util::unsuffixed(u64::from(cpu.nvic_priority_bits));
 
         out.push(quote! {
             /// Number available in the NVIC for configuring priority
@@ -100,21 +105,20 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
 
     out.extend(interrupt::render(target, &d.peripherals, device_x)?);
 
-    let core_peripherals: &[&str];
-
-    if fpu_present {
-        core_peripherals = &[
-            "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU"
-        ];
+    let core_peripherals: &[_] = if fpu_present {
+        &[
+            "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST",
+            "TPIU",
+        ]
     } else {
-        core_peripherals = &[
-            "CBP", "CPUID", "DCB", "DWT", "FPB", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU"
-        ];
-    }
+        &[
+            "CBP", "CPUID", "DCB", "DWT", "FPB", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU",
+        ]
+    };
 
     let mut fields = vec![];
     let mut exprs = vec![];
-    if *target == Target::CortexM {
+    if target == Target::CortexM {
         out.push(quote! {
             pub use cortex_m::peripheral::Peripherals as CorePeripherals;
             #[cfg(feature = "rt")]
@@ -139,7 +143,7 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
     }
 
     for p in &d.peripherals {
-        if *target == Target::CortexM && core_peripherals.contains(&&*p.name.to_uppercase()) {
+        if target == Target::CortexM && core_peripherals.contains(&&*p.name.to_uppercase()) {
             // Core peripherals are handled above
             continue;
         }
@@ -150,7 +154,8 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
             .as_ref()
             .map(|v| &v[..])
             .unwrap_or(&[])
-            .is_empty() && p.derived_from.is_none()
+            .is_empty()
+            && p.derived_from.is_none()
         {
             // No register block will be generated so don't put this peripheral
             // in the `Peripherals` struct
@@ -166,12 +171,13 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         exprs.push(quote!(#id: #id { _marker: PhantomData }));
     }
 
-    let take = match *target {
+    let take = match target {
         Target::CortexM => Some(Ident::new("cortex_m")),
         Target::Msp430 => Some(Ident::new("msp430")),
         Target::RISCV => Some(Ident::new("riscv")),
         Target::None => None,
-    }.map(|krate| {
+    }
+    .map(|krate| {
         quote! {
             /// Returns all the peripherals *once*
             #[inline]
