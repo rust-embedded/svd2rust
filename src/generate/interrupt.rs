@@ -200,6 +200,41 @@ pub fn render(
             mod_items.push(quote! {
                 #[cfg(feature = "rt")]
                 #[macro_export]
+                /// Assigns a handler to an interrupt
+                ///
+                /// This macro takes two arguments: the name of an interrupt and the path to the
+                /// function that will be used as the handler of that interrupt. That function
+                /// must have signature `fn()`.
+                ///
+                /// Optionally, a third argument may be used to declare interrupt local data.
+                /// The handler will have exclusive access to these *local* variables on each
+                /// invocation. If the third argument is used then the signature of the handler
+                /// function must be `fn(&mut $NAME::Locals)` where `$NAME` is the first argument
+                /// passed to the macro.
+                ///
+                /// # Example
+                ///
+                /// ``` ignore
+                /// interrupt!(TIM2, periodic);
+                ///
+                /// fn periodic() {
+                ///     print!(".");
+                /// }
+                ///
+                /// interrupt!(TIM3, tick, locals: {
+                ///     tick: bool = false;
+                /// });
+                ///
+                /// fn tick(locals: &mut TIM3::Locals) {
+                ///     locals.tick = !locals.tick;
+                ///
+                ///     if locals.tick {
+                ///         println!("Tick");
+                ///     } else {
+                ///         println!("Tock");
+                ///     }
+                /// }
+                /// ```
                 macro_rules! interrupt {
                     ($NAME:ident, $path:path, locals: {
                         $($lvar:ident:$lty:ty = $lval:expr;)*
