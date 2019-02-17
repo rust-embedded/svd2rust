@@ -106,7 +106,7 @@ main() {
             # test_svd ATSAM3X4C
             # test_svd ATSAM3X4E
             # test_svd ATSAM3X8C
-            # test_svd ATSAM3X8E
+             test_svd ATSAM3X8E
             # test_svd ATSAM4S16B
             # test_svd ATSAM4S16C
             # test_svd ATSAM4S8B
