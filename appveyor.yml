@@ -31,11 +31,11 @@ install:
 
 test_script:
   - if [%APPVEYOR_REPO_TAG%]==[false] (
-      cargo build --target %TARGET%
+      RUSTFLAGS="-D warnings" cargo build --target %TARGET%
     )
 
 before_deploy:
-  - cargo rustc --target %TARGET% --release --bin svd2rust -- -C lto
+  - cargo rustc --target %TARGET% --release --bin svd2rust -- -C lto -D warnings
   - ps: ci\before_deploy.ps1
 
 deploy:

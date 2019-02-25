@@ -1,18 +1,18 @@
 build:stable:
   image: rust:stretch
   script:
-    - cargo build
+    - RUSTFLAGS="-D warnings" cargo build
 
 build:nightly:
   image: rustlang/rust:nightly
   script:
-    - cargo build
+    - RUSTFLAGS="-D warnings" cargo build
 
 regress:nightly:
   image: rustlang/rust:nightly
   script:
-    - cargo build --release
+    - RUSTFLAGS="-D warnings" cargo build --release
     - rustup component add rustfmt-preview
     - cd ci/svd2rust-regress
     - rm -rf ./output
-    - cargo run --release -- --long-test --format --verbose
+    - RUSTFLAGS="-D warnings" cargo run --release -- --long-test --format --verbose
