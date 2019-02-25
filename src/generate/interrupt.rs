@@ -257,7 +257,7 @@ pub fn render(
         });
 
         root.push(quote! {
-            pub use self::interrupt::Interrupt;
+            pub use self::interrupt::{Interrupt, Nr, TryFromInterruptError};
         });
     }
 
