@@ -12,7 +12,7 @@ use crate::Target;
 
 /// Generates code for `src/interrupt.rs`
 pub fn render(
-    target: &Target,
+    target: Target,
     peripherals: &[Peripheral],
     device_x: &mut String,
 ) -> Result<Vec<Tokens>> {
@@ -75,10 +75,10 @@ pub fn render(
     }
 
     let n = util::unsuffixed(u64(pos));
-    match *target {
+    match target {
         Target::CortexM => {
             for name in &names {
-                writeln!(device_x, "PROVIDE({} = DefaultHandler);" ,name).unwrap();
+                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name).unwrap();
             }
 
             root.push(quote! {
@@ -169,7 +169,7 @@ pub fn render(
         }
     };
 
-    if *target == Target::CortexM {
+    if target == Target::CortexM {
         root.push(interrupt_enum);
     } else {
         mod_items.push(quote! {
@@ -190,13 +190,13 @@ pub fn render(
         });
     }
 
-    if *target != Target::None {
-        let abi = match *target {
+    if target != Target::None {
+        let abi = match target {
             Target::Msp430 => "msp430-interrupt",
             _ => "C",
         };
 
-        if *target != Target::CortexM {
+        if target != Target::CortexM {
             mod_items.push(quote! {
                 #[cfg(feature = "rt")]
                 #[macro_export]
@@ -248,19 +248,17 @@ pub fn render(
         }
     }
 
-    if !interrupts.is_empty() {
-        if *target != Target::CortexM {
-            root.push(quote! {
-                #[doc(hidden)]
-                pub mod interrupt {
-                    #(#mod_items)*
-                }
-            });
+    if !interrupts.is_empty() && target != Target::CortexM {
+        root.push(quote! {
+            #[doc(hidden)]
+            pub mod interrupt {
+                #(#mod_items)*
+            }
+        });
 
-            root.push(quote! {
-                pub use self::interrupt::Interrupt;
-            });
-        }
+        root.push(quote! {
+            pub use self::interrupt::Interrupt;
+        });
     }
 
     Ok(root)

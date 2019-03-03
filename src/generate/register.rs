@@ -685,6 +685,7 @@ pub fn fields(
                     let variants_doc = variants.iter().map(|v| util::escape_brackets(&v.doc).to_owned());
                     mod_items.push(quote! {
                         #[doc = #pc_w_doc]
+                        #[derive(Clone, Copy, Debug, PartialEq)]
                         pub enum #pc_w {
                             #(#[doc = #variants_doc]
                             #variants_pc),*
@@ -806,7 +807,7 @@ pub fn fields(
 fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Ident> {
     match write_constraint {
         Some(&WriteConstraint::Range(ref range))
-            if range.min as u64 == 0 && range.max as u64 == (1u64 << width) - 1 =>
+            if u64::from(range.min) == 0 && u64::from(range.max) == (1u64 << width) - 1 =>
         {
             // the SVD has acknowledged that it's safe to write
             // any value that can fit in the field

@@ -81,7 +81,7 @@ fn run() -> Result<()> {
     let nightly = matches.is_present("nightly_features");
 
     let mut device_x = String::new();
-    let items = generate::device::render(&device, &target, nightly, &mut device_x)?;
+    let items = generate::device::render(&device, target, nightly, &mut device_x)?;
 
     writeln!(File::create("lib.rs").unwrap(), "{}", quote!(#(#items)*)).unwrap();
 
