@@ -12,7 +12,7 @@ use Target;
 
 /// Generates code for `src/interrupt.rs`
 pub fn render(
-    target: &Target,
+    target: Target,
     peripherals: &[Peripheral],
     device_x: &mut String,
 ) -> Result<Vec<Tokens>> {
@@ -50,6 +50,8 @@ pub fn render(
                 .description
                 .as_ref()
                 .map(|s| util::respace(s))
+                .as_ref()
+                .map(|s| util::escape_brackets(s))
                 .unwrap_or_else(|| interrupt.name.clone())
         );
 
@@ -73,10 +75,10 @@ pub fn render(
     }
 
     let n = util::unsuffixed(u64(pos));
-    match *target {
+    match target {
         Target::CortexM => {
             for name in &names {
-                writeln!(device_x, "PROVIDE({} = DefaultHandler);" ,name).unwrap();
+                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name).unwrap();
             }
 
             root.push(quote! {
@@ -98,64 +100,6 @@ pub fn render(
                 pub static __INTERRUPTS: [Vector; #n] = [
                     #(#elements,)*
                 ];
-
-                /// Macro to override a device specific interrupt handler
-                ///
-                /// # Syntax
-                ///
-                /// ``` ignore
-                /// interrupt!(
-                ///     // Name of the interrupt
-                ///     $Name:ident,
-                ///
-                ///     // Path to the interrupt handler (a function)
-                ///     $handler:path,
-                ///
-                ///     // Optional, state preserved across invocations of the handler
-                ///     state: $State:ty = $initial_state:expr,
-                /// );
-                /// ```
-                ///
-                /// Where `$Name` must match the name of one of the variants of the `Interrupt`
-                /// enum.
-                ///
-                /// The handler must have signature `fn()` is no state was associated to it;
-                /// otherwise its signature must be `fn(&mut $State)`.
-                #[cfg(feature = "rt")]
-                #[macro_export]
-                macro_rules! interrupt {
-                    ($Name:ident, $handler:path,state: $State:ty = $initial_state:expr) => {
-                        #[allow(unsafe_code)]
-                        #[deny(private_no_mangle_fns)] // raise an error if this item is not accessible
-                        #[no_mangle]
-                        pub unsafe extern "C" fn $Name() {
-                            static mut STATE: $State = $initial_state;
-
-                            // check that this interrupt exists
-                            let _ = $crate::Interrupt::$Name;
-
-                            // validate the signature of the user provided handler
-                            let f: fn(&mut $State) = $handler;
-
-                            f(&mut STATE)
-                        }
-                    };
-
-                    ($Name:ident, $handler:path) => {
-                        #[allow(unsafe_code)]
-                        #[deny(private_no_mangle_fns)] // raise an error if this item is not accessible
-                        #[no_mangle]
-                        pub unsafe extern "C" fn $Name() {
-                            // check that this interrupt exists
-                            let _ = $crate::Interrupt::$Name;
-
-                            // validate the signature of the user provided handler
-                            let f: fn() = $handler;
-
-                            f()
-                        }
-                    };
-                }
             });
         }
         Target::Msp430 => {
@@ -193,7 +137,6 @@ pub fn render(
                     _reserved: u32,
                 }
 
-                #[allow(private_no_mangle_statics)]
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
                 #[link_section = ".vector_table.interrupts"]
@@ -211,6 +154,7 @@ pub fn render(
 
     let interrupt_enum = quote! {
         /// Enumeration of all the interrupts
+        #[derive(Copy, Clone, Debug)]
         pub enum Interrupt {
             #(#variants)*
         }
@@ -225,22 +169,18 @@ pub fn render(
         }
     };
 
-    if *target == Target::CortexM {
+    if target == Target::CortexM {
         root.push(interrupt_enum);
     } else {
         mod_items.push(quote! {
-            use core::convert::TryFrom;
-
             #interrupt_enum
 
             #[derive(Debug, Copy, Clone)]
             pub struct TryFromInterruptError(());
 
-            impl TryFrom<u8> for Interrupt {
-                type Error = TryFromInterruptError;
-
+            impl Interrupt {
                 #[inline]
-                fn try_from(value: u8) -> Result<Self, Self::Error> {
+                pub fn try_from(value: u8) -> Result<Self, TryFromInterruptError> {
                     match value {
                         #(#from_arms)*
                         _ => Err(TryFromInterruptError(())),
@@ -250,16 +190,51 @@ pub fn render(
         });
     }
 
-    if *target != Target::None {
-        let abi = match *target {
+    if target != Target::None {
+        let abi = match target {
             Target::Msp430 => "msp430-interrupt",
             _ => "C",
         };
 
-        if *target != Target::CortexM {
+        if target != Target::CortexM {
             mod_items.push(quote! {
                 #[cfg(feature = "rt")]
                 #[macro_export]
+                /// Assigns a handler to an interrupt
+                ///
+                /// This macro takes two arguments: the name of an interrupt and the path to the
+                /// function that will be used as the handler of that interrupt. That function
+                /// must have signature `fn()`.
+                ///
+                /// Optionally, a third argument may be used to declare interrupt local data.
+                /// The handler will have exclusive access to these *local* variables on each
+                /// invocation. If the third argument is used then the signature of the handler
+                /// function must be `fn(&mut $NAME::Locals)` where `$NAME` is the first argument
+                /// passed to the macro.
+                ///
+                /// # Example
+                ///
+                /// ``` ignore
+                /// interrupt!(TIM2, periodic);
+                ///
+                /// fn periodic() {
+                ///     print!(".");
+                /// }
+                ///
+                /// interrupt!(TIM3, tick, locals: {
+                ///     tick: bool = false;
+                /// });
+                ///
+                /// fn tick(locals: &mut TIM3::Locals) {
+                ///     locals.tick = !locals.tick;
+                ///
+                ///     if locals.tick {
+                ///         println!("Tick");
+                ///     } else {
+                ///         println!("Tock");
+                ///     }
+                /// }
+                /// ```
                 macro_rules! interrupt {
                     ($NAME:ident, $path:path, locals: {
                         $($lvar:ident:$lty:ty = $lval:expr;)*
@@ -308,7 +283,7 @@ pub fn render(
         }
     }
 
-    if interrupts.len() > 0 {
+    if !interrupts.is_empty() && target != Target::CortexM {
         root.push(quote! {
             #[doc(hidden)]
             pub mod interrupt {
@@ -316,11 +291,9 @@ pub fn render(
             }
         });
 
-        if *target != Target::CortexM {
-            root.push(quote! {
-                pub use interrupt::Interrupt;
-            });
-        }
+        root.push(quote! {
+            pub use self::interrupt::Interrupt;
+        });
     }
 
     Ok(root)

@@ -9,7 +9,7 @@ use tests::TestCase;
 static CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.0\""];
 static CRATES_MSP430: &[&str] = &["msp430 = \"0.1.0\""];
 static CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.5.0\"", "cortex-m-rt = \"0.5.0\""];
-static CRATES_RISCV: &[&str] = &["riscv = \"0.1.4\"", "riscv-rt = \"0.1.3\""];
+static CRATES_RISCV: &[&str] = &["riscv = \"0.4.0\"", "riscv-rt = \"0.4.0\""];
 static PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
 static FEATURES_ALL: &[&str] = &["[features]"];
 static FEATURES_CORTEX_M: &[&str] = &["const-fn = [\"bare-metal/const-fn\", \"cortex-m/const-fn\"]"];

@@ -9,7 +9,12 @@ use Target;
 use generate::{interrupt, peripheral};
 
 /// Whole device generation
-pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String) -> Result<Vec<Tokens>> {
+pub fn render(
+    d: &Device,
+    target: Target,
+    nightly: bool,
+    device_x: &mut String,
+) -> Result<Vec<Tokens>> {
     let mut out = vec![];
 
     let doc = format!(
@@ -21,13 +26,13 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         env!("CARGO_PKG_VERSION")
     );
 
-    if *target == Target::Msp430 {
+    if target == Target::Msp430 {
         out.push(quote! {
             #![feature(abi_msp430_interrupt)]
         });
     }
 
-    if *target != Target::None && *target != Target::CortexM {
+    if target != Target::None && target != Target::CortexM && target != Target::RISCV {
         out.push(quote! {
             #![cfg_attr(feature = "rt", feature(global_asm))]
             #![cfg_attr(feature = "rt", feature(use_extern_macros))]
@@ -43,20 +48,13 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         #![no_std]
     });
 
-    if *target != Target::CortexM {
-        out.push(quote! {
-            #![feature(const_fn)]
-            #![feature(try_from)]
-        });
-    }
-
     if nightly {
         out.push(quote! {
             #![feature(untagged_unions)]
         });
     }
 
-    match *target {
+    match target {
         Target::CortexM => {
             out.push(quote! {
                 extern crate cortex_m;
@@ -91,37 +89,61 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         use core::marker::PhantomData;
     });
 
+    // Retaining the previous assumption
+    let mut fpu_present = true;
+
     if let Some(cpu) = d.cpu.as_ref() {
-        let bits = util::unsuffixed(cpu.nvic_priority_bits as u64);
+        let bits = util::unsuffixed(u64::from(cpu.nvic_priority_bits));
 
         out.push(quote! {
             /// Number available in the NVIC for configuring priority
             pub const NVIC_PRIO_BITS: u8 = #bits;
         });
+
+        fpu_present = cpu.fpu_present;
     }
 
     out.extend(interrupt::render(target, &d.peripherals, device_x)?);
 
-    const CORE_PERIPHERALS: &[&str] = &[
-        "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU"
-    ];
+    let core_peripherals: &[_] = if fpu_present {
+        &[
+            "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST",
+            "TPIU",
+        ]
+    } else {
+        &[
+            "CBP", "CPUID", "DCB", "DWT", "FPB", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU",
+        ]
+    };
 
     let mut fields = vec![];
     let mut exprs = vec![];
-    if *target == Target::CortexM {
+    if target == Target::CortexM {
         out.push(quote! {
             pub use cortex_m::peripheral::Peripherals as CorePeripherals;
+            #[cfg(feature = "rt")]
+            pub use cortex_m_rt::interrupt;
+            #[cfg(feature = "rt")]
+            pub use self::Interrupt as interrupt;
         });
 
-        out.push(quote! {
-            pub use cortex_m::peripheral::{
-                CBP, CPUID, DCB, DWT, FPB, FPU, ITM, MPU, NVIC, SCB, SYST, TPIU,
-            };
-        });
+        if fpu_present {
+            out.push(quote! {
+                pub use cortex_m::peripheral::{
+                    CBP, CPUID, DCB, DWT, FPB, FPU, ITM, MPU, NVIC, SCB, SYST, TPIU,
+                };
+            });
+        } else {
+            out.push(quote! {
+                pub use cortex_m::peripheral::{
+                    CBP, CPUID, DCB, DWT, FPB, ITM, MPU, NVIC, SCB, SYST, TPIU,
+                };
+            });
+        }
     }
 
     for p in &d.peripherals {
-        if *target == Target::CortexM && CORE_PERIPHERALS.contains(&&*p.name.to_uppercase()) {
+        if target == Target::CortexM && core_peripherals.contains(&&*p.name.to_uppercase()) {
             // Core peripherals are handled above
             continue;
         }
@@ -132,7 +154,8 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
             .as_ref()
             .map(|v| &v[..])
             .unwrap_or(&[])
-            .is_empty() && p.derived_from.is_none()
+            .is_empty()
+            && p.derived_from.is_none()
         {
             // No register block will be generated so don't put this peripheral
             // in the `Peripherals` struct
@@ -148,12 +171,13 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         exprs.push(quote!(#id: #id { _marker: PhantomData }));
     }
 
-    let take = match *target {
+    let take = match target {
         Target::CortexM => Some(Ident::new("cortex_m")),
         Target::Msp430 => Some(Ident::new("msp430")),
         Target::RISCV => Some(Ident::new("riscv")),
         Target::None => None,
-    }.map(|krate| {
+    }
+    .map(|krate| {
         quote! {
             /// Returns all the peripherals *once*
             #[inline]
@@ -173,7 +197,6 @@ pub fn render(d: &Device, target: &Target, nightly: bool, device_x: &mut String)
         // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
         // crate as that would let you `take` the device peripherals more than once (one per minor
         // version)
-        #[allow(private_no_mangle_statics)]
         #[no_mangle]
         static mut DEVICE_PERIPHERALS: bool = false;
 

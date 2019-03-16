@@ -12,7 +12,7 @@
 //!
 //! # Installation
 //!
-//! ```
+//! ```bash
 //! $ cargo install svd2rust
 //! ```
 //!
@@ -53,19 +53,19 @@
 //! ```
 //!
 //! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
-//! `bare-metal` v0.2.x, `cortex-m` v0.5.x, `cortex-m-rt` v0.5.x and `vcell` v0.1.x. Furthermore the
-//! "device" feature of `cortex-m-rt` must be enabled when the "rt" feature is enabled. The
+//! `bare-metal` v0.2.x, `cortex-m` v0.5.x, `cortex-m-rt` >=v0.6.5 and `vcell` v0.1.x. Furthermore
+//! the "device" feature of `cortex-m-rt` must be enabled when the "rt" feature is enabled. The
 //! `Cargo.toml` of the device crate will look like this:
 //!
 //! ``` toml
 //! [dependencies]
 //! bare-metal = "0.2.0"
-//! cortex-m = "0.5.0"
+//! cortex-m = "0.5.8"
 //! vcell = "0.1.0"
 //!
 //! [dependencies.cortex-m-rt]
 //! optional = true
-//! version = "0.5.0"
+//! version = "0.6.5"
 //!
 //! [features]
 //! rt = ["cortex-m-rt/device"]
@@ -73,27 +73,17 @@
 //!
 //! ## target != cortex-m
 //!
-//! When the target is msp430, riscv or none `svd2rust` will emit all the generated code to stdout.
-//! Like in the cortex-m case we recommend you use `form` and `rustfmt` on the output:
-//!
-//! ``` console
-//! $ svd2rust -i *.svd --target msp430 > lib.rs
-//!
-//! $ rm -rf src
-//!
-//! $ form -i lib.rs -o src/ && rm lib.rs
-//!
-//! $ cargo fmt
-//! ```
+//! When the target is msp430, riscv or none `svd2rust` will emit only the `lib.rs` file. Like in
+//! the cortex-m case we recommend you use `form` and `rustfmt` on the output.
 //!
 //! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
 //!
-//! - [`bare-metal`](https://crates.io/crates/bare-metal) v0.1.x
+//! - [`bare-metal`](https://crates.io/crates/bare-metal) v0.2.x
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
 //! - [`msp430`](https://crates.io/crates/msp430) v0.1.x if target = msp430.
 //! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.1.x if target = msp430.
-//! - [`riscv`](https://crates.io/crates/riscv) v0.2.x if target = riscv.
-//! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.2.x if target = riscv.
+//! - [`riscv`](https://crates.io/crates/riscv) v0.4.x if target = riscv.
+//! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.4.x if target = riscv.
 //!
 //! The `*-rt` dependencies must be optional only enabled when the "rt" feature is enabled. The
 //! `Cargo.toml` of the device crate will look like this for an msp430 target:
@@ -119,7 +109,7 @@
 //! one of them) and the only way to get an instance of them is through the `Peripherals::take`
 //! method.
 //!
-//! ```
+//! ```ignore
 //! fn main() {
 //!     let mut peripherals = stm32f30x::Peripherals::take().unwrap();
 //!     peripherals.GPIOA.odr.write(|w| w.bits(1));
@@ -129,7 +119,7 @@
 //! This method can only be successfully called *once* -- that's why the method returns an `Option`.
 //! Subsequent calls to the method will result in a `None` value being returned.
 //!
-//! ```
+//! ```ignore
 //! fn main() {
 //!     let ok = stm32f30x::Peripherals::take().unwrap();
 //!     let panics = stm32f30x::Peripherals::take().unwrap();
@@ -140,7 +130,7 @@
 //! available on all the peripheral types. This method is a useful for implementing safe higher
 //! level abstractions.
 //!
-//! ```
+//! ```ignore
 //! struct PA0 { _0: () }
 //! impl PA0 {
 //!     fn is_high(&self) -> bool {
@@ -169,7 +159,7 @@
 //! memory. Each field in this `struct` represents one register in the register block associated to
 //! the peripheral.
 //!
-//! ```
+//! ```ignore
 //! /// Inter-integrated circuit
 //! pub mod i2c1 {
 //!     /// Register block
@@ -215,7 +205,7 @@
 //!
 //! (using `I2C`'s `CR2` register as an example)
 //!
-//! ``` rust
+//! ```ignore
 //! impl CR2 {
 //!     /// Modifies the contents of the register
 //!     pub fn modify<F>(&self, f: F)
@@ -242,7 +232,7 @@
 //! returns a proxy `R` struct that allows access to only the readable bits (i.e. not to the
 //! reserved or write-only bits) of the `CR2` register:
 //!
-//! ``` rust
+//! ```ignore
 //! /// Value read from the register
 //! impl R {
 //!     /// Bit 0 - Slave address bit 0 (master mode)
@@ -257,7 +247,7 @@
 //!
 //! Usage looks like this:
 //!
-//! ``` rust
+//! ```ignore
 //! // is the SADD0 bit of the CR2 register set?
 //! if i2c1.c2r.read().sadd0().bit() {
 //!     // yes
@@ -274,7 +264,7 @@
 //! register after a reset. The rest of `W` methods are "builder-like" and can be used to modify the
 //! writable bitfields of the `CR2` register.
 //!
-//! ``` rust
+//! ```ignore
 //! impl CR2W {
 //!     /// Reset value
 //!     pub fn reset_value() -> Self {
@@ -296,7 +286,7 @@
 //!
 //! Usage looks like this:
 //!
-//! ``` rust
+//! ```ignore
 //! // Starting from the reset value, `0x0000_0000`, change the bitfields SADD0
 //! // and SADD1 to `1` and `0b0011110` respectively and write that to the
 //! // register CR2.
@@ -319,7 +309,7 @@
 //!
 //! Usage looks like this:
 //!
-//! ``` rust
+//! ```ignore
 //! // Set the START bit to 1 while KEEPING the state of the other bits intact
 //! i2c1.cr2.modify(|_, w| unsafe { w.start().bit(true) });
 //!
@@ -336,7 +326,7 @@
 //!
 //! The new `read` API returns an enum that you can match:
 //!
-//! ```
+//! ```ignore
 //! match gpioa.dir.read().pin0() {
 //!     gpioa::dir::PIN0R::Input => { .. },
 //!     gpioa::dir::PIN0R::Output => { .. },
@@ -345,7 +335,7 @@
 //!
 //! or test for equality
 //!
-//! ```
+//! ```ignore
 //! if gpioa.dir.read().pin0() == gpio::dir::PIN0R::Input {
 //!     ..
 //! }
@@ -354,7 +344,7 @@
 //! It also provides convenience methods to check for a specific variant without
 //! having to import the enum:
 //!
-//! ```
+//! ```ignore
 //! if gpioa.dir.read().pin0().is_input() {
 //!     ..
 //! }
@@ -366,7 +356,7 @@
 //!
 //! The original `bits` method is available as well:
 //!
-//! ```
+//! ```ignore
 //! if gpioa.dir.read().pin0().bits() == 0 {
 //!     ..
 //! }
@@ -375,7 +365,7 @@
 //! And the new `write` API provides similar additions as well: `variant` lets you pick the value to
 //! write from an `enum`eration of the possible ones:
 //!
-//! ```
+//! ```ignore
 //! // enum DIRW { Input, Output }
 //! gpioa.dir.write(|w| w.pin0().variant(gpio::dir::PIN0W::Output));
 //! ```
@@ -383,14 +373,14 @@
 //! There are convenience methods to pick one of the variants without having to
 //! import the enum:
 //!
-//! ```
+//! ```ignore
 //! gpioa.dir.write(|w| w.pin0().output());
 //! ```
 //!
 //! The `bits` (or `bit`) method is still available but will become safe if it's
 //! impossible to write a reserved bit pattern into the register:
 //!
-//! ```
+//! ```ignore
 //! // safe because there are only two options: `0` or `1`
 //! gpioa.dir.write(|w| w.pin0().bit(true));
 //! ```
@@ -401,7 +391,7 @@
 //! of the device interrupts as an `Interrupt` `enum` in the root of the crate. This `enum` can be
 //! used with the `cortex-m` crate `NVIC` API.
 //!
-//! ```
+//! ```ignore
 //! extern crate cortex_m;
 //! extern crate stm32f30x;
 //!
@@ -420,7 +410,10 @@
 //!
 //! If the "rt" Cargo feature of the svd2rust generated crate is enabled the crate will populate the
 //! part of the vector table that contains the interrupt vectors and provide an
-//! [`interrupt!`](macro.interrupt.html) macro that can be used to register interrupt handlers.
+//! [`interrupt!`](macro.interrupt.html) macro (non Cortex-M targets) or [`interrupt`] attribute
+//! (Cortex-M) that can be used to register interrupt handlers.
+//!
+//! [`interrupt`]: https://docs.rs/cortex-m-rt-macros/0.1/cortex_m_rt_macros/attr.interrupt.html
 //!
 //! ## the `--nightly` flag
 //!
@@ -429,7 +422,82 @@
 //!
 //! - `#[feature(untagged_unions)]` for overlapping/overloaded registers
 
-// NOTE This file is for documentation only
+#![recursion_limit = "128"]
+
+extern crate cast;
+extern crate either;
+#[macro_use]
+extern crate error_chain;
+extern crate inflections;
+#[macro_use]
+extern crate quote;
+extern crate svd_parser as svd;
+extern crate syn;
+
+mod errors;
+mod generate;
+mod util;
+
+pub use util::Target;
+
+pub struct Generation {
+    pub lib_rs: String,
+    pub device_specific: Option<DeviceSpecific>,
+
+    // Reserve the right to add more fields to this struct
+    _extensible: (),
+}
+
+pub struct DeviceSpecific {
+    pub device_x: String,
+    pub build_rs: String,
+
+    // Reserve the right to add more fields to this struct
+    _extensible: (),
+}
+
+type Result<T> = std::result::Result<T, SvdError>;
+#[derive(Debug)]
+pub enum SvdError {
+    Fmt,
+    Render,
+}
+
+/// Generates rust code for the specified svd content.
+pub fn generate(xml: &str, target: Target, nightly: bool) -> Result<Generation> {
+    use std::fmt::Write;
+
+    let device = svd::parse(xml);
+    let mut device_x = String::new();
+    let items = generate::device::render(&device, target, nightly, &mut device_x)
+        .or(Err(SvdError::Render))?;
+
+    let mut lib_rs = String::new();
+    writeln!(
+        &mut lib_rs,
+        "{}",
+        quote! {
+            #(#items)*
+        }
+    )
+    .or(Err(SvdError::Fmt))?;
+
+    let device_specific = if device_x.is_empty() {
+        None
+    } else {
+        Some(DeviceSpecific {
+            device_x,
+            build_rs: util::build_rs().to_string(),
+            _extensible: (),
+        })
+    };
+
+    Ok(Generation {
+        lib_rs,
+        device_specific,
+        _extensible: (),
+    })
+}
 
 /// Assigns a handler to an interrupt
 ///

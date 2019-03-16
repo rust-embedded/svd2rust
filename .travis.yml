@@ -48,6 +48,10 @@ matrix:
     - env: TARGET=x86_64-apple-darwin
       os: osx
 
+    # Windows
+    - env: TARGET=x86_64-pc-windows-msvc
+      os: windows
+
 install:
   - bash ci/install.sh
 
@@ -76,6 +80,8 @@ branches:
   only:
     - staging
     - trying
+    # release tags
+    - /^v\d+\.\d+\.\d+.*$/
 
 notifications:
   email:
