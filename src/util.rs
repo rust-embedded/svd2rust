@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 
+use either::Either;
 use inflections::Inflect;
+use quote::Tokens;
 use svd::{Access, Cluster, Register};
 use syn::Ident;
-use quote::Tokens;
-use either::Either;
 
 use errors::*;
 
@@ -12,7 +12,27 @@ pub const BITS_PER_BYTE: u32 = 8;
 
 /// List of chars that some vendors use in their peripheral/field names but
 /// that are not valid in Rust ident
-const BLACKLIST_CHARS: &'static [char] = &['(', ')', '[', ']'];
+const BLACKLIST_CHARS: &[char] = &['(', ')', '[', ']', '/', ' '];
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum Target {
+    CortexM,
+    Msp430,
+    RISCV,
+    None,
+}
+
+impl Target {
+    pub fn parse(s: &str) -> Result<Self> {
+        Ok(match s {
+            "cortex-m" => Target::CortexM,
+            "msp430" => Target::Msp430,
+            "riscv" => Target::RISCV,
+            "none" => Target::None,
+            _ => bail!("unknown target {}", s),
+        })
+    }
+}
 
 pub trait ToSanitizedPascalCase {
     fn to_sanitized_pascal_case(&self) -> Cow<str>;
@@ -49,6 +69,8 @@ impl ToSanitizedSnakeCase for str {
                     abstract,
                     alignof,
                     as,
+                    async,
+                    await,
                     become,
                     box,
                     break,
@@ -88,6 +110,7 @@ impl ToSanitizedSnakeCase for str {
                     super,
                     trait,
                     true,
+                    try,
                     type,
                     typeof,
                     unsafe,
@@ -137,14 +160,39 @@ pub fn respace(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+pub fn escape_brackets(s: &str) -> String {
+    s.split('[')
+        .fold("".to_string(), |acc, x| {
+            if acc == "" {
+                x.to_string()
+            } else if acc.ends_with('\\') {
+                acc.to_owned() + "[" + &x.to_string()
+            } else {
+                acc.to_owned() + "\\[" + &x.to_string()
+            }
+        })
+        .split(']')
+        .fold("".to_string(), |acc, x| {
+            if acc == "" {
+                x.to_string()
+            } else if acc.ends_with('\\') {
+                acc.to_owned() + "]" + &x.to_string()
+            } else {
+                acc.to_owned() + "\\]" + &x.to_string()
+            }
+        })
+}
+
 pub fn name_of(register: &Register) -> Cow<str> {
     match *register {
         Register::Single(ref info) => Cow::from(&*info.name),
-        Register::Array(ref info, _) => if info.name.contains("[%s]") {
-            info.name.replace("[%s]", "").into()
-        } else {
-            info.name.replace("%s", "").into()
-        },
+        Register::Array(ref info, _) => {
+            if info.name.contains("[%s]") {
+                info.name.replace("[%s]", "").into()
+            } else {
+                info.name.replace("%s", "").into()
+            }
+        }
     }
 }
 
@@ -242,7 +290,8 @@ impl U32Ext for u32 {
 
 /// Return only the clusters from the slice of either register or clusters.
 pub fn only_clusters(ercs: &[Either<Register, Cluster>]) -> Vec<&Cluster> {
-    let clusters: Vec<&Cluster> = ercs.iter()
+    let clusters: Vec<&Cluster> = ercs
+        .iter()
         .filter_map(|x| match *x {
             Either::Right(ref x) => Some(x),
             _ => None,
@@ -253,11 +302,37 @@ pub fn only_clusters(ercs: &[Either<Register, Cluster>]) -> Vec<&Cluster> {
 
 /// Return only the registers the given slice of either register or clusters.
 pub fn only_registers(ercs: &[Either<Register, Cluster>]) -> Vec<&Register> {
-    let registers: Vec<&Register> = ercs.iter()
+    let registers: Vec<&Register> = ercs
+        .iter()
         .filter_map(|x| match *x {
             Either::Left(ref x) => Some(x),
             _ => None,
         })
         .collect();
     registers
+}
+
+pub fn build_rs() -> Tokens {
+    quote! {
+        use std::env;
+        use std::fs::File;
+        use std::io::Write;
+        use std::path::PathBuf;
+
+        fn main() {
+            if env::var_os("CARGO_FEATURE_RT").is_some() {
+                // Put the linker script somewhere the linker can find it
+                let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
+                File::create(out.join("device.x"))
+                    .unwrap()
+                    .write_all(include_bytes!("device.x"))
+                    .unwrap();
+                println!("cargo:rustc-link-search={}", out.display());
+
+                println!("cargo:rerun-if-changed=device.x");
+            }
+
+            println!("cargo:rerun-if-changed=build.rs");
+        }
+    }
 }

@@ -7,6 +7,94 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.14.0] - 2018-12-07
+
+### Added
+
+- On Cortex-M targets the generated code includes a re-export of the
+  `cortex_m_rt::interrupt` attribute, but only when the `rt` feature is enabled.
+
+### Changed
+
+- [breaking-change] on non-Cortex targets Interrupt no longer implements the
+  `TryFrom` trait; it now provides an inherent `try_from` method.
+
+- [breaking-change] for non-Cortex targets svd2rust no longer outputs the
+  generated code to stdout; instead it writes it to a file named `lib.rs`.
+
+- Brackets generated in doc comments are now escaped to prevent warnings on
+  nightly where the compiler tries to interpret bracketed content as links to
+  structs, enums, etc.
+
+### Fixed
+
+- Some bugs around the generation of unions (see `--nightly` flag).
+
+## [v0.13.1] - 2018-05-16
+
+### Fixed
+
+- Fixed code generation for non Cortex-M targets. `svd2rust` was generating a feature gate with the
+wrong name.
+
+- Fixed the example Cargo.toml for msp430 in the documentation.
+
+## [v0.13.0] - 2018-05-12
+
+### Added
+
+- `svd2rust` now emits unions for registers that overlap (have the same address). Before `svd2rust`
+  would generate code for only one instance of overlapping registers for memory location. This
+  feature requires passing the `--nightly` to `svd2rust` as it generates code that requires a
+  nightly compiler to build.
+
+- `svd2rust` now also blacklists the `/` (backslash) and ` ` (space) characters. `svd2rust` removes
+  all blacklisted characters from peripheral, register, bitfield and enumeratedValues names.
+
+### Changed
+
+- This crate now compiles on the stable and beta channels.
+
+- [breaking-change] when the target is the cortex-m architecture `svd2rust` generates three files in
+  the current directory, instead of dumping the generated code to stdout.
+
+- [breaking-change] the syntax and expansion of the `interrupt!` macro has changed when the target
+  is the Cortex-M architecture.
+
+- [breaking-change] the code generated for the Cortex-M architecture now depends on newer versions
+  of the bare-metal, cortex-m and cortex-m-rt crates.
+
+- [breaking-change] when the target is the Cortex-M architecture the "rt" feature of the device
+  crate must enable the "device" feature of the cortex-m-rt dependency.
+
+### Removed
+
+- [breaking-change] `Interrupt` no longer implements the unstable `TryFrom` trait when the target is
+  the Cortex-M architecture.
+
+## [v0.12.1] - 2018-05-06
+
+### Added
+
+- Code generation for `<cluster>`s
+
+- SVD files can now be read from stdin
+
+- RISCV support
+
+### Fixed
+
+- Make the generated code work with recent nightlies by switching from the deprecated
+`macro_reexport` feature to the `use_extern_macros` feature, which is planned for stabilization.
+
+- Relocation errors on MSP430
+
+- Code generated for 1-bit enumerated fields
+
+- Handle the case where `dimIndex` information is missing.
+
+- Relocation errors (link errors) on MSP430
+
 ## [v0.12.0] - 2018-01-15
 
 ### Changed
@@ -317,7 +405,10 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.13.1...HEAD
+[v0.13.1]: https://github.com/japaric/svd2rust/compare/v0.13.0...v0.13.1
+[v0.13.0]: https://github.com/japaric/svd2rust/compare/v0.12.1...v0.13.0
+[v0.12.1]: https://github.com/japaric/svd2rust/compare/v0.12.0...v0.12.1
 [v0.12.0]: https://github.com/japaric/svd2rust/compare/v0.11.4...v0.12.0
 [v0.11.4]: https://github.com/japaric/svd2rust/compare/v0.11.3...v0.11.4
 [v0.11.3]: https://github.com/japaric/svd2rust/compare/v0.11.2...v0.11.3

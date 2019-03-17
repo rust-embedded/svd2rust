@@ -1,0 +1,18 @@
+build:stable:
+  image: rust:stretch
+  script:
+    - cargo build
+
+build:nightly:
+  image: rustlang/rust:nightly
+  script:
+    - cargo build
+
+regress:nightly:
+  image: rustlang/rust:nightly
+  script:
+    - cargo build --release
+    - rustup component add rustfmt-preview
+    - cd ci/svd2rust-regress
+    - rm -rf ./output
+    - cargo run --release -- --long-test --format --verbose

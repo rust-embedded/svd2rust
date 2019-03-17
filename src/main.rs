@@ -16,31 +16,13 @@ mod generate;
 mod util;
 
 use std::fs::File;
-use std::{io, process};
+use std::process;
+use std::io::{self, Write};
 
 use clap::{App, Arg};
 
 use errors::*;
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum Target {
-    CortexM,
-    Msp430,
-    RISCV,
-    None,
-}
-
-impl Target {
-    fn parse(s: &str) -> Result<Self> {
-        Ok(match s {
-            "cortex-m" => Target::CortexM,
-            "msp430" => Target::Msp430,
-            "riscv" => Target::RISCV,
-            "none" => Target::None,
-            _ => bail!("unknown target {}", s),
-        })
-    }
-}
+use util::{build_rs, Target};
 
 fn run() -> Result<()> {
     use std::io::Read;
@@ -50,7 +32,6 @@ fn run() -> Result<()> {
         .arg(
             Arg::with_name("input")
                 .help("Input SVD file")
-                .required(true)
                 .short("i")
                 .takes_value(true)
                 .value_name("FILE"),
@@ -61,6 +42,11 @@ fn run() -> Result<()> {
                 .help("Target architecture")
                 .takes_value(true)
                 .value_name("ARCH"),
+        )
+        .arg(
+            Arg::with_name("nightly_features")
+                .long("nightly")
+                .help("Enable features only available to nightly rustc")
         )
         .version(concat!(
             env!("CARGO_PKG_VERSION"),
@@ -74,21 +60,35 @@ fn run() -> Result<()> {
         .unwrap_or(Ok(Target::CortexM))?;
 
     let xml = &mut String::new();
-    File::open(matches.value_of("input").unwrap())
-        .chain_err(|| "couldn't open the SVD file")?
-        .read_to_string(xml)
-        .chain_err(|| "couldn't read the SVD file")?;
+    match matches.value_of("input") {
+        Some(file) => {
+            File::open(file)
+                .chain_err(|| "couldn't open the SVD file")?
+                .read_to_string(xml)
+                .chain_err(|| "couldn't read the SVD file")?;
+        }
+        None => {
+            let stdin = std::io::stdin();
+            stdin
+                .lock()
+                .read_to_string(xml)
+                .chain_err(|| "couldn't read from stdin")?;
+        }
+    }
 
     let device = svd::parse(xml);
 
-    let items = generate::device::render(&device, &target)?;
+    let nightly = matches.is_present("nightly_features");
 
-    println!(
-        "{}",
-        quote! {
-            #(#items)*
-        }
-    );
+    let mut device_x = String::new();
+    let items = generate::device::render(&device, target, nightly, &mut device_x)?;
+
+    writeln!(File::create("lib.rs").unwrap(), "{}", quote!(#(#items)*)).unwrap();
+
+    if target == Target::CortexM {
+        writeln!(File::create("device.x").unwrap(), "{}", device_x).unwrap();
+        writeln!(File::create("build.rs").unwrap(), "{}", build_rs()).unwrap();
+    }
 
     Ok(())
 }

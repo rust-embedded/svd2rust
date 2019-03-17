@@ -1,0 +1,11 @@
+[package]
+name = "svd2rust-regress"
+version = "0.1.0"
+authors = ["James Munns <james.munns@gmail.com>", "The svd2rust developers"]
+
+[dependencies]
+reqwest = "0.8"
+rayon = "1.0"
+structopt = "0.2"
+error-chain = "0.11"
+inflections = "1.1.0"

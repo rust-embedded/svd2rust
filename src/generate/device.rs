@@ -9,7 +9,12 @@ use Target;
 use generate::{interrupt, peripheral};
 
 /// Whole device generation
-pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
+pub fn render(
+    d: &Device,
+    target: Target,
+    nightly: bool,
+    device_x: &mut String,
+) -> Result<Vec<Tokens>> {
     let mut out = vec![];
 
     let doc = format!(
@@ -21,36 +26,38 @@ pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
         env!("CARGO_PKG_VERSION")
     );
 
-    if *target == Target::Msp430 {
+    if target == Target::Msp430 {
         out.push(quote! {
             #![feature(abi_msp430_interrupt)]
         });
     }
 
-    if *target != Target::None {
+    if target != Target::None && target != Target::CortexM && target != Target::RISCV {
         out.push(quote! {
             #![cfg_attr(feature = "rt", feature(global_asm))]
-            #![cfg_attr(feature = "rt", feature(macro_reexport))]
+            #![cfg_attr(feature = "rt", feature(use_extern_macros))]
             #![cfg_attr(feature = "rt", feature(used))]
         });
     }
 
     out.push(quote! {
         #![doc = #doc]
-        #![allow(private_no_mangle_statics)]
         #![deny(missing_docs)]
         #![deny(warnings)]
         #![allow(non_camel_case_types)]
-        #![feature(const_fn)]
-        #![feature(try_from)]
         #![no_std]
     });
 
-    match *target {
+    if nightly {
+        out.push(quote! {
+            #![feature(untagged_unions)]
+        });
+    }
+
+    match target {
         Target::CortexM => {
             out.push(quote! {
                 extern crate cortex_m;
-                #[macro_reexport(default_handler, exception)]
                 #[cfg(feature = "rt")]
                 extern crate cortex_m_rt;
             });
@@ -58,9 +65,10 @@ pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
         Target::Msp430 => {
             out.push(quote! {
                 extern crate msp430;
-                #[macro_reexport(default_handler)]
                 #[cfg(feature = "rt")]
                 extern crate msp430_rt;
+                #[cfg(feature = "rt")]
+                pub use msp430_rt::default_handler;
             });
         }
         Target::RISCV => {
@@ -81,57 +89,73 @@ pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
         use core::marker::PhantomData;
     });
 
+    // Retaining the previous assumption
+    let mut fpu_present = true;
+
     if let Some(cpu) = d.cpu.as_ref() {
-        let bits = util::unsuffixed(cpu.nvic_priority_bits as u64);
+        let bits = util::unsuffixed(u64::from(cpu.nvic_priority_bits));
 
         out.push(quote! {
             /// Number available in the NVIC for configuring priority
             pub const NVIC_PRIO_BITS: u8 = #bits;
         });
+
+        fpu_present = cpu.fpu_present;
     }
 
-    out.extend(interrupt::render(d, target, &d.peripherals)?);
+    out.extend(interrupt::render(target, &d.peripherals, device_x)?);
 
-    const CORE_PERIPHERALS: &[&str] = &[
-        "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU"
-    ];
+    let core_peripherals: &[_] = if fpu_present {
+        &[
+            "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST",
+            "TPIU",
+        ]
+    } else {
+        &[
+            "CBP", "CPUID", "DCB", "DWT", "FPB", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU",
+        ]
+    };
 
     let mut fields = vec![];
     let mut exprs = vec![];
-    if *target == Target::CortexM {
+    if target == Target::CortexM {
         out.push(quote! {
             pub use cortex_m::peripheral::Peripherals as CorePeripherals;
+            #[cfg(feature = "rt")]
+            pub use cortex_m_rt::interrupt;
+            #[cfg(feature = "rt")]
+            pub use self::Interrupt as interrupt;
         });
 
-        // NOTE re-export only core peripherals available on *all* Cortex-M devices
-        // (if we want to re-export all core peripherals available for the target then we are going
-        // to need to replicate the `#[cfg]` stuff that cortex-m uses and that would require all
-        // device crates to define the custom `#[cfg]`s that cortex-m uses in their build.rs ...)
-        out.push(quote! {
-            pub use cortex_m::peripheral::CPUID;
-            pub use cortex_m::peripheral::DCB;
-            pub use cortex_m::peripheral::DWT;
-            pub use cortex_m::peripheral::MPU;
-            pub use cortex_m::peripheral::NVIC;
-            pub use cortex_m::peripheral::SCB;
-            pub use cortex_m::peripheral::SYST;
-        });
+        if fpu_present {
+            out.push(quote! {
+                pub use cortex_m::peripheral::{
+                    CBP, CPUID, DCB, DWT, FPB, FPU, ITM, MPU, NVIC, SCB, SYST, TPIU,
+                };
+            });
+        } else {
+            out.push(quote! {
+                pub use cortex_m::peripheral::{
+                    CBP, CPUID, DCB, DWT, FPB, ITM, MPU, NVIC, SCB, SYST, TPIU,
+                };
+            });
+        }
     }
 
     for p in &d.peripherals {
-        if *target == Target::CortexM && CORE_PERIPHERALS.contains(&&*p.name.to_uppercase()) {
+        if target == Target::CortexM && core_peripherals.contains(&&*p.name.to_uppercase()) {
             // Core peripherals are handled above
             continue;
         }
 
-
-        out.extend(peripheral::render(p, &d.peripherals, &d.defaults)?);
+        out.extend(peripheral::render(p, &d.peripherals, &d.defaults, nightly)?);
 
         if p.registers
             .as_ref()
             .map(|v| &v[..])
             .unwrap_or(&[])
-            .is_empty() && p.derived_from.is_none()
+            .is_empty()
+            && p.derived_from.is_none()
         {
             // No register block will be generated so don't put this peripheral
             // in the `Peripherals` struct
@@ -147,12 +171,13 @@ pub fn render(d: &Device, target: &Target) -> Result<Vec<Tokens>> {
         exprs.push(quote!(#id: #id { _marker: PhantomData }));
     }
 
-    let take = match *target {
+    let take = match target {
         Target::CortexM => Some(Ident::new("cortex_m")),
         Target::Msp430 => Some(Ident::new("msp430")),
         Target::RISCV => Some(Ident::new("riscv")),
         Target::None => None,
-    }.map(|krate| {
+    }
+    .map(|krate| {
         quote! {
             /// Returns all the peripherals *once*
             #[inline]

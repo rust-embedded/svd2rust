@@ -1,8 +1,9 @@
 use std::collections::HashMap;
+use std::fmt::Write;
 
 use cast::u64;
 use quote::Tokens;
-use svd::{Device, Peripheral};
+use svd::Peripheral;
 use syn::Ident;
 
 use errors::*;
@@ -10,7 +11,11 @@ use util::{self, ToSanitizedUpperCase};
 use Target;
 
 /// Generates code for `src/interrupt.rs`
-pub fn render(device: &Device, target: &Target, peripherals: &[Peripheral]) -> Result<Vec<Tokens>> {
+pub fn render(
+    target: Target,
+    peripherals: &[Peripheral],
+    device_x: &mut String,
+) -> Result<Vec<Tokens>> {
     let interrupts = peripherals
         .iter()
         .flat_map(|p| p.interrupt.iter())
@@ -20,6 +25,7 @@ pub fn render(device: &Device, target: &Target, peripherals: &[Peripheral]) -> R
     let mut interrupts = interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
     interrupts.sort_by_key(|i| i.value);
 
+    let mut root = vec![];
     let mut arms = vec![];
     let mut from_arms = vec![];
     let mut elements = vec![];
@@ -29,12 +35,9 @@ pub fn render(device: &Device, target: &Target, peripherals: &[Peripheral]) -> R
     // Current position in the vector table
     let mut pos = 0;
     let mut mod_items = vec![];
-    mod_items.push(quote! {
-        use bare_metal::Nr;
-    });
     for interrupt in &interrupts {
         while pos < interrupt.value {
-            elements.push(quote!(None));
+            elements.push(quote!(Vector { _reserved: 0 }));
             pos += 1;
         }
         pos += 1;
@@ -47,6 +50,8 @@ pub fn render(device: &Device, target: &Target, peripherals: &[Peripheral]) -> R
                 .description
                 .as_ref()
                 .map(|s| util::respace(s))
+                .as_ref()
+                .map(|s| util::escape_brackets(s))
                 .unwrap_or_else(|| interrupt.name.clone())
         );
 
@@ -65,93 +70,57 @@ pub fn render(device: &Device, target: &Target, peripherals: &[Peripheral]) -> R
             #value => Ok(Interrupt::#name_uc),
         });
 
-        elements.push(quote!(Some(#name_uc)));
+        elements.push(quote!(Vector { _handler: #name_uc }));
         names.push(name_uc);
     }
 
-    let aliases = names
-        .iter()
-        .map(|n| {
-            format!(
-                "
-.weak {0}
-{0} = DH_TRAMPOLINE",
-                n
-            )
-        })
-        .collect::<Vec<_>>()
-        .concat();
-
     let n = util::unsuffixed(u64(pos));
-    match *target {
+    match target {
         Target::CortexM => {
-            let is_armv6 = match device.cpu {
-                Some(ref cpu) => cpu.name.starts_with("CM0"),
-                None => true, // default to armv6 when the <cpu> section is missing
-            };
-
-            if is_armv6 {
-                // Cortex-M0(+) are ARMv6 and don't have `b.w` (branch with 16 MB range). This
-                // can cause linker errors when the handler is too far away. Instead of a small
-                // inline assembly shim, we generate a function for those targets and let the
-                // compiler do the work (sacrificing a few bytes of code).
-                mod_items.push(quote! {
-                    #[cfg(feature = "rt")]
-                    extern "C" {
-                        fn DEFAULT_HANDLER();
-                    }
-
-                    #[cfg(feature = "rt")]
-                    #[allow(non_snake_case)]
-                    #[no_mangle]
-                    pub unsafe extern "C" fn DH_TRAMPOLINE() {
-                        DEFAULT_HANDLER();
-                    }
-                });
-            } else {
-                mod_items.push(quote! {
-                    #[cfg(all(target_arch = "arm", feature = "rt"))]
-                    global_asm!("
-                    .thumb_func
-                    DH_TRAMPOLINE:
-                        b DEFAULT_HANDLER
-                    ");
-
-                    /// Hack to compile on x86
-                    #[cfg(all(target_arch = "x86_64", feature = "rt"))]
-                    global_asm!("
-                    DH_TRAMPOLINE:
-                        jmp DEFAULT_HANDLER
-                    ");
-                })
+            for name in &names {
+                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name).unwrap();
             }
 
-            mod_items.push(quote! {
-                #[cfg(feature = "rt")]
-                global_asm!(#aliases);
-
+            root.push(quote! {
                 #[cfg(feature = "rt")]
                 extern "C" {
                     #(fn #names();)*
                 }
 
-                #[allow(private_no_mangle_statics)]
+                #[doc(hidden)]
+                pub union Vector {
+                    _handler: unsafe extern "C" fn(),
+                    _reserved: u32,
+                }
+
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
                 #[link_section = ".vector_table.interrupts"]
                 #[no_mangle]
-                #[used]
-                pub static INTERRUPTS: [Option<unsafe extern "C" fn()>; #n] = [
+                pub static __INTERRUPTS: [Vector; #n] = [
                     #(#elements,)*
                 ];
             });
         }
         Target::Msp430 => {
+            let aliases = names
+                .iter()
+                .map(|n| {
+                    format!(
+                        "
+.weak {0}
+{0} = DH_TRAMPOLINE",
+                        n
+                    )
+                })
+                .collect::<Vec<_>>()
+                .concat();
+
             mod_items.push(quote! {
                 #[cfg(feature = "rt")]
                 global_asm!("
                 DH_TRAMPOLINE:
-                    jmp DEFAULT_HANDLER
+                    br #DEFAULT_HANDLER
                 ");
 
                 #[cfg(feature = "rt")]
@@ -162,14 +131,19 @@ pub fn render(device: &Device, target: &Target, peripherals: &[Peripheral]) -> R
                     #(fn #names();)*
                 }
 
-                #[allow(private_no_mangle_statics)]
+                #[doc(hidden)]
+                pub union Vector {
+                    _handler: unsafe extern "msp430-interrupt" fn(),
+                    _reserved: u32,
+                }
+
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
                 #[link_section = ".vector_table.interrupts"]
                 #[no_mangle]
                 #[used]
                 pub static INTERRUPTS:
-                    [Option<unsafe extern "msp430-interrupt" fn()>; #n] = [
+                    [Vector; #n] = [
                         #(#elements,)*
                     ];
             });
@@ -178,13 +152,14 @@ pub fn render(device: &Device, target: &Target, peripherals: &[Peripheral]) -> R
         Target::None => {}
     }
 
-    mod_items.push(quote! {
+    let interrupt_enum = quote! {
         /// Enumeration of all the interrupts
+        #[derive(Copy, Clone, Debug)]
         pub enum Interrupt {
             #(#variants)*
         }
 
-        unsafe impl Nr for Interrupt {
+        unsafe impl ::bare_metal::Nr for Interrupt {
             #[inline]
             fn nr(&self) -> u8 {
                 match *self {
@@ -192,92 +167,134 @@ pub fn render(device: &Device, target: &Target, peripherals: &[Peripheral]) -> R
                 }
             }
         }
+    };
 
-        use core::convert::TryFrom;
-
-        #[derive(Debug, Copy, Clone)]
-        pub struct TryFromInterruptError(());
-
-        impl TryFrom<u8> for Interrupt {
-            type Error = TryFromInterruptError;
-
-            #[inline]
-            fn try_from(value: u8) -> Result<Self, Self::Error> {
-                match value {
-                    #(#from_arms)*
-                    _ => Err(TryFromInterruptError(())),
-                }
-            }
-        }
-    });
-
-    if *target != Target::None {
-        let abi = match *target {
-            Target::Msp430 => "msp430-interrupt",
-            _ => "C",
-        };
+    if target == Target::CortexM {
+        root.push(interrupt_enum);
+    } else {
         mod_items.push(quote! {
-            #[cfg(feature = "rt")]
-            #[macro_export]
-            macro_rules! interrupt {
-                ($NAME:ident, $path:path, locals: {
-                    $($lvar:ident:$lty:ty = $lval:expr;)*
-                }) => {
-                    #[allow(non_snake_case)]
-                    mod $NAME {
-                        pub struct Locals {
-                            $(
-                                pub $lvar: $lty,
-                            )*
-                        }
-                    }
+            #interrupt_enum
 
-                    #[allow(non_snake_case)]
-                    #[no_mangle]
-                    pub extern #abi fn $NAME() {
-                        // check that the handler exists
-                        let _ = $crate::interrupt::Interrupt::$NAME;
+            #[derive(Debug, Copy, Clone)]
+            pub struct TryFromInterruptError(());
 
-                        static mut LOCALS: self::$NAME::Locals =
-                            self::$NAME::Locals {
-                                $(
-                                    $lvar: $lval,
-                                )*
-                            };
-
-                        // type checking
-                        let f: fn(&mut self::$NAME::Locals) = $path;
-                        f(unsafe { &mut LOCALS });
-                    }
-                };
-                ($NAME:ident, $path:path) => {
-                    #[allow(non_snake_case)]
-                    #[no_mangle]
-                    pub extern #abi fn $NAME() {
-                        // check that the handler exists
-                        let _ = $crate::interrupt::Interrupt::$NAME;
-
-                        // type checking
-                        let f: fn() = $path;
-                        f();
+            impl Interrupt {
+                #[inline]
+                pub fn try_from(value: u8) -> Result<Self, TryFromInterruptError> {
+                    match value {
+                        #(#from_arms)*
+                        _ => Err(TryFromInterruptError(())),
                     }
                 }
             }
         });
     }
 
-    let mut out = vec![];
+    if target != Target::None {
+        let abi = match target {
+            Target::Msp430 => "msp430-interrupt",
+            _ => "C",
+        };
 
-    if interrupts.len() > 0 {
-        out.push(quote! {
-            pub use interrupt::Interrupt;
+        if target != Target::CortexM {
+            mod_items.push(quote! {
+                #[cfg(feature = "rt")]
+                #[macro_export]
+                /// Assigns a handler to an interrupt
+                ///
+                /// This macro takes two arguments: the name of an interrupt and the path to the
+                /// function that will be used as the handler of that interrupt. That function
+                /// must have signature `fn()`.
+                ///
+                /// Optionally, a third argument may be used to declare interrupt local data.
+                /// The handler will have exclusive access to these *local* variables on each
+                /// invocation. If the third argument is used then the signature of the handler
+                /// function must be `fn(&mut $NAME::Locals)` where `$NAME` is the first argument
+                /// passed to the macro.
+                ///
+                /// # Example
+                ///
+                /// ``` ignore
+                /// interrupt!(TIM2, periodic);
+                ///
+                /// fn periodic() {
+                ///     print!(".");
+                /// }
+                ///
+                /// interrupt!(TIM3, tick, locals: {
+                ///     tick: bool = false;
+                /// });
+                ///
+                /// fn tick(locals: &mut TIM3::Locals) {
+                ///     locals.tick = !locals.tick;
+                ///
+                ///     if locals.tick {
+                ///         println!("Tick");
+                ///     } else {
+                ///         println!("Tock");
+                ///     }
+                /// }
+                /// ```
+                macro_rules! interrupt {
+                    ($NAME:ident, $path:path, locals: {
+                        $($lvar:ident:$lty:ty = $lval:expr;)*
+                    }) => {
+                        #[allow(non_snake_case)]
+                        mod $NAME {
+                            pub struct Locals {
+                                $(
+                                    pub $lvar: $lty,
+                                )*
+                            }
+                        }
 
+                        #[allow(non_snake_case)]
+                        #[no_mangle]
+                        pub extern #abi fn $NAME() {
+                            // check that the handler exists
+                            let _ = $crate::interrupt::Interrupt::$NAME;
+
+                            static mut LOCALS: self::$NAME::Locals =
+                                self::$NAME::Locals {
+                                    $(
+                                        $lvar: $lval,
+                                    )*
+                                };
+
+                            // type checking
+                            let f: fn(&mut self::$NAME::Locals) = $path;
+                            f(unsafe { &mut LOCALS });
+                        }
+                    };
+                    ($NAME:ident, $path:path) => {
+                        #[allow(non_snake_case)]
+                        #[no_mangle]
+                        pub extern #abi fn $NAME() {
+                            // check that the handler exists
+                            let _ = $crate::interrupt::Interrupt::$NAME;
+
+                            // type checking
+                            let f: fn() = $path;
+                            f();
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    if !interrupts.is_empty() && target != Target::CortexM {
+        root.push(quote! {
             #[doc(hidden)]
             pub mod interrupt {
                 #(#mod_items)*
             }
         });
+
+        root.push(quote! {
+            pub use self::interrupt::Interrupt;
+        });
     }
 
-    Ok(out)
+    Ok(root)
 }
