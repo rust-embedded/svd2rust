@@ -21,6 +21,10 @@ name = "svd2rust"
 repository = "https://github.com/japaric/svd2rust"
 version = "0.14.0"
 
+[lib]
+name = "svd2rust"
+path = "src/lib.rs"
+
 [[bin]]
 doc = false
 name = "svd2rust"
