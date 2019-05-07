@@ -1,4 +1,4 @@
-dist: trusty
+dist: bionic
 language: rust
 services: docker
 sudo: required
