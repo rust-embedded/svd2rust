@@ -24,6 +24,16 @@ pub fn render(
 
     let mut interrupts = interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
     interrupts.sort_by_key(|i| i.value);
+    let min_intnr = util::unsuffixed(u64(interrupts
+        .iter()
+        .min_by(|a, b| a.value.cmp(&b.value))
+        .unwrap()
+        .value));
+    let max_intnr = util::unsuffixed(u64(interrupts
+        .iter()
+        .max_by(|a, b| a.value.cmp(&b.value))
+        .unwrap()
+        .value));
 
     let mut root = vec![];
     let mut arms = vec![];
@@ -151,6 +161,17 @@ pub fn render(
         Target::RISCV => {}
         Target::None => {}
     }
+
+    let interrupt_min_const = quote! {
+        #[doc = r"Minimum interrupt value"]
+        pub const INTERRUPT_MIN: u8 = #min_intnr;
+    };
+    let interrupt_max_const = quote! {
+        #[doc = r"Maximum interrupt value"]
+        pub const INTERRUPT_MAX: u8 = #max_intnr;
+    };
+    root.push(interrupt_min_const);
+    root.push(interrupt_max_const);
 
     let interrupt_enum = quote! {
         /// Enumeration of all the interrupts
