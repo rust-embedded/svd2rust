@@ -21,6 +21,7 @@ main() {
     #        --git japaric/cross \
     #        --tag $tag
 
+    rustup target add $TARGET
     rustup component add rustfmt-preview
 }
 
