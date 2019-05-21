@@ -29,13 +29,13 @@ main() {
         return
     fi
 
-    cross check --target $TARGET
+    cargo check --target $TARGET
 
     if [ -z ${VENDOR-} ]; then
         return
     fi
 
-    cross build --target $TARGET --release
+    cargo build --target $TARGET --release
 
     case $TRAVIS_OS_NAME in
         linux)
