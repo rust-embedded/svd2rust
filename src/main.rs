@@ -16,8 +16,8 @@ mod generate;
 mod util;
 
 use std::fs::File;
-use std::process;
 use std::io::{self, Write};
+use std::process;
 
 use clap::{App, Arg};
 
@@ -46,7 +46,7 @@ fn run() -> Result<()> {
         .arg(
             Arg::with_name("nightly_features")
                 .long("nightly")
-                .help("Enable features only available to nightly rustc")
+                .help("Enable features only available to nightly rustc"),
         )
         .version(concat!(
             env!("CARGO_PKG_VERSION"),
@@ -94,8 +94,6 @@ fn run() -> Result<()> {
 }
 
 fn main() {
-    use std::io::Write;
-
     if let Err(ref e) = run() {
         let stderr = io::stderr();
         let mut stderr = stderr.lock();

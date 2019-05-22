@@ -268,7 +268,7 @@ impl FieldRegions {
         // fold them into the new region we're creating.  There
         // may be multiple regions that we intersect with, so
         // we keep looping to find them all.
-        for (idx, mut f) in self.regions.iter_mut().enumerate() {
+        for (idx, f) in self.regions.iter_mut().enumerate() {
             let f_start = f.offset;
             let f_end = f.end;
 
