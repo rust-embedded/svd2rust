@@ -267,6 +267,7 @@ impl U32Ext for u32 {
             2...8 => Ident::new("u8"),
             9...16 => Ident::new("u16"),
             17...32 => Ident::new("u32"),
+            33...64 => Ident::new("u64"),
             _ => Err(format!(
                 "can't convert {} bits into a Rust integral type",
                 *self
@@ -280,6 +281,7 @@ impl U32Ext for u32 {
             2...8 => 8,
             9...16 => 16,
             17...32 => 32,
+            33...64 => 64,
             _ => Err(format!(
                 "can't convert {} bits into a Rust integral type width",
                 *self
