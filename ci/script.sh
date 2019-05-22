@@ -462,7 +462,7 @@ main() {
             # Test RISC-V K210
             pushd $td
 
-            $cwd/target/$TARGET/release/svd2rust --target riscv -i $td/k210.svd
+            RUST_BACKTRACE=1 $cwd/target/$TARGET/release/svd2rust --target riscv -i $td/k210.svd
             mv $td/lib.rs $td/src/lib.rs
             rustfmt $td/src/lib.rs || true
 
