@@ -427,9 +427,12 @@ main() {
                 cd $td &&
                     curl -LO \
                          https://github.com/pftbest/msp430g2553/raw/v0.1.0/msp430g2553.svd
-                 cd $td &&
-                     curl -LO \
-                          https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
+                cd $td &&
+                    curl -LO \
+                         https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
+                cd $td &&
+                    curl -LO \
+                         https://raw.githubusercontent.com/riscv-rust/k210-pac/master/k210.svd
             )
 
             local cwd=$(pwd)
@@ -445,10 +448,21 @@ main() {
 
             cargo check --manifest-path $td/Cargo.toml
 
-            # Test RISC-V
+            # Test RISC-V FE310
             pushd $td
 
             $cwd/target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd
+            mv $td/lib.rs $td/src/lib.rs
+            rustfmt $td/src/lib.rs || true
+
+            popd
+
+            cargo check --manifest-path $td/Cargo.toml
+
+            # Test RISC-V K210
+            pushd $td
+
+            $cwd/target/$TARGET/release/svd2rust --target riscv -i $td/k210.svd
             mv $td/lib.rs $td/src/lib.rs
             rustfmt $td/src/lib.rs || true
 
