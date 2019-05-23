@@ -10,7 +10,7 @@ test_svd() {
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
     local cwd=$(pwd)
     pushd $td
-    $cwd/target/$TARGET/release/svd2rust -i ${1}.svd
+    RUST_BACKTRACE=1 $cwd/target/$TARGET/release/svd2rust -i ${1}.svd
 
     mv lib.rs src/lib.rs
 
@@ -440,7 +440,7 @@ main() {
             # Test MSP430
             pushd $td
 
-            $cwd/target/$TARGET/release/svd2rust --target msp430 -i $td/msp430g2553.svd
+            RUST_BACKTRACE=1 $cwd/target/$TARGET/release/svd2rust --target msp430 -i $td/msp430g2553.svd
             mv $td/lib.rs $td/src/lib.rs
             rustfmt $td/src/lib.rs || true
 
@@ -451,7 +451,7 @@ main() {
             # Test RISC-V FE310
             pushd $td
 
-            $cwd/target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd
+            RUST_BACKTRACE=1 $cwd/target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd
             mv $td/lib.rs $td/src/lib.rs
             rustfmt $td/src/lib.rs || true
 
