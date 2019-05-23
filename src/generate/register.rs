@@ -1,12 +1,12 @@
 use cast::u64;
 use either::Either;
 use quote::Tokens;
-use svd::{Access, BitRange, Cluster, Defaults, EnumeratedValues, Field, Peripheral, Register,
+use crate::svd::{Access, BitRange, Cluster, Defaults, EnumeratedValues, Field, Peripheral, Register,
           Usage, WriteConstraint};
 use syn::Ident;
 
-use errors::*;
-use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
+use crate::errors::*;
+use crate::util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
 
 pub fn render(
     register: &Register,

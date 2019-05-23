@@ -3,13 +3,13 @@ use std::cmp::Ordering;
 
 use either::Either;
 use quote::{ToTokens, Tokens};
-use svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register};
+use crate::svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register};
 use syn::{self, Ident};
 
-use errors::*;
-use util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
+use crate::errors::*;
+use crate::util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
 
-use generate::register;
+use crate::generate::register;
 
 pub fn render(
     p: &Peripheral,

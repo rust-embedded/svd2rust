@@ -1,12 +1,12 @@
 use quote::Tokens;
-use svd::Device;
+use crate::svd::Device;
 use syn::Ident;
 
-use errors::*;
-use util::{self, ToSanitizedUpperCase};
-use Target;
+use crate::errors::*;
+use crate::util::{self, ToSanitizedUpperCase};
+use crate::Target;
 
-use generate::{interrupt, peripheral};
+use crate::generate::{interrupt, peripheral};
 
 /// Whole device generation
 pub fn render(

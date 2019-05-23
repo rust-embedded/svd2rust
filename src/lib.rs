@@ -438,7 +438,7 @@ mod errors;
 mod generate;
 mod util;
 
-pub use util::Target;
+pub use crate::util::Target;
 
 pub struct Generation {
     pub lib_rs: String,
