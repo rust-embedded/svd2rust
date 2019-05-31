@@ -1,5 +1,5 @@
-use quote::Tokens;
 use crate::svd::Device;
+use quote::Tokens;
 use syn::Ident;
 
 use crate::errors::*;
@@ -107,8 +107,7 @@ pub fn render(
 
     let core_peripherals: &[_] = if fpu_present {
         &[
-            "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST",
-            "TPIU",
+            "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU",
         ]
     } else {
         &[

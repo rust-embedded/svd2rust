@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::fmt::Write;
 
+use crate::svd::Peripheral;
 use cast::u64;
 use quote::Tokens;
-use crate::svd::Peripheral;
 use syn::Ident;
 
 use crate::errors::*;

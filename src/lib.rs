@@ -424,15 +424,11 @@
 
 #![recursion_limit = "128"]
 
-extern crate cast;
-extern crate either;
 #[macro_use]
 extern crate error_chain;
-extern crate inflections;
 #[macro_use]
 extern crate quote;
-extern crate svd_parser as svd;
-extern crate syn;
+use svd_parser as svd;
 
 mod errors;
 mod generate;
@@ -467,7 +463,7 @@ pub enum SvdError {
 pub fn generate(xml: &str, target: Target, nightly: bool) -> Result<Generation> {
     use std::fmt::Write;
 
-    let device = svd::parse(xml);
+    let device = svd::parse(xml).unwrap();
     let mut device_x = String::new();
     let items = generate::device::render(&device, target, nightly, &mut device_x)
         .or(Err(SvdError::Render))?;
