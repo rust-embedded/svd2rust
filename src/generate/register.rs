@@ -1,6 +1,6 @@
 use cast::u64;
 use quote::Tokens;
-use svd::{Access, BitRange, Defaults, EnumeratedValues, Field, Peripheral, Register,
+use crate::svd::{Access, BitRange, Defaults, EnumeratedValues, Field, Peripheral, Register,
           RegisterCluster, Usage, WriteConstraint};
 use syn::Ident;
 
@@ -239,7 +239,7 @@ pub fn fields(
             } else {
                 format!("Bits {}:{}", offset, offset + width - 1)
             };
-            if let Some(ref d) = f.description {
+            if let Some(d) = &f.description {
                 description.push_str(" - ");
                 description.push_str(&*util::respace(&util::escape_brackets(d)));
             }
@@ -330,14 +330,12 @@ pub fn fields(
                     .collect::<Result<Vec<_>>>()?;
 
                 let pc_r = &f.pc_r;
-                if let Some(ref base) = base {
+                if let Some(base) = &base {
                     let pc = base.field.to_sanitized_upper_case();
                     let base_pc_r = Ident::new(&*format!("{}R", pc));
                     let desc = format!("Possible values of the field `{}`", f.name,);
 
-                    if let (Some(ref peripheral), Some(ref register)) =
-                        (base.peripheral, base.register)
-                    {
+                    if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
                         let pmod_ = peripheral.to_sanitized_snake_case();
                         let rmod_ = register.to_sanitized_snake_case();
                         let pmod_ = Ident::new(&*pmod_);
@@ -347,7 +345,7 @@ pub fn fields(
                             #[doc = #desc]
                             pub type #pc_r = ::#pmod_::#rmod_::#base_pc_r;
                         });
-                    } else if let Some(ref register) = base.register {
+                    } else if let Some(register) = &base.register {
                         let mod_ = register.to_sanitized_snake_case();
                         let mod_ = Ident::new(&*mod_);
 
@@ -596,9 +594,7 @@ pub fn fields(
                     let pc = base.field.to_sanitized_upper_case();
                     let base_pc_w = Ident::new(&*format!("{}W", pc));
 
-                    if let (Some(ref peripheral), Some(ref register)) =
-                        (base.peripheral, base.register)
-                    {
+                    if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
                         let pmod_ = peripheral.to_sanitized_snake_case();
                         let rmod_ = register.to_sanitized_snake_case();
                         let pmod_ = Ident::new(&*pmod_);
@@ -613,7 +609,7 @@ pub fn fields(
                         quote! {
                             ::#pmod_::#rmod_::#base_pc_w
                         }
-                    } else if let Some(ref register) = base.register {
+                    } else if let Some(register) = &base.register {
                         let mod_ = register.to_sanitized_snake_case();
                         let mod_ = Ident::new(&*mod_);
 
@@ -791,8 +787,8 @@ pub fn fields(
 }
 
 fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Ident> {
-    match write_constraint {
-        Some(&WriteConstraint::Range(ref range))
+    match &write_constraint {
+        Some(&WriteConstraint::Range(range))
             if u64::from(range.min) == 0 && u64::from(range.max) == (1u64 << width) - 1 =>
         {
             // the SVD has acknowledged that it's safe to write
@@ -827,7 +823,7 @@ fn lookup<'a>(
 ) -> Result<Option<(&'a EnumeratedValues, Option<Base<'a>>)>> {
     let evs = evs.iter()
         .map(|evs| {
-            if let Some(ref base) = evs.derived_from {
+            if let Some(base) = &evs.derived_from {
                 let mut parts = base.split('.');
 
                 match (parts.next(), parts.next(), parts.next(), parts.next()) {
@@ -865,7 +861,7 @@ fn lookup<'a>(
         })
         .collect::<Result<Vec<_>>>()?;
 
-    for &(ref evs, ref base) in evs.iter() {
+    for (evs, base) in evs.iter() {
         if evs.usage == Some(usage) {
             return Ok(Some((*evs, base.clone())));
         }
@@ -979,7 +975,7 @@ fn lookup_in_register<'r>(
         } else {
             let fields = matches
                 .iter()
-                .map(|&(ref f, _)| &f.name)
+                .map(|(f, _)| &f.name)
                 .collect::<Vec<_>>();
             Err(format!(
                 "Fields {:?} have an \
@@ -1019,7 +1015,7 @@ fn periph_all_registers<'a>(p: &'a Peripheral) -> Vec<&'a Register> {
         return par;
     }
 
-    if let Some(ref regs) = p.registers {
+    if let Some(regs) = &p.registers {
         for r in regs.iter() {
             rem.push(r);
         }
@@ -1032,13 +1028,15 @@ fn periph_all_registers<'a>(p: &'a Peripheral) -> Vec<&'a Register> {
         }
 
         let b = b.unwrap();
-        match *b {
-            RegisterCluster::Register(ref reg) => {
+        match b {
+            RegisterCluster::Register(reg) => {
                 par.push(reg);
             }
-            RegisterCluster::Cluster(ref cluster) => for c in cluster.children.iter() {
-                rem.push(c);
-            },
+            RegisterCluster::Cluster(cluster) => {
+                for c in cluster.children.iter() {
+                    rem.push(c);
+                }
+            }
         }
     }
     par
