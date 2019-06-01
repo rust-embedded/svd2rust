@@ -126,8 +126,8 @@ pub fn render(
     // Build up an alternate erc list by expanding any derived registers
     let mut alt_erc: Vec<RegisterCluster> = registers
         .iter()
-        .filter_map(|r| match r.derived_from {
-            Some(ref derived) => {
+        .filter_map(|r| match &r.derived_from {
+            Some(derived) => {
                 let ancestor = match reg_map.get(derived) {
                     Some(r) => r,
                     None => {
@@ -139,11 +139,11 @@ pub fn render(
                     }
                 };
 
-                let d = match **ancestor {
-                    Register::Array(ref info, ref array_info) => {
+                let d = match *ancestor {
+                    Register::Array(info, array_info) => {
                         Some(Register::Array(derive_reg_info(*r, info), array_info.clone()).into())
                     }
-                    Register::Single(ref info) => {
+                    Register::Single(info) => {
                         Some(Register::Single(derive_reg_info(*r, info)).into())
                     }
                 };
@@ -231,9 +231,9 @@ impl Region {
         let mut idents: Vec<_> = self
             .fields
             .iter()
-            .filter_map(|f| match f.field.ident {
+            .filter_map(|f| match &f.field.ident {
                 None => None,
-                Some(ref ident) => Some(ident.as_ref()),
+                Some(ident) => Some(ident.as_ref()),
             })
             .collect();
         if idents.is_empty() {
@@ -272,9 +272,9 @@ impl Region {
         let idents: Vec<_> = self
             .fields
             .iter()
-            .filter_map(|f| match f.field.ident {
+            .filter_map(|f| match &f.field.ident {
                 None => None,
-                Some(ref ident) => Some(ident.as_ref()),
+                Some(ident) => Some(ident.as_ref()),
             })
             .collect();
 
@@ -659,9 +659,9 @@ fn expand(
     let mut ercs_expanded = vec![];
 
     for erc in ercs {
-        ercs_expanded.extend(match erc {
-            RegisterCluster::Register(ref register) => expand_register(register, defs, name)?,
-            RegisterCluster::Cluster(ref cluster) => expand_cluster(cluster, defs)?,
+        ercs_expanded.extend(match &erc {
+            RegisterCluster::Register(register) => expand_register(register, defs, name)?,
+            RegisterCluster::Cluster(cluster) => expand_cluster(cluster, defs)?,
         });
     }
 
@@ -676,8 +676,8 @@ fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
     let mut size = 0;
 
     for c in &info.children {
-        let end = match *c {
-            RegisterCluster::Register(ref reg) => {
+        let end = match c {
+            RegisterCluster::Register(reg) => {
                 let reg_size: u32 = expand_register(reg, defs, None)?
                     .iter()
                     .map(|rbf| rbf.size)
@@ -685,7 +685,7 @@ fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
 
                 (reg.address_offset * BITS_PER_BYTE) + reg_size
             }
-            RegisterCluster::Cluster(ref clust) => {
+            RegisterCluster::Cluster(clust) => {
                 (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, defs)?
             }
         };
@@ -705,14 +705,14 @@ fn expand_cluster(cluster: &Cluster, defs: &Defaults) -> Result<Vec<RegisterBloc
         .or_else(|_e| cluster_size_in_bits(cluster, defs))
         .chain_err(|| format!("Cluster {} has no determinable `size` field", cluster.name))?;
 
-    match *cluster {
-        Cluster::Single(ref info) => cluster_expanded.push(RegisterBlockField {
+    match cluster {
+        Cluster::Single(info) => cluster_expanded.push(RegisterBlockField {
             field: convert_svd_cluster(cluster),
             description: info.description.clone(),
             offset: info.address_offset,
             size: cluster_size,
         }),
-        Cluster::Array(ref info, ref array_info) => {
+        Cluster::Array(info, array_info) => {
             let sequential_addresses = cluster_size == array_info.dim_increment * BITS_PER_BYTE;
 
             // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
@@ -762,14 +762,14 @@ fn expand_register(
         .or(defs.size)
         .ok_or_else(|| format!("Register {} has no `size` field", register.name))?;
 
-    match *register {
-        Register::Single(ref info) => register_expanded.push(RegisterBlockField {
+    match register {
+        Register::Single(info) => register_expanded.push(RegisterBlockField {
             field: convert_svd_register(register, name),
             description: info.description.clone().unwrap(),
             offset: info.address_offset,
             size: register_size,
         }),
-        Register::Array(ref info, ref array_info) => {
+        Register::Array(info, array_info) => {
             let sequential_addresses = register_size == array_info.dim_increment * BITS_PER_BYTE;
 
             // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
@@ -819,9 +819,9 @@ fn cluster_block(
     let description = util::escape_brackets(util::respace(&c.description).as_ref());
 
     // Generate the register block.
-    let mod_name = match *c {
-        Cluster::Single(ref info) => &info.name,
-        Cluster::Array(ref info, ref _ai) => &info.name,
+    let mod_name = match c {
+        Cluster::Single(info) => &info.name,
+        Cluster::Array(info, _ai) => &info.name,
     }
     .replace("[%s]", "")
     .replace("%s", "");
@@ -886,9 +886,9 @@ fn expand_svd_register(register: &Register, name: Option<&str>) -> Vec<syn::Fiel
 
     let mut out = vec![];
 
-    match *register {
-        Register::Single(ref _info) => out.push(convert_svd_register(register, name)),
-        Register::Array(ref info, ref array_info) => {
+    match register {
+        Register::Single(_info) => out.push(convert_svd_register(register, name)),
+        Register::Array(info, array_info) => {
             let has_brackets = info.name.contains("[%s]");
 
             let indices = array_info
@@ -957,14 +957,14 @@ fn convert_svd_register(register: &Register, name: Option<&str>) -> syn::Field {
         )
     };
 
-    match *register {
-        Register::Single(ref info) => syn::Field {
+    match register {
+        Register::Single(info) => syn::Field {
             ident: Some(Ident::new(info.name.to_sanitized_snake_case())),
             vis: syn::Visibility::Public,
             attrs: vec![],
             ty: name_to_ty(&info.name, name),
         },
-        Register::Array(ref info, ref array_info) => {
+        Register::Array(info, array_info) => {
             let has_brackets = info.name.contains("[%s]");
 
             let nb_name = if has_brackets {
@@ -1011,9 +1011,9 @@ fn expand_svd_cluster(cluster: &Cluster) -> Vec<syn::Field> {
 
     let mut out = vec![];
 
-    match *cluster {
-        Cluster::Single(ref _info) => out.push(convert_svd_cluster(cluster)),
-        Cluster::Array(ref info, ref array_info) => {
+    match &cluster {
+        Cluster::Single(_info) => out.push(convert_svd_cluster(cluster)),
+        Cluster::Array(info, array_info) => {
             let has_brackets = info.name.contains("[%s]");
 
             let indices = array_info
@@ -1071,14 +1071,14 @@ fn convert_svd_cluster(cluster: &Cluster) -> syn::Field {
         )
     };
 
-    match *cluster {
-        Cluster::Single(ref info) => syn::Field {
+    match cluster {
+        Cluster::Single(info) => syn::Field {
             ident: Some(Ident::new(info.name.to_sanitized_snake_case())),
             vis: syn::Visibility::Public,
             attrs: vec![],
             ty: name_to_ty(&info.name),
         },
-        Cluster::Array(ref info, ref array_info) => {
+        Cluster::Array(info, array_info) => {
             let has_brackets = info.name.contains("[%s]");
 
             let name = if has_brackets {

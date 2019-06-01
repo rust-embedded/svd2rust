@@ -424,15 +424,11 @@
 
 #![recursion_limit = "128"]
 
-extern crate cast;
-extern crate either;
 #[macro_use]
 extern crate error_chain;
-extern crate inflections;
 #[macro_use]
 extern crate quote;
-extern crate svd_parser as svd;
-extern crate syn;
+use svd_parser as svd;
 
 mod errors;
 mod generate;

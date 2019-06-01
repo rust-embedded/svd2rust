@@ -1,15 +1,10 @@
 #![recursion_limit = "128"]
 
-extern crate cast;
-extern crate clap;
-extern crate either;
 #[macro_use]
 extern crate error_chain;
-extern crate inflections;
 #[macro_use]
 extern crate quote;
-extern crate svd_parser as svd;
-extern crate syn;
+use svd_parser as svd;
 
 mod errors;
 mod generate;
@@ -94,7 +89,7 @@ fn run() -> Result<()> {
 }
 
 fn main() {
-    if let Err(ref e) = run() {
+    if let Err(e) = &run() {
         let stderr = io::stderr();
         let mut stderr = stderr.lock();
 

@@ -183,9 +183,9 @@ pub fn escape_brackets(s: &str) -> String {
 }
 
 pub fn name_of(register: &Register) -> Cow<str> {
-    match *register {
-        Register::Single(ref info) => Cow::from(&*info.name),
-        Register::Array(ref info, _) => {
+    match register {
+        Register::Single(info) => Cow::from(&*info.name),
+        Register::Array(info, _) => {
             if info.name.contains("[%s]") {
                 info.name.replace("[%s]", "").into()
             } else {
@@ -197,7 +197,7 @@ pub fn name_of(register: &Register) -> Cow<str> {
 
 pub fn access_of(register: &Register) -> Access {
     register.access.unwrap_or_else(|| {
-        if let Some(ref fields) = register.fields {
+        if let Some(fields) = &register.fields {
             if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
                 Access::ReadOnly
             } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
@@ -293,8 +293,8 @@ impl U32Ext for u32 {
 pub fn only_clusters(ercs: &[RegisterCluster]) -> Vec<&Cluster> {
     let clusters: Vec<&Cluster> = ercs
         .iter()
-        .filter_map(|x| match *x {
-            RegisterCluster::Cluster(ref x) => Some(x),
+        .filter_map(|x| match x {
+            RegisterCluster::Cluster(x) => Some(x),
             _ => None,
         })
         .collect();
@@ -305,8 +305,8 @@ pub fn only_clusters(ercs: &[RegisterCluster]) -> Vec<&Cluster> {
 pub fn only_registers(ercs: &[RegisterCluster]) -> Vec<&Register> {
     let registers: Vec<&Register> = ercs
         .iter()
-        .filter_map(|x| match *x {
-            RegisterCluster::Register(ref x) => Some(x),
+        .filter_map(|x| match x {
+            RegisterCluster::Register(x) => Some(x),
             _ => None,
         })
         .collect();
