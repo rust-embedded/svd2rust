@@ -1,17 +1,37 @@
 use std::borrow::Cow;
 
+use crate::svd::{Access, Cluster, Register, RegisterCluster};
 use inflections::Inflect;
-use svd::{Access, Cluster, Register, RegisterCluster};
-use syn::Ident;
 use quote::Tokens;
+use syn::Ident;
 
-use errors::*;
+use crate::errors::*;
 
 pub const BITS_PER_BYTE: u32 = 8;
 
 /// List of chars that some vendors use in their peripheral/field names but
 /// that are not valid in Rust ident
-const BLACKLIST_CHARS : &[char] = &['(', ')', '[', ']', '/', ' '];
+const BLACKLIST_CHARS: &[char] = &['(', ')', '[', ']', '/', ' '];
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum Target {
+    CortexM,
+    Msp430,
+    RISCV,
+    None,
+}
+
+impl Target {
+    pub fn parse(s: &str) -> Result<Self> {
+        Ok(match s {
+            "cortex-m" => Target::CortexM,
+            "msp430" => Target::Msp430,
+            "riscv" => Target::RISCV,
+            "none" => Target::None,
+            _ => bail!("unknown target {}", s),
+        })
+    }
+}
 
 pub trait ToSanitizedPascalCase {
     fn to_sanitized_pascal_case(&self) -> Cow<str>;
@@ -48,8 +68,8 @@ impl ToSanitizedSnakeCase for str {
                     abstract,
                     alignof,
                     as,
-                    async,
-                    await,
+                    r#async,
+                    r#await,
                     become,
                     box,
                     break,
@@ -89,7 +109,7 @@ impl ToSanitizedSnakeCase for str {
                     super,
                     trait,
                     true,
-                    try,
+                    r#try,
                     type,
                     typeof,
                     unsafe,
@@ -144,24 +164,20 @@ pub fn escape_brackets(s: &str) -> String {
         .fold("".to_string(), |acc, x| {
             if acc == "" {
                 x.to_string()
+            } else if acc.ends_with('\\') {
+                acc.to_owned() + "[" + &x.to_string()
             } else {
-                if acc.ends_with("\\") {
-                    acc.to_owned() + "[" + &x.to_string()
-                } else {
-                    acc.to_owned() + "\\[" + &x.to_string()
-                }
+                acc.to_owned() + "\\[" + &x.to_string()
             }
         })
         .split(']')
         .fold("".to_string(), |acc, x| {
             if acc == "" {
                 x.to_string()
+            } else if acc.ends_with('\\') {
+                acc.to_owned() + "]" + &x.to_string()
             } else {
-                if acc.ends_with("\\") {
-                    acc.to_owned() + "]" + &x.to_string()
-                } else {
-                    acc.to_owned() + "\\]" + &x.to_string()
-                }
+                acc.to_owned() + "\\]" + &x.to_string()
             }
         })
 }
@@ -169,11 +185,13 @@ pub fn escape_brackets(s: &str) -> String {
 pub fn name_of(register: &Register) -> Cow<str> {
     match *register {
         Register::Single(ref info) => Cow::from(&*info.name),
-        Register::Array(ref info, _) => if info.name.contains("[%s]") {
-            info.name.replace("[%s]", "").into()
-        } else {
-            info.name.replace("%s", "").into()
-        },
+        Register::Array(ref info, _) => {
+            if info.name.contains("[%s]") {
+                info.name.replace("[%s]", "").into()
+            } else {
+                info.name.replace("%s", "").into()
+            }
+        }
     }
 }
 
@@ -248,6 +266,7 @@ impl U32Ext for u32 {
             2...8 => Ident::new("u8"),
             9...16 => Ident::new("u16"),
             17...32 => Ident::new("u32"),
+            33...64 => Ident::new("u64"),
             _ => Err(format!(
                 "can't convert {} bits into a Rust integral type",
                 *self
@@ -261,6 +280,7 @@ impl U32Ext for u32 {
             2...8 => 8,
             9...16 => 16,
             17...32 => 32,
+            33...64 => 64,
             _ => Err(format!(
                 "can't convert {} bits into a Rust integral type width",
                 *self
@@ -271,7 +291,8 @@ impl U32Ext for u32 {
 
 /// Return only the clusters from the slice of either register or clusters.
 pub fn only_clusters(ercs: &[RegisterCluster]) -> Vec<&Cluster> {
-    let clusters: Vec<&Cluster> = ercs.iter()
+    let clusters: Vec<&Cluster> = ercs
+        .iter()
         .filter_map(|x| match *x {
             RegisterCluster::Cluster(ref x) => Some(x),
             _ => None,
@@ -282,11 +303,37 @@ pub fn only_clusters(ercs: &[RegisterCluster]) -> Vec<&Cluster> {
 
 /// Return only the registers the given slice of either register or clusters.
 pub fn only_registers(ercs: &[RegisterCluster]) -> Vec<&Register> {
-    let registers: Vec<&Register> = ercs.iter()
+    let registers: Vec<&Register> = ercs
+        .iter()
         .filter_map(|x| match *x {
             RegisterCluster::Register(ref x) => Some(x),
             _ => None,
         })
         .collect();
     registers
+}
+
+pub fn build_rs() -> Tokens {
+    quote! {
+        use std::env;
+        use std::fs::File;
+        use std::io::Write;
+        use std::path::PathBuf;
+
+        fn main() {
+            if env::var_os("CARGO_FEATURE_RT").is_some() {
+                // Put the linker script somewhere the linker can find it
+                let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
+                File::create(out.join("device.x"))
+                    .unwrap()
+                    .write_all(include_bytes!("device.x"))
+                    .unwrap();
+                println!("cargo:rustc-link-search={}", out.display());
+
+                println!("cargo:rerun-if-changed=device.x");
+            }
+
+            println!("cargo:rerun-if-changed=build.rs");
+        }
+    }
 }
