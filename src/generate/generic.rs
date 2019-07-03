@@ -9,12 +9,12 @@ pub fn render() -> Result<Vec<Tokens>> {
     code.push(quote! {
         /// Single bit read access proxy
         trait BitR {
-            #[doc = r" Returns `true` if the bit is clear (0)"]
+            #[doc = r"Returns `true` if the bit is clear (0)"]
             #[inline]
             fn bit_is_clear(&self) -> bool {
                 !self.bit()
             }
-            #[doc = r" Returns `true` if the bit is set (1)"]
+            #[doc = r"Returns `true` if the bit is set (1)"]
             #[inline]
             fn bit_is_set(&self) -> bool {
                 self.bit()
@@ -25,14 +25,14 @@ pub fn render() -> Result<Vec<Tokens>> {
 
         /// Single bit write access proxy
         trait BitW<'a, W> {
-            #[doc = r" Sets the field bit"]
+            #[doc = r"Sets the field bit"]
             fn set_bit(self) -> &'a mut W
             where
                 Self: core::marker::Sized,
             {
                 self.bit(true)
             }
-            #[doc = r" Clears the field bit"]
+            #[doc = r"Clears the field bit"]
             fn clear_bit(self) -> &'a mut W
             where
                 Self: core::marker::Sized,
@@ -43,6 +43,16 @@ pub fn render() -> Result<Vec<Tokens>> {
             fn bit(self, value: bool) -> &'a mut W
             where
                 Self: core::marker::Sized;
+        }
+
+        /// Wiggle in the specified value into the given bits with mask and the offset and return
+        /// the new value
+        #[inline]
+        const fn set_bits(bits: u32, mask: u32, offset: u8, value: u32) -> u32 {
+            let mut bits = bits;
+            bits &= !((mask as u32) << offset);
+            bits |= ((value & mask) as u32) << offset;
+            bits
         }
     });
 

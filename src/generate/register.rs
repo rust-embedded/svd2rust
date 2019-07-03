@@ -755,14 +755,10 @@ pub fn fields(
 
             if width == 1 {
                 proxy_items.push(quote! {
-                    /// Writes raw bits to the field
+                    /// Writes raw bit to the field
                     #[inline]
                     #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        const MASK: #fty = #mask;
-                        const OFFSET: u8 = #offset;
-
-                        self.w.bits &= !((MASK as #rty) << OFFSET);
-                        self.w.bits |= ((value & MASK) as #rty) << OFFSET;
+                        self.w.bits = ::set_bits (self.w.bits, #mask as u32, #offset, value as u32);
                         self.w
                     }
                 });
@@ -771,11 +767,7 @@ pub fn fields(
                     /// Writes raw bits to the field
                     #[inline]
                     pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        const MASK: #fty = #mask;
-                        const OFFSET: u8 = #offset;
-
-                        self.w.bits &= !((MASK as #rty) << OFFSET);
-                        self.w.bits |= ((value & MASK) as #rty) << OFFSET;
+                        self.w.bits = ::set_bits (self.w.bits, #mask as u32, #offset, value as u32);
                         self.w
                     }
                 });
