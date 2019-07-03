@@ -531,7 +531,6 @@ pub fn fields(
 
                 let pc_r_impl_items = if f.width == 1 {
                     vec![quote! {
-                        /// Value of the field as raw bits
                         #[inline]
                         fn #bits(&self) -> #fty {
                             self.bits
@@ -755,7 +754,6 @@ pub fn fields(
 
             if width == 1 {
                 proxy_items.push(quote! {
-                    /// Writes raw bit to the field
                     #[inline]
                     #unsafety fn #bits(self, value: #fty) -> &'a mut W {
                         self.w.bits = ::set_bits (self.w.bits, #mask as u32, #offset, value as u32);

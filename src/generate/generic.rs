@@ -9,30 +9,33 @@ pub fn render() -> Result<Vec<Tokens>> {
     code.push(quote! {
         /// Single bit read access proxy
         trait BitR {
-            #[doc = r"Returns `true` if the bit is clear (0)"]
+            /// Returns `true` if the bit is clear (0)
             #[inline]
             fn bit_is_clear(&self) -> bool {
                 !self.bit()
             }
-            #[doc = r"Returns `true` if the bit is set (1)"]
+            /// Returns `true` if the bit is set (1)
             #[inline]
             fn bit_is_set(&self) -> bool {
                 self.bit()
             }
 
+            /// Returns the current state of the bit as boolean
             fn bit(&self) -> bool;
         }
 
         /// Single bit write access proxy
         trait BitW<'a, W> {
-            #[doc = r"Sets the field bit"]
+            /// Sets the field bit
+            #[inline]
             fn set_bit(self) -> &'a mut W
             where
                 Self: core::marker::Sized,
             {
                 self.bit(true)
             }
-            #[doc = r"Clears the field bit"]
+            /// Clears the field bit
+            #[inline]
             fn clear_bit(self) -> &'a mut W
             where
                 Self: core::marker::Sized,
@@ -40,6 +43,7 @@ pub fn render() -> Result<Vec<Tokens>> {
                 self.bit(false)
             }
 
+            /// Writes raw bit(s) to the field
             fn bit(self, value: bool) -> &'a mut W
             where
                 Self: core::marker::Sized;
