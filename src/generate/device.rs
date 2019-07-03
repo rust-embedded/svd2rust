@@ -6,7 +6,7 @@ use crate::errors::*;
 use crate::util::{self, ToSanitizedUpperCase};
 use crate::Target;
 
-use crate::generate::{interrupt, peripheral};
+use crate::generate::{interrupt, peripheral, generic};
 
 /// Whole device generation
 pub fn render(
@@ -141,6 +141,8 @@ pub fn render(
             });
         }
     }
+
+    out.extend(generic::render()?);
 
     for p in &d.peripherals {
         if target == Target::CortexM && core_peripherals.contains(&&*p.name.to_uppercase()) {
