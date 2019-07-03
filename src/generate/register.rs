@@ -51,9 +51,8 @@ pub fn render(
                 for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W
             {
                 let bits = self.register.get();
-                let r = R { bits };
                 let mut w = W { bits };
-                f(&r, &mut w);
+                f(&R { bits }, &mut w);
                 self.register.set(w.bits);
             }
         });
