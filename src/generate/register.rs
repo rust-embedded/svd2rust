@@ -756,42 +756,56 @@ pub fn fields(
 
             if width == 1 {
                 proxy_items.push(quote! {
-                    /// Sets the field bit
-                    pub #unsafety fn set_bit(self) -> &'a mut W {
-                        self.bit(true)
-                    }
+                    /// Writes raw bits to the field
+                    #[inline]
+                    #unsafety fn #bits(self, value: #fty) -> &'a mut W {
+                        const MASK: #fty = #mask;
+                        const OFFSET: u8 = #offset;
 
-                    /// Clears the field bit
-                    pub #unsafety fn clear_bit(self) -> &'a mut W {
-                        self.bit(false)
+                        self.w.bits &= !((MASK as #rty) << OFFSET);
+                        self.w.bits |= ((value & MASK) as #rty) << OFFSET;
+                        self.w
+                    }
+                });
+            } else {
+                proxy_items.push(quote! {
+                    /// Writes raw bits to the field
+                    #[inline]
+                    pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
+                        const MASK: #fty = #mask;
+                        const OFFSET: u8 = #offset;
+
+                        self.w.bits &= !((MASK as #rty) << OFFSET);
+                        self.w.bits |= ((value & MASK) as #rty) << OFFSET;
+                        self.w
                     }
                 });
             }
 
-            proxy_items.push(quote! {
-                /// Writes raw bits to the field
-                #[inline]
-                pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                    const MASK: #fty = #mask;
-                    const OFFSET: u8 = #offset;
-
-                    self.w.bits &= !((MASK as #rty) << OFFSET);
-                    self.w.bits |= ((value & MASK) as #rty) << OFFSET;
-                    self.w
-                }
-            });
-
             let _pc_w = &f._pc_w;
-            mod_items.push(quote! {
-                /// Proxy
-                pub struct #_pc_w<'a> {
-                    w: &'a mut W,
-                }
+            if width == 1 {
+                mod_items.push(quote! {
+                    /// Proxy
+                    pub struct #_pc_w<'a> {
+                        w: &'a mut W,
+                    }
 
-                impl<'a> #_pc_w<'a> {
-                    #(#proxy_items)*
-                }
-            });
+                    impl<'a> ::BitW<'a, W> for #_pc_w<'a> {
+                        #(#proxy_items)*
+                    }
+                });
+            } else {
+                mod_items.push(quote! {
+                    /// Proxy
+                    pub struct #_pc_w<'a> {
+                        w: &'a mut W,
+                    }
+
+                    impl<'a> #_pc_w<'a> {
+                        #(#proxy_items)*
+                    }
+                });
+            }
 
             let description = &util::escape_brackets(&f.description);
             let sc = &f.sc;

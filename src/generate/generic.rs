@@ -22,6 +22,28 @@ pub fn render() -> Result<Vec<Tokens>> {
 
             fn bit(&self) -> bool;
         }
+
+        /// Single bit write access proxy
+        trait BitW<'a, W> {
+            #[doc = r" Sets the field bit"]
+            fn set_bit(self) -> &'a mut W
+            where
+                Self: core::marker::Sized,
+            {
+                self.bit(true)
+            }
+            #[doc = r" Clears the field bit"]
+            fn clear_bit(self) -> &'a mut W
+            where
+                Self: core::marker::Sized,
+            {
+                self.bit(false)
+            }
+
+            fn bit(self, value: bool) -> &'a mut W
+            where
+                Self: core::marker::Sized;
+        }
     });
 
     Ok(code)
