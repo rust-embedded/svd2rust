@@ -38,39 +38,35 @@ pub fn render(
     let unsafety = unsafety(register.write_constraint.as_ref(), rsize);
 
     let mut mod_items = vec![];
-    let mut reg_impl_items = vec![];
     let mut r_impl_items = vec![];
     let mut w_impl_items = vec![];
 
+    let read_access = access == Access::ReadOnly || access == Access::ReadWrite;
+    let write_access = access == Access::WriteOnly || access == Access::ReadWrite;
+
     if access == Access::ReadWrite {
-        reg_impl_items.push(quote! {
-            /// Modifies the contents of the register
-            #[inline]
-            pub fn modify<F>(&self, f: F)
-            where
-                for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W
-            {
-                let bits = self.register.get();
-                let mut w = W { bits };
-                f(&R { bits }, &mut w);
-                self.register.set(w.bits);
-            }
+        mod_items.push(quote! {
+            impl vcell::ModifyRegister<R, W, #rty> for super::#name_pc {}
         });
     }
 
-    if access == Access::ReadOnly || access == Access::ReadWrite {
-        reg_impl_items.push(quote! {
-            /// Reads the contents of the register
-            #[inline]
-            pub fn read(&self) -> R {
-                R { bits: self.register.get() }
-            }
-        });
-
+    if read_access {
         mod_items.push(quote! {
+            impl vcell::ReadRegister<R, #rty> for super::#name_pc {}
             /// Value read from the register
             pub struct R {
                 bits: #rty,
+            }
+            impl core::ops::Deref for R {
+                type Target = #rty;
+                fn deref(&self) -> &Self::Target {
+                    &self.bits
+                }
+            }
+            impl vcell::FromBits<#rty> for R {
+                fn from_bits(bits: #rty) -> Self {
+                    Self { bits }
+                }
             }
         });
 
@@ -78,45 +74,53 @@ pub fn render(
             /// Value of the register as raw bits
             #[inline]
             pub fn bits(&self) -> #rty {
-                self.bits
+                **self
             }
         });
     }
 
-    if access == Access::WriteOnly || access == Access::ReadWrite {
-        reg_impl_items.push(quote! {
-            /// Writes to the register
-            #[inline]
-            pub fn write<F>(&self, f: F)
-            where
-                F: FnOnce(&mut W) -> &mut W
-            {
-                let mut w = W::reset_value();
-                f(&mut w);
-                self.register.set(w.bits);
-            }
-        });
-
+    if write_access {
         mod_items.push(quote! {
             /// Value to write to the register
             pub struct W {
                 bits: #rty,
             }
+            impl core::ops::Deref for W {
+                type Target = #rty;
+                fn deref(&self) -> &Self::Target {
+                    &self.bits
+                }
+            }
+            impl vcell::FromBits<#rty> for W {
+                fn from_bits(bits: #rty) -> Self {
+                    Self { bits }
+                }
+            }
         });
 
-        let rv = register
+        let reset_value = register
             .reset_value
             .or(defs.reset_value)
-            .map(util::hex)
-            .ok_or_else(|| format!("Register {} has no reset value", register.name))?;
+            .map(util::hex);
 
-        w_impl_items.push(quote! {
-            /// Reset value of the register
-            #[inline]
-            pub fn reset_value() -> W {
-                W { bits: #rv }
+        match reset_value {
+            Some(rv) => {
+                mod_items.push(quote! {
+                    impl vcell::ResetValue for W {
+                        const RESET_VALUE: Self = Self {bits: #rv};
+                    }
+                    impl vcell::WriteRegisterWithReset<W, #rty> for super::#name_pc {}
+                    impl vcell::ResetRegister<W, #rty> for super::#name_pc {}
+                });
             }
-
+            None => {
+                mod_items.push(quote! {
+                    impl vcell::WriteRegisterWithZero<W, #rty> for super::#name_pc {}
+                    impl vcell::ResetRegisterWithZero<W, #rty> for super::#name_pc {}
+                });
+            }
+        }
+        w_impl_items.push(quote! {
             /// Writes raw bits to the register
             #[inline]
             pub #unsafety fn bits(&mut self, bits: #rty) -> &mut Self {
@@ -125,22 +129,6 @@ pub fn render(
             }
         });
     }
-
-    if access == Access::ReadWrite {
-        reg_impl_items.push(quote! {
-            /// Writes the reset value to the register
-            #[inline]
-            pub fn reset(&self) {
-                self.write(|w| w)
-            }
-        })
-    }
-
-    mod_items.push(quote! {
-        impl super::#name_pc {
-            #(#reg_impl_items)*
-        }
-    });
 
     if let Some(cur_fields) = register.fields.as_ref() {
         // filter out all reserved fields, as we should not generate code for
@@ -167,7 +155,7 @@ pub fn render(
         }
     }
 
-    if access == Access::ReadOnly || access == Access::ReadWrite {
+    if read_access {
         mod_items.push(quote! {
             impl R {
                 #(#r_impl_items)*
@@ -175,8 +163,17 @@ pub fn render(
         });
     }
 
-    if access == Access::WriteOnly || access == Access::ReadWrite {
+    if write_access {
         mod_items.push(quote! {
+            /// Wiggle in the specified value into the given bits with mask and the offset and return the new value
+            #[inline]
+            pub const fn set_bits(bits: #rty, mask: #rty, offset: u8, value: #rty) -> #rty {
+                let mut bits = bits;
+                bits &= !(mask << offset);
+                bits |= (value & mask) << offset;
+                bits
+            }
+
             impl W {
                 #(#w_impl_items)*
             }
@@ -187,7 +184,13 @@ pub fn render(
     out.push(quote! {
         #[doc = #description]
         pub struct #name_pc {
-            register: ::vcell::VolatileCell<#rty>
+            register: vcell::VolatileCell<#rty>
+        }
+        impl core::ops::Deref for #name_pc {
+            type Target = vcell::VolatileCell<#rty>;
+            fn deref(&self) -> &Self::Target {
+                &self.register
+            }
         }
 
         #[doc = #description]
@@ -356,7 +359,7 @@ pub fn fields(
 
                         mod_items.push(quote! {
                             #[doc = #desc]
-                            pub type #pc_r = ::#pmod_::#rmod_::#base_pc_r;
+                            pub type #pc_r = crate::#pmod_::#rmod_::#base_pc_r;
                         });
                     } else if let Some(ref register) = base.register {
                         let mod_ = register.to_sanitized_snake_case();
@@ -553,7 +556,7 @@ pub fn fields(
                             bits: #fty,
                         }
 
-                        impl ::BitR for #pc_r {
+                        impl vcell::BitR for #pc_r {
                             #(#pc_r_impl_items)*
                         }
                     });
@@ -580,6 +583,7 @@ pub fn fields(
             }
 
             let mut proxy_items = vec![];
+            let mut bit_items = vec![];
 
             let mut unsafety = unsafety(f.write_constraint, f.width);
             let bits = &f.bits;
@@ -622,11 +626,11 @@ pub fn fields(
                         mod_items.push(quote! {
                             #[doc = #pc_w_doc]
                             pub type #pc_w =
-                                ::#pmod_::#rmod_::#base_pc_w;
+                                crate::#pmod_::#rmod_::#base_pc_w;
                         });
 
                         quote! {
-                            ::#pmod_::#rmod_::#base_pc_w
+                            crate::#pmod_::#rmod_::#base_pc_w
                         }
                     } else if let Some(ref register) = base.register {
                         let mod_ = register.to_sanitized_snake_case();
@@ -717,15 +721,25 @@ pub fn fields(
                     });
                 }
 
-                proxy_items.push(quote! {
-                    /// Writes `variant` to the field
-                    #[inline]
-                    pub fn variant(self, variant: #pc_w) -> &'a mut W {
-                        #unsafety {
-                            self.#bits(variant._bits())
+                if width == 1 {
+                    proxy_items.push(quote! {
+                        /// Writes `variant` to the field
+                        #[inline]
+                        pub fn variant(self, variant: #pc_w) -> &'a mut W {
+                            vcell::BitW::bit(self, variant._bits())
                         }
-                    }
-                });
+                    });
+                } else {
+                    proxy_items.push(quote! {
+                        /// Writes `variant` to the field
+                        #[inline]
+                        pub fn variant(self, variant: #pc_w) -> &'a mut W {
+                            #unsafety {
+                                self.#bits(variant._bits())
+                            }
+                        }
+                    });
+                }
 
                 for v in &variants {
                     let pc = &v.pc;
@@ -753,10 +767,10 @@ pub fn fields(
             }
 
             if width == 1 {
-                proxy_items.push(quote! {
+                bit_items.push(quote! {
                     #[inline]
-                    #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        self.w.bits = ::set_bits (self.w.bits, #mask as u32, #offset, value as u32);
+                    fn bit(self, value: bool) -> &'a mut W {
+                        self.w.bits = set_bits(self.w.bits, #mask as #rty, #offset, value as #rty);
                         self.w
                     }
                 });
@@ -765,33 +779,28 @@ pub fn fields(
                     /// Writes raw bits to the field
                     #[inline]
                     pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        self.w.bits = ::set_bits (self.w.bits, #mask as u32, #offset, value as u32);
+                        self.w.bits = set_bits(self.w.bits, #mask as #rty, #offset, value as #rty);
                         self.w
                     }
                 });
             }
 
             let _pc_w = &f._pc_w;
+            mod_items.push(quote! {
+                /// Proxy
+                pub struct #_pc_w<'a> {
+                    w: &'a mut W,
+                }
+
+                impl<'a> #_pc_w<'a> {
+                    #(#proxy_items)*
+                }
+            });
+
             if width == 1 {
                 mod_items.push(quote! {
-                    /// Proxy
-                    pub struct #_pc_w<'a> {
-                        w: &'a mut W,
-                    }
-
-                    impl<'a> ::BitW<'a, W> for #_pc_w<'a> {
-                        #(#proxy_items)*
-                    }
-                });
-            } else {
-                mod_items.push(quote! {
-                    /// Proxy
-                    pub struct #_pc_w<'a> {
-                        w: &'a mut W,
-                    }
-
-                    impl<'a> #_pc_w<'a> {
-                        #(#proxy_items)*
+                    impl<'a> vcell::BitW<'a, W> for #_pc_w<'a> {
+                        #(#bit_items)*
                     }
                 });
             }
