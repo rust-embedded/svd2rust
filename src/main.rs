@@ -3,6 +3,8 @@
 #[macro_use]
 extern crate error_chain;
 #[macro_use]
+extern crate log;
+#[macro_use]
 extern crate quote;
 use svd_parser as svd;
 
@@ -43,11 +45,24 @@ fn run() -> Result<()> {
                 .long("nightly")
                 .help("Enable features only available to nightly rustc"),
         )
+        .arg(
+            Arg::with_name("log_level")
+                .long("log")
+                .short("l")
+                .help(&format!(
+                    "Choose which messages to log (overrides {})",
+                    env_logger::DEFAULT_FILTER_ENV
+                ))
+                .takes_value(true)
+                .possible_values(&["off", "error", "warn", "info", "debug", "trace"])
+        )
         .version(concat!(
             env!("CARGO_PKG_VERSION"),
             include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
         ))
         .get_matches();
+
+    setup_logging(&matches);
 
     let target = matches
         .value_of("target")
@@ -71,7 +86,7 @@ fn run() -> Result<()> {
         }
     }
 
-    let device = svd::parse(xml).expect("//TODO(AJM)");
+    let device = svd::parse(xml).unwrap(); //TODO(AJM)
 
     let nightly = matches.is_present("nightly_features");
 
@@ -88,21 +103,46 @@ fn run() -> Result<()> {
     Ok(())
 }
 
-fn main() {
-    if let Err(e) = &run() {
-        let stderr = io::stderr();
-        let mut stderr = stderr.lock();
+fn setup_logging(matches: &clap::ArgMatches) {
+    // * Log at info by default.
+    // * Allow users the option of setting complex logging filters using
+    //   env_logger's `RUST_LOG` environment variable.
+    // * Override both of those if the logging level is set via the `--log`
+    //   command line argument.
+    let env = env_logger::Env::default()
+        .filter_or(env_logger::DEFAULT_FILTER_ENV, "info");
+    let mut builder = env_logger::Builder::from_env(env);
+    builder.default_format_timestamp(false);
 
-        writeln!(stderr, "error: {}", e).ok();
+    let log_lvl_from_env =
+        std::env::var_os(env_logger::DEFAULT_FILTER_ENV).is_some();
+
+    if log_lvl_from_env {
+        log::set_max_level(log::LevelFilter::Trace);
+    } else {
+        let level = match matches.value_of("log_level") {
+            Some(lvl) => lvl.parse().unwrap(),
+            None => log::LevelFilter::Info,
+        };
+        log::set_max_level(level);
+        builder.filter_level(level);
+    }
+
+    builder.init();
+}
+
+fn main() {
+    if let Err(ref e) = run() {
+        error!("{}", e);
 
         for e in e.iter().skip(1) {
-            writeln!(stderr, "caused by: {}", e).ok();
+            error!("caused by: {}", e);
         }
 
         if let Some(backtrace) = e.backtrace() {
-            writeln!(stderr, "backtrace: {:?}", backtrace).ok();
+            error!("backtrace: {:?}", backtrace);
         } else {
-            writeln!(stderr, "note: run with `RUST_BACKTRACE=1` for a backtrace").ok();
+            error!("note: run with `RUST_BACKTRACE=1` for a backtrace")
         }
 
         process::exit(1);
