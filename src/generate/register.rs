@@ -41,37 +41,49 @@ pub fn render(
     let mut r_impl_items = vec![];
     let mut w_impl_items = vec![];
 
+    let read_access = access == Access::ReadOnly || access == Access::ReadWrite;
+    let write_access = access == Access::WriteOnly || access == Access::ReadWrite;
+
     if access == Access::ReadWrite {
         mod_items.push(quote! {
             impl ra::ModifyRegister<R, W, #rty> for super::#name_pc {}
         });
     }
 
-    if access == Access::ReadOnly || access == Access::ReadWrite {
+    if read_access {
         mod_items.push(quote! {
             impl ra::ReadRegister<R, #rty> for super::#name_pc {}
             crate::r!(#rty);
         });
     }
 
-    if access == Access::WriteOnly || access == Access::ReadWrite {
+    if write_access {
         mod_items.push(quote! {
             crate::w!(#rty);
         });
 
-        let rv = register
+        let reset_value = register
             .reset_value
             .or(defs.reset_value)
-            .map(util::hex)
-            .ok_or_else(|| format!("Register {} has no reset value", register.name))?;
+            .map(util::hex);
 
-        mod_items.push(quote! {
-            impl ra::WriteRegisterWithReset<W, #rty> for super::#name_pc {}
-
-            impl ra::ResetValue for W {
-                const RESET_VALUE: Self = Self {bits: #rv};
+        match reset_value {
+            Some(rv) => {
+                mod_items.push(quote! {
+                    impl ra::ResetValue for W {
+                        const RESET_VALUE: Self = Self {bits: #rv};
+                    }
+                    impl ra::WriteRegisterWithReset<W, #rty> for super::#name_pc {}
+                    impl ra::ResetRegister<W, #rty> for super::#name_pc {}
+                });
             }
-        });
+            None => {
+                mod_items.push(quote! {
+                    impl ra::WriteRegisterWithZero<W, #rty> for super::#name_pc {}
+                    impl ra::ResetRegisterWithZero<W, #rty> for super::#name_pc {}
+                });
+            }
+        }
         w_impl_items.push(quote! {
             /// Writes raw bits to the register
             #[inline]
@@ -79,12 +91,6 @@ pub fn render(
                 self.bits = bits;
                 self
             }
-        });
-    }
-
-    if access == Access::ReadWrite {
-        mod_items.push(quote! {
-            impl ra::ResetRegister<W, #rty> for super::#name_pc {}
         });
     }
 
@@ -113,7 +119,7 @@ pub fn render(
         }
     }
 
-    if access == Access::ReadOnly || access == Access::ReadWrite {
+    if read_access {
         mod_items.push(quote! {
             impl R {
                 #(#r_impl_items)*
@@ -121,7 +127,7 @@ pub fn render(
         });
     }
 
-    if access == Access::WriteOnly || access == Access::ReadWrite {
+    if write_access {
         mod_items.push(quote! {
             impl W {
                 #(#w_impl_items)*
