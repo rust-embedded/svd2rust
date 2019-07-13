@@ -50,7 +50,7 @@ main() {
     cargo init --name foo $td
     echo 'cortex-m = "0.5.0"' >> $td/Cargo.toml
     echo 'cortex-m-rt = "0.5.0"' >> $td/Cargo.toml
-    echo 'vcell = {git = "https://github.com/burrbull/vcell"}' >> $td/Cargo.toml
+    echo 'vcell = {git = "https://github.com/burrbull/vcell", branch="resetdef"}' >> $td/Cargo.toml
     echo '[profile.dev]' >> $td/Cargo.toml
     echo 'incremental = false' >> $td/Cargo.toml
 
