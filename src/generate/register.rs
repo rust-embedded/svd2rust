@@ -90,6 +90,8 @@ pub fn render(
                     W { bits: self }
                 }
             }
+            impl vcell::WriteRegisterWithZero<W, #rty> for super::#name_pc {}
+            impl vcell::ResetRegisterWithZero<W, #rty> for super::#name_pc {}
         });
 
         let reset_value = register
@@ -97,22 +99,17 @@ pub fn render(
             .or(defs.reset_value)
             .map(util::hex);
 
-        match reset_value {
-            Some(rv) => {
-                mod_items.push(quote! {
-                    impl vcell::ResetValue for W {
-                        pub const RESET_VALUE: Self = Self {bits: #rv};
+        if let Some(rv) = reset_value {
+            mod_items.push(quote! {
+                impl Default for W {
+                    fn default() -> Self {
+                        Self {bits: #rv}
                     }
-                    impl vcell::WriteRegisterWithReset<W, #rty> for super::#name_pc {}
-                    impl vcell::ResetRegister<W, #rty> for super::#name_pc {}
-                });
-            }
-            None => {
-                mod_items.push(quote! {
-                    impl vcell::WriteRegisterWithZero<W, #rty> for super::#name_pc {}
-                    impl vcell::ResetRegisterWithZero<W, #rty> for super::#name_pc {}
-                });
-            }
+                }
+                impl vcell::WriteRegister<W, #rty> for super::#name_pc {}
+                impl vcell::WriteRegisterWithReset<W, #rty> for super::#name_pc {}
+                impl vcell::ResetRegister<W, #rty> for super::#name_pc {}
+            });
         }
         w_impl_items.push(quote! {
             /// Writes raw bits to the register
