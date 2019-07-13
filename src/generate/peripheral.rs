@@ -315,24 +315,9 @@ impl Region {
             self.shortest_ident()
         }
     }
-    /// Return a description of this region
-    fn description(&self) -> String {
-        let mut result = String::new();
-        for f in &self.fields {
-            // In the Atmel SVDs the union variants all tend to
-            // have the same description.  Rather than emitting
-            // the same text three times over, only join in the
-            // text from the other variants if it is different.
-            // This isn't a foolproof way of emitting the most
-            // reasonable short description, but it's good enough.
-            if f.description != result {
-                if !result.is_empty() {
-                    result.push(' ');
-                }
-                result.push_str(&f.description);
-            }
-        }
-        result
+
+    fn is_union(&self) -> bool {
+        self.fields.len() > 1
     }
 }
 
@@ -420,10 +405,6 @@ impl FieldRegions {
         Ok(())
     }
 
-    pub fn is_union(&self) -> bool {
-        self.regions.len() == 1 && self.regions[0].fields.len() > 1
-    }
-
     /// Resolves type name conflicts
     pub fn resolve_idents(&mut self) -> Result<()> {
         let idents: Vec<_> = {
@@ -460,86 +441,11 @@ fn register_or_cluster_block(
     ercs: &[RegisterCluster],
     defs: &Defaults,
     name: Option<&str>,
-    nightly: bool,
-) -> Result<Tokens> {
-    if nightly {
-        register_or_cluster_block_nightly(ercs, defs, name)
-    } else {
-        register_or_cluster_block_stable(ercs, defs, name)
-    }
-}
-
-fn register_or_cluster_block_stable(
-    ercs: &[RegisterCluster],
-    defs: &Defaults,
-    name: Option<&str>,
+    _nightly: bool,
 ) -> Result<Tokens> {
     let mut fields = Tokens::new();
-    // enumeration of reserved fields
-    let mut i = 0;
-    // offset from the base address, in bytes
-    let mut offset = 0;
-
-    let ercs_expanded = expand(ercs, defs, name)?;
-
-    for reg_block_field in ercs_expanded {
-        let pad = if let Some(pad) = reg_block_field.offset.checked_sub(offset) {
-            pad
-        } else {
-            warn!(
-                "{:?} overlaps with another register block at offset {}. \
-                 Ignoring.",
-                reg_block_field.field.ident, reg_block_field.offset
-            );
-            continue;
-        };
-
-        if pad != 0 {
-            let name = Ident::new(format!("_reserved{}", i));
-            let pad = pad as usize;
-            fields.append(quote! {
-                #name : [u8; #pad],
-            });
-            i += 1;
-        }
-
-        let comment = &format!(
-            "0x{:02x} - {}",
-            reg_block_field.offset,
-            util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
-        )[..];
-
-        fields.append(quote! {
-            #[doc = #comment]
-        });
-
-        reg_block_field.field.to_tokens(&mut fields);
-        Ident::new(",").to_tokens(&mut fields);
-
-        offset = reg_block_field.offset + reg_block_field.size / BITS_PER_BYTE;
-    }
-
-    let name = Ident::new(match name {
-        Some(name) => name.to_sanitized_upper_case(),
-        None => "RegisterBlock".into(),
-    });
-
-    Ok(quote! {
-        /// Register block
-        #[repr(C)]
-        pub struct #name {
-            #fields
-        }
-    })
-}
-
-fn register_or_cluster_block_nightly(
-    ercs: &[RegisterCluster],
-    defs: &Defaults,
-    name: Option<&str>,
-) -> Result<Tokens> {
-    let mut fields = Tokens::new();
-    let mut helper_types = Tokens::new();
+    let mut accessors = Tokens::new();
+    let mut have_accessors = false;
 
     let ercs_expanded = expand(ercs, defs, name)?;
 
@@ -550,10 +456,9 @@ fn register_or_cluster_block_nightly(
         regions.add(reg_block_field)?;
     }
 
-    let block_is_union = regions.is_union();
     // We need to compute the idents of each register/union block first to make sure no conflicts exists.
     regions.resolve_idents()?;
-    // The end of the region from the prior iteration of the loop
+    // The end of the region for which we previously emitted a field into `fields`
     let mut last_end = 0;
 
     for (i, region) in regions.regions.iter().enumerate() {
@@ -567,65 +472,71 @@ fn register_or_cluster_block_nightly(
             });
         }
 
-        last_end = region.end;
-
         let mut region_fields = Tokens::new();
+        let is_region_a_union = region.is_union();
 
         for reg_block_field in &region.fields {
-            if reg_block_field.offset != region.offset {
-                // TODO: need to emit padding for this case.
-                // Happens for freescale_mkl43z4
-                warn!(
-                    "field {:?} has different offset {} than its union container {}",
-                    reg_block_field.field.ident, reg_block_field.offset, region.offset
-                );
-            }
             let comment = &format!(
                 "0x{:02x} - {}",
                 reg_block_field.offset,
                 util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
             )[..];
 
-            region_fields.append(quote! {
-                #[doc = #comment]
-            });
+            if is_region_a_union {
+                let name = &reg_block_field.field.ident;
+                let mut_name = Ident::new(format!("{}_mut", name.as_ref().unwrap()));
+                let ty = &reg_block_field.field.ty;
+                let offset = reg_block_field.offset as usize;
+                have_accessors = true;
+                accessors.append(quote! {
+                    #[doc = #comment]
+                    #[inline(always)]
+                    pub fn #name(&self) -> &#ty {
+                        unsafe {
+                            &*(((self as *const Self) as *const u8).add(#offset) as *const #ty)
+                        }
+                    }
 
-            reg_block_field.field.to_tokens(&mut region_fields);
-            Ident::new(",").to_tokens(&mut region_fields);
+                    #[doc = #comment]
+                    #[inline(always)]
+                    pub fn #mut_name(&self) -> &mut #ty {
+                        unsafe {
+                            &mut *(((self as *const Self) as *mut u8).add(#offset) as *mut #ty)
+                        }
+                    }
+                });
+            } else {
+                region_fields.append(quote! {
+                    #[doc = #comment]
+                });
+
+                reg_block_field.field.to_tokens(&mut region_fields);
+                Ident::new(",").to_tokens(&mut region_fields);
+            }
         }
 
-        if region.fields.len() > 1 && !block_is_union {
-            let (type_name, name) = match region.ident.clone() {
-                Some(prefix) => (
-                    Ident::new(format!("{}_UNION", prefix.to_sanitized_upper_case())),
-                    Ident::new(prefix),
-                ),
-                // If we can't find a name, fall back to the region index as a
-                // unique-within-this-block identifier counter.
-                None => {
-                    let ident = Ident::new(format!("U{}", i));
-                    (ident.clone(), ident)
-                }
-            };
-
-            let description = region.description();
-
-            helper_types.append(quote! {
-                #[doc = #description]
-                #[repr(C)]
-                pub union #type_name {
-                    #region_fields
-                }
-            });
-
-            fields.append(quote! {
-                #[doc = #description]
-                pub #name: #type_name
-            });
-            Ident::new(",").to_tokens(&mut fields);
-        } else {
+        if !is_region_a_union {
             fields.append(&region_fields);
+        } else {
+            // Emit padding for the items that we're not emitting
+            // as fields so that subsequent fields have the correct
+            // alignment in the struct.  We could omit this and just
+            // not updated `last_end`, so that the padding check in
+            // the outer loop kicks in, but it is nice to be able to
+            // see that the padding is attributed to a union when
+            // visually inspecting the alignment in the struct.
+            //
+            // Include the computed ident for the union in the padding
+            // name, along with the region number, falling back to
+            // the offset and end in case we couldn't figure out a
+            // nice identifier.
+            let name = Ident::new(format!("_reserved_{}_{}", i, region.compute_ident().unwrap_or_else(|| format!("{}_{}", region.offset, region.end))));
+            let pad = (region.end - region.offset) as usize;
+            fields.append(quote! {
+                #name: [u8; #pad],
+            })
         }
+        last_end = region.end;
     }
 
     let name = Ident::new(match name {
@@ -633,20 +544,24 @@ fn register_or_cluster_block_nightly(
         None => "RegisterBlock".into(),
     });
 
-    let block_type = if block_is_union {
-        Ident::new("union")
+    let accessors = if have_accessors {
+        quote! {
+            impl #name {
+                #accessors
+            }
+        }
     } else {
-        Ident::new("struct")
+        quote! {}
     };
 
     Ok(quote! {
         /// Register block
         #[repr(C)]
-        pub #block_type #name {
+        pub struct #name {
             #fields
         }
 
-        #helper_types
+        #accessors
     })
 }
 
