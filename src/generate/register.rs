@@ -101,7 +101,7 @@ pub fn render(
             Some(rv) => {
                 mod_items.push(quote! {
                     impl vcell::ResetValue for W {
-                        const RESET_VALUE: Self = Self {bits: #rv};
+                        pub const RESET_VALUE: Self = Self {bits: #rv};
                     }
                     impl vcell::WriteRegisterWithReset<W, #rty> for super::#name_pc {}
                     impl vcell::ResetRegister<W, #rty> for super::#name_pc {}
