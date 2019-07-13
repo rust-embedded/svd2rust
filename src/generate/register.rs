@@ -57,15 +57,9 @@ pub fn render(
             pub struct R {
                 bits: #rty,
             }
-            impl core::ops::Deref for R {
-                type Target = #rty;
-                fn deref(&self) -> &Self::Target {
-                    &self.bits
-                }
-            }
-            impl vcell::FromBits<#rty> for R {
-                fn from_bits(bits: #rty) -> Self {
-                    Self { bits }
+            impl core::convert::Into<R> for #rty {
+                fn into(self: Self) -> R {
+                    R { bits: self }
                 }
             }
         });
@@ -74,7 +68,7 @@ pub fn render(
             /// Value of the register as raw bits
             #[inline]
             pub fn bits(&self) -> #rty {
-                **self
+                self.bits
             }
         });
     }
@@ -91,9 +85,9 @@ pub fn render(
                     &self.bits
                 }
             }
-            impl vcell::FromBits<#rty> for W {
-                fn from_bits(bits: #rty) -> Self {
-                    Self { bits }
+            impl core::convert::Into<W> for #rty {
+                fn into(self: Self) -> W {
+                    W { bits: self }
                 }
             }
         });
