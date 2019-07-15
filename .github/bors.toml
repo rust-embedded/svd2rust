@@ -1,4 +1,4 @@
-block_labels = ["needs-decision"]
+block_labels = ["needs-decision", "S-waiting-on-team"]
 delete_merged_branches = true
 required_approvals = 1
 status = [

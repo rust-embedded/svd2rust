@@ -10,30 +10,32 @@ test_svd() {
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
     local cwd=$(pwd)
     pushd $td
-    $cwd/target/$TARGET/release/svd2rust -i ${1}.svd
+    RUST_BACKTRACE=1 $cwd/target/$TARGET/release/svd2rust -i ${1}.svd
 
     mv lib.rs src/lib.rs
 
-    # ignore rustfmt errors
-    rustfmt src/lib.rs || true
     popd
 
     cargo check --manifest-path $td/Cargo.toml
 }
 
 main() {
+    # Ensure that `cargo test` works to avoid surprising people, though it
+    # doesn't help with our actual coverage.
+    cargo test
+
     if [ $TRAVIS_OS_NAME = windows ]; then
         cargo check --target $TARGET
         return
     fi
 
-    cross check --target $TARGET
+    cargo check --target $TARGET
 
     if [ -z ${VENDOR-} ]; then
         return
     fi
 
-    cross build --target $TARGET --release
+    cargo build --target $TARGET --release
 
     case $TRAVIS_OS_NAME in
         linux)
@@ -415,33 +417,56 @@ main() {
             echo '[dependencies.msp430]' >> $td/Cargo.toml
             echo 'version = "0.1.0"' >> $td/Cargo.toml
 
-            # echo '[dependencies.riscv]' >> $td/Cargo.toml
-            # echo 'version = "0.2.0"' >> $td/Cargo.toml
+            echo '[dependencies.riscv]' >> $td/Cargo.toml
+            echo 'version = "0.4.0"' >> $td/Cargo.toml
 
-            # echo '[dependencies.riscv-rt]' >> $td/Cargo.toml
-            # echo 'version = "0.2.0"' >> $td/Cargo.toml
+            echo '[dependencies.riscv-rt]' >> $td/Cargo.toml
+            echo 'version = "0.4.0"' >> $td/Cargo.toml
 
             (
                 cd $td &&
                     curl -LO \
                          https://github.com/pftbest/msp430g2553/raw/v0.1.0/msp430g2553.svd
-                # cd $td &&
-                #     curl -LO \
-                #          https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
+                cd $td &&
+                    curl -LO \
+                         https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
+                cd $td &&
+                    curl -LO \
+                         https://raw.githubusercontent.com/riscv-rust/k210-pac/master/k210.svd
             )
 
-            target/$TARGET/release/svd2rust --target msp430 -i $td/msp430g2553.svd | \
-                ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
+            local cwd=$(pwd)
+
+            # Test MSP430
+            pushd $td
+
+            RUST_BACKTRACE=1 $cwd/target/$TARGET/release/svd2rust --target msp430 -i $td/msp430g2553.svd
+            mv $td/lib.rs $td/src/lib.rs
+            rustfmt $td/src/lib.rs || true
+
+            popd
 
             cargo check --manifest-path $td/Cargo.toml
 
-            target/$TARGET/release/svd2rust --target none -i $td/msp430g2553.svd | \
-                ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
+            # Test RISC-V FE310
+            pushd $td
+
+            RUST_BACKTRACE=1 $cwd/target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd
+            mv $td/lib.rs $td/src/lib.rs
+            rustfmt $td/src/lib.rs || true
+
+            popd
 
             cargo check --manifest-path $td/Cargo.toml
 
-            # target/$TARGET/release/svd2rust --target riscv -i $td/e310x.svd | \
-                # ( rustfmt 2>/dev/null > $td/src/lib.rs || true )
+            # Test RISC-V K210
+            pushd $td
+
+            RUST_BACKTRACE=1 $cwd/target/$TARGET/release/svd2rust --target riscv -i $td/k210.svd
+            mv $td/lib.rs $td/src/lib.rs
+            rustfmt $td/src/lib.rs || true
+
+            popd
 
             cargo check --manifest-path $td/Cargo.toml
         ;;

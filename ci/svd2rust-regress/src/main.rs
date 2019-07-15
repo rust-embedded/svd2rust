@@ -32,18 +32,23 @@ struct Opt {
     /// (which must be already built)
     #[structopt(short = "p", long = "svd2rust-path", parse(from_os_str))]
     bin_path: Option<PathBuf>,
+    
+    // TODO: Consider using the same strategy cargo uses for passing args to rustc via `--`
+    /// Run svd2rust with `--nightly`
+    #[structopt(long = "nightly")]
+    nightly: bool,
 
     /// Filter by chip name, case sensitive, may be combined with other filters
-    #[structopt(short = "c", long = "chip")]
-    chip: Option<String>,
+    #[structopt(short = "c", long = "chip", raw(validator = "validate_chips"))]
+    chip: Vec<String>,
 
     /// Filter by manufacturer, case sensitive, may be combined with other filters
-    #[structopt(short = "m", long = "manufacturer")]
+    #[structopt(short = "m", long = "manufacturer", raw(validator = "validate_manufacturer"))]
     mfgr: Option<String>,
 
     /// Filter by architecture, case sensitive, may be combined with other filters
     /// Options are: "CortexM", "RiscV", and "Msp430"
-    #[structopt(short = "a", long = "architecture")]
+    #[structopt(short = "a", long = "architecture", raw(validator = "validate_architecture"))]
     arch: Option<String>,
 
     /// Include tests expected to fail (will cause a non-zero return code)
@@ -54,17 +59,48 @@ struct Opt {
     #[structopt(short = "f", long = "format")]
     format: bool,
 
+    /// Print all available test using the specified filters
+    #[structopt(long = "list")]
+    list: bool,
+
     /// Path to an `rustfmt` binary, relative or absolute.
     /// Defaults to `$(rustup which rustfmt)`
     #[structopt(long = "rustfmt_bin_path", parse(from_os_str))]
     rustfmt_bin_path: Option<PathBuf>,
 
+    /// Specify what rustup toolchain to use when compiling chip(s)
+    #[structopt(long = "toolchain", env = "RUSTUP_TOOLCHAIN")]
+    rustup_toolchain: Option<String>,
+
     /// Use verbose output
     #[structopt(long = "verbose", short = "v", parse(from_occurrences))]
     verbose: u8,
     // TODO: Specify smaller subset of tests? Maybe with tags?
-    // TODO: Early fail
     // TODO: Compile svd2rust?
+}
+
+fn validate_chips(s: String) -> Result<(), String>{
+    if tests::TESTS.iter().any(|t| t.chip == s) {
+        Ok(())
+    } else {
+        Err(format!("Chip `{}` is not a valid value", s))
+    }
+}
+
+fn validate_architecture(s: String) -> Result<(), String>{
+    if tests::TESTS.iter().any(|t| format!("{:?}", t.arch) == s) {
+        Ok(())
+    } else {
+        Err(format!("Architecture `{}` is not a valid value", s))
+    }
+}
+
+fn validate_manufacturer(s: String) -> Result<(), String>{
+    if tests::TESTS.iter().any(|t| format!("{:?}", t.mfgr) == s) {
+        Ok(())
+    } else {
+        Err(format!("Manufacturer `{}` is not a valid value", s))
+    }
 }
 
 /// Validate any assumptions made by this program
@@ -86,6 +122,18 @@ fn validate_tests(tests: &[&tests::TestCase]) {
     if fail {
         panic!("Tests failed validation");
     }
+}
+
+fn read_file(path: &PathBuf, buf: &mut String) {
+    if buf.is_empty() {
+        buf.push_str(&format!("{}\n", path.display()));
+    } else {
+        buf.push_str(&format!("\n{}\n", path.display()));
+    }
+    File::open(path)
+        .expect("Couldn't open file")
+        .read_to_string(buf)
+        .expect("Couldn't read file to string");
 }
 
 fn main() {
@@ -138,6 +186,12 @@ fn main() {
             default_rustfmt.as_ref()
         }
     };
+
+    // Set RUSTUP_TOOLCHAIN if needed
+    if let Some(toolchain) = &opt.rustup_toolchain {
+        ::std::env::set_var("RUSTUP_TOOLCHAIN", toolchain);
+    }
+
     // collect enabled tests
     let tests = tests::TESTS
         .iter()
@@ -161,8 +215,8 @@ fn main() {
         })
         // Specify chip - note: may match multiple
         .filter(|t| {
-            if let Some(ref chip) = opt.chip {
-                chip == t.chip
+            if !opt.chip.is_empty() {
+                opt.chip.iter().any(|c| c == t.chip)
             } else {
                 true
             }
@@ -171,6 +225,15 @@ fn main() {
         .filter(|t| opt.bad_tests || t.should_pass)
         .collect::<Vec<_>>();
 
+    if opt.list {
+        // FIXME: Prettier output
+        eprintln!("{:?}", tests.iter().map(|t| t.name()).collect::<Vec<_>>());
+        exit(0);
+    }
+    if tests.is_empty() {
+        eprintln!("No tests run, you might want to use `--bad-tests` and/or `--long-test`");
+    }
+
     let any_fails = AtomicBool::new(false);
 
     // TODO: It would be more efficient to reuse directories, so we don't
@@ -178,29 +241,39 @@ fn main() {
     tests.par_iter().for_each(|t| {
         let start = Instant::now();
 
-        match svd_test::test(t, &bin_path, rustfmt_bin_path) {
-            Ok(()) => {
-                // TODO: If verbosity is > 1, print every logged stderr
-                eprintln!(
-                    "Passed: {} - {} seconds",
-                    t.name(),
-                    start.elapsed().as_secs()
-                );
+        match svd_test::test(t, &bin_path, rustfmt_bin_path, opt.nightly, opt.verbose) {
+            Ok(s) => {
+                if let Some(stderrs) = s {
+                    let mut buf = String::new();
+                    for stderr in stderrs {
+                        read_file(&stderr, &mut buf);
+                    }
+                    eprintln!(
+                        "Passed: {} - {} seconds\n{}",
+                        t.name(),
+                        start.elapsed().as_secs(),
+                        buf
+                    );
+                } else {
+                    eprintln!(
+                        "Passed: {} - {} seconds",
+                        t.name(),
+                        start.elapsed().as_secs()
+                    );
+                }
             }
             Err(e) => {
                 any_fails.store(true, Ordering::Release);
                 let additional_info = if opt.verbose > 0 {
                     match e.kind() {
-                        &errors::ErrorKind::ProcessFailed(ref command, _, Some(ref stderr))
-                            if command == "cargo check" =>
-                        {
-                            let mut buf = String::new();
-                            // Unwrap is safe
-                            File::open(stderr)
-                                .expect("Couldn't open file")
-                                .read_to_string(&mut buf)
-                                .expect("Couldn't read file to string");
-                            buf.insert_str(0, &format!("\n---{:?}---\n", stderr.as_os_str()));
+                        &errors::ErrorKind::ProcessFailed(_, _, Some(ref stderr), ref previous_processes_stderr) => {
+                            let mut buf = String::new(); 
+                            if opt.verbose > 1 {
+                                for stderr in previous_processes_stderr {
+                                    read_file(&stderr, &mut buf);
+                                }
+                            }
+                            read_file(&stderr, &mut buf);
                             buf
                         }
                         _ => "".into(),

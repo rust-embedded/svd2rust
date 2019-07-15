@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.14.0] - 2018-12-07
+
+### Added
+
+- On Cortex-M targets the generated code includes a re-export of the
+  `cortex_m_rt::interrupt` attribute, but only when the `rt` feature is enabled.
+
+### Changed
+
+- [breaking-change] on non-Cortex targets Interrupt no longer implements the
+  `TryFrom` trait; it now provides an inherent `try_from` method.
+
+- [breaking-change] for non-Cortex targets svd2rust no longer outputs the
+  generated code to stdout; instead it writes it to a file named `lib.rs`.
+
+- Brackets generated in doc comments are now escaped to prevent warnings on
+  nightly where the compiler tries to interpret bracketed content as links to
+  structs, enums, etc.
+
+### Fixed
+
+- Some bugs around the generation of unions (see `--nightly` flag).
+
 ## [v0.13.1] - 2018-05-16
 
 ### Fixed
@@ -382,33 +405,34 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/japaric/svd2rust/compare/v0.13.1...HEAD
-[v0.13.1]: https://github.com/japaric/svd2rust/compare/v0.13.0...v0.13.1
-[v0.13.0]: https://github.com/japaric/svd2rust/compare/v0.12.1...v0.13.0
-[v0.12.1]: https://github.com/japaric/svd2rust/compare/v0.12.0...v0.12.1
-[v0.12.0]: https://github.com/japaric/svd2rust/compare/v0.11.4...v0.12.0
-[v0.11.4]: https://github.com/japaric/svd2rust/compare/v0.11.3...v0.11.4
-[v0.11.3]: https://github.com/japaric/svd2rust/compare/v0.11.2...v0.11.3
-[v0.11.2]: https://github.com/japaric/svd2rust/compare/v0.11.1...v0.11.2
-[v0.11.1]: https://github.com/japaric/svd2rust/compare/v0.11.0...v0.11.1
-[v0.11.0]: https://github.com/japaric/svd2rust/compare/v0.10.0...v0.11.0
-[v0.10.0]: https://github.com/japaric/svd2rust/compare/v0.9.1...v0.10.0
-[v0.9.1]: https://github.com/japaric/svd2rust/compare/v0.9.0...v0.9.1
-[v0.9.0]: https://github.com/japaric/svd2rust/compare/v0.8.1...v0.9.0
-[v0.8.1]: https://github.com/japaric/svd2rust/compare/v0.8.0...v0.8.1
-[v0.8.0]: https://github.com/japaric/svd2rust/compare/v0.7.2...v0.8.0
-[v0.7.2]: https://github.com/japaric/svd2rust/compare/v0.7.1...v0.7.2
-[v0.7.1]: https://github.com/japaric/svd2rust/compare/v0.7.0...v0.7.1
-[v0.7.0]: https://github.com/japaric/svd2rust/compare/v0.6.2...v0.7.0
-[v0.6.2]: https://github.com/japaric/svd2rust/compare/v0.6.1...v0.6.2
-[v0.6.1]: https://github.com/japaric/svd2rust/compare/v0.6.0...v0.6.1
-[v0.6.0]: https://github.com/japaric/svd2rust/compare/v0.5.1...v0.6.0
-[v0.5.1]: https://github.com/japaric/svd2rust/compare/v0.5.0...v0.5.1
-[v0.5.0]: https://github.com/japaric/svd2rust/compare/v0.4.0...v0.5.0
-[v0.4.0]: https://github.com/japaric/svd2rust/compare/v0.3.0...v0.4.0
-[v0.3.0]: https://github.com/japaric/svd2rust/compare/v0.2.1...v0.3.0
-[v0.2.1]: https://github.com/japaric/svd2rust/compare/v0.2.0...v0.2.1
-[v0.2.0]: https://github.com/japaric/svd2rust/compare/v0.1.3...v0.2.0
-[v0.1.3]: https://github.com/japaric/svd2rust/compare/v0.1.2...v0.1.3
-[v0.1.2]: https://github.com/japaric/svd2rust/compare/v0.1.1...v0.1.2
-[v0.1.1]: https://github.com/japaric/svd2rust/compare/v0.1.0...v0.1.1
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.14.0...HEAD
+[v0.14.0]: https://github.com/rust-embedded/svd2rust/compare/v0.13.1...v0.14.0
+[v0.13.1]: https://github.com/rust-embedded/svd2rust/compare/v0.13.0...v0.13.1
+[v0.13.0]: https://github.com/rust-embedded/svd2rust/compare/v0.12.1...v0.13.0
+[v0.12.1]: https://github.com/rust-embedded/svd2rust/compare/v0.12.0...v0.12.1
+[v0.12.0]: https://github.com/rust-embedded/svd2rust/compare/v0.11.4...v0.12.0
+[v0.11.4]: https://github.com/rust-embedded/svd2rust/compare/v0.11.3...v0.11.4
+[v0.11.3]: https://github.com/rust-embedded/svd2rust/compare/v0.11.2...v0.11.3
+[v0.11.2]: https://github.com/rust-embedded/svd2rust/compare/v0.11.1...v0.11.2
+[v0.11.1]: https://github.com/rust-embedded/svd2rust/compare/v0.11.0...v0.11.1
+[v0.11.0]: https://github.com/rust-embedded/svd2rust/compare/v0.10.0...v0.11.0
+[v0.10.0]: https://github.com/rust-embedded/svd2rust/compare/v0.9.1...v0.10.0
+[v0.9.1]: https://github.com/rust-embedded/svd2rust/compare/v0.9.0...v0.9.1
+[v0.9.0]: https://github.com/rust-embedded/svd2rust/compare/v0.8.1...v0.9.0
+[v0.8.1]: https://github.com/rust-embedded/svd2rust/compare/v0.8.0...v0.8.1
+[v0.8.0]: https://github.com/rust-embedded/svd2rust/compare/v0.7.2...v0.8.0
+[v0.7.2]: https://github.com/rust-embedded/svd2rust/compare/v0.7.1...v0.7.2
+[v0.7.1]: https://github.com/rust-embedded/svd2rust/compare/v0.7.0...v0.7.1
+[v0.7.0]: https://github.com/rust-embedded/svd2rust/compare/v0.6.2...v0.7.0
+[v0.6.2]: https://github.com/rust-embedded/svd2rust/compare/v0.6.1...v0.6.2
+[v0.6.1]: https://github.com/rust-embedded/svd2rust/compare/v0.6.0...v0.6.1
+[v0.6.0]: https://github.com/rust-embedded/svd2rust/compare/v0.5.1...v0.6.0
+[v0.5.1]: https://github.com/rust-embedded/svd2rust/compare/v0.5.0...v0.5.1
+[v0.5.0]: https://github.com/rust-embedded/svd2rust/compare/v0.4.0...v0.5.0
+[v0.4.0]: https://github.com/rust-embedded/svd2rust/compare/v0.3.0...v0.4.0
+[v0.3.0]: https://github.com/rust-embedded/svd2rust/compare/v0.2.1...v0.3.0
+[v0.2.1]: https://github.com/rust-embedded/svd2rust/compare/v0.2.0...v0.2.1
+[v0.2.0]: https://github.com/rust-embedded/svd2rust/compare/v0.1.3...v0.2.0
+[v0.1.3]: https://github.com/rust-embedded/svd2rust/compare/v0.1.2...v0.1.3
+[v0.1.2]: https://github.com/rust-embedded/svd2rust/compare/v0.1.1...v0.1.2
+[v0.1.1]: https://github.com/rust-embedded/svd2rust/compare/v0.1.0...v0.1.1
