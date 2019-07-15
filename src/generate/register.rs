@@ -87,9 +87,7 @@ pub fn render(
             where
                 F: FnOnce(&mut W) -> &mut W
             {
-                let mut w = W::reset_value();
-                f(&mut w);
-                self.register.set(w.bits);
+                self.register.set(f(&mut W::reset_value()).bits);
             }
         });
 
