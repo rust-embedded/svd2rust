@@ -13,7 +13,7 @@ mod generate;
 mod util;
 
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::Write;
 use std::process;
 
 use clap::{App, Arg};
