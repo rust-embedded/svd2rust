@@ -257,7 +257,7 @@ pub fn fields(
                 access: f.access,
                 evs: &f.enumerated_values,
                 sc: Ident::new(&*sc),
-                mask: util::hex_or_bool((((1 as u64) << width) - 1) as u32, width),
+                mask: util::hex((((1 as u64) << width) - 1) as u32),
                 name: &f.name,
                 offset: util::unsuffixed(u64::from(f.bit_range.offset)),
                 ty: width.to_ty()?,
@@ -285,7 +285,7 @@ pub fn fields(
                 quote! { as #fty }
             };
             let value = quote! {
-                ((self.bits >> #offset) & #mask as #rty) #cast
+                ((self.bits >> #offset) & #mask) #cast
             };
 
             if let Some((evs, base)) = lookup(
@@ -760,8 +760,8 @@ pub fn fields(
                 /// Writes raw bits to the field
                 #[inline]
                 pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                    self.w.bits &= !((#mask as #rty) << #offset);
-                    self.w.bits |= ((value & #mask) as #rty) << #offset;
+                    self.w.bits &= !(#mask << #offset);
+                    self.w.bits |= ((value as #rty) & #mask) << #offset;
                     self.w
                 }
             });
