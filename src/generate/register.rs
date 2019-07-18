@@ -285,10 +285,7 @@ pub fn fields(
                 quote! { as #fty }
             };
             let value = quote! {
-                const MASK: #fty = #mask;
-                const OFFSET: u8 = #offset;
-
-                ((self.bits >> OFFSET) & MASK as #rty) #cast
+                ((self.bits >> #offset) & #mask as #rty) #cast
             };
 
             if let Some((evs, base)) = lookup(
@@ -763,11 +760,8 @@ pub fn fields(
                 /// Writes raw bits to the field
                 #[inline]
                 pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                    const MASK: #fty = #mask;
-                    const OFFSET: u8 = #offset;
-
-                    self.w.bits &= !((MASK as #rty) << OFFSET);
-                    self.w.bits |= ((value & MASK) as #rty) << OFFSET;
+                    self.w.bits &= !((#mask as #rty) << #offset);
+                    self.w.bits |= ((value & #mask) as #rty) << #offset;
                     self.w
                 }
             });
