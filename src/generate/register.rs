@@ -87,7 +87,7 @@ pub fn render(
             where
                 F: FnOnce(&mut W) -> &mut W
             {
-                self.register.set(f(&mut W::reset_value()).bits);
+                self.register.set(f(&mut W { bits: Self::reset_value() }).bits);
             }
         });
 
@@ -104,13 +104,20 @@ pub fn render(
             .map(util::hex)
             .ok_or_else(|| format!("Register {} has no reset value", register.name))?;
 
-        w_impl_items.push(quote! {
+        reg_impl_items.push(quote! {
             /// Reset value of the register
             #[inline]
-            pub const fn reset_value() -> W {
-                W { bits: #rv }
+            pub const fn reset_value() -> #rty {
+                #rv
             }
+            /// Writes the reset value to the register
+            #[inline]
+            pub fn reset(&self) {
+                self.register.set(Self::reset_value())
+            }
+        });
 
+        w_impl_items.push(quote! {
             /// Writes raw bits to the register
             #[inline]
             pub #unsafety fn bits(&mut self, bits: #rty) -> &mut Self {
@@ -118,16 +125,6 @@ pub fn render(
                 self
             }
         });
-    }
-
-    if access == Access::ReadWrite {
-        reg_impl_items.push(quote! {
-            /// Writes the reset value to the register
-            #[inline]
-            pub fn reset(&self) {
-                self.write(|w| w)
-            }
-        })
     }
 
     mod_items.push(quote! {
@@ -372,7 +369,7 @@ pub fn fields(
                     #[doc = #description]
                     #[inline]
                     pub fn #sc(&self) -> #pc_r {
-                        #pc_r::_from({ #value })
+                        #pc_r::_from( #value )
                     }
                 });
 
