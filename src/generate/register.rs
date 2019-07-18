@@ -107,7 +107,7 @@ pub fn render(
         w_impl_items.push(quote! {
             /// Reset value of the register
             #[inline]
-            pub fn reset_value() -> W {
+            pub const fn reset_value() -> W {
                 W { bits: #rv }
             }
 
