@@ -107,7 +107,7 @@ pub fn render(
         w_impl_items.push(quote! {
             /// Reset value of the register
             #[inline]
-            pub fn reset_value() -> W {
+            pub const fn reset_value() -> W {
                 W { bits: #rv }
             }
 
@@ -257,7 +257,7 @@ pub fn fields(
                 access: f.access,
                 evs: &f.enumerated_values,
                 sc: Ident::new(&*sc),
-                mask: util::hex_or_bool((((1 as u64) << width) - 1) as u32, width),
+                mask: util::hex((((1 as u64) << width) - 1) as u32),
                 name: &f.name,
                 offset: util::unsuffixed(u64::from(f.bit_range.offset)),
                 ty: width.to_ty()?,
@@ -285,10 +285,7 @@ pub fn fields(
                 quote! { as #fty }
             };
             let value = quote! {
-                const MASK: #fty = #mask;
-                const OFFSET: u8 = #offset;
-
-                ((self.bits >> OFFSET) & MASK as #rty) #cast
+                ((self.bits >> #offset) & #mask) #cast
             };
 
             if let Some((evs, base)) = lookup(
@@ -519,7 +516,7 @@ pub fn fields(
                     #[doc = #description]
                     #[inline]
                     pub fn #sc(&self) -> #pc_r {
-                        let bits = { #value };
+                        let bits = #value;
                         #pc_r { bits }
                     }
                 });
@@ -763,11 +760,8 @@ pub fn fields(
                 /// Writes raw bits to the field
                 #[inline]
                 pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                    const MASK: #fty = #mask;
-                    const OFFSET: u8 = #offset;
-
-                    self.w.bits &= !((MASK as #rty) << OFFSET);
-                    self.w.bits |= ((value & MASK) as #rty) << OFFSET;
+                    self.w.bits &= !(#mask << #offset);
+                    self.w.bits |= ((value as #rty) & #mask) << #offset;
                     self.w
                 }
             });
