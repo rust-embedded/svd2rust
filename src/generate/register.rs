@@ -516,7 +516,7 @@ pub fn fields(
                     #[doc = #description]
                     #[inline]
                     pub fn #sc(&self) -> #pc_r {
-                        let bits = { #value };
+                        let bits = #value;
                         #pc_r { bits }
                     }
                 });
