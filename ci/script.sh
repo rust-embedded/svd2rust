@@ -48,8 +48,8 @@ main() {
 
     # test crate
     cargo init --name foo $td
-    echo 'cortex-m = "0.5.0"' >> $td/Cargo.toml
-    echo 'cortex-m-rt = "0.5.0"' >> $td/Cargo.toml
+    echo 'cortex-m = "0.6.0"' >> $td/Cargo.toml
+    echo 'cortex-m-rt = "0.6.9"' >> $td/Cargo.toml
     echo 'vcell = "0.1.0"' >> $td/Cargo.toml
     echo '[profile.dev]' >> $td/Cargo.toml
     echo 'incremental = false' >> $td/Cargo.toml
@@ -418,10 +418,10 @@ main() {
             echo 'version = "0.1.0"' >> $td/Cargo.toml
 
             echo '[dependencies.riscv]' >> $td/Cargo.toml
-            echo 'version = "0.4.0"' >> $td/Cargo.toml
+            echo 'version = "0.5.0"' >> $td/Cargo.toml
 
             echo '[dependencies.riscv-rt]' >> $td/Cargo.toml
-            echo 'version = "0.4.0"' >> $td/Cargo.toml
+            echo 'version = "0.6.0"' >> $td/Cargo.toml
 
             (
                 cd $td &&
