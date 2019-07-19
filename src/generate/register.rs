@@ -177,7 +177,7 @@ pub fn render(
     out.push(quote! {
         #[doc = #description]
         pub struct #name_pc {
-            register: ::vcell::VolatileCell<#rty>
+            register: vcell::VolatileCell<#rty>
         }
 
         #[doc = #description]
@@ -343,7 +343,7 @@ pub fn fields(
 
                         mod_items.push(quote! {
                             #[doc = #desc]
-                            pub type #pc_r = ::#pmod_::#rmod_::#base_pc_r;
+                            pub type #pc_r = crate::#pmod_::#rmod_::#base_pc_r;
                         });
                     } else if let Some(register) = &base.register {
                         let mod_ = register.to_sanitized_snake_case();
@@ -603,11 +603,11 @@ pub fn fields(
                         mod_items.push(quote! {
                             #[doc = #pc_w_doc]
                             pub type #pc_w =
-                                ::#pmod_::#rmod_::#base_pc_w;
+                                crate::#pmod_::#rmod_::#base_pc_w;
                         });
 
                         quote! {
-                            ::#pmod_::#rmod_::#base_pc_w
+                            crate::#pmod_::#rmod_::#base_pc_w
                         }
                     } else if let Some(register) = &base.register {
                         let mod_ = register.to_sanitized_snake_case();

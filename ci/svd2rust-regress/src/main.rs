@@ -189,7 +189,7 @@ fn main() {
 
     // Set RUSTUP_TOOLCHAIN if needed
     if let Some(toolchain) = &opt.rustup_toolchain {
-        ::std::env::set_var("RUSTUP_TOOLCHAIN", toolchain);
+        std::env::set_var("RUSTUP_TOOLCHAIN", toolchain);
     }
 
     // collect enabled tests

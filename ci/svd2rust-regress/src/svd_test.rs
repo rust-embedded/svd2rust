@@ -80,7 +80,7 @@ impl CommandHelper for Output {
 }
 
 pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>, nightly: bool, verbosity: u8) -> Result<Option<Vec<PathBuf>>> {
-    let user = match ::std::env::var("USER") {
+    let user = match std::env::var("USER") {
         Ok(val) => val,
         Err(_) => "rusttester".into(),
     };
@@ -89,7 +89,7 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
     let chip_dir = path_helper(&["output", &t.name()]);
     if let Err(err) = fs::remove_dir_all(&chip_dir) {
         match err.kind() {
-            ::std::io::ErrorKind::NotFound => (),
+            std::io::ErrorKind::NotFound => (),
             _ => Err(err).chain_err(|| "While removing chip directory")?
         }
     }
