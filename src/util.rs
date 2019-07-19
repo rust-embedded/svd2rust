@@ -1,10 +1,9 @@
 use std::borrow::Cow;
 
-use either::Either;
 use inflections::Inflect;
-use crate::svd::{Access, Cluster, Register};
-use quote::Tokens;
+use crate::svd::{Access, Cluster, Register, RegisterCluster};
 use syn::Ident;
+use quote::Tokens;
 
 use crate::errors::*;
 
@@ -184,9 +183,9 @@ pub fn escape_brackets(s: &str) -> String {
 }
 
 pub fn name_of(register: &Register) -> Cow<str> {
-    match *register {
-        Register::Single(ref info) => Cow::from(&*info.name),
-        Register::Array(ref info, _) => {
+    match register {
+        Register::Single(info) => Cow::from(&*info.name),
+        Register::Array(info, _) => {
             if info.name.contains("[%s]") {
                 info.name.replace("[%s]", "").into()
             } else {
@@ -198,7 +197,7 @@ pub fn name_of(register: &Register) -> Cow<str> {
 
 pub fn access_of(register: &Register) -> Access {
     register.access.unwrap_or_else(|| {
-        if let Some(ref fields) = register.fields {
+        if let Some(fields) = &register.fields {
             if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
                 Access::ReadOnly
             } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
@@ -291,11 +290,11 @@ impl U32Ext for u32 {
 }
 
 /// Return only the clusters from the slice of either register or clusters.
-pub fn only_clusters(ercs: &[Either<Register, Cluster>]) -> Vec<&Cluster> {
+pub fn only_clusters(ercs: &[RegisterCluster]) -> Vec<&Cluster> {
     let clusters: Vec<&Cluster> = ercs
         .iter()
-        .filter_map(|x| match *x {
-            Either::Right(ref x) => Some(x),
+        .filter_map(|x| match x {
+            RegisterCluster::Cluster(x) => Some(x),
             _ => None,
         })
         .collect();
@@ -303,11 +302,11 @@ pub fn only_clusters(ercs: &[Either<Register, Cluster>]) -> Vec<&Cluster> {
 }
 
 /// Return only the registers the given slice of either register or clusters.
-pub fn only_registers(ercs: &[Either<Register, Cluster>]) -> Vec<&Register> {
+pub fn only_registers(ercs: &[RegisterCluster]) -> Vec<&Register> {
     let registers: Vec<&Register> = ercs
         .iter()
-        .filter_map(|x| match *x {
-            Either::Left(ref x) => Some(x),
+        .filter_map(|x| match x {
+            RegisterCluster::Register(x) => Some(x),
             _ => None,
         })
         .collect();

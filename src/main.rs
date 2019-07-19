@@ -1,18 +1,12 @@
 #![recursion_limit = "128"]
 
-extern crate cast;
-extern crate clap;
-extern crate either;
-extern crate env_logger;
 #[macro_use]
 extern crate error_chain;
-extern crate inflections;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate quote;
-extern crate svd_parser as svd;
-extern crate syn;
+use svd_parser as svd;
 
 mod errors;
 mod generate;
@@ -92,7 +86,7 @@ fn run() -> Result<()> {
         }
     }
 
-    let device = svd::parse(xml);
+    let device = svd::parse(xml).unwrap(); //TODO(AJM)
 
     let nightly = matches.is_present("nightly_features");
 
