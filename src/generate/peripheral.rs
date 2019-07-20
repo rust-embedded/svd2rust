@@ -48,14 +48,14 @@ pub fn render(
     // Insert the peripheral structure
     out.push(quote! {
         #[doc = #description]
-        pub struct #name_pc { _marker: PhantomData<*const ()> }
+        pub struct #name_pc { _marker: PhantomData<()> }
 
         unsafe impl Send for #name_pc {}
 
         impl #name_pc {
             /// Returns a pointer to the register block
-            pub fn ptr() -> *const #base::RegisterBlock {
-                #address as *const _
+            pub const fn ptr() -> *const #base::RegisterBlock {
+                #address as _
             }
         }
 
