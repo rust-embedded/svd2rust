@@ -202,6 +202,8 @@ pub fn access_of(register: &Register) -> Access {
                 Access::ReadOnly
             } else if fields.iter().all(|f| f.access == Some(Access::WriteOnce)) {
                 Access::WriteOnce
+            } else if fields.iter().all(|f| f.access == Some(Access::ReadWriteOnce)) {
+                Access::ReadWriteOnce
             } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly) || f.access == Some(Access::WriteOnce)) {
                 Access::WriteOnly
             } else {
