@@ -78,7 +78,7 @@ pub fn render(
         });
     }
 
-    if access == Access::WriteOnly || access == Access::ReadWrite {
+    if [Access::WriteOnly, Access::WriteOnce, Access::ReadWrite].contains(&access) {
         reg_impl_items.push(quote! {
             /// Writes to the register
             #[inline]
@@ -165,7 +165,7 @@ pub fn render(
         });
     }
 
-    if access == Access::WriteOnly || access == Access::ReadWrite {
+    if [Access::WriteOnly, Access::WriteOnce, Access::ReadWrite].contains(&access) {
         mod_items.push(quote! {
             impl W {
                 #(#w_impl_items)*
@@ -556,7 +556,7 @@ pub fn fields(
         }
     }
 
-    if access == Access::WriteOnly || access == Access::ReadWrite {
+    if [Access::WriteOnly, Access::WriteOnce, Access::ReadWrite].contains(&access) {
         for f in &fs {
             if f.access == Some(Access::ReadOnly) {
                 continue;
