@@ -56,7 +56,7 @@ pub fn render(
             /// Returns a pointer to the register block
             #[inline(always)]
             pub const fn ptr() -> *const #base::RegisterBlock {
-                #address as _
+                #address as *const usize as _
             }
         }
 
@@ -478,7 +478,7 @@ fn register_or_cluster_block(
                     #[inline(always)]
                     pub fn #name(&self) -> &#ty {
                         unsafe {
-                            &*(((self as *const Self) as *const u8).add(#offset) as *const #ty)
+                            &*(((self as *const Self) as *const usize).add(#offset) as *const #ty)
                         }
                     }
 
@@ -486,7 +486,7 @@ fn register_or_cluster_block(
                     #[inline(always)]
                     pub fn #mut_name(&self) -> &mut #ty {
                         unsafe {
-                            &mut *(((self as *const Self) as *mut u8).add(#offset) as *mut #ty)
+                            &mut *(((self as *const Self) as *mut usize).add(#offset) as *mut #ty)
                         }
                     }
                 });
