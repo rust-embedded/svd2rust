@@ -53,7 +53,7 @@ pub fn render(
         unsafe impl Send for #name_pc {}
 
         impl #name_pc {
-            /// Returns a pointer to the register block
+            ///Returns a pointer to the register block
             #[inline(always)]
             pub const fn ptr() -> *const #base::RegisterBlock {
                 #address as *const _
@@ -540,7 +540,7 @@ fn register_or_cluster_block(
     };
 
     Ok(quote! {
-        /// Register block
+        ///Register block
         #[repr(C)]
         pub struct #name {
             #fields
@@ -747,7 +747,7 @@ fn cluster_block(
     Ok(quote! {
         #reg_block
 
-        /// Register block
+        ///Register block
         #[doc = #description]
         pub mod #name_sc {
             #(#mod_items)*

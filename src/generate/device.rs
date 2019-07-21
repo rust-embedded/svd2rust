@@ -90,7 +90,7 @@ pub fn render(
         let bits = util::unsuffixed(u64::from(cpu.nvic_priority_bits));
 
         out.push(quote! {
-            /// Number available in the NVIC for configuring priority
+            ///Number available in the NVIC for configuring priority
             pub const NVIC_PRIO_BITS: u8 = #bits;
         });
 
@@ -173,7 +173,7 @@ pub fn render(
     }
     .map(|krate| {
         quote! {
-            /// Returns all the peripherals *once*
+            ///Returns all the peripherals *once*
             #[inline]
             pub fn take() -> Option<Self> {
                 #krate::interrupt::free(|_| {
@@ -194,7 +194,7 @@ pub fn render(
         #[no_mangle]
         static mut DEVICE_PERIPHERALS: bool = false;
 
-        /// All the peripherals
+        ///All the peripherals
         #[allow(non_snake_case)]
         pub struct Peripherals {
             #(#fields,)*
@@ -203,7 +203,7 @@ pub fn render(
         impl Peripherals {
             #take
 
-            /// Unchecked version of `Peripherals::take`
+            ///Unchecked version of `Peripherals::take`
             pub unsafe fn steal() -> Self {
                 DEVICE_PERIPHERALS = true;
 

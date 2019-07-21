@@ -44,7 +44,7 @@ pub fn render(
 
     if access == Access::ReadWrite || access == Access::ReadWriteOnce {
         reg_impl_items.push(quote! {
-            /// Modifies the contents of the register
+            ///Modifies the contents of the register
             #[inline(always)]
             pub fn modify<F>(&self, f: F)
             where
@@ -58,7 +58,7 @@ pub fn render(
 
     if can_read {
         reg_impl_items.push(quote! {
-            /// Reads the contents of the register
+            ///Reads the contents of the register
             #[inline(always)]
             pub fn read(&self) -> R {
                 R { bits: self.register.get() }
@@ -66,14 +66,14 @@ pub fn render(
         });
 
         mod_items.push(quote! {
-            /// Value read from the register
+            ///Value read from the register
             pub struct R {
                 bits: #rty,
             }
         });
 
         r_impl_items.push(quote! {
-            /// Value of the register as raw bits
+            ///Value of the register as raw bits
             #[inline(always)]
             pub fn bits(&self) -> #rty {
                 self.bits
@@ -83,7 +83,7 @@ pub fn render(
 
     if can_write {
         reg_impl_items.push(quote! {
-            /// Writes to the register
+            ///Writes to the register
             #[inline(always)]
             pub fn write<F>(&self, f: F)
             where
@@ -94,7 +94,7 @@ pub fn render(
         });
 
         mod_items.push(quote! {
-            /// Value to write to the register
+            ///Value to write to the register
             pub struct W {
                 bits: #rty,
             }
@@ -107,12 +107,12 @@ pub fn render(
             .ok_or_else(|| format!("Register {} has no reset value", register.name))?;
 
         reg_impl_items.push(quote! {
-            /// Reset value of the register
+            ///Reset value of the register
             #[inline(always)]
             pub const fn reset_value() -> #rty {
                 #rv
             }
-            /// Writes the reset value to the register
+            ///Writes the reset value to the register
             #[inline(always)]
             pub fn reset(&self) {
                 self.register.set(Self::reset_value())
@@ -120,7 +120,7 @@ pub fn render(
         });
 
         w_impl_items.push(quote! {
-            /// Writes raw bits to the register
+            ///Writes raw bits to the register
             #[inline(always)]
             pub #unsafety fn bits(&mut self, bits: #rty) -> &mut Self {
                 self.bits = bits;
@@ -390,7 +390,7 @@ pub fn fields(
                         .collect::<Vec<_>>();
                     if has_reserved_variant {
                         vars.push(quote! {
-                            /// Reserved
+                            ///Reserved
                             _Reserved(#fty)
                         });
                     }
@@ -423,13 +423,13 @@ pub fn fields(
 
                     if f.width == 1 {
                         enum_items.push(quote! {
-                            /// Returns `true` if the bit is clear (0)
+                            ///Returns `true` if the bit is clear (0)
                             #[inline(always)]
                             pub fn bit_is_clear(&self) -> bool {
                                 !self.#bits()
                             }
 
-                            /// Returns `true` if the bit is set (1)
+                            ///Returns `true` if the bit is set (1)
                             #[inline(always)]
                             pub fn bit_is_set(&self) -> bool {
                                 self.#bits()
@@ -438,7 +438,7 @@ pub fn fields(
                     }
 
                     enum_items.push(quote! {
-                        /// Value of the field as raw bits
+                        ///Value of the field as raw bits
                         #[inline(always)]
                         pub fn #bits(&self) -> #fty {
                             match *self {
@@ -521,7 +521,7 @@ pub fn fields(
 
                 let mut pc_r_impl_items = vec![
                     quote! {
-                        /// Value of the field as raw bits
+                        ///Value of the field as raw bits
                         #[inline(always)]
                         pub fn #bits(&self) -> #fty {
                             self.bits
@@ -531,13 +531,13 @@ pub fn fields(
 
                 if f.width == 1 {
                     pc_r_impl_items.push(quote! {
-                        /// Returns `true` if the bit is clear (0)
+                        ///Returns `true` if the bit is clear (0)
                         #[inline(always)]
                         pub fn bit_is_clear(&self) -> bool {
                             !self.#bits()
                         }
 
-                        /// Returns `true` if the bit is set (1)
+                        ///Returns `true` if the bit is set (1)
                         #[inline(always)]
                         pub fn bit_is_set(&self) -> bool {
                             self.#bits()
@@ -546,7 +546,7 @@ pub fn fields(
                 }
 
                 mod_items.push(quote! {
-                    /// Value of the field
+                    ///Value of the field
                     pub struct #pc_r {
                         bits: #fty,
                     }
@@ -704,7 +704,7 @@ pub fn fields(
                 }
 
                 proxy_items.push(quote! {
-                    /// Writes `variant` to the field
+                    ///Writes `variant` to the field
                     #[inline(always)]
                     pub fn variant(self, variant: #pc_w) -> &'a mut W {
                         #unsafety {
@@ -740,12 +740,12 @@ pub fn fields(
 
             if width == 1 {
                 proxy_items.push(quote! {
-                    /// Sets the field bit
+                    ///Sets the field bit
                     pub #unsafety fn set_bit(self) -> &'a mut W {
                         self.bit(true)
                     }
 
-                    /// Clears the field bit
+                    ///Clears the field bit
                     pub #unsafety fn clear_bit(self) -> &'a mut W {
                         self.bit(false)
                     }
@@ -753,7 +753,7 @@ pub fn fields(
             }
 
             proxy_items.push(quote! {
-                /// Writes raw bits to the field
+                ///Writes raw bits to the field
                 #[inline(always)]
                 pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
                     self.w.bits &= !(#mask << #offset);
@@ -764,7 +764,7 @@ pub fn fields(
 
             let _pc_w = &f._pc_w;
             mod_items.push(quote! {
-                /// Proxy
+                ///Proxy
                 pub struct #_pc_w<'a> {
                     w: &'a mut W,
                 }
