@@ -39,7 +39,10 @@ pub fn render(
     let mut r_impl_items = vec![];
     let mut w_impl_items = vec![];
 
-    if access == Access::ReadWrite {
+    let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access);
+    let can_write = access != Access::ReadOnly;
+
+    if access == Access::ReadWrite || access == Access::ReadWriteOnce {
         reg_impl_items.push(quote! {
             /// Modifies the contents of the register
             #[inline]
@@ -53,7 +56,7 @@ pub fn render(
         });
     }
 
-    if access == Access::ReadOnly || access == Access::ReadWrite {
+    if can_read {
         reg_impl_items.push(quote! {
             /// Reads the contents of the register
             #[inline]
@@ -78,7 +81,7 @@ pub fn render(
         });
     }
 
-    if access == Access::WriteOnly || access == Access::ReadWrite {
+    if can_write {
         reg_impl_items.push(quote! {
             /// Writes to the register
             #[inline]
@@ -157,7 +160,7 @@ pub fn render(
         }
     }
 
-    if access == Access::ReadOnly || access == Access::ReadWrite {
+    if can_read {
         mod_items.push(quote! {
             impl R {
                 #(#r_impl_items)*
@@ -165,7 +168,7 @@ pub fn render(
         });
     }
 
-    if access == Access::WriteOnly || access == Access::ReadWrite {
+    if can_write {
         mod_items.push(quote! {
             impl W {
                 #(#w_impl_items)*
@@ -266,9 +269,9 @@ pub fn fields(
     let fs = fields.iter().map(F::from).collect::<Result<Vec<_>>>()?;
 
     // TODO enumeratedValues
-    if access == Access::ReadOnly || access == Access::ReadWrite {
+    if [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access) {
         for f in &fs {
-            if f.access == Some(Access::WriteOnly) {
+            if f.access == Some(Access::WriteOnly) || f.access == Some(Access::WriteOnce) {
                 continue;
             }
 
@@ -556,7 +559,7 @@ pub fn fields(
         }
     }
 
-    if access == Access::WriteOnly || access == Access::ReadWrite {
+    if access != Access::ReadOnly {
         for f in &fs {
             if f.access == Some(Access::ReadOnly) {
                 continue;
