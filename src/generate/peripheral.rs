@@ -599,10 +599,7 @@ fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
 fn expand_cluster(cluster: &Cluster, defs: &Defaults) -> Result<Vec<RegisterBlockField>> {
     let mut cluster_expanded = vec![];
 
-    let cluster_size = cluster
-        .size
-        .ok_or_else(|| format!("Cluster {} has no explictly defined size", cluster.name))
-        .or_else(|_e| cluster_size_in_bits(cluster, defs))
+    let cluster_size = cluster_size_in_bits(cluster, defs)
         .chain_err(|| format!("Cluster {} has no determinable `size` field", cluster.name))?;
 
     match cluster {
