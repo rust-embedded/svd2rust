@@ -266,11 +266,11 @@ pub trait U32Ext {
 impl U32Ext for u32 {
     fn to_ty(&self) -> Result<Ident> {
         Ok(match *self {
-            1 => Ident::new("bool"),
-            2..=8 => Ident::new("u8"),
-            9..=16 => Ident::new("u16"),
-            17..=32 => Ident::new("u32"),
-            33..=64 => Ident::new("u64"),
+            1 => Ident::from("bool"),
+            2..=8 => Ident::from("u8"),
+            9..=16 => Ident::from("u16"),
+            17..=32 => Ident::from("u32"),
+            33..=64 => Ident::from("u64"),
             _ => Err(format!(
                 "can't convert {} bits into a Rust integral type",
                 *self

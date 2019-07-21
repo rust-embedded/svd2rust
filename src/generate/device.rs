@@ -157,7 +157,7 @@ pub fn render(
         }
 
         let p = p.name.to_sanitized_upper_case();
-        let id = Ident::new(&*p);
+        let id = Ident::from(&*p);
         fields.push(quote! {
             #[doc = #p]
             pub #id: #id
@@ -166,9 +166,9 @@ pub fn render(
     }
 
     let take = match target {
-        Target::CortexM => Some(Ident::new("cortex_m")),
-        Target::Msp430 => Some(Ident::new("msp430")),
-        Target::RISCV => Some(Ident::new("riscv")),
+        Target::CortexM => Some(Ident::from("cortex_m")),
+        Target::Msp430 => Some(Ident::from("msp430")),
+        Target::RISCV => Some(Ident::from("riscv")),
         Target::None => None,
     }
     .map(|krate| {
