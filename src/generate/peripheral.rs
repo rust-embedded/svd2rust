@@ -54,7 +54,8 @@ pub fn render(
 
         impl #name_pc {
             /// Returns a pointer to the register block
-            pub fn ptr() -> *const #base::RegisterBlock {
+            #[inline(always)]
+            pub const fn ptr() -> *const #base::RegisterBlock {
                 #address as *const _
             }
         }

@@ -45,7 +45,7 @@ pub fn render(
     if access == Access::ReadWrite || access == Access::ReadWriteOnce {
         reg_impl_items.push(quote! {
             /// Modifies the contents of the register
-            #[inline]
+            #[inline(always)]
             pub fn modify<F>(&self, f: F)
             where
                 for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W
@@ -59,7 +59,7 @@ pub fn render(
     if can_read {
         reg_impl_items.push(quote! {
             /// Reads the contents of the register
-            #[inline]
+            #[inline(always)]
             pub fn read(&self) -> R {
                 R { bits: self.register.get() }
             }
@@ -74,7 +74,7 @@ pub fn render(
 
         r_impl_items.push(quote! {
             /// Value of the register as raw bits
-            #[inline]
+            #[inline(always)]
             pub fn bits(&self) -> #rty {
                 self.bits
             }
@@ -84,7 +84,7 @@ pub fn render(
     if can_write {
         reg_impl_items.push(quote! {
             /// Writes to the register
-            #[inline]
+            #[inline(always)]
             pub fn write<F>(&self, f: F)
             where
                 F: FnOnce(&mut W) -> &mut W
@@ -108,12 +108,12 @@ pub fn render(
 
         reg_impl_items.push(quote! {
             /// Reset value of the register
-            #[inline]
+            #[inline(always)]
             pub const fn reset_value() -> #rty {
                 #rv
             }
             /// Writes the reset value to the register
-            #[inline]
+            #[inline(always)]
             pub fn reset(&self) {
                 self.register.set(Self::reset_value())
             }
@@ -121,7 +121,7 @@ pub fn render(
 
         w_impl_items.push(quote! {
             /// Writes raw bits to the register
-            #[inline]
+            #[inline(always)]
             pub #unsafety fn bits(&mut self, bits: #rty) -> &mut Self {
                 self.bits = bits;
                 self
@@ -368,7 +368,7 @@ pub fn fields(
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
                     #[doc = #description]
-                    #[inline]
+                    #[inline(always)]
                     pub fn #sc(&self) -> #pc_r {
                         #pc_r::_from( #value )
                     }
@@ -424,13 +424,13 @@ pub fn fields(
                     if f.width == 1 {
                         enum_items.push(quote! {
                             /// Returns `true` if the bit is clear (0)
-                            #[inline]
+                            #[inline(always)]
                             pub fn bit_is_clear(&self) -> bool {
                                 !self.#bits()
                             }
 
                             /// Returns `true` if the bit is set (1)
-                            #[inline]
+                            #[inline(always)]
                             pub fn bit_is_set(&self) -> bool {
                                 self.#bits()
                             }
@@ -439,7 +439,7 @@ pub fn fields(
 
                     enum_items.push(quote! {
                         /// Value of the field as raw bits
-                        #[inline]
+                        #[inline(always)]
                         pub fn #bits(&self) -> #fty {
                             match *self {
                                 #(#arms),*
@@ -472,7 +472,7 @@ pub fn fields(
                     enum_items.push(quote! {
                         #[allow(missing_docs)]
                         #[doc(hidden)]
-                        #[inline]
+                        #[inline(always)]
                         pub fn _from(value: #fty) -> #pc_r {
                             match value {
                                 #(#arms),*,
@@ -493,7 +493,7 @@ pub fn fields(
                         let doc = format!("Checks if the value of the field is `{}`", pc);
                         enum_items.push(quote! {
                             #[doc = #doc]
-                            #[inline]
+                            #[inline(always)]
                             pub fn #is_variant(&self) -> bool {
                                 *self == #pc_r::#pc
                             }
@@ -512,7 +512,7 @@ pub fn fields(
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
                     #[doc = #description]
-                    #[inline]
+                    #[inline(always)]
                     pub fn #sc(&self) -> #pc_r {
                         let bits = #value;
                         #pc_r { bits }
@@ -522,7 +522,7 @@ pub fn fields(
                 let mut pc_r_impl_items = vec![
                     quote! {
                         /// Value of the field as raw bits
-                        #[inline]
+                        #[inline(always)]
                         pub fn #bits(&self) -> #fty {
                             self.bits
                         }
@@ -532,13 +532,13 @@ pub fn fields(
                 if f.width == 1 {
                     pc_r_impl_items.push(quote! {
                         /// Returns `true` if the bit is clear (0)
-                        #[inline]
+                        #[inline(always)]
                         pub fn bit_is_clear(&self) -> bool {
                             !self.#bits()
                         }
 
                         /// Returns `true` if the bit is set (1)
-                        #[inline]
+                        #[inline(always)]
                         pub fn bit_is_set(&self) -> bool {
                             self.#bits()
                         }
@@ -693,7 +693,7 @@ pub fn fields(
                         impl #pc_w {
                             #[allow(missing_docs)]
                             #[doc(hidden)]
-                            #[inline]
+                            #[inline(always)]
                             pub fn _bits(&self) -> #fty {
                                 match *self {
                                     #(#arms),*
@@ -705,7 +705,7 @@ pub fn fields(
 
                 proxy_items.push(quote! {
                     /// Writes `variant` to the field
-                    #[inline]
+                    #[inline(always)]
                     pub fn variant(self, variant: #pc_w) -> &'a mut W {
                         #unsafety {
                             self.#bits(variant._bits())
@@ -721,7 +721,7 @@ pub fn fields(
                     if let Some(enum_) = base_pc_w.as_ref() {
                         proxy_items.push(quote! {
                             #[doc = #doc]
-                            #[inline]
+                            #[inline(always)]
                             pub fn #sc(self) -> &'a mut W {
                                 self.variant(#enum_::#pc)
                             }
@@ -729,7 +729,7 @@ pub fn fields(
                     } else {
                         proxy_items.push(quote! {
                             #[doc = #doc]
-                            #[inline]
+                            #[inline(always)]
                             pub fn #sc(self) -> &'a mut W {
                                 self.variant(#pc_w::#pc)
                             }
@@ -754,7 +754,7 @@ pub fn fields(
 
             proxy_items.push(quote! {
                 /// Writes raw bits to the field
-                #[inline]
+                #[inline(always)]
                 pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
                     self.w.bits &= !(#mask << #offset);
                     self.w.bits |= ((value as #rty) & #mask) << #offset;
@@ -778,7 +778,7 @@ pub fn fields(
             let sc = &f.sc;
             w_impl_items.push(quote! {
                 #[doc = #description]
-                #[inline]
+                #[inline(always)]
                 pub fn #sc(&mut self) -> #_pc_w {
                     #_pc_w { w: self }
                 }
