@@ -6,7 +6,7 @@ use crate::errors::*;
 use crate::util::{self, ToSanitizedUpperCase};
 use crate::Target;
 
-use crate::generate::{interrupt, peripheral};
+use crate::generate::{interrupt, peripheral, generic};
 
 /// Whole device generation
 pub fn render(
@@ -42,7 +42,7 @@ pub fn render(
 
     out.push(quote! {
         #![doc = #doc]
-        #![deny(missing_docs)]
+        //#![deny(missing_docs)]
         #![deny(warnings)]
         #![allow(non_camel_case_types)]
         #![no_std]
@@ -81,6 +81,8 @@ pub fn render(
 
         use core::ops::Deref;
         use core::marker::PhantomData;
+        #[allow(unused_imports)]
+        use generic::*;
     });
 
     // Retaining the previous assumption
@@ -109,6 +111,13 @@ pub fn render(
             "CBP", "CPUID", "DCB", "DWT", "FPB", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU",
         ]
     };
+
+    match target {
+        Target::CortexM => out.extend(generic::render(&[8, 16, 32])?),
+        Target::Msp430 => out.extend(generic::render(&[8, 16])?),
+        Target::RISCV => out.extend(generic::render(&[32, 64])?),
+        _ => out.extend(generic::render(&[8, 16, 32, 64])?),
+    }
 
     let mut fields = vec![];
     let mut exprs = vec![];

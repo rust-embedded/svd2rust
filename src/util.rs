@@ -231,16 +231,6 @@ pub fn hex(n: u32) -> Tokens {
     t
 }
 
-pub fn hex_or_bool(n: u32, width: u32) -> Tokens {
-    if width == 1 {
-        let mut t = Tokens::new();
-        t.append(if n == 0 { "false" } else { "true" });
-        t
-    } else {
-        hex(n)
-    }
-}
-
 /// Turns `n` into an unsuffixed token
 pub fn unsuffixed(n: u64) -> Tokens {
     let mut t = Tokens::new();
