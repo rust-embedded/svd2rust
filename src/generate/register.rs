@@ -16,8 +16,8 @@ pub fn render(
 ) -> Result<Vec<Tokens>> {
     let access = util::access_of(register);
     let name = util::name_of(register);
-    let name_pc = Ident::new(&*name.to_sanitized_upper_case());
-    let name_sc = Ident::new(&*name.to_sanitized_snake_case());
+    let name_pc = Ident::from(&*name.to_sanitized_upper_case());
+    let name_sc = Ident::from(&*name.to_sanitized_snake_case());
     let rsize = register
         .size
         .or(defs.size)
@@ -228,14 +228,14 @@ pub fn fields(
             let BitRange { offset, width, range_type: _ } = f.bit_range;
             let sc = f.name.to_sanitized_snake_case();
             let pc = f.name.to_sanitized_upper_case();
-            let pc_r = Ident::new(&*format!("{}R", pc));
-            let pc_w = Ident::new(&*format!("{}W", pc));
-            let _pc_w = Ident::new(&*format!("_{}W", pc));
-            let _sc = Ident::new(&*format!("_{}", sc));
+            let pc_r = Ident::from(&*format!("{}R", pc));
+            let pc_w = Ident::from(&*format!("{}W", pc));
+            let _pc_w = Ident::from(&*format!("_{}W", pc));
+            let _sc = Ident::from(&*format!("_{}", sc));
             let bits = if width == 1 {
-                Ident::new("bit")
+                Ident::from("bit")
             } else {
-                Ident::new("bits")
+                Ident::from("bits")
             };
             let mut description = if width == 1 {
                 format!("Bit {}", offset)
@@ -256,7 +256,7 @@ pub fn fields(
                 width,
                 access: f.access,
                 evs: &f.enumerated_values,
-                sc: Ident::new(&*sc),
+                sc: Ident::from(&*sc),
                 mask: util::hex((((1 as u64) << width) - 1) as u32),
                 name: &f.name,
                 offset: util::unsuffixed(u64::from(f.bit_range.offset)),
@@ -312,7 +312,7 @@ pub fn fields(
                     .filter(|field| field.name.to_lowercase() != "reserved")
                     .map(|ev| {
                         let sc =
-                            Ident::new(&*ev.name.to_sanitized_snake_case());
+                            Ident::from(&*ev.name.to_sanitized_snake_case());
                         let description = ev.description
                             .as_ref()
                             .map(|s| &**s)
@@ -325,7 +325,7 @@ pub fn fields(
                         Ok(Variant {
                             description,
                             sc,
-                            pc: Ident::new(&*ev.name
+                            pc: Ident::from(&*ev.name
                                            .to_sanitized_upper_case()),
                             value,
                         })
@@ -335,14 +335,14 @@ pub fn fields(
                 let pc_r = &f.pc_r;
                 if let Some(base) = &base {
                     let pc = base.field.to_sanitized_upper_case();
-                    let base_pc_r = Ident::new(&*format!("{}R", pc));
+                    let base_pc_r = Ident::from(&*format!("{}R", pc));
                     let desc = format!("Possible values of the field `{}`", f.name,);
 
                     if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
                         let pmod_ = peripheral.to_sanitized_snake_case();
                         let rmod_ = register.to_sanitized_snake_case();
-                        let pmod_ = Ident::new(&*pmod_);
-                        let rmod_ = Ident::new(&*rmod_);
+                        let pmod_ = Ident::from(&*pmod_);
+                        let rmod_ = Ident::from(&*rmod_);
 
                         mod_items.push(quote! {
                             #[doc = #desc]
@@ -350,7 +350,7 @@ pub fn fields(
                         });
                     } else if let Some(register) = &base.register {
                         let mod_ = register.to_sanitized_snake_case();
-                        let mod_ = Ident::new(&*mod_);
+                        let mod_ = Ident::from(&*mod_);
 
                         mod_items.push(quote! {
                             #[doc = #desc]
@@ -485,9 +485,9 @@ pub fn fields(
                         let sc = &v.sc;
 
                         let is_variant = if sc.as_ref().starts_with('_') {
-                            Ident::new(&*format!("is{}", sc))
+                            Ident::from(&*format!("is{}", sc))
                         } else {
-                            Ident::new(&*format!("is_{}", sc))
+                            Ident::from(&*format!("is_{}", sc))
                         };
 
                         let doc = format!("Checks if the value of the field is `{}`", pc);
@@ -595,13 +595,13 @@ pub fn fields(
 
                 let base_pc_w = base.as_ref().map(|base| {
                     let pc = base.field.to_sanitized_upper_case();
-                    let base_pc_w = Ident::new(&*format!("{}W", pc));
+                    let base_pc_w = Ident::from(&*format!("{}W", pc));
 
                     if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
                         let pmod_ = peripheral.to_sanitized_snake_case();
                         let rmod_ = register.to_sanitized_snake_case();
-                        let pmod_ = Ident::new(&*pmod_);
-                        let rmod_ = Ident::new(&*rmod_);
+                        let pmod_ = Ident::from(&*pmod_);
+                        let rmod_ = Ident::from(&*rmod_);
 
                         mod_items.push(quote! {
                             #[doc = #pc_w_doc]
@@ -614,7 +614,7 @@ pub fn fields(
                         }
                     } else if let Some(register) = &base.register {
                         let mod_ = register.to_sanitized_snake_case();
-                        let mod_ = Ident::new(&*mod_);
+                        let mod_ = Ident::from(&*mod_);
 
                         mod_items.push(quote! {
                             #[doc = #pc_w_doc]
@@ -654,9 +654,9 @@ pub fn fields(
                                 .unwrap_or_else(|| {
                                     format!("`{:b}`", value)
                                 }),
-                            pc: Ident::new(&*ev.name
+                            pc: Ident::from(&*ev.name
                                            .to_sanitized_upper_case()),
-                            sc: Ident::new(&*ev.name
+                            sc: Ident::from(&*ev.name
                                            .to_sanitized_snake_case()),
                             value,
                         })
@@ -804,7 +804,7 @@ fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Id
             // if a writeConstraint exists then respect it
             None
         }
-        _ => Some(Ident::new("unsafe")),
+        _ => Some(Ident::from("unsafe")),
     }
 }
 

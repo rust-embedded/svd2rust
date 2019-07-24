@@ -42,7 +42,7 @@ pub fn render(
         }
         pos += 1;
 
-        let name_uc = Ident::new(interrupt.name.to_sanitized_upper_case());
+        let name_uc = Ident::from(interrupt.name.to_sanitized_upper_case());
         let description = format!(
             "{} - {}",
             interrupt.value,

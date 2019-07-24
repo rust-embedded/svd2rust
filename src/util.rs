@@ -220,13 +220,13 @@ pub fn hex(n: u32) -> Tokens {
     let mut t = Tokens::new();
     let (h2, h1) = ((n >> 16) & 0xffff, n & 0xffff);
     t.append(if h2 != 0 {
-        format!("0x{:04x}_{:04x}", h2, h1)
+        Ident::from(format!("0x{:04x}_{:04x}", h2, h1))
     } else if h1 & 0xff00 != 0 {
-        format!("0x{:04x}", h1)
+        Ident::from(format!("0x{:04x}", h1))
     } else if h1 != 0 {
-        format!("0x{:02x}", h1 & 0xff)
+        Ident::from(format!("0x{:02x}", h1 & 0xff))
     } else {
-        String::from("0")
+        Ident::from("0")
     });
     t
 }
@@ -234,7 +234,7 @@ pub fn hex(n: u32) -> Tokens {
 pub fn hex_or_bool(n: u32, width: u32) -> Tokens {
     if width == 1 {
         let mut t = Tokens::new();
-        t.append(if n == 0 { "false" } else { "true" });
+        t.append(Ident::from(if n == 0 { "false" } else { "true" }));
         t
     } else {
         hex(n)
@@ -244,14 +244,14 @@ pub fn hex_or_bool(n: u32, width: u32) -> Tokens {
 /// Turns `n` into an unsuffixed token
 pub fn unsuffixed(n: u64) -> Tokens {
     let mut t = Tokens::new();
-    t.append(format!("{}", n));
+    t.append(Ident::from(format!("{}", n)));
     t
 }
 
 pub fn unsuffixed_or_bool(n: u64, width: u32) -> Tokens {
     if width == 1 {
         let mut t = Tokens::new();
-        t.append(if n == 0 { "false" } else { "true" });
+        t.append(Ident::from(if n == 0 { "false" } else { "true" }));
         t
     } else {
         unsuffixed(n)
@@ -266,11 +266,11 @@ pub trait U32Ext {
 impl U32Ext for u32 {
     fn to_ty(&self) -> Result<Ident> {
         Ok(match *self {
-            1 => Ident::new("bool"),
-            2..=8 => Ident::new("u8"),
-            9..=16 => Ident::new("u16"),
-            17..=32 => Ident::new("u32"),
-            33..=64 => Ident::new("u64"),
+            1 => Ident::from("bool"),
+            2..=8 => Ident::from("u8"),
+            9..=16 => Ident::from("u16"),
+            17..=32 => Ident::from("u32"),
+            33..=64 => Ident::from("u64"),
             _ => Err(format!(
                 "can't convert {} bits into a Rust integral type",
                 *self
