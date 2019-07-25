@@ -16,8 +16,8 @@ pub fn render(
 ) -> Result<Vec<Tokens>> {
     let access = util::access_of(register);
     let name = util::name_of(register);
-    let name_pc = Ident::new(&*name.to_sanitized_upper_case());
-    let name_sc = Ident::new(&*name.to_sanitized_snake_case());
+    let name_pc = Ident::from(&*name.to_sanitized_upper_case());
+    let name_sc = Ident::from(&*name.to_sanitized_snake_case());
     let rsize = register
         .size
         .or(defs.size)
@@ -44,7 +44,7 @@ pub fn render(
 
     if access == Access::ReadWrite || access == Access::ReadWriteOnce {
         reg_impl_items.push(quote! {
-            /// Modifies the contents of the register
+            ///Modifies the contents of the register
             #[inline(always)]
             pub fn modify<F>(&self, f: F)
             where
@@ -58,7 +58,7 @@ pub fn render(
 
     if can_read {
         reg_impl_items.push(quote! {
-            /// Reads the contents of the register
+            ///Reads the contents of the register
             #[inline(always)]
             pub fn read(&self) -> R {
                 R { bits: self.register.get() }
@@ -66,14 +66,14 @@ pub fn render(
         });
 
         mod_items.push(quote! {
-            /// Value read from the register
+            ///Value read from the register
             pub struct R {
                 bits: #rty,
             }
         });
 
         r_impl_items.push(quote! {
-            /// Value of the register as raw bits
+            ///Value of the register as raw bits
             #[inline(always)]
             pub fn bits(&self) -> #rty {
                 self.bits
@@ -83,7 +83,7 @@ pub fn render(
 
     if can_write {
         reg_impl_items.push(quote! {
-            /// Writes to the register
+            ///Writes to the register
             #[inline(always)]
             pub fn write<F>(&self, f: F)
             where
@@ -94,7 +94,7 @@ pub fn render(
         });
 
         mod_items.push(quote! {
-            /// Value to write to the register
+            ///Value to write to the register
             pub struct W {
                 bits: #rty,
             }
@@ -107,12 +107,12 @@ pub fn render(
             .ok_or_else(|| format!("Register {} has no reset value", register.name))?;
 
         reg_impl_items.push(quote! {
-            /// Reset value of the register
+            ///Reset value of the register
             #[inline(always)]
             pub const fn reset_value() -> #rty {
                 #rv
             }
-            /// Writes the reset value to the register
+            ///Writes the reset value to the register
             #[inline(always)]
             pub fn reset(&self) {
                 self.register.set(Self::reset_value())
@@ -120,7 +120,7 @@ pub fn render(
         });
 
         w_impl_items.push(quote! {
-            /// Writes raw bits to the register
+            ///Writes raw bits to the register
             #[inline(always)]
             pub #unsafety fn bits(&mut self, bits: #rty) -> &mut Self {
                 self.bits = bits;
@@ -228,14 +228,14 @@ pub fn fields(
             let BitRange { offset, width, range_type: _ } = f.bit_range;
             let sc = f.name.to_sanitized_snake_case();
             let pc = f.name.to_sanitized_upper_case();
-            let pc_r = Ident::new(&*format!("{}R", pc));
-            let pc_w = Ident::new(&*format!("{}W", pc));
-            let _pc_w = Ident::new(&*format!("_{}W", pc));
-            let _sc = Ident::new(&*format!("_{}", sc));
+            let pc_r = Ident::from(&*format!("{}R", pc));
+            let pc_w = Ident::from(&*format!("{}W", pc));
+            let _pc_w = Ident::from(&*format!("_{}W", pc));
+            let _sc = Ident::from(&*format!("_{}", sc));
             let bits = if width == 1 {
-                Ident::new("bit")
+                Ident::from("bit")
             } else {
-                Ident::new("bits")
+                Ident::from("bits")
             };
             let mut description = if width == 1 {
                 format!("Bit {}", offset)
@@ -256,7 +256,7 @@ pub fn fields(
                 width,
                 access: f.access,
                 evs: &f.enumerated_values,
-                sc: Ident::new(&*sc),
+                sc: Ident::from(&*sc),
                 mask: util::hex((((1 as u64) << width) - 1) as u32),
                 name: &f.name,
                 offset: util::unsuffixed(u64::from(f.bit_range.offset)),
@@ -306,14 +306,14 @@ pub fn fields(
                 let pc_r = &f.pc_r;
                 if let Some(base) = &base {
                     let pc = base.field.to_sanitized_upper_case();
-                    let base_pc_r = Ident::new(&*format!("{}R", pc));
+                    let base_pc_r = Ident::from(&*format!("{}R", pc));
                     let desc = format!("Possible values of the field `{}`", f.name,);
 
                     if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
                         let pmod_ = peripheral.to_sanitized_snake_case();
                         let rmod_ = register.to_sanitized_snake_case();
-                        let pmod_ = Ident::new(&*pmod_);
-                        let rmod_ = Ident::new(&*rmod_);
+                        let pmod_ = Ident::from(&*pmod_);
+                        let rmod_ = Ident::from(&*rmod_);
 
                         mod_items.push(quote! {
                             #[doc = #desc]
@@ -321,7 +321,7 @@ pub fn fields(
                         });
                     } else if let Some(register) = &base.register {
                         let mod_ = register.to_sanitized_snake_case();
-                        let mod_ = Ident::new(&*mod_);
+                        let mod_ = Ident::from(&*mod_);
 
                         mod_items.push(quote! {
                             #[doc = #desc]
@@ -361,7 +361,7 @@ pub fn fields(
                         .collect::<Vec<_>>();
                     if has_reserved_variant {
                         vars.push(quote! {
-                            /// Reserved
+                            ///Reserved
                             _Reserved(#fty)
                         });
                     }
@@ -394,13 +394,13 @@ pub fn fields(
 
                     if f.width == 1 {
                         enum_items.push(quote! {
-                            /// Returns `true` if the bit is clear (0)
+                            ///Returns `true` if the bit is clear (0)
                             #[inline(always)]
                             pub fn bit_is_clear(&self) -> bool {
                                 !self.#bits()
                             }
 
-                            /// Returns `true` if the bit is set (1)
+                            ///Returns `true` if the bit is set (1)
                             #[inline(always)]
                             pub fn bit_is_set(&self) -> bool {
                                 self.#bits()
@@ -409,7 +409,7 @@ pub fn fields(
                     }
 
                     enum_items.push(quote! {
-                        /// Value of the field as raw bits
+                        ///Value of the field as raw bits
                         #[inline(always)]
                         pub fn #bits(&self) -> #fty {
                             match *self {
@@ -456,9 +456,9 @@ pub fn fields(
                         let sc = &v.sc;
 
                         let is_variant = if sc.as_ref().starts_with('_') {
-                            Ident::new(&*format!("is{}", sc))
+                            Ident::from(&*format!("is{}", sc))
                         } else {
-                            Ident::new(&*format!("is_{}", sc))
+                            Ident::from(&*format!("is_{}", sc))
                         };
 
                         let doc = format!("Checks if the value of the field is `{}`", pc);
@@ -492,7 +492,7 @@ pub fn fields(
 
                 let mut pc_r_impl_items = vec![
                     quote! {
-                        /// Value of the field as raw bits
+                        ///Value of the field as raw bits
                         #[inline(always)]
                         pub fn #bits(&self) -> #fty {
                             self.bits
@@ -502,13 +502,13 @@ pub fn fields(
 
                 if f.width == 1 {
                     pc_r_impl_items.push(quote! {
-                        /// Returns `true` if the bit is clear (0)
+                        ///Returns `true` if the bit is clear (0)
                         #[inline(always)]
                         pub fn bit_is_clear(&self) -> bool {
                             !self.#bits()
                         }
 
-                        /// Returns `true` if the bit is set (1)
+                        ///Returns `true` if the bit is set (1)
                         #[inline(always)]
                         pub fn bit_is_set(&self) -> bool {
                             self.#bits()
@@ -517,7 +517,7 @@ pub fn fields(
                 }
 
                 mod_items.push(quote! {
-                    /// Value of the field
+                    ///Value of the field
                     pub struct #pc_r {
                         bits: #fty,
                     }
@@ -546,13 +546,13 @@ pub fn fields(
 
                 let base_pc_w = base.as_ref().map(|base| {
                     let pc = base.field.to_sanitized_upper_case();
-                    let base_pc_w = Ident::new(&*format!("{}W", pc));
+                    let base_pc_w = Ident::from(&*format!("{}W", pc));
 
                     if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
                         let pmod_ = peripheral.to_sanitized_snake_case();
                         let rmod_ = register.to_sanitized_snake_case();
-                        let pmod_ = Ident::new(&*pmod_);
-                        let rmod_ = Ident::new(&*rmod_);
+                        let pmod_ = Ident::from(&*pmod_);
+                        let rmod_ = Ident::from(&*rmod_);
 
                         mod_items.push(quote! {
                             #[doc = #pc_w_doc]
@@ -565,7 +565,7 @@ pub fn fields(
                         }
                     } else if let Some(register) = &base.register {
                         let mod_ = register.to_sanitized_snake_case();
-                        let mod_ = Ident::new(&*mod_);
+                        let mod_ = Ident::from(&*mod_);
 
                         mod_items.push(quote! {
                             #[doc = #pc_w_doc]
@@ -624,7 +624,7 @@ pub fn fields(
                 }
 
                 proxy_items.push(quote! {
-                    /// Writes `variant` to the field
+                    ///Writes `variant` to the field
                     #[inline(always)]
                     pub fn variant(self, variant: #pc_w) -> &'a mut W {
                         #unsafety {
@@ -660,12 +660,12 @@ pub fn fields(
 
             if width == 1 {
                 proxy_items.push(quote! {
-                    /// Sets the field bit
+                    ///Sets the field bit
                     pub #unsafety fn set_bit(self) -> &'a mut W {
                         self.bit(true)
                     }
 
-                    /// Clears the field bit
+                    ///Clears the field bit
                     pub #unsafety fn clear_bit(self) -> &'a mut W {
                         self.bit(false)
                     }
@@ -673,7 +673,7 @@ pub fn fields(
             }
 
             proxy_items.push(quote! {
-                /// Writes raw bits to the field
+                ///Writes raw bits to the field
                 #[inline(always)]
                 pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
                     self.w.bits &= !(#mask << #offset);
@@ -684,7 +684,7 @@ pub fn fields(
 
             let _pc_w = &f._pc_w;
             mod_items.push(quote! {
-                /// Proxy
+                ///Proxy
                 pub struct #_pc_w<'a> {
                     w: &'a mut W,
                 }
@@ -724,7 +724,7 @@ fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Id
             // if a writeConstraint exists then respect it
             None
         }
-        _ => Some(Ident::new("unsafe")),
+        _ => Some(Ident::from("unsafe")),
     }
 }
 
@@ -754,15 +754,15 @@ impl Variant {
                         .unwrap_or_else(|| {
                             format!("`{:b}`", value)
                         }),
-                    pc: Ident::new(&*ev.name
+                    pc: Ident::from(&*ev.name
                                    .to_sanitized_upper_case()),
-                    sc: Ident::new(&*ev.name
+                    sc: Ident::from(&*ev.name
                                    .to_sanitized_snake_case()),
                     value,
                 })
                 },
             )
-            .collect::<Result<Vec<_>>>()
+            .collect::<Result<Vec<_>>>()?;
     }
 }
 

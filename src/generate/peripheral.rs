@@ -33,14 +33,14 @@ pub fn render(
         return Ok(out);
     }
 
-    let name_pc = Ident::new(&*p.name.to_sanitized_upper_case());
+    let name_pc = Ident::from(&*p.name.to_sanitized_upper_case());
     let address = util::hex(p.base_address);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
     let derive_regs = p_derivedfrom.is_some() && p_original.registers.is_none();
 
-    let name_sc = Ident::new(&*p.name.to_sanitized_snake_case());
+    let name_sc = Ident::from(&*p.name.to_sanitized_snake_case());
     let base = if derive_regs {
-        Ident::new(&*p_derivedfrom.unwrap().name.to_sanitized_snake_case())
+        Ident::from(&*p_derivedfrom.unwrap().name.to_sanitized_snake_case())
     } else {
         name_sc.clone()
     };
@@ -53,7 +53,7 @@ pub fn render(
         unsafe impl Send for #name_pc {}
 
         impl #name_pc {
-            /// Returns a pointer to the register block
+            ///Returns a pointer to the register block
             #[inline(always)]
             pub const fn ptr() -> *const #base::RegisterBlock {
                 #address as *const _
@@ -63,7 +63,7 @@ pub fn render(
         impl Deref for #name_pc {
             type Target = #base::RegisterBlock;
 
-            fn deref(&self) -> &#base::RegisterBlock {
+            fn deref(&self) -> &Self::Target {
                 unsafe { &*#name_pc::ptr() }
             }
         }
@@ -450,7 +450,7 @@ fn register_or_cluster_block(
         // Check if we need padding
         let pad = region.offset - last_end;
         if pad != 0 {
-            let name = Ident::new(format!("_reserved{}", i));
+            let name = Ident::from(format!("_reserved{}", i));
             let pad = pad as usize;
             fields.append(quote! {
                 #name : [u8; #pad],
@@ -469,7 +469,7 @@ fn register_or_cluster_block(
 
             if is_region_a_union {
                 let name = &reg_block_field.field.ident;
-                let mut_name = Ident::new(format!("{}_mut", name.as_ref().unwrap()));
+                let mut_name = Ident::from(format!("{}_mut", name.as_ref().unwrap()));
                 let ty = &reg_block_field.field.ty;
                 let offset = reg_block_field.offset as usize;
                 have_accessors = true;
@@ -496,7 +496,7 @@ fn register_or_cluster_block(
                 });
 
                 reg_block_field.field.to_tokens(&mut region_fields);
-                Ident::new(",").to_tokens(&mut region_fields);
+                Ident::from(",").to_tokens(&mut region_fields);
             }
         }
 
@@ -515,7 +515,7 @@ fn register_or_cluster_block(
             // name, along with the region number, falling back to
             // the offset and end in case we couldn't figure out a
             // nice identifier.
-            let name = Ident::new(format!("_reserved_{}_{}", i, region.compute_ident().unwrap_or_else(|| format!("{}_{}", region.offset, region.end))));
+            let name = Ident::from(format!("_reserved_{}_{}", i, region.compute_ident().unwrap_or_else(|| format!("{}_{}", region.offset, region.end))));
             let pad = (region.end - region.offset) as usize;
             fields.append(quote! {
                 #name: [u8; #pad],
@@ -524,7 +524,7 @@ fn register_or_cluster_block(
         last_end = region.end;
     }
 
-    let name = Ident::new(match name {
+    let name = Ident::from(match name {
         Some(name) => name.to_sanitized_upper_case(),
         None => "RegisterBlock".into(),
     });
@@ -540,7 +540,7 @@ fn register_or_cluster_block(
     };
 
     Ok(quote! {
-        /// Register block
+        ///Register block
         #[repr(C)]
         pub struct #name {
             #fields
@@ -723,7 +723,7 @@ fn cluster_block(
     }
     .replace("[%s]", "")
     .replace("%s", "");
-    let name_sc = Ident::new(&*mod_name.to_sanitized_snake_case());
+    let name_sc = Ident::from(&*mod_name.to_sanitized_snake_case());
     let reg_block = register_or_cluster_block(&c.children, defaults, Some(&mod_name), nightly)?;
 
     // Generate definition for each of the registers.
@@ -747,7 +747,7 @@ fn cluster_block(
     Ok(quote! {
         #reg_block
 
-        /// Register block
+        ///Register block
         #[doc = #description]
         pub mod #name_sc {
             #(#mod_items)*
@@ -775,7 +775,7 @@ fn expand_svd_register(register: &Register, name: Option<&str>) -> Vec<syn::Fiel
             syn::Path {
                 global: false,
                 segments: vec![syn::PathSegment {
-                    ident: Ident::new(ident),
+                    ident: Ident::from(ident),
                     parameters: syn::PathParameters::none(),
                 }],
             },
@@ -814,7 +814,7 @@ fn expand_svd_register(register: &Register, name: Option<&str>) -> Vec<syn::Fiel
                     info.name.replace("%s", "")
                 };
 
-                let ident = Ident::new(nb_name.to_sanitized_snake_case());
+                let ident = Ident::from(nb_name.to_sanitized_snake_case());
                 let ty = name_to_ty(&ty_name, name);
 
                 out.push(syn::Field {
@@ -848,7 +848,7 @@ fn convert_svd_register(register: &Register, name: Option<&str>) -> syn::Field {
             syn::Path {
                 global: false,
                 segments: vec![syn::PathSegment {
-                    ident: Ident::new(ident),
+                    ident: Ident::from(ident),
                     parameters: syn::PathParameters::none(),
                 }],
             },
@@ -857,7 +857,7 @@ fn convert_svd_register(register: &Register, name: Option<&str>) -> syn::Field {
 
     match register {
         Register::Single(info) => syn::Field {
-            ident: Some(Ident::new(info.name.to_sanitized_snake_case())),
+            ident: Some(Ident::from(info.name.to_sanitized_snake_case())),
             vis: syn::Visibility::Public,
             attrs: vec![],
             ty: name_to_ty(&info.name, name),
@@ -871,7 +871,7 @@ fn convert_svd_register(register: &Register, name: Option<&str>) -> syn::Field {
                 info.name.replace("%s", "")
             };
 
-            let ident = Ident::new(nb_name.to_sanitized_snake_case());
+            let ident = Ident::from(nb_name.to_sanitized_snake_case());
 
             let ty = syn::Ty::Array(
                 Box::new(name_to_ty(&nb_name, name)),
@@ -900,7 +900,7 @@ fn expand_svd_cluster(cluster: &Cluster) -> Vec<syn::Field> {
             syn::Path {
                 global: false,
                 segments: vec![syn::PathSegment {
-                    ident: Ident::new(name.to_sanitized_upper_case()),
+                    ident: Ident::from(name.to_sanitized_upper_case()),
                     parameters: syn::PathParameters::none(),
                 }],
             },
@@ -939,7 +939,7 @@ fn expand_svd_cluster(cluster: &Cluster) -> Vec<syn::Field> {
                     info.name.replace("%s", "")
                 };
 
-                let ident = Ident::new(name.to_sanitized_snake_case());
+                let ident = Ident::from(name.to_sanitized_snake_case());
                 let ty = name_to_ty(&ty_name);
 
                 out.push(syn::Field {
@@ -962,7 +962,7 @@ fn convert_svd_cluster(cluster: &Cluster) -> syn::Field {
             syn::Path {
                 global: false,
                 segments: vec![syn::PathSegment {
-                    ident: Ident::new(name.to_sanitized_upper_case()),
+                    ident: Ident::from(name.to_sanitized_upper_case()),
                     parameters: syn::PathParameters::none(),
                 }],
             },
@@ -971,7 +971,7 @@ fn convert_svd_cluster(cluster: &Cluster) -> syn::Field {
 
     match cluster {
         Cluster::Single(info) => syn::Field {
-            ident: Some(Ident::new(info.name.to_sanitized_snake_case())),
+            ident: Some(Ident::from(info.name.to_sanitized_snake_case())),
             vis: syn::Visibility::Public,
             attrs: vec![],
             ty: name_to_ty(&info.name),
@@ -985,7 +985,7 @@ fn convert_svd_cluster(cluster: &Cluster) -> syn::Field {
                 info.name.replace("%s", "")
             };
 
-            let ident = Ident::new(name.to_sanitized_snake_case());
+            let ident = Ident::from(name.to_sanitized_snake_case());
 
             let ty = syn::Ty::Array(
                 Box::new(name_to_ty(&name)),

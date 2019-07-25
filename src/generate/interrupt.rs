@@ -42,7 +42,7 @@ pub fn render(
         }
         pos += 1;
 
-        let name_uc = Ident::new(interrupt.name.to_sanitized_upper_case());
+        let name_uc = Ident::from(interrupt.name.to_sanitized_upper_case());
         let description = format!(
             "{} - {}",
             interrupt.value,
@@ -153,7 +153,7 @@ pub fn render(
     }
 
     let interrupt_enum = quote! {
-        /// Enumeration of all the interrupts
+        ///Enumeration of all the interrupts
         #[derive(Copy, Clone, Debug)]
         pub enum Interrupt {
             #(#variants)*
