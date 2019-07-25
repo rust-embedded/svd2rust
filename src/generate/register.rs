@@ -762,7 +762,7 @@ impl Variant {
                 })
                 },
             )
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>()
     }
 }
 
