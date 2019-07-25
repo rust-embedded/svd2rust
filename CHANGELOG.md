@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.15.0] - 2019-07-25
+
+- Logging system was introduced by `log` crate.
+
+- `svd2rust` can be used as library.
+
+- `derive_from` now can be used for registers.
+
+- [breaking-change] for access to alternate registers functions now used
+  instead of untagged_unions (no more nightly `features`)
+
+- generated code now more compact and compilation faster
+
+- `reset_value` now public const method of register structure
+
+- `Clone`, `Copy`, `Debug`, `PartialEq` implemented for read/write enums
+
 ## [v0.14.0] - 2018-12-07
 
 ### Added
@@ -405,7 +422,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.15.0...HEAD
+[v0.15.0]: https://github.com/rust-embedded/svd2rust/compare/v0.14.0...v0.15.0
 [v0.14.0]: https://github.com/rust-embedded/svd2rust/compare/v0.13.1...v0.14.0
 [v0.13.1]: https://github.com/rust-embedded/svd2rust/compare/v0.13.0...v0.13.1
 [v0.13.0]: https://github.com/rust-embedded/svd2rust/compare/v0.12.1...v0.13.0
