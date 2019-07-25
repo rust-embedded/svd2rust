@@ -269,16 +269,27 @@ pub fn fields(
     let fs = fields.iter().map(F::from).collect::<Result<Vec<_>>>()?;
 
     // TODO enumeratedValues
-    if [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access) {
-        for f in &fs {
-            if f.access == Some(Access::WriteOnly) || f.access == Some(Access::WriteOnce) {
-                continue;
-            }
+    for f in &fs {
+        let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access) &&
+            (f.access != Some(Access::WriteOnly)) &&
+            (f.access != Some(Access::WriteOnce));
+        let can_write = (access != Access::ReadOnly) && (f.access != Some(Access::ReadOnly));
 
-            let bits = &f.bits;
-            let mask = &f.mask;
-            let offset = &f.offset;
-            let fty = &f.ty;
+        let bits = &f.bits;
+        let mask = &f.mask;
+        let offset = &f.offset;
+        let fty = &f.ty;
+
+        let lookup_results = lookup(
+            &f.evs,
+            fields,
+            parent,
+            all_registers,
+            peripheral,
+            all_peripherals,
+        )?;
+
+        if can_read {
             let cast = if f.width == 1 {
                 quote! { != 0 }
             } else {
@@ -288,49 +299,9 @@ pub fn fields(
                 ((self.bits >> #offset) & #mask) #cast
             };
 
-            if let Some((evs, base)) = lookup(
-                f.evs,
-                fields,
-                parent,
-                all_registers,
-                peripheral,
-                all_peripherals,
-                Usage::Read,
-            )? {
-                struct Variant<'a> {
-                    description: &'a str,
-                    pc: Ident,
-                    sc: Ident,
-                    value: u64,
-                }
-
+            if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
                 let has_reserved_variant = evs.values.len() != (1 << f.width);
-                let variants = evs.values
-                    .iter()
-                    // filter out all reserved variants, as we should not
-                    // generate code for them
-                    .filter(|field| field.name.to_lowercase() != "reserved")
-                    .map(|ev| {
-                        let sc =
-                            Ident::from(&*ev.name.to_sanitized_snake_case());
-                        let description = ev.description
-                            .as_ref()
-                            .map(|s| &**s)
-                            .unwrap_or("undocumented");
-
-                        let value = u64(ev.value.ok_or_else(|| {
-                            format!("EnumeratedValue {} has no <value> field",
-                                    ev.name)
-                        })?);
-                        Ok(Variant {
-                            description,
-                            sc,
-                            pc: Ident::from(&*ev.name
-                                           .to_sanitized_upper_case()),
-                            value,
-                        })
-                    })
-                    .collect::<Result<Vec<_>>>()?;
+                let variants = Variant::from_enumerated_values(evs)?;
 
                 let pc_r = &f.pc_r;
                 if let Some(base) = &base {
@@ -380,7 +351,7 @@ pub fn fields(
                     let mut vars = variants
                         .iter()
                         .map(|v| {
-                            let desc = util::escape_brackets(&v.description);
+                            let desc = util::escape_brackets(&v.doc);
                             let pc = &v.pc;
                             quote! {
                                 #[doc = #desc]
@@ -557,39 +528,19 @@ pub fn fields(
                 });
             }
         }
-    }
 
-    if access != Access::ReadOnly {
-        for f in &fs {
-            if f.access == Some(Access::ReadOnly) {
-                continue;
-            }
-
+        if can_write {
             let mut proxy_items = vec![];
 
             let mut unsafety = unsafety(f.write_constraint, f.width);
-            let bits = &f.bits;
-            let fty = &f.ty;
-            let offset = &f.offset;
-            let mask = &f.mask;
             let width = f.width;
 
-            if let Some((evs, base)) = lookup(
-                &f.evs,
-                fields,
-                parent,
-                all_registers,
-                peripheral,
-                all_peripherals,
-                Usage::Write,
-            )? {
-                struct Variant {
-                    doc: String,
-                    pc: Ident,
-                    sc: Ident,
-                    value: u64,
-                }
+            if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Write) {
+                let variants = Variant::from_enumerated_values(evs)?;
 
+                if variants.len() == 1 << f.width {
+                    unsafety = None;
+                }
                 let pc_w = &f.pc_w;
                 let pc_w_doc = format!("Values that can be written to the field `{}`", f.name);
 
@@ -636,37 +587,6 @@ pub fn fields(
                         }
                     }
                 });
-
-                let variants = evs.values
-                    .iter()
-                    // filter out all reserved variants, as we should not
-                    // generate code for them
-                    .filter(|field| field.name.to_lowercase() != "reserved")
-                    .map(
-                        |ev| {
-                            let value = u64(ev.value.ok_or_else(|| {
-                            format!("EnumeratedValue {} has no `<value>` field",
-                                    ev.name)})?);
-
-                            Ok(Variant {
-                            doc: ev.description
-                                .clone()
-                                .unwrap_or_else(|| {
-                                    format!("`{:b}`", value)
-                                }),
-                            pc: Ident::from(&*ev.name
-                                           .to_sanitized_upper_case()),
-                            sc: Ident::from(&*ev.name
-                                           .to_sanitized_snake_case()),
-                            value,
-                        })
-                        },
-                    )
-                    .collect::<Result<Vec<_>>>()?;
-
-                if variants.len() == 1 << f.width {
-                    unsafety = None;
-                }
 
                 if base.is_none() {
                     let variants_pc = variants.iter().map(|v| &v.pc);
@@ -808,6 +728,44 @@ fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Id
     }
 }
 
+struct Variant {
+    doc: String,
+    pc: Ident,
+    sc: Ident,
+    value: u64,
+}
+
+impl Variant {
+    fn from_enumerated_values(evs: &EnumeratedValues) -> Result<Vec<Self>> {
+        evs.values
+            .iter()
+            // filter out all reserved variants, as we should not
+            // generate code for them
+            .filter(|field| field.name.to_lowercase() != "reserved")
+            .map(
+                |ev| {
+                    let value = u64(ev.value.ok_or_else(|| {
+                    format!("EnumeratedValue {} has no `<value>` field",
+                            ev.name)})?);
+
+                    Ok(Variant {
+                    doc: ev.description
+                        .clone()
+                        .unwrap_or_else(|| {
+                            format!("`{:b}`", value)
+                        }),
+                    pc: Ident::from(&*ev.name
+                                   .to_sanitized_upper_case()),
+                    sc: Ident::from(&*ev.name
+                                   .to_sanitized_snake_case()),
+                    value,
+                })
+                },
+            )
+            .collect::<Result<Vec<_>>>()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Base<'a> {
     pub peripheral: Option<&'a str>,
@@ -822,8 +780,7 @@ fn lookup<'a>(
     all_registers: &'a [&'a Register],
     peripheral: &'a Peripheral,
     all_peripherals: &'a [Peripheral],
-    usage: Usage,
-) -> Result<Option<(&'a EnumeratedValues, Option<Base<'a>>)>> {
+) -> Result<Vec<(&'a EnumeratedValues, Option<Base<'a>>)>> {
     let evs = evs.iter()
         .map(|evs| {
             if let Some(base) = &evs.derived_from {
@@ -864,13 +821,17 @@ fn lookup<'a>(
         })
         .collect::<Result<Vec<_>>>()?;
 
+    Ok(evs)
+}
+
+fn lookup_filter<'a> (evs: &Vec<(&'a EnumeratedValues, Option<Base<'a>>)>, usage: Usage) -> Option<(&'a EnumeratedValues, Option<Base<'a>>)> {
     for (evs, base) in evs.iter() {
         if evs.usage == Some(usage) {
-            return Ok(Some((*evs, base.clone())));
+            return Some((*evs, base.clone()));
         }
     }
 
-    Ok(evs.first().cloned())
+    evs.first().cloned()
 }
 
 fn lookup_in_fields<'f>(
