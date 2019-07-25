@@ -17,6 +17,7 @@ pub fn render(
     let access = util::access_of(register);
     let name = util::name_of(register);
     let name_pc = Ident::from(&*name.to_sanitized_upper_case());
+    let _name_pc = Ident::from(format!("_{}", &*name.to_sanitized_upper_case()));
     let name_sc = Ident::from(&*name.to_sanitized_snake_case());
     let rsize = register
         .size
@@ -32,108 +33,40 @@ pub fn render(
     let rty = rsize.to_ty()?;
     let description = util::escape_brackets(util::respace(&register.description.clone().unwrap()).as_ref());
 
-    let unsafety = unsafety(register.write_constraint.as_ref(), rsize);
+    let unsafety = unsafety_marker(register.write_constraint.as_ref(), rsize);
 
     let mut mod_items = vec![];
-    let mut reg_impl_items = vec![];
     let mut r_impl_items = vec![];
     let mut w_impl_items = vec![];
 
     let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access);
     let can_write = access != Access::ReadOnly;
 
-    if access == Access::ReadWrite || access == Access::ReadWriteOnce {
-        reg_impl_items.push(quote! {
-            ///Modifies the contents of the register
-            #[inline(always)]
-            pub fn modify<F>(&self, f: F)
-            where
-                for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W
-            {
-                let bits = self.register.get();
-                self.register.set(f(&R { bits }, &mut W { bits }).bits);
-            }
-        });
-    }
-
     if can_read {
-        reg_impl_items.push(quote! {
-            ///Reads the contents of the register
-            #[inline(always)]
-            pub fn read(&self) -> R {
-                R { bits: self.register.get() }
-            }
-        });
-
+        let desc = format!("Reader for register {}", register.name);
         mod_items.push(quote! {
-            ///Value read from the register
-            pub struct R {
-                bits: #rty,
-            }
-        });
-
-        r_impl_items.push(quote! {
-            ///Value of the register as raw bits
-            #[inline(always)]
-            pub fn bits(&self) -> #rty {
-                self.bits
-            }
+            #[doc = #desc]
+            pub type R = crate::R<#rty, super::#_name_pc>;
         });
     }
 
     if can_write {
-        reg_impl_items.push(quote! {
-            ///Writes to the register
-            #[inline(always)]
-            pub fn write<F>(&self, f: F)
-            where
-                F: FnOnce(&mut W) -> &mut W
-            {
-                self.register.set(f(&mut W { bits: Self::reset_value() }).bits);
-            }
-        });
-
-        mod_items.push(quote! {
-            ///Value to write to the register
-            pub struct W {
-                bits: #rty,
-            }
-        });
-
         let rv = register
             .reset_value
             .or(defs.reset_value)
             .map(util::hex)
             .ok_or_else(|| format!("Register {} has no reset value", register.name))?;
 
-        reg_impl_items.push(quote! {
-            ///Reset value of the register
-            #[inline(always)]
-            pub const fn reset_value() -> #rty {
-                #rv
-            }
-            ///Writes the reset value to the register
-            #[inline(always)]
-            pub fn reset(&self) {
-                self.register.set(Self::reset_value())
-            }
-        });
-
-        w_impl_items.push(quote! {
-            ///Writes raw bits to the register
-            #[inline(always)]
-            pub #unsafety fn bits(&mut self, bits: #rty) -> &mut Self {
-                self.bits = bits;
-                self
+        let desc = format!("Writer for register {}", register.name);
+        mod_items.push(quote! {
+            #[doc = #desc]
+            pub type W = crate::W<#rty, super::#_name_pc, crate::#unsafety>;
+            impl crate::ResetValue<#rty> for super::#name_pc {
+                #[inline(always)]
+                fn reset_value() -> #rty { #rv }
             }
         });
     }
-
-    mod_items.push(quote! {
-        impl super::#name_pc {
-            #(#reg_impl_items)*
-        }
-    });
 
     if let Some(cur_fields) = register.fields.as_ref() {
         // filter out all reserved fields, as we should not generate code for
@@ -179,8 +112,32 @@ pub fn render(
     let mut out = vec![];
     out.push(quote! {
         #[doc = #description]
-        pub struct #name_pc {
+        pub type #name_pc = crate::Reg<#_name_pc>;
+
+        #[allow(missing_docs)]
+        pub struct #_name_pc {
             register: vcell::VolatileCell<#rty>
+        }
+    });
+
+    if can_read {
+        out.push(quote! {
+            impl crate::Readable for #_name_pc {}
+        });
+    }
+    if can_write {
+        out.push(quote! {
+            impl crate::Writable for #_name_pc {}
+        });
+    }
+
+    out.push(quote! {
+        impl core::ops::Deref for #_name_pc {
+            type Target = vcell::VolatileCell<#rty>;
+            #[inline(always)]
+            fn deref(&self) -> &Self::Target {
+                &self.register
+            }
         }
 
         #[doc = #description]
@@ -296,7 +253,7 @@ pub fn fields(
                 quote! { as #fty }
             };
             let value = quote! {
-                ((self.bits >> #offset) & #mask) #cast
+                ((self.bits() >> #offset) & #mask) #cast
             };
 
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
@@ -726,6 +683,25 @@ fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Id
         }
         _ => Some(Ident::from("unsafe")),
     }
+}
+
+fn unsafety_marker(write_constraint: Option<&WriteConstraint>, width: u32) -> Ident {
+    Ident::new(match &write_constraint {
+        Some(&WriteConstraint::Range(range))
+            if u64::from(range.min) == 0 && u64::from(range.max) == (1u64 << width) - 1 =>
+        {
+            // the SVD has acknowledged that it's safe to write
+            // any value that can fit in the field
+            "Safe"
+        }
+        None if width == 1 => {
+            // the field is one bit wide, so we assume it's legal to write
+            // either value into it or it wouldn't exist; despite that
+            // if a writeConstraint exists then respect it
+            "Safe"
+        }
+        _ => "Unsafe",
+    })
 }
 
 struct Variant {
