@@ -1,6 +1,9 @@
 [package]
 edition = "2018"
-authors = ["Jorge Aparicio <jorge@japaric.io>"]
+authors = [
+    "The ToolsTeam <tools@teams.rust-embedded.org>",
+    "Jorge Aparicio <jorge@japaric.io>",
+]
 build = "build.rs"
 categories = [
     "command-line-utilities",
@@ -9,7 +12,7 @@ categories = [
     "no-std",
 ]
 description = "Generate Rust register maps (`struct`s) from SVD files"
-documentation = "https://github.com/japaric/svd2rust#svd2rust"
+documentation = "https://docs.rs/svd2rust"
 keywords = [
     "arm",
     "cortex-m",
@@ -19,8 +22,9 @@ keywords = [
 ]
 license = "MIT OR Apache-2.0"
 name = "svd2rust"
-repository = "https://github.com/japaric/svd2rust"
+repository = "https://github.com/rust-embedded/svd2rust/"
 version = "0.15.0"
+readme = "README.md"
 
 [[bin]]
 doc = false
