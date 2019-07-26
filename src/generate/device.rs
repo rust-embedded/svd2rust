@@ -138,7 +138,7 @@ pub fn render(
 
     match target {
         Target::CortexM => out.extend(generic::render(&[8, 16, 32])?),
-        Target::Msp430 => out.extend(generic::render(&[8, 16])?),
+        Target::Msp430 => out.extend(generic::render(&[8, 16, 32])?),
         Target::RISCV => out.extend(generic::render(&[32, 64])?),
         _ => out.extend(generic::render(&[8, 16, 32, 64])?),
     }
