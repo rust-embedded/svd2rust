@@ -418,10 +418,7 @@
 //! ## the `--nightly` flag
 //!
 //! The `--nightly` flag can be passed to `svd2rust` to enable features in the generated api that are only available to a nightly
-//! compiler. These features are
-//!
-//! - `#[feature(untagged_unions)]` for overlapping/overloaded registers
-
+//! compiler. Currently there are no nightly features the flag is only kept for compatibility with prior versions.
 #![recursion_limit = "128"]
 
 #[macro_use]
