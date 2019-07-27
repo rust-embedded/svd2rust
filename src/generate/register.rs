@@ -535,6 +535,9 @@ pub fn fields(
             let mut unsafety = unsafety(f.write_constraint, f.width);
             let width = f.width;
 
+            let _pc_w = &f._pc_w;
+            let mut derived = false;
+
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Write) {
                 let variants = Variant::from_enumerated_values(evs)?;
 
@@ -547,6 +550,7 @@ pub fn fields(
                 let base_pc_w = base.as_ref().map(|base| {
                     let pc = base.field.to_sanitized_upper_case();
                     let base_pc_w = Ident::from(&*format!("{}W", pc));
+                    let _base_pc_w = Ident::from(&*format!("_{}W", pc));
 
                     if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
                         let pmod_ = peripheral.to_sanitized_snake_case();
@@ -577,9 +581,10 @@ pub fn fields(
                             super::#mod_::#base_pc_w
                         }
                     } else {
+                        derived = true;
                         mod_items.push(quote! {
-                            #[doc = #pc_w_doc]
-                            pub type #pc_w = #base_pc_w;
+                            ///Proxy
+                            pub type #_pc_w<'a> = #_base_pc_w<'a>;
                         });
 
                         quote! {
@@ -623,78 +628,82 @@ pub fn fields(
                     });
                 }
 
-                proxy_items.push(quote! {
-                    ///Writes `variant` to the field
-                    #[inline(always)]
-                    pub fn variant(self, variant: #pc_w) -> &'a mut W {
-                        #unsafety {
-                            self.#bits(variant._bits())
+                if !derived {
+                    proxy_items.push(quote! {
+                        ///Writes `variant` to the field
+                        #[inline(always)]
+                        pub fn variant(self, variant: #pc_w) -> &'a mut W {
+                            #unsafety {
+                                self.#bits(variant._bits())
+                            }
+                        }
+                    });
+
+                    for v in &variants {
+                        let pc = &v.pc;
+                        let sc = &v.sc;
+
+                        let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
+                        if let Some(enum_) = base_pc_w.as_ref() {
+                            proxy_items.push(quote! {
+                                #[doc = #doc]
+                                #[inline(always)]
+                                pub fn #sc(self) -> &'a mut W {
+                                    self.variant(#enum_::#pc)
+                                }
+                            });
+                        } else {
+                            proxy_items.push(quote! {
+                                #[doc = #doc]
+                                #[inline(always)]
+                                pub fn #sc(self) -> &'a mut W {
+                                    self.variant(#pc_w::#pc)
+                                }
+                            });
                         }
                     }
-                });
-
-                for v in &variants {
-                    let pc = &v.pc;
-                    let sc = &v.sc;
-
-                    let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
-                    if let Some(enum_) = base_pc_w.as_ref() {
-                        proxy_items.push(quote! {
-                            #[doc = #doc]
-                            #[inline(always)]
-                            pub fn #sc(self) -> &'a mut W {
-                                self.variant(#enum_::#pc)
-                            }
-                        });
-                    } else {
-                        proxy_items.push(quote! {
-                            #[doc = #doc]
-                            #[inline(always)]
-                            pub fn #sc(self) -> &'a mut W {
-                                self.variant(#pc_w::#pc)
-                            }
-                        });
-                    }
                 }
             }
 
-            if width == 1 {
+            if !derived {
+                if width == 1 {
+                    proxy_items.push(quote! {
+                        ///Sets the field bit
+                        #[inline(always)]
+                        pub #unsafety fn set_bit(self) -> &'a mut W {
+                            self.bit(true)
+                        }
+
+                        ///Clears the field bit
+                        #[inline(always)]
+                        pub #unsafety fn clear_bit(self) -> &'a mut W {
+                            self.bit(false)
+                        }
+                    });
+                }
+
                 proxy_items.push(quote! {
-                    ///Sets the field bit
+                    ///Writes raw bits to the field
                     #[inline(always)]
-                    pub #unsafety fn set_bit(self) -> &'a mut W {
-                        self.bit(true)
+                    pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
+                        self.w.bits &= !(#mask << self.o);
+                        self.w.bits |= ((value as #rty) & #mask) << self.o;
+                        self.w
+                    }
+                });
+
+                mod_items.push(quote! {
+                    ///Proxy
+                    pub struct #_pc_w<'a> {
+                        w: &'a mut W,
+                        o: u8,
                     }
 
-                    ///Clears the field bit
-                    #[inline(always)]
-                    pub #unsafety fn clear_bit(self) -> &'a mut W {
-                        self.bit(false)
+                    impl<'a> #_pc_w<'a> {
+                        #(#proxy_items)*
                     }
                 });
             }
-
-            proxy_items.push(quote! {
-                ///Writes raw bits to the field
-                #[inline(always)]
-                pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                    self.w.bits &= !(#mask << #offset);
-                    self.w.bits |= ((value as #rty) & #mask) << #offset;
-                    self.w
-                }
-            });
-
-            let _pc_w = &f._pc_w;
-            mod_items.push(quote! {
-                ///Proxy
-                pub struct #_pc_w<'a> {
-                    w: &'a mut W,
-                }
-
-                impl<'a> #_pc_w<'a> {
-                    #(#proxy_items)*
-                }
-            });
 
             let description = &util::escape_brackets(&f.description);
             let sc = &f.sc;
@@ -702,7 +711,7 @@ pub fn fields(
                 #[doc = #description]
                 #[inline(always)]
                 pub fn #sc(&mut self) -> #_pc_w {
-                    #_pc_w { w: self }
+                    #_pc_w { w: self, o: #offset }
                 }
             })
         }
