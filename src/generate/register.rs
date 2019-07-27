@@ -103,7 +103,7 @@ pub fn render(
         let rv = register
             .reset_value
             .or(defs.reset_value)
-            .map(util::hex)
+            .map(|v| util::hex(v as u64))
             .ok_or_else(|| format!("Register {} has no reset value", register.name))?;
 
         reg_impl_items.push(quote! {
@@ -257,7 +257,7 @@ pub fn fields(
                 access: f.access,
                 evs: &f.enumerated_values,
                 sc: Ident::from(&*sc),
-                mask: util::hex((((1 as u64) << width) - 1) as u32),
+                mask: util::hex(1u64.wrapping_neg() >> (64-width)),
                 name: &f.name,
                 offset: util::unsuffixed(u64::from(f.bit_range.offset)),
                 ty: width.to_ty()?,
@@ -378,7 +378,7 @@ pub fn fields(
                     let mut arms = variants
                         .iter()
                         .map(|v| {
-                            let value = util::hex_or_bool(v.value as u32, f.width);
+                            let value = util::hex_or_bool(v.value as u64, f.width);
                             let pc = &v.pc;
 
                             quote! {
@@ -714,7 +714,7 @@ pub fn fields(
 fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Ident> {
     match &write_constraint {
         Some(&WriteConstraint::Range(range))
-            if u64::from(range.min) == 0 && u64::from(range.max) == (1u64 << width) - 1 =>
+            if u64::from(range.min) == 0 && u64::from(range.max) == 1u64.wrapping_neg() >> (64-width) =>
         {
             // the SVD has acknowledged that it's safe to write
             // any value that can fit in the field

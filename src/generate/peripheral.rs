@@ -34,7 +34,7 @@ pub fn render(
     }
 
     let name_pc = Ident::from(&*p.name.to_sanitized_upper_case());
-    let address = util::hex(p.base_address);
+    let address = util::hex(p.base_address as u64);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
     let derive_regs = p_derivedfrom.is_some() && p_original.registers.is_none();
 
@@ -600,7 +600,11 @@ fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
 fn expand_cluster(cluster: &Cluster, defs: &Defaults) -> Result<Vec<RegisterBlockField>> {
     let mut cluster_expanded = vec![];
 
-    let cluster_size = cluster_size_in_bits(cluster, defs)
+    let reg_size = cluster.size.or(defs.size);
+    let mut defs = defs.clone();
+    defs.size = reg_size;
+
+    let cluster_size = cluster_size_in_bits(cluster, &defs)
         .chain_err(|| format!("Cluster {} has no determinable `size` field", cluster.name))?;
 
     match cluster {
@@ -724,7 +728,12 @@ fn cluster_block(
     .replace("[%s]", "")
     .replace("%s", "");
     let name_sc = Ident::from(&*mod_name.to_sanitized_snake_case());
-    let reg_block = register_or_cluster_block(&c.children, defaults, Some(&mod_name), nightly)?;
+
+    let reg_size = c.size.or(defaults.size);
+    let mut defaults = defaults.clone();
+    defaults.size = reg_size;
+
+    let reg_block = register_or_cluster_block(&c.children, &defaults, Some(&mod_name), nightly)?;
 
     // Generate definition for each of the registers.
     let registers = util::only_registers(&c.children);
@@ -734,14 +743,14 @@ fn cluster_block(
             &registers,
             p,
             all_peripherals,
-            defaults,
+            &defaults,
         )?);
     }
 
     // Generate the sub-cluster blocks.
     let clusters = util::only_clusters(&c.children);
     for c in &clusters {
-        mod_items.push(cluster_block(c, defaults, p, all_peripherals, nightly)?);
+        mod_items.push(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
     }
 
     Ok(quote! {

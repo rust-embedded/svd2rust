@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Correct handling of cluster size tag
+
+- Support of 64-bit fields
+
 ## [v0.15.0] - 2019-07-25
 
 - Logging system was introduced by `log` crate.
