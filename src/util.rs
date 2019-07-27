@@ -216,10 +216,14 @@ pub fn access_of(register: &Register) -> Access {
 }
 
 /// Turns `n` into an unsuffixed separated hex token
-pub fn hex(n: u32) -> Tokens {
+pub fn hex(n: u64) -> Tokens {
     let mut t = Tokens::new();
-    let (h2, h1) = ((n >> 16) & 0xffff, n & 0xffff);
-    t.append(if h2 != 0 {
+    let (h4, h3, h2, h1) = ((n >> 48) & 0xffff, (n >> 32) & 0xffff, (n >> 16) & 0xffff, n & 0xffff);
+    t.append(if h4 != 0 {
+        Ident::from(format!("0x{:04x}_{:04x}_{:04x}_{:04x}", h4, h3, h2, h1))
+    } else if h3 != 0 {
+        Ident::from(format!("0x{:04x}_{:04x}_{:04x}", h3, h2, h1))
+    } else if h2 != 0 {
         Ident::from(format!("0x{:04x}_{:04x}", h2, h1))
     } else if h1 & 0xff00 != 0 {
         Ident::from(format!("0x{:04x}", h1))
@@ -231,7 +235,7 @@ pub fn hex(n: u32) -> Tokens {
     t
 }
 
-pub fn hex_or_bool(n: u32, width: u32) -> Tokens {
+pub fn hex_or_bool(n: u64, width: u32) -> Tokens {
     if width == 1 {
         let mut t = Tokens::new();
         t.append(Ident::from(if n == 0 { "false" } else { "true" }));
