@@ -1,7 +1,9 @@
+use crate::svd::{
+    Access, BitRange, Defaults, EnumeratedValues, Field, Peripheral, Register, RegisterCluster,
+    Usage, WriteConstraint,
+};
 use cast::u64;
 use quote::Tokens;
-use crate::svd::{Access, BitRange, Defaults, EnumeratedValues, Field, Peripheral, Register,
-          RegisterCluster, Usage, WriteConstraint};
 use syn::Ident;
 
 use crate::errors::*;
@@ -30,7 +32,8 @@ pub fn render(
         rsize.next_power_of_two()
     };
     let rty = rsize.to_ty()?;
-    let description = util::escape_brackets(util::respace(&register.description.clone().unwrap()).as_ref());
+    let description =
+        util::escape_brackets(util::respace(&register.description.clone().unwrap()).as_ref());
 
     let unsafety = unsafety(register.write_constraint.as_ref(), rsize);
 
@@ -129,10 +132,21 @@ pub fn render(
         });
     }
 
+    let open = Ident::from("{");
+    let close = Ident::from("}");
+
     mod_items.push(quote! {
-        impl super::#name_pc {
-            #(#reg_impl_items)*
-        }
+        impl super::#name_pc #open
+    });
+
+    for item in reg_impl_items {
+        mod_items.push(quote! {
+            #item
+        });
+    }
+
+    mod_items.push(quote! {
+       #close
     });
 
     if let Some(cur_fields) = register.fields.as_ref() {
@@ -160,19 +174,38 @@ pub fn render(
         }
     }
 
+    let open = Ident::from("{");
+    let close = Ident::from("}");
+
     if can_read {
         mod_items.push(quote! {
-            impl R {
-                #(#r_impl_items)*
-            }
+            impl R #open
+        });
+
+        for item in r_impl_items {
+            mod_items.push(quote! {
+                #item
+            });
+        }
+
+        mod_items.push(quote! {
+            #close
         });
     }
 
     if can_write {
         mod_items.push(quote! {
-            impl W {
-                #(#w_impl_items)*
-            }
+            impl W #open
+        });
+
+        for item in w_impl_items {
+            mod_items.push(quote! {
+                #item
+            });
+        }
+
+        mod_items.push(quote! {
+            #close
         });
     }
 
@@ -184,9 +217,17 @@ pub fn render(
         }
 
         #[doc = #description]
-        pub mod #name_sc {
-            #(#mod_items)*
-        }
+        pub mod #name_sc #open
+    });
+
+    for item in mod_items {
+        out.push(quote! {
+            #item
+        });
+    }
+
+    out.push(quote! {
+        #close
     });
 
     Ok(out)
@@ -225,7 +266,11 @@ pub fn fields(
     impl<'a> F<'a> {
         fn from(f: &'a Field) -> Result<Self> {
             // TODO(AJM) - do we need to do anything with this range type?
-            let BitRange { offset, width, range_type: _ } = f.bit_range;
+            let BitRange {
+                offset,
+                width,
+                range_type: _,
+            } = f.bit_range;
             let sc = f.name.to_sanitized_snake_case();
             let pc = f.name.to_sanitized_upper_case();
             let pc_r = Ident::from(&*format!("{}R", pc));
@@ -270,9 +315,10 @@ pub fn fields(
 
     // TODO enumeratedValues
     for f in &fs {
-        let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access) &&
-            (f.access != Some(Access::WriteOnly)) &&
-            (f.access != Some(Access::WriteOnce));
+        let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite]
+            .contains(&access)
+            && (f.access != Some(Access::WriteOnly))
+            && (f.access != Some(Access::WriteOnce));
         let can_write = (access != Access::ReadOnly) && (f.access != Some(Access::ReadOnly));
 
         let bits = &f.bits;
@@ -490,15 +536,13 @@ pub fn fields(
                     }
                 });
 
-                let mut pc_r_impl_items = vec![
-                    quote! {
-                        ///Value of the field as raw bits
-                        #[inline(always)]
-                        pub fn #bits(&self) -> #fty {
-                            self.bits
-                        }
-                    },
-                ];
+                let mut pc_r_impl_items = vec![quote! {
+                    ///Value of the field as raw bits
+                    #[inline(always)]
+                    pub fn #bits(&self) -> #fty {
+                        self.bits
+                    }
+                }];
 
                 if f.width == 1 {
                     pc_r_impl_items.push(quote! {
@@ -590,7 +634,9 @@ pub fn fields(
 
                 if base.is_none() {
                     let variants_pc = variants.iter().map(|v| &v.pc);
-                    let variants_doc = variants.iter().map(|v| util::escape_brackets(&v.doc).to_owned());
+                    let variants_doc = variants
+                        .iter()
+                        .map(|v| util::escape_brackets(&v.doc).to_owned());
                     mod_items.push(quote! {
                         #[doc = #pc_w_doc]
                         #[derive(Clone, Copy, Debug, PartialEq)]
@@ -744,26 +790,21 @@ impl Variant {
             // filter out all reserved variants, as we should not
             // generate code for them
             .filter(|field| field.name.to_lowercase() != "reserved")
-            .map(
-                |ev| {
-                    let value = u64(ev.value.ok_or_else(|| {
-                    format!("EnumeratedValue {} has no `<value>` field",
-                            ev.name)})?);
+            .map(|ev| {
+                let value = u64(ev.value.ok_or_else(|| {
+                    format!("EnumeratedValue {} has no `<value>` field", ev.name)
+                })?);
 
-                    Ok(Variant {
-                    doc: ev.description
+                Ok(Variant {
+                    doc: ev
+                        .description
                         .clone()
-                        .unwrap_or_else(|| {
-                            format!("`{:b}`", value)
-                        }),
-                    pc: Ident::from(&*ev.name
-                                   .to_sanitized_upper_case()),
-                    sc: Ident::from(&*ev.name
-                                   .to_sanitized_snake_case()),
+                        .unwrap_or_else(|| format!("`{:b}`", value)),
+                    pc: Ident::from(&*ev.name.to_sanitized_upper_case()),
+                    sc: Ident::from(&*ev.name.to_sanitized_snake_case()),
                     value,
                 })
-                },
-            )
+            })
             .collect::<Result<Vec<_>>>()
     }
 }
@@ -783,7 +824,8 @@ fn lookup<'a>(
     peripheral: &'a Peripheral,
     all_peripherals: &'a [Peripheral],
 ) -> Result<Vec<(&'a EnumeratedValues, Option<Base<'a>>)>> {
-    let evs = evs.iter()
+    let evs = evs
+        .iter()
         .map(|evs| {
             if let Some(base) = &evs.derived_from {
                 let mut parts = base.split('.');
@@ -826,7 +868,10 @@ fn lookup<'a>(
     Ok(evs)
 }
 
-fn lookup_filter<'a> (evs: &Vec<(&'a EnumeratedValues, Option<Base<'a>>)>, usage: Usage) -> Option<(&'a EnumeratedValues, Option<Base<'a>>)> {
+fn lookup_filter<'a>(
+    evs: &Vec<(&'a EnumeratedValues, Option<Base<'a>>)>,
+    usage: Usage,
+) -> Option<(&'a EnumeratedValues, Option<Base<'a>>)> {
     for (evs, base) in evs.iter() {
         if evs.usage == Some(usage) {
             return Some((*evs, base.clone()));
@@ -916,7 +961,8 @@ fn lookup_in_register<'r>(
     let mut matches = vec![];
 
     for f in register.fields.as_ref().map(|v| &**v).unwrap_or(&[]) {
-        if let Some(evs) = f.enumerated_values
+        if let Some(evs) = f
+            .enumerated_values
             .iter()
             .find(|evs| evs.name.as_ref().map(|s| &**s) == Some(base_evs))
         {
@@ -929,26 +975,25 @@ fn lookup_in_register<'r>(
             "EnumeratedValues {} not found in register {}",
             base_evs, register.name
         ))?,
-        Some(&(evs, field)) => if matches.len() == 1 {
-            Ok((
-                evs,
-                Some(Base {
-                    field,
-                    register: None,
-                    peripheral: None,
-                }),
-            ))
-        } else {
-            let fields = matches
-                .iter()
-                .map(|(f, _)| &f.name)
-                .collect::<Vec<_>>();
-            Err(format!(
-                "Fields {:?} have an \
-                 enumeratedValues named {}",
-                fields, base_evs
-            ))?
-        },
+        Some(&(evs, field)) => {
+            if matches.len() == 1 {
+                Ok((
+                    evs,
+                    Some(Base {
+                        field,
+                        register: None,
+                        peripheral: None,
+                    }),
+                ))
+            } else {
+                let fields = matches.iter().map(|(f, _)| &f.name).collect::<Vec<_>>();
+                Err(format!(
+                    "Fields {:?} have an \
+                     enumeratedValues named {}",
+                    fields, base_evs
+                ))?
+            }
+        }
     }
 }
 

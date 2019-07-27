@@ -185,11 +185,23 @@ pub fn render(
 
     let description =
         util::escape_brackets(util::respace(p.description.as_ref().unwrap_or(&p.name)).as_ref());
+
+    let open = Ident::from("{");
+    let close = Ident::from("}");
+
     out.push(quote! {
         #[doc = #description]
-        pub mod #name_sc {
-            #(#mod_items)*
-        }
+        pub mod #name_sc #open
+    });
+
+    for item in mod_items {
+        out.push(quote! {
+            #item
+        });
+    }
+
+    out.push(quote! {
+       #close
     });
 
     Ok(out)
