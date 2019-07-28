@@ -3,7 +3,6 @@ extern crate error_chain;
 extern crate inflections;
 extern crate rayon;
 extern crate reqwest;
-#[macro_use]
 extern crate structopt;
 
 mod errors;
