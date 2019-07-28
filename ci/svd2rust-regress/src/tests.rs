@@ -17,7 +17,7 @@ pub enum Manufacturer {
     Holtek,
     Nordic,
     Nuvoton,
-    Nxp,
+    NXP,
     SiliconLabs,
     Spansion,
     STMicro,
@@ -2736,7 +2736,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     // BAD-SVD two enumeratedValues have the same name
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11Exx_v5",
         svd_url: None,
         should_pass: false,
@@ -2744,7 +2744,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11Uxx_v7",
         svd_url: None,
         should_pass: false,
@@ -2752,7 +2752,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11xx_v6a",
         svd_url: None,
         should_pass: false,
@@ -2760,7 +2760,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11xx_v6",
         svd_url: None,
         should_pass: false,
@@ -2768,7 +2768,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC13Uxx_v1",
         svd_url: None,
         should_pass: false,
@@ -2776,7 +2776,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC15xx_v0.7",
         svd_url: None,
         should_pass: false,
@@ -2784,7 +2784,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC800_v0.3",
         svd_url: None,
         should_pass: false,
@@ -2792,7 +2792,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11E6x_v0.8",
         svd_url: None,
         should_pass: false,
@@ -2800,7 +2800,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC176x5x_v0.2",
         svd_url: None,
         should_pass: false,
@@ -2808,7 +2808,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11Cxx_v9",
         svd_url: None,
         should_pass: false,
@@ -2817,7 +2817,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     // BAD-SVD missing resetValue
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC178x_7x",
         svd_url: None,
         should_pass: false,
@@ -2825,7 +2825,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC178x_7x_v0.8",
         svd_url: None,
         should_pass: false,
@@ -2833,7 +2833,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC408x_7x_v0.7",
         svd_url: None,
         should_pass: false,
@@ -2841,7 +2841,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11Axxv0.6",
         svd_url: None,
         should_pass: false,
@@ -2850,7 +2850,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     // BAD-SVD bad identifier: contains a '.'
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11D14_svd_v4",
         svd_url: None,
         should_pass: false,
@@ -2858,7 +2858,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC13xx_svd_v1",
         svd_url: None,
         should_pass: false,
@@ -2867,7 +2867,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     // BAD-SVD bad identifier: contains a '/'
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC18xx_svd_v18",
         svd_url: None,
         should_pass: false,
@@ -2884,7 +2884,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     // BAD-SVD uses the identifier '_' to name a reserved bitfield value
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC1102_4_v4",
         svd_url: None,
         should_pass: false,
@@ -2894,7 +2894,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     // #99 regression test
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC5410x_v0.4",
         svd_url: None,
         should_pass: false,
