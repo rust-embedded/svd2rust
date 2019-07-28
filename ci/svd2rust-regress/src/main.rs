@@ -284,7 +284,7 @@ fn main() {
                     "Failed: {} - {} seconds. {}{}",
                     t.name(),
                     start.elapsed().as_secs(),
-                    e.display_chain().to_string().trim_right(),
+                    e.display_chain().to_string().trim_end(),
                     additional_info,
                 );
             }
