@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-- Correct handling of cluster size tag
+### Added
 
 - Support of 64-bit fields
+
+### Changed
+
+- Break ultra-long single line output into multiple lines for better usability
+
+### Fixed
+
+- Correct handling of cluster size tag
 
 ## [v0.15.0] - 2019-07-25
 

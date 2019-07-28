@@ -54,7 +54,7 @@ fn run() -> Result<()> {
                     env_logger::DEFAULT_FILTER_ENV
                 ))
                 .takes_value(true)
-                .possible_values(&["off", "error", "warn", "info", "debug", "trace"])
+                .possible_values(&["off", "error", "warn", "info", "debug", "trace"]),
         )
         .version(concat!(
             env!("CARGO_PKG_VERSION"),
@@ -92,8 +92,11 @@ fn run() -> Result<()> {
 
     let mut device_x = String::new();
     let items = generate::device::render(&device, target, nightly, &mut device_x)?;
+    let mut file = File::create("lib.rs").expect("Couldn't create lib.rs file");
 
-    writeln!(File::create("lib.rs").unwrap(), "{}", quote!(#(#items)*)).unwrap();
+    for item in items {
+        writeln!(file, "{}", item).expect("Could not write item to lib.rs");
+    }
 
     if target == Target::CortexM {
         writeln!(File::create("device.x").unwrap(), "{}", device_x).unwrap();
@@ -109,13 +112,11 @@ fn setup_logging(matches: &clap::ArgMatches) {
     //   env_logger's `RUST_LOG` environment variable.
     // * Override both of those if the logging level is set via the `--log`
     //   command line argument.
-    let env = env_logger::Env::default()
-        .filter_or(env_logger::DEFAULT_FILTER_ENV, "info");
+    let env = env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info");
     let mut builder = env_logger::Builder::from_env(env);
     builder.default_format_timestamp(false);
 
-    let log_lvl_from_env =
-        std::env::var_os(env_logger::DEFAULT_FILTER_ENV).is_some();
+    let log_lvl_from_env = std::env::var_os(env_logger::DEFAULT_FILTER_ENV).is_some();
 
     if log_lvl_from_env {
         log::set_max_level(log::LevelFilter::Trace);
