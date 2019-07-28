@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Joined field write proxy into a single line to help dev builds
 - Elimated useless 0 shifts to reduce generated code size and fix a clippy lint
 
+- Replace field readers with generic `FR` type 
+
 ### Fixed
 
 - Correct handling of cluster size tag
