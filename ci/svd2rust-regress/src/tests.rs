@@ -74,7 +74,7 @@ use self::RunWhen::*;
 
 /// List of chars that some vendors use in their peripheral/field names but
 /// that are not valid in Rust ident
-const BLACKLIST_CHARS: &'static [char] = &['(', ')', '[', ']'];
+const BLACKLIST_CHARS: &[char] = &['(', ')', '[', ']'];
 
 /// Lovingly stolen from `svd2rust`. Probably could be `Cow`
 pub trait ToSanitizedSnakeCase {
@@ -96,7 +96,7 @@ impl ToSanitizedSnakeCase for str {
 
         match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                String::from(format!("_{}", s.to_snake_case()))
+                format!("_{}", s.to_snake_case())
             }
             _ => {
                 keywords! {
@@ -104,8 +104,8 @@ impl ToSanitizedSnakeCase for str {
                     abstract,
                     alignof,
                     as,
-                    async,
-                    await,
+                    r#async,
+                    r#await,
                     become,
                     box,
                     break,
@@ -145,7 +145,7 @@ impl ToSanitizedSnakeCase for str {
                     super,
                     trait,
                     true,
-                    try,
+                    r#try,
                     type,
                     typeof,
                     unsafe,
@@ -166,7 +166,7 @@ impl ToSanitizedSnakeCase for str {
 }
 
 // NOTE: All chip names must be unique!
-pub const TESTS: &'static [&'static TestCase] = &[
+pub const TESTS: &[&TestCase] = &[
     // BAD-SVD missing resetValue
     &TestCase {
         arch: CortexM,
