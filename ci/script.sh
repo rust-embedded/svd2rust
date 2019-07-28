@@ -4,7 +4,7 @@ test_svd() {
     (
         cd $td &&
             curl -LO \
-                 https://raw.githubusercontent.com/posborne/cmsis-svd/python-0.4/data/$VENDOR/${1}.svd
+                 https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/$VENDOR/${1}.svd
     )
 
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
@@ -161,20 +161,20 @@ main() {
             # test_svd MK70F15WS
 
             # OK
-            # NOTE it would take too long to test all these so we only test one third
+            # NOTE it would take too long to test all these so we only a few of each family
             test_svd MK02F12810
             # test_svd MK10D10
             # test_svd MK10D5
             test_svd MK10D7
             # test_svd MK10DZ10
             # test_svd MK10F12
-            test_svd MK11D5
+            # test_svd MK11D5
             # test_svd MK11D5WS
             # test_svd MK11DA5
             test_svd MK12D5
             # test_svd MK20D10
             # test_svd MK20D5
-            test_svd MK20D7
+            # test_svd MK20D7
             # test_svd MK20DZ10
             # test_svd MK20F12
             test_svd MK21D5
@@ -183,13 +183,13 @@ main() {
             test_svd MK21F12
             # test_svd MK21FA12
             # test_svd MK22D5
-            test_svd MK22F12
+            # test_svd MK22F12
             # test_svd MK22F12810
             # test_svd MK22F25612
-            test_svd MK22F51212
+            # test_svd MK22F51212
             # test_svd MK22FA12
             # test_svd MK24F12
-            test_svd MK24F25612
+            # test_svd MK24F25612
             # test_svd MK26F18
             # test_svd MK30D10
             test_svd MK30D7
@@ -198,19 +198,19 @@ main() {
             test_svd MK40D7
             # test_svd MK40DZ10
             # test_svd MK50D10
-            test_svd MK50D7
+            # test_svd MK50D7
             # test_svd MK50DZ10
             # test_svd MK51D10
-            test_svd MK51D7
+            # test_svd MK51D7
             # test_svd MK51DZ10
             # test_svd MK52D10
             test_svd MK52DZ10
             # test_svd MK53D10
             # test_svd MK53DZ10
-            test_svd MK60D10
+            # test_svd MK60D10
             # test_svd MK60DZ10
             # test_svd MK60F15
-            test_svd MK63F12
+            # test_svd MK63F12
             # test_svd MK64F12
             # test_svd MK65F18
             test_svd MK66F18
@@ -231,52 +231,52 @@ main() {
             test_svd MKV10Z1287
             # test_svd MKV10Z7
             # test_svd MKV11Z7
-            test_svd MKV30F12810
+            # test_svd MKV30F12810
             # test_svd MKV31F12810
             # test_svd MKV31F25612
             test_svd MKV31F51212
             # test_svd MKV40F15
             # test_svd MKV42F16
-            test_svd MKV43F15
+            # test_svd MKV43F15
             # test_svd MKV44F15
             # test_svd MKV44F16
             test_svd MKV45F15
             # test_svd MKV46F15
             # test_svd MKV46F16
-            test_svd MKW20Z4
+            # test_svd MKW20Z4
             # test_svd MKW21D5
             # test_svd MKW21Z4
             test_svd MKW22D5
             # test_svd MKW24D5
             # test_svd MKW30Z4
-            test_svd MKW31Z4
+            # test_svd MKW31Z4
             # test_svd MKW40Z4
             # test_svd MKW41Z4
 
             # #92 regression tests
-            # NOTE it would take too long to test all these so we only test one third
+            # NOTE it would take too long to test all these so we only a few of each family
             test_svd MKE02Z4
             # test_svd MKE04Z1284
             # test_svd MKE04Z4
             test_svd MKE06Z4
             # test_svd MKE14D7
             # test_svd MKE15D7
-            test_svd MKL02Z4
+            # test_svd MKL02Z4
             # test_svd MKL03Z4
             # test_svd MKL04Z4
             test_svd MKL05Z4
             # test_svd MKL13Z644
             # test_svd MKL14Z4
-            test_svd MKL15Z4
+            # test_svd MKL15Z4
             # test_svd MKL16Z4
             # test_svd MKL17Z4
             test_svd MKL17Z644
             # test_svd MKL24Z4
             # test_svd MKL25Z4
-            test_svd MKL26Z4
+            # test_svd MKL26Z4
             # test_svd MKL27Z4
             # test_svd MKL27Z644
-            test_svd MKL33Z4
+            # test_svd MKL33Z4
             # test_svd MKL33Z644
             # test_svd MKL34Z4
             test_svd MKL36Z4
@@ -495,6 +495,9 @@ main() {
             echo '[dependencies.bare-metal]' >> $td/Cargo.toml
             echo 'version = "0.2.0"' >> $td/Cargo.toml
 
+            test_svd MK22F25612
+            test_svd MKW41Z4
+
             # BAD-SVD two enumeratedValues have the same name
             # test_svd LPC11Exx_v5
             # test_svd LPC11Uxx_v7
@@ -659,31 +662,20 @@ main() {
             test_svd STM32F091x
             test_svd STM32F0xx
             test_svd STM32F100xx
-            test_svd STM32F101xx
-            test_svd STM32F102xx
             test_svd STM32F103xx
-            test_svd STM32F105xx
             test_svd STM32F107xx
             test_svd STM32F20x
             test_svd STM32F21x
-            test_svd STM32F301x
-            test_svd STM32F302x
-            test_svd STM32F303xE
-            test_svd STM32F303x
-            test_svd STM32F30x
-            test_svd STM32F334x
-            test_svd STM32F37x
-            test_svd STM32F401xE
-            test_svd STM32F401x
-            test_svd STM32F40x
-            test_svd STM32F411xx
-            test_svd STM32F41x
-            test_svd STM32F427x
-            test_svd STM32F429x
-            test_svd STM32F437x
-            test_svd STM32F439x
-            test_svd STM32F446x
-            test_svd STM32F46_79x
+            test_svd STM32F301
+            test_svd STM32F303
+            test_svd STM32F401
+            test_svd STM32F407
+            test_svd STM32F410
+            test_svd STM32F413
+            test_svd STM32F427
+            test_svd STM32F429
+            test_svd STM32F446
+            test_svd STM32F469
             test_svd STM32L100
             test_svd STM32L15xC
             test_svd STM32L15xxE
