@@ -1,10 +1,5 @@
 #[macro_use]
 extern crate error_chain;
-extern crate inflections;
-extern crate rayon;
-extern crate reqwest;
-#[macro_use]
-extern crate structopt;
 
 mod errors;
 mod svd_test;
@@ -177,8 +172,7 @@ fn main() {
             // FIXME: Use Option::filter instead when stable, rust-lang/rust#45860
             if default_rustfmt
                 .iter()
-                .filter(|p| p.is_file())
-                .next()
+                .find(|p| p.is_file())
                 .is_none()
             {
                 panic!("No rustfmt found");
@@ -265,8 +259,8 @@ fn main() {
             Err(e) => {
                 any_fails.store(true, Ordering::Release);
                 let additional_info = if opt.verbose > 0 {
-                    match e.kind() {
-                        &errors::ErrorKind::ProcessFailed(_, _, Some(ref stderr), ref previous_processes_stderr) => {
+                    match *e.kind() {
+                        errors::ErrorKind::ProcessFailed(_, _, Some(ref stderr), ref previous_processes_stderr) => {
                             let mut buf = String::new(); 
                             if opt.verbose > 1 {
                                 for stderr in previous_processes_stderr {
@@ -285,7 +279,7 @@ fn main() {
                     "Failed: {} - {} seconds. {}{}",
                     t.name(),
                     start.elapsed().as_secs(),
-                    e.display_chain().to_string().trim_right(),
+                    e.display_chain().to_string().trim_end(),
                     additional_info,
                 );
             }

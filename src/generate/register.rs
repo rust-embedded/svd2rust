@@ -323,7 +323,7 @@ pub fn fields(
 
         let bits = &f.bits;
         let mask = &f.mask;
-        let offset = &f.offset;
+        let offset: usize = f.offset.parse().unwrap();
         let fty = &f.ty;
 
         let lookup_results = lookup(
@@ -341,8 +341,15 @@ pub fn fields(
             } else {
                 quote! { as #fty }
             };
-            let value = quote! {
-                ((self.bits >> #offset) & #mask) #cast
+            let value = if offset != 0 {
+                let offset = &f.offset;
+                quote! {
+                    ((self.bits >> #offset) & #mask) #cast
+                }
+            } else {
+                quote! {
+                    (self.bits & #mask) #cast
+                }
             };
 
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
@@ -720,13 +727,24 @@ pub fn fields(
                 });
             }
 
-            proxy_items.push(quote! {
-                ///Writes raw bits to the field
-                #[inline(always)]
-                pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                    self.w.bits &= !(#mask << #offset);
-                    self.w.bits |= ((value as #rty) & #mask) << #offset;
-                    self.w
+            proxy_items.push(if offset != 0 {
+                let offset = &f.offset;
+                quote! {
+                    ///Writes raw bits to the field
+                    #[inline(always)]
+                    pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
+                        self.w.bits = (self.w.bits & !(#mask << #offset)) | (((value as #rty) & #mask) << #offset);
+                        self.w
+                    }
+                }
+            } else {
+                quote! {
+                    ///Writes raw bits to the field
+                    #[inline(always)]
+                    pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
+                        self.w.bits = (self.w.bits & !#mask) | ((value as #rty) & #mask);
+                        self.w
+                    }
                 }
             });
 

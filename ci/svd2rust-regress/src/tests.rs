@@ -17,7 +17,7 @@ pub enum Manufacturer {
     Holtek,
     Nordic,
     Nuvoton,
-    Nxp,
+    NXP,
     SiliconLabs,
     Spansion,
     STMicro,
@@ -48,7 +48,7 @@ impl TestCase {
     pub fn svd_url(&self) -> String {
         match self.svd_url {
             Some(u) => u.to_owned(),
-            None => format!("https://raw.githubusercontent.com/posborne/cmsis-svd/python-0.4/data/{vendor:?}/{chip}.svd",
+            None => format!("https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/{vendor:?}/{chip}.svd",
                   vendor = self.mfgr,
                   chip = self.chip
             )
@@ -64,7 +64,7 @@ impl TestCase {
     }
 
     pub fn name(&self) -> String {
-        format!("{:?}-{}", self.mfgr, self.chip).to_sanitized_snake_case()
+        format!("{:?}-{}", self.mfgr, self.chip.replace(".", "_")).to_sanitized_snake_case()
     }
 }
 
@@ -74,7 +74,7 @@ use self::RunWhen::*;
 
 /// List of chars that some vendors use in their peripheral/field names but
 /// that are not valid in Rust ident
-const BLACKLIST_CHARS: &'static [char] = &['(', ')', '[', ']'];
+const BLACKLIST_CHARS: &[char] = &['(', ')', '[', ']'];
 
 /// Lovingly stolen from `svd2rust`. Probably could be `Cow`
 pub trait ToSanitizedSnakeCase {
@@ -96,7 +96,7 @@ impl ToSanitizedSnakeCase for str {
 
         match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                String::from(format!("_{}", s.to_snake_case()))
+                format!("_{}", s.to_snake_case())
             }
             _ => {
                 keywords! {
@@ -104,8 +104,8 @@ impl ToSanitizedSnakeCase for str {
                     abstract,
                     alignof,
                     as,
-                    async,
-                    await,
+                    r#async,
+                    r#await,
                     become,
                     box,
                     break,
@@ -145,7 +145,7 @@ impl ToSanitizedSnakeCase for str {
                     super,
                     trait,
                     true,
-                    try,
+                    r#try,
                     type,
                     typeof,
                     unsafe,
@@ -166,7 +166,7 @@ impl ToSanitizedSnakeCase for str {
 }
 
 // NOTE: All chip names must be unique!
-pub const TESTS: &'static [&'static TestCase] = &[
+pub const TESTS: &[&TestCase] = &[
     // BAD-SVD missing resetValue
     &TestCase {
         arch: CortexM,
@@ -2736,7 +2736,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     // BAD-SVD two enumeratedValues have the same name
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11Exx_v5",
         svd_url: None,
         should_pass: false,
@@ -2744,7 +2744,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11Uxx_v7",
         svd_url: None,
         should_pass: false,
@@ -2752,7 +2752,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11xx_v6a",
         svd_url: None,
         should_pass: false,
@@ -2760,7 +2760,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11xx_v6",
         svd_url: None,
         should_pass: false,
@@ -2768,7 +2768,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC13Uxx_v1",
         svd_url: None,
         should_pass: false,
@@ -2776,7 +2776,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC15xx_v0.7",
         svd_url: None,
         should_pass: false,
@@ -2784,7 +2784,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC800_v0.3",
         svd_url: None,
         should_pass: false,
@@ -2792,7 +2792,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11E6x_v0.8",
         svd_url: None,
         should_pass: false,
@@ -2800,7 +2800,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC176x5x_v0.2",
         svd_url: None,
         should_pass: false,
@@ -2808,7 +2808,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11Cxx_v9",
         svd_url: None,
         should_pass: false,
@@ -2817,7 +2817,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     // BAD-SVD missing resetValue
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC178x_7x",
         svd_url: None,
         should_pass: false,
@@ -2825,7 +2825,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC178x_7x_v0.8",
         svd_url: None,
         should_pass: false,
@@ -2833,7 +2833,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC408x_7x_v0.7",
         svd_url: None,
         should_pass: false,
@@ -2841,7 +2841,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11Axxv0.6",
         svd_url: None,
         should_pass: false,
@@ -2850,7 +2850,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     // BAD-SVD bad identifier: contains a '.'
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC11D14_svd_v4",
         svd_url: None,
         should_pass: false,
@@ -2858,7 +2858,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC13xx_svd_v1",
         svd_url: None,
         should_pass: false,
@@ -2867,7 +2867,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     // BAD-SVD bad identifier: contains a '/'
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC18xx_svd_v18",
         svd_url: None,
         should_pass: false,
@@ -2875,8 +2875,8 @@ pub const TESTS: &'static [&'static TestCase] = &[
     },
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
-        chip: "LPC43xx_svd_v5",
+        mfgr: NXP,
+        chip: "LPC43xx_43Sxx",
         svd_url: None,
         should_pass: false,
         run_when: Never,
@@ -2884,7 +2884,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     // BAD-SVD uses the identifier '_' to name a reserved bitfield value
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC1102_4_v4",
         svd_url: None,
         should_pass: false,
@@ -2894,11 +2894,35 @@ pub const TESTS: &'static [&'static TestCase] = &[
     // #99 regression test
     &TestCase {
         arch: CortexM,
-        mfgr: Nxp,
+        mfgr: NXP,
         chip: "LPC5410x_v0.4",
         svd_url: None,
         should_pass: false,
         run_when: Never,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: NXP,
+        chip: "MK22F25612",
+        svd_url: None,
+        should_pass: true,
+        run_when: NotShort,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: NXP,
+        chip: "MK22F51212",
+        svd_url: None,
+        should_pass: true,
+        run_when: NotShort,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: NXP,
+        chip: "MKW41Z4",
+        svd_url: None,
+        should_pass: true,
+        run_when: NotShort,
     },
     &TestCase {
         arch: CortexM,
@@ -3801,7 +3825,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F301x",
+        chip: "STM32F301",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3809,7 +3833,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F302x",
+        chip: "STM32F302",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3817,7 +3841,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F303xE",
+        chip: "STM32F303",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3825,7 +3849,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F303x",
+        chip: "STM32F3x4",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3833,7 +3857,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F30x",
+        chip: "STM32F373",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3841,7 +3865,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F334x",
+        chip: "STM32F401",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3849,7 +3873,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F37x",
+        chip: "STM32F405",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3857,7 +3881,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F401xE",
+        chip: "STM32F407",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3865,7 +3889,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F401x",
+        chip: "STM32F410",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3873,7 +3897,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F40x",
+        chip: "STM32F411",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3881,7 +3905,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F411xx",
+        chip: "STM32F412",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3889,7 +3913,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F41x",
+        chip: "STM32F413",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3897,7 +3921,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F427x",
+        chip: "STM32F427",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3905,7 +3929,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F429x",
+        chip: "STM32F429",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3913,7 +3937,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F437x",
+        chip: "STM32F446",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3921,7 +3945,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F439x",
+        chip: "STM32F469",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3929,7 +3953,7 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F446x",
+        chip: "STM32F7x",
         svd_url: None,
         should_pass: true,
         run_when: Always,
@@ -3937,7 +3961,103 @@ pub const TESTS: &'static [&'static TestCase] = &[
     &TestCase {
         arch: CortexM,
         mfgr: STMicro,
-        chip: "STM32F46_79x",
+        chip: "STM32F7x2",
+        svd_url: None,
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: STMicro,
+        chip: "STM32F7x3",
+        svd_url: None,
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: STMicro,
+        chip: "STM32F7x5",
+        svd_url: None,
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: STMicro,
+        chip: "STM32F7x6",
+        svd_url: None,
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: STMicro,
+        chip: "STM32F7x7",
+        svd_url: None,
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: STMicro,
+        chip: "STM32F7x9",
+        svd_url: None,
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: STMicro,
+        chip: "STM32G07x",
+        svd_url: None,
+        should_pass: false,
+        run_when: Never,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: STMicro,
+        chip: "STM32G431xx",
+        svd_url: None,
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: STMicro,
+        chip: "STM32G441xx",
+        svd_url: None,
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: STMicro,
+        chip: "STM32G471xx",
+        svd_url: None,
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: STMicro,
+        chip: "STM32G474xx",
+        svd_url: None,
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: STMicro,
+        chip: "STM32G483xx",
+        svd_url: None,
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: CortexM,
+        mfgr: STMicro,
+        chip: "STM32G484xx",
         svd_url: None,
         should_pass: true,
         run_when: Always,

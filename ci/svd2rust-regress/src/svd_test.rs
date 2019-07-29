@@ -1,10 +1,10 @@
-use errors::*;
+use crate::errors::*;
 use reqwest;
 use std::fs::{self, File, OpenOptions};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Output};
-use tests::TestCase;
+use crate::tests::TestCase;
 
 static CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.0\""];
 static CRATES_MSP430: &[&str] = &["msp430 = \"0.1.0\""];
@@ -42,7 +42,7 @@ trait CommandHelper {
         name: &str,
         stdout: Option<&PathBuf>,
         stderr: Option<&PathBuf>,
-        previous_processes_stderr: &Vec<PathBuf>,
+        previous_processes_stderr: &[PathBuf],
     ) -> Result<()>;
 }
 
@@ -53,7 +53,7 @@ impl CommandHelper for Output {
         name: &str,
         stdout: Option<&PathBuf>,
         stderr: Option<&PathBuf>,
-        previous_processes_stderr: &Vec<PathBuf>,
+        previous_processes_stderr: &[PathBuf],
     ) -> Result<()> {
         if let Some(out) = stdout {
             let out_payload = String::from_utf8_lossy(&self.stdout);
@@ -70,7 +70,7 @@ impl CommandHelper for Output {
                 ErrorKind::ProcessFailed(name.into(),
                     stdout.cloned(),
                     stderr.cloned(),
-                    previous_processes_stderr.clone(),
+                    previous_processes_stderr.to_vec(),
                 ).into()
             );
         }
@@ -109,7 +109,7 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
         .arg(&chip_dir)
         .output()
         .chain_err(|| "Failed to cargo init")?
-        .capture_outputs(true, "cargo init", None, None, &vec![])?;
+        .capture_outputs(true, "cargo init", None, None, &[])?;
 
     // Add some crates to the Cargo.toml of our new project
     let svd_toml = path_helper_base(&chip_dir, &["Cargo.toml"]);
@@ -119,7 +119,7 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
         .open(svd_toml)
         .chain_err(|| "Failed to open Cargo.toml for appending")?;
 
-    use tests::Architecture::*;
+    use crate::tests::Architecture::*;
     let crates = CRATES_ALL
         .iter()
         .chain(match &t.arch {
@@ -154,10 +154,10 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
     // If the architecture is cortex-m we move the generated lib.rs file to src/
     let lib_rs_file = path_helper_base(&chip_dir, &["src", "lib.rs"]);
     let svd2rust_err_file = path_helper_base(&chip_dir, &["svd2rust.err.log"]);
-    let target = match &t.arch {
-        &CortexM => "cortex-m",
-        &Msp430 => "msp430",
-        &RiscV => "riscv",
+    let target = match t.arch {
+        CortexM => "cortex-m",
+        Msp430 => "msp430",
+        RiscV => "riscv",
     };
     let mut svd2rust_bin = Command::new(bin_path);
     if nightly {
@@ -175,16 +175,13 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
         "svd2rust",
         if t.arch != CortexM { Some(&lib_rs_file) } else { None }, // use Option.filter
         Some(&svd2rust_err_file),
-        &vec![],
+        &[],
     )?;
     process_stderr_paths.push(svd2rust_err_file);
 
-    match &t.arch {
-        &CortexM => {
-            // TODO: Give error the path to stderr
-            fs::rename(path_helper_base(&chip_dir, &["lib.rs"]), &lib_rs_file).chain_err(|| "While moving lib.rs file")?
-        }
-        _ => (),
+    if let CortexM = t.arch {
+        // TODO: Give error the path to stderr
+        fs::rename(path_helper_base(&chip_dir, &["lib.rs"]), &lib_rs_file).chain_err(|| "While moving lib.rs file")?
     }
 
     let rustfmt_err_file = path_helper_base(&chip_dir, &["rustfmt.err.log"]);

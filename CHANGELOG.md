@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Break ultra-long single line output into multiple lines for better usability
+- Joined field write proxy into a single line to help dev builds
+- Elimated useless 0 shifts to reduce generated code size and fix a clippy lint
 
 ### Fixed
 
