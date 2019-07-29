@@ -16,6 +16,8 @@ documentation = "https://docs.rs/svd2rust"
 keywords = [
     "arm",
     "cortex-m",
+    "riscv",
+    "msp430",
     "register",
     "map",
     "generator",
@@ -23,7 +25,7 @@ keywords = [
 license = "MIT OR Apache-2.0"
 name = "svd2rust"
 repository = "https://github.com/rust-embedded/svd2rust/"
-version = "0.15.0"
+version = "0.15.1"
 readme = "README.md"
 
 [[bin]]

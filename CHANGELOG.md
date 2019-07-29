@@ -7,17 +7,23 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.15.1] - 2019-07-29
+
 ### Added
 
 - Support of 64-bit fields
 
 ### Changed
 
+- Modernize `svd2rust-regress`
+
 - Break ultra-long single line output into multiple lines for better usability
+
 - Joined field write proxy into a single line to help dev builds
+
 - Elimated useless 0 shifts to reduce generated code size and fix a clippy lint
 
-- Replace field readers with generic `FR` type 
+- Replace field readers with generic `FR` type
 
 ### Fixed
 
@@ -438,7 +444,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.15.1...HEAD
+[v0.15.1]: https://github.com/rust-embedded/svd2rust/compare/v0.15.0...v0.15.1
 [v0.15.0]: https://github.com/rust-embedded/svd2rust/compare/v0.14.0...v0.15.0
 [v0.14.0]: https://github.com/rust-embedded/svd2rust/compare/v0.13.1...v0.14.0
 [v0.13.1]: https://github.com/rust-embedded/svd2rust/compare/v0.13.0...v0.13.1
