@@ -14,10 +14,8 @@ categories = [
 description = "Generate Rust register maps (`struct`s) from SVD files"
 documentation = "https://docs.rs/svd2rust"
 keywords = [
-    "arm",
-    "cortex-m",
-    "riscv",
-    "msp430",
+    "svd",
+    "embedded",
     "register",
     "map",
     "generator",
@@ -25,7 +23,7 @@ keywords = [
 license = "MIT OR Apache-2.0"
 name = "svd2rust"
 repository = "https://github.com/rust-embedded/svd2rust/"
-version = "0.15.1"
+version = "0.15.2"
 readme = "README.md"
 
 [[bin]]
