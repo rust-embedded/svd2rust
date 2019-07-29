@@ -255,6 +255,7 @@ pub fn fields(
         name: &'a str,
         offset: Tokens,
         pc_r: Ident,
+        _pc_r: Ident,
         pc_w: Ident,
         sc: Ident,
         bits: Ident,
@@ -274,6 +275,7 @@ pub fn fields(
             let sc = f.name.to_sanitized_snake_case();
             let pc = f.name.to_sanitized_upper_case();
             let pc_r = Ident::from(&*format!("{}R", pc));
+            let _pc_r = Ident::from(&*format!("{}_R", pc));
             let pc_w = Ident::from(&*format!("{}W", pc));
             let _pc_w = Ident::from(&*format!("_{}W", pc));
             let _sc = Ident::from(&*format!("_{}", sc));
@@ -296,6 +298,7 @@ pub fn fields(
                 _sc,
                 description,
                 pc_r,
+                _pc_r,
                 pc_w,
                 bits,
                 width,
@@ -344,22 +347,23 @@ pub fn fields(
             let value = if offset != 0 {
                 let offset = &f.offset;
                 quote! {
-                    ((self.bits >> #offset) & #mask) #cast
+                    ((self.bits() >> #offset) & #mask) #cast
                 }
             } else {
                 quote! {
-                    (self.bits & #mask) #cast
+                    (self.bits() & #mask) #cast
                 }
             };
 
+            let pc_r = &f.pc_r;
+            let _pc_r = &f._pc_r;
+
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
-                let has_reserved_variant = evs.values.len() != (1 << f.width);
                 let variants = Variant::from_enumerated_values(evs)?;
 
-                let pc_r = &f.pc_r;
                 if let Some(base) = &base {
                     let pc = base.field.to_sanitized_upper_case();
-                    let base_pc_r = Ident::from(&*format!("{}R", pc));
+                    let base_pc_r = Ident::from(&*format!("{}_R", pc));
                     let desc = format!("Possible values of the field `{}`", f.name,);
 
                     if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
@@ -370,7 +374,7 @@ pub fn fields(
 
                         mod_items.push(quote! {
                             #[doc = #desc]
-                            pub type #pc_r = crate::#pmod_::#rmod_::#base_pc_r;
+                            pub type #_pc_r = crate::#pmod_::#rmod_::#base_pc_r;
                         });
                     } else if let Some(register) = &base.register {
                         let mod_ = register.to_sanitized_snake_case();
@@ -378,12 +382,12 @@ pub fn fields(
 
                         mod_items.push(quote! {
                             #[doc = #desc]
-                            pub type #pc_r = super::#mod_::#base_pc_r;
+                            pub type #_pc_r = super::#mod_::#base_pc_r;
                         });
                     } else {
                         mod_items.push(quote! {
                             #[doc = #desc]
-                            pub type #pc_r = #base_pc_r;
+                            pub type #_pc_r = #base_pc_r;
                         });
                     }
                 }
@@ -393,15 +397,15 @@ pub fn fields(
                 r_impl_items.push(quote! {
                     #[doc = #description]
                     #[inline(always)]
-                    pub fn #sc(&self) -> #pc_r {
-                        #pc_r::_from( #value )
+                    pub fn #sc(&self) -> #_pc_r {
+                        #_pc_r::new( #value )
                     }
                 });
 
                 if base.is_none() {
                     let desc = format!("Possible values of the field `{}`", f.name,);
 
-                    let mut vars = variants
+                    let vars = variants
                         .iter()
                         .map(|v| {
                             let desc = util::escape_brackets(&v.doc);
@@ -412,12 +416,7 @@ pub fn fields(
                             }
                         })
                         .collect::<Vec<_>>();
-                    if has_reserved_variant {
-                        vars.push(quote! {
-                            ///Reserved
-                            _Reserved(#fty)
-                        });
-                    }
+
                     mod_items.push(quote! {
                         #[doc = #desc]
                         #[derive(Clone, Copy, Debug, PartialEq)]
@@ -428,78 +427,22 @@ pub fn fields(
 
                     let mut enum_items = vec![];
 
-                    let mut arms = variants
-                        .iter()
-                        .map(|v| {
-                            let value = util::hex_or_bool(v.value as u64, f.width);
-                            let pc = &v.pc;
+                    let arms = variants.iter().map(|v| {
+                        let pc = &v.pc;
+                        let value = util::unsuffixed_or_bool(v.value, f.width);
 
-                            quote! {
-                                #pc_r::#pc => #value
-                            }
-                        })
-                        .collect::<Vec<_>>();
-                    if has_reserved_variant {
-                        arms.push(quote! {
-                            #pc_r::_Reserved(bits) => bits
-                        });
-                    }
-
-                    if f.width == 1 {
-                        enum_items.push(quote! {
-                            ///Returns `true` if the bit is clear (0)
-                            #[inline(always)]
-                            pub fn bit_is_clear(&self) -> bool {
-                                !self.#bits()
-                            }
-
-                            ///Returns `true` if the bit is set (1)
-                            #[inline(always)]
-                            pub fn bit_is_set(&self) -> bool {
-                                self.#bits()
-                            }
-                        });
-                    }
-
-                    enum_items.push(quote! {
-                        ///Value of the field as raw bits
-                        #[inline(always)]
-                        pub fn #bits(&self) -> #fty {
-                            match *self {
-                                #(#arms),*
-                            }
+                        quote! {
+                            #pc_r::#pc => #value
                         }
                     });
 
-                    let mut arms = variants
-                        .iter()
-                        .map(|v| {
-                            let i = util::unsuffixed_or_bool(v.value, f.width);
-                            let pc = &v.pc;
-
-                            quote! {
-                                #i => #pc_r::#pc
-                            }
-                        })
-                        .collect::<Vec<_>>();
-
-                    if has_reserved_variant {
-                        arms.push(quote! {
-                            i => #pc_r::_Reserved(i)
-                        });
-                    } else if 1 << f.width.to_ty_width()? != variants.len() {
-                        arms.push(quote! {
-                            _ => unreachable!()
-                        });
-                    }
-
-                    enum_items.push(quote! {
-                        #[allow(missing_docs)]
-                        #[doc(hidden)]
-                        #[inline(always)]
-                        pub fn _from(value: #fty) -> #pc_r {
-                            match value {
-                                #(#arms),*,
+                    mod_items.push(quote! {
+                        impl crate::ToBits<#fty> for #pc_r {
+                            #[inline(always)]
+                            fn _bits(&self) -> #fty {
+                                match *self {
+                                    #(#arms),*
+                                }
                             }
                         }
                     });
@@ -525,58 +468,30 @@ pub fn fields(
                     }
 
                     mod_items.push(quote! {
-                        impl #pc_r {
+                        ///Reader of the field
+                        pub type #_pc_r = crate::FR<#fty, #pc_r>;
+                        impl #_pc_r {
                             #(#enum_items)*
                         }
                     });
                 }
+    
             } else {
                 let description = &util::escape_brackets(&f.description);
-                let pc_r = &f.pc_r;
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
                     #[doc = #description]
                     #[inline(always)]
-                    pub fn #sc(&self) -> #pc_r {
-                        let bits = #value;
-                        #pc_r { bits }
+                    pub fn #sc(&self) -> #_pc_r {
+                        #_pc_r::new ( #value )
                     }
                 });
-
-                let mut pc_r_impl_items = vec![quote! {
-                    ///Value of the field as raw bits
-                    #[inline(always)]
-                    pub fn #bits(&self) -> #fty {
-                        self.bits
-                    }
-                }];
-
-                if f.width == 1 {
-                    pc_r_impl_items.push(quote! {
-                        ///Returns `true` if the bit is clear (0)
-                        #[inline(always)]
-                        pub fn bit_is_clear(&self) -> bool {
-                            !self.#bits()
-                        }
-
-                        ///Returns `true` if the bit is set (1)
-                        #[inline(always)]
-                        pub fn bit_is_set(&self) -> bool {
-                            self.#bits()
-                        }
-                    });
-                }
 
                 mod_items.push(quote! {
-                    ///Value of the field
-                    pub struct #pc_r {
-                        bits: #fty,
-                    }
+                    ///Reader of the field
+                    pub type #_pc_r = crate::FR<#fty, #fty>;
+                })
 
-                    impl #pc_r {
-                        #(#pc_r_impl_items)*
-                    }
-                });
             }
         }
 
