@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `variant()` method for field reader and `Variant` enum for fields with reserved values
+
 ## [v0.15.2] - 2019-07-29
 
 - No changes, just fixing the metadata since crates.io didn't like the keywords
