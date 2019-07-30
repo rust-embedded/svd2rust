@@ -277,7 +277,7 @@ pub fn fields(
             let pc_r = Ident::from(&*format!("{}R", pc));
             let _pc_r = Ident::from(&*format!("{}_R", pc));
             let pc_w = Ident::from(&*format!("{}W", pc));
-            let _pc_w = Ident::from(&*format!("_{}W", pc));
+            let _pc_w = Ident::from(&*format!("{}_W", pc));
             let _sc = Ident::from(&*format!("_{}", sc));
             let bits = if width == 1 {
                 Ident::from("bit")
@@ -359,8 +359,6 @@ pub fn fields(
             let _pc_r = &f._pc_r;
 
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
-                let variants = Variant::from_enumerated_values(evs)?;
-
                 if let Some(base) = &base {
                     let pc = base.field.to_sanitized_upper_case();
                     let base_pc_r = Ident::from(&*format!("{}_R", pc));
@@ -402,7 +400,9 @@ pub fn fields(
                     }
                 });
 
+                let variants = Variant::from_enumerated_values(evs)?;
                 if base.is_none() {
+                    let has_reserved_variant = evs.values.len() != (1 << f.width);
                     let desc = format!("Possible values of the field `{}`", f.name,);
 
                     let vars = variants
@@ -446,6 +446,53 @@ pub fn fields(
                             }
                         }
                     });
+
+                    let mut arms = variants
+                        .iter()
+                        .map(|v| {
+                            let i = util::unsuffixed_or_bool(v.value, f.width);
+                            let pc = &v.pc;
+
+                            if has_reserved_variant {
+                                quote! { #i => Val(#pc_r::#pc) }
+                            } else {
+                                quote! { #i => #pc_r::#pc }
+                            }
+                        })
+                        .collect::<Vec<_>>();
+
+                    if has_reserved_variant {
+                        arms.push(quote! {
+                            i => Res(i)
+                        });
+                    } else if 1 << f.width.to_ty_width()? != variants.len() {
+                        arms.push(quote! {
+                            _ => unreachable!()
+                        });
+                    }
+
+                    if has_reserved_variant {
+                        enum_items.push(quote! {
+                            ///Enumerated values
+                            #[inline(always)]
+                            pub fn variant(&self) -> crate::Variant<#fty, #pc_r> {
+                                use crate::Variant::*;
+                                match self.bits() {
+                                    #(#arms),*
+                                }
+                            }
+                        });
+                    } else {
+                        enum_items.push(quote! {
+                            ///Enumerated values
+                            #[inline(always)]
+                            pub fn variant(&self) -> #pc_r {
+                                match self.bits() {
+                                    #(#arms),*
+                                }
+                            }
+                        });
+                    }
 
                     for v in &variants {
                         let pc = &v.pc;
@@ -578,11 +625,9 @@ pub fn fields(
                     });
 
                     mod_items.push(quote! {
-                        impl #pc_w {
-                            #[allow(missing_docs)]
-                            #[doc(hidden)]
+                        impl crate::ToBits<#fty> for #pc_w {
                             #[inline(always)]
-                            pub fn _bits(&self) -> #fty {
+                            fn _bits(&self) -> #fty {
                                 match *self {
                                     #(#arms),*
                                 }
@@ -595,6 +640,7 @@ pub fn fields(
                     ///Writes `variant` to the field
                     #[inline(always)]
                     pub fn variant(self, variant: #pc_w) -> &'a mut W {
+                        use crate::ToBits;
                         #unsafety {
                             self.#bits(variant._bits())
                         }
