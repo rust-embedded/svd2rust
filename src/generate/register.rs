@@ -359,37 +359,6 @@ pub fn fields(
             let _pc_r = &f._pc_r;
 
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
-                if let Some(base) = &base {
-                    let pc = base.field.to_sanitized_upper_case();
-                    let base_pc_r = Ident::from(&*format!("{}_R", pc));
-                    let desc = format!("Possible values of the field `{}`", f.name,);
-
-                    if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
-                        let pmod_ = peripheral.to_sanitized_snake_case();
-                        let rmod_ = register.to_sanitized_snake_case();
-                        let pmod_ = Ident::from(&*pmod_);
-                        let rmod_ = Ident::from(&*rmod_);
-
-                        mod_items.push(quote! {
-                            #[doc = #desc]
-                            pub type #_pc_r = crate::#pmod_::#rmod_::#base_pc_r;
-                        });
-                    } else if let Some(register) = &base.register {
-                        let mod_ = register.to_sanitized_snake_case();
-                        let mod_ = Ident::from(&*mod_);
-
-                        mod_items.push(quote! {
-                            #[doc = #desc]
-                            pub type #_pc_r = super::#mod_::#base_pc_r;
-                        });
-                    } else {
-                        mod_items.push(quote! {
-                            #[doc = #desc]
-                            pub type #_pc_r = #base_pc_r;
-                        });
-                    }
-                }
-
                 let description = &util::escape_brackets(&f.description);
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
@@ -400,8 +369,14 @@ pub fn fields(
                     }
                 });
 
-                let variants = Variant::from_enumerated_values(evs)?;
+                if let Some(base) = &base {
+                    let pc = base.field.to_sanitized_upper_case();
+                    let base_pc_r = Ident::from(&*format!("{}_R", pc));
+                    derive_from_base(mod_items, &base, &_pc_r, &base_pc_r, f.name);
+                }
+
                 if base.is_none() {
+                    let variants = Variant::from_enumerated_values(evs)?;
                     let has_reserved_variant = evs.values.len() != (1 << f.width);
                     let desc = format!("Possible values of the field `{}`", f.name,);
 
@@ -522,7 +497,7 @@ pub fn fields(
                         }
                     });
                 }
-    
+
             } else {
                 let description = &util::escape_brackets(&f.description);
                 let sc = &f.sc;
@@ -560,45 +535,7 @@ pub fn fields(
                 let base_pc_w = base.as_ref().map(|base| {
                     let pc = base.field.to_sanitized_upper_case();
                     let base_pc_w = Ident::from(&*format!("{}W", pc));
-
-                    if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
-                        let pmod_ = peripheral.to_sanitized_snake_case();
-                        let rmod_ = register.to_sanitized_snake_case();
-                        let pmod_ = Ident::from(&*pmod_);
-                        let rmod_ = Ident::from(&*rmod_);
-
-                        mod_items.push(quote! {
-                            #[doc = #pc_w_doc]
-                            pub type #pc_w =
-                                crate::#pmod_::#rmod_::#base_pc_w;
-                        });
-
-                        quote! {
-                            crate::#pmod_::#rmod_::#base_pc_w
-                        }
-                    } else if let Some(register) = &base.register {
-                        let mod_ = register.to_sanitized_snake_case();
-                        let mod_ = Ident::from(&*mod_);
-
-                        mod_items.push(quote! {
-                            #[doc = #pc_w_doc]
-                            pub type #pc_w =
-                                super::#mod_::#base_pc_w;
-                        });
-
-                        quote! {
-                            super::#mod_::#base_pc_w
-                        }
-                    } else {
-                        mod_items.push(quote! {
-                            #[doc = #pc_w_doc]
-                            pub type #pc_w = #base_pc_w;
-                        });
-
-                        quote! {
-                            #base_pc_w
-                        }
-                    }
+                    derive_from_base(mod_items, &base, &pc_w, &base_pc_w, f.name)
                 });
 
                 if base.is_none() {
@@ -785,6 +722,49 @@ impl Variant {
                 })
             })
             .collect::<Result<Vec<_>>>()
+    }
+}
+
+fn derive_from_base(mod_items: &mut Vec<Tokens>, base: &Base, pc: &Ident, base_pc: &Ident, fname: &str) -> quote::Tokens {
+    let desc = format!("Possible values of the field `{}`", fname,);
+
+    if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
+        let pmod_ = peripheral.to_sanitized_snake_case();
+        let rmod_ = register.to_sanitized_snake_case();
+        let pmod_ = Ident::from(&*pmod_);
+        let rmod_ = Ident::from(&*rmod_);
+
+        mod_items.push(quote! {
+            #[doc = #desc]
+            pub type #pc =
+                crate::#pmod_::#rmod_::#base_pc;
+        });
+
+        quote! {
+            crate::#pmod_::#rmod_::#base_pc
+        }
+    } else if let Some(register) = &base.register {
+        let mod_ = register.to_sanitized_snake_case();
+        let mod_ = Ident::from(&*mod_);
+
+        mod_items.push(quote! {
+            #[doc = #desc]
+            pub type #pc =
+                super::#mod_::#base_pc;
+        });
+
+        quote! {
+            super::#mod_::#base_pc
+        }
+    } else {
+        mod_items.push(quote! {
+            #[doc = #desc]
+            pub type #pc = #base_pc;
+        });
+
+        quote! {
+            #base_pc
+        }
     }
 }
 
