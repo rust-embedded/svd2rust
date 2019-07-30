@@ -255,10 +255,10 @@ pub fn fields(
             } = f.bit_range;
             let sc = f.name.to_sanitized_snake_case();
             let pc = f.name.to_sanitized_upper_case();
-            let pc_r = Ident::from(&*format!("{}R", pc));
+            let pc_r = Ident::from(&*format!("{}_A", pc));
             let _pc_r = Ident::from(&*format!("{}_R", pc));
-            let pc_w = Ident::from(&*format!("{}W", pc));
-            let _pc_w = Ident::from(&*format!("_{}W", pc));
+            let pc_w = Ident::from(&*format!("{}_AW", pc));
+            let _pc_w = Ident::from(&*format!("{}_W", pc));
             let _sc = Ident::from(&*format!("_{}", sc));
             let bits = if width == 1 {
                 Ident::from("bit")
@@ -319,6 +319,16 @@ pub fn fields(
             all_peripherals,
         )?;
 
+
+        let pc_r = &f.pc_r;
+        let mut pc_w = &f.pc_r;
+
+        let mut base_pc_w = None;
+        let mut evs_r = None;
+
+        let _pc_r = &f._pc_r;
+        let _pc_w = &f._pc_w;
+
         if can_read {
             let cast = if f.width == 1 {
                 quote! { != 0 }
@@ -328,18 +338,17 @@ pub fn fields(
             let value = if offset != 0 {
                 let offset = &f.offset;
                 quote! {
-                    ((self.bits() >> #offset) & #mask) #cast
+                    ((self.bits >> #offset) & #mask) #cast
                 }
             } else {
                 quote! {
-                    (self.bits() & #mask) #cast
+                    (self.bits & #mask) #cast
                 }
             };
 
-            let pc_r = &f.pc_r;
-            let _pc_r = &f._pc_r;
-
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
+                evs_r = Some(evs.clone());
+
                 let description = &util::escape_brackets(&f.description);
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
@@ -350,11 +359,18 @@ pub fn fields(
                     }
                 });
 
-                if let Some(base) = &base {
+                base_pc_w = base.as_ref().map(|base| {
                     let pc = base.field.to_sanitized_upper_case();
-                    let base_pc_r = Ident::from(&*format!("{}_R", pc));
-                    derive_from_base(mod_items, &base, &_pc_r, &base_pc_r, f.name);
-                }
+                    let base_pc_r = Ident::from(&*format!("{}_A", pc));
+                    let base_pc_r = derive_from_base(mod_items, &base, &pc_r, &base_pc_r, f.name);
+
+                    mod_items.push(quote! {
+                        ///Reader of the field
+                        pub type #_pc_r = crate::FR<#fty, #base_pc_r>;
+                    });
+
+                    base_pc_r
+                });
 
                 if base.is_none() {
                     let has_reserved_variant = evs.values.len() != (1 << f.width);
@@ -394,7 +410,7 @@ pub fn fields(
                             #[inline(always)]
                             pub fn variant(&self) -> crate::Variant<#fty, #pc_r> {
                                 use crate::Variant::*;
-                                match self.bits() {
+                                match self.bits {
                                     #(#arms),*
                                 }
                             }
@@ -404,7 +420,7 @@ pub fn fields(
                             ///Enumerated values
                             #[inline(always)]
                             pub fn variant(&self) -> #pc_r {
-                                match self.bits() {
+                                match self.bits {
                                     #(#arms),*
                                 }
                             }
@@ -471,16 +487,19 @@ pub fn fields(
                 if variants.len() == 1 << f.width {
                     unsafety = None;
                 }
-                let pc_w = &f.pc_w;
 
-                let base_pc_w = base.as_ref().map(|base| {
-                    let pc = base.field.to_sanitized_upper_case();
-                    let base_pc_w = Ident::from(&*format!("{}W", pc));
-                    derive_from_base(mod_items, &base, &pc_w, &base_pc_w, f.name)
-                });
+                if Some(evs) != evs_r.as_ref() {
+                    pc_w = &f.pc_w;
 
-                if base.is_none() {
-                    add_from_variants(mod_items, &variants, pc_w, &f);
+                    base_pc_w = base.as_ref().map(|base| {
+                        let pc = base.field.to_sanitized_upper_case();
+                        let base_pc_w = Ident::from(&*format!("{}_AW", pc));
+                        derive_from_base(mod_items, &base, &pc_w, &base_pc_w, f.name)
+                    });
+
+                    if base.is_none() {
+                        add_from_variants(mod_items, &variants, pc_w, &f);
+                    }
                 }
 
                 proxy_items.push(quote! {
@@ -556,7 +575,6 @@ pub fn fields(
                 }
             });
 
-            let _pc_w = &f._pc_w;
             mod_items.push(quote! {
                 ///Proxy
                 pub struct #_pc_w<'a> {
