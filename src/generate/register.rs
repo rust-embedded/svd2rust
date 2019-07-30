@@ -245,25 +245,6 @@ pub fn fields(
     r_impl_items: &mut Vec<Tokens>,
     w_impl_items: &mut Vec<Tokens>,
 ) -> Result<()> {
-    struct F<'a> {
-        _pc_w: Ident,
-        _sc: Ident,
-        access: Option<Access>,
-        description: String,
-        evs: &'a [EnumeratedValues],
-        mask: Tokens,
-        name: &'a str,
-        offset: Tokens,
-        pc_r: Ident,
-        _pc_r: Ident,
-        pc_w: Ident,
-        sc: Ident,
-        bits: Ident,
-        ty: Ident,
-        width: u32,
-        write_constraint: Option<&'a WriteConstraint>,
-    }
-
     impl<'a> F<'a> {
         fn from(f: &'a Field) -> Result<Self> {
             // TODO(AJM) - do we need to do anything with this range type?
@@ -277,7 +258,7 @@ pub fn fields(
             let pc_r = Ident::from(&*format!("{}R", pc));
             let _pc_r = Ident::from(&*format!("{}_R", pc));
             let pc_w = Ident::from(&*format!("{}W", pc));
-            let _pc_w = Ident::from(&*format!("{}_W", pc));
+            let _pc_w = Ident::from(&*format!("_{}W", pc));
             let _sc = Ident::from(&*format!("_{}", sc));
             let bits = if width == 1 {
                 Ident::from("bit")
@@ -376,51 +357,12 @@ pub fn fields(
                 }
 
                 if base.is_none() {
-                    let variants = Variant::from_enumerated_values(evs)?;
                     let has_reserved_variant = evs.values.len() != (1 << f.width);
-                    let desc = format!("Possible values of the field `{}`", f.name,);
+                    let variants = Variant::from_enumerated_values(evs)?;
 
-                    let vars = variants
-                        .iter()
-                        .map(|v| {
-                            let desc = util::escape_brackets(&v.doc);
-                            let pc = &v.pc;
-                            quote! {
-                                #[doc = #desc]
-                                #pc
-                            }
-                        })
-                        .collect::<Vec<_>>();
-
-                    mod_items.push(quote! {
-                        #[doc = #desc]
-                        #[derive(Clone, Copy, Debug, PartialEq)]
-                        pub enum #pc_r {
-                            #(#vars),*
-                        }
-                    });
+                    add_from_variants(mod_items, &variants, pc_r, &f);
 
                     let mut enum_items = vec![];
-
-                    let arms = variants.iter().map(|v| {
-                        let pc = &v.pc;
-                        let value = util::unsuffixed_or_bool(v.value, f.width);
-
-                        quote! {
-                            #pc_r::#pc => #value
-                        }
-                    });
-
-                    mod_items.push(quote! {
-                        impl crate::ToBits<#fty> for #pc_r {
-                            #[inline(always)]
-                            fn _bits(&self) -> #fty {
-                                match *self {
-                                    #(#arms),*
-                                }
-                            }
-                        }
-                    });
 
                     let mut arms = variants
                         .iter()
@@ -530,7 +472,6 @@ pub fn fields(
                     unsafety = None;
                 }
                 let pc_w = &f.pc_w;
-                let pc_w_doc = format!("Values that can be written to the field `{}`", f.name);
 
                 let base_pc_w = base.as_ref().map(|base| {
                     let pc = base.field.to_sanitized_upper_case();
@@ -539,38 +480,7 @@ pub fn fields(
                 });
 
                 if base.is_none() {
-                    let variants_pc = variants.iter().map(|v| &v.pc);
-                    let variants_doc = variants
-                        .iter()
-                        .map(|v| util::escape_brackets(&v.doc).to_owned());
-                    mod_items.push(quote! {
-                        #[doc = #pc_w_doc]
-                        #[derive(Clone, Copy, Debug, PartialEq)]
-                        pub enum #pc_w {
-                            #(#[doc = #variants_doc]
-                            #variants_pc),*
-                        }
-                    });
-
-                    let arms = variants.iter().map(|v| {
-                        let pc = &v.pc;
-                        let value = util::unsuffixed_or_bool(v.value, f.width);
-
-                        quote! {
-                            #pc_w::#pc => #value
-                        }
-                    });
-
-                    mod_items.push(quote! {
-                        impl crate::ToBits<#fty> for #pc_w {
-                            #[inline(always)]
-                            fn _bits(&self) -> #fty {
-                                match *self {
-                                    #(#arms),*
-                                }
-                            }
-                        }
-                    });
+                    add_from_variants(mod_items, &variants, pc_w, &f);
                 }
 
                 proxy_items.push(quote! {
@@ -725,6 +635,51 @@ impl Variant {
     }
 }
 
+fn add_from_variants(mod_items: &mut Vec<Tokens>, variants: &Vec<Variant>, pc: &Ident, f: &F) {
+    let fty = &f.ty;
+    let desc = format!("Possible values of the field `{}`", f.name);
+
+    let vars = variants
+        .iter()
+        .map(|v| {
+            let desc = util::escape_brackets(&v.doc);
+            let pcv = &v.pc;
+            quote! {
+                #[doc = #desc]
+                #pcv
+            }
+        })
+        .collect::<Vec<_>>();
+
+    mod_items.push(quote! {
+        #[doc = #desc]
+        #[derive(Clone, Copy, Debug, PartialEq)]
+        pub enum #pc {
+            #(#vars),*
+        }
+    });
+
+    let arms = variants.iter().map(|v| {
+        let pcv = &v.pc;
+        let value = util::unsuffixed_or_bool(v.value, f.width);
+
+        quote! {
+            #pc::#pcv => #value
+        }
+    });
+
+    mod_items.push(quote! {
+        impl crate::ToBits<#fty> for #pc {
+            #[inline(always)]
+            fn _bits(&self) -> #fty {
+                match *self {
+                    #(#arms),*
+                }
+            }
+        }
+    });
+}
+
 fn derive_from_base(mod_items: &mut Vec<Tokens>, base: &Base, pc: &Ident, base_pc: &Ident, fname: &str) -> quote::Tokens {
     let desc = format!("Possible values of the field `{}`", fname,);
 
@@ -766,6 +721,25 @@ fn derive_from_base(mod_items: &mut Vec<Tokens>, base: &Base, pc: &Ident, base_p
             #base_pc
         }
     }
+}
+
+struct F<'a> {
+    _pc_w: Ident,
+    _sc: Ident,
+    access: Option<Access>,
+    description: String,
+    evs: &'a [EnumeratedValues],
+    mask: Tokens,
+    name: &'a str,
+    offset: Tokens,
+    pc_r: Ident,
+    _pc_r: Ident,
+    pc_w: Ident,
+    sc: Ident,
+    bits: Ident,
+    ty: Ident,
+    width: u32,
+    write_constraint: Option<&'a WriteConstraint>,
 }
 
 #[derive(Clone, Debug)]
