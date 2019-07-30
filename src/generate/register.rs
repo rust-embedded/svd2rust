@@ -245,25 +245,6 @@ pub fn fields(
     r_impl_items: &mut Vec<Tokens>,
     w_impl_items: &mut Vec<Tokens>,
 ) -> Result<()> {
-    struct F<'a> {
-        _pc_w: Ident,
-        _sc: Ident,
-        access: Option<Access>,
-        description: String,
-        evs: &'a [EnumeratedValues],
-        mask: Tokens,
-        name: &'a str,
-        offset: Tokens,
-        pc_r: Ident,
-        _pc_r: Ident,
-        pc_w: Ident,
-        sc: Ident,
-        bits: Ident,
-        ty: Ident,
-        width: u32,
-        write_constraint: Option<&'a WriteConstraint>,
-    }
-
     impl<'a> F<'a> {
         fn from(f: &'a Field) -> Result<Self> {
             // TODO(AJM) - do we need to do anything with this range type?
@@ -359,39 +340,6 @@ pub fn fields(
             let _pc_r = &f._pc_r;
 
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
-                let variants = Variant::from_enumerated_values(evs)?;
-
-                if let Some(base) = &base {
-                    let pc = base.field.to_sanitized_upper_case();
-                    let base_pc_r = Ident::from(&*format!("{}_R", pc));
-                    let desc = format!("Possible values of the field `{}`", f.name,);
-
-                    if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
-                        let pmod_ = peripheral.to_sanitized_snake_case();
-                        let rmod_ = register.to_sanitized_snake_case();
-                        let pmod_ = Ident::from(&*pmod_);
-                        let rmod_ = Ident::from(&*rmod_);
-
-                        mod_items.push(quote! {
-                            #[doc = #desc]
-                            pub type #_pc_r = crate::#pmod_::#rmod_::#base_pc_r;
-                        });
-                    } else if let Some(register) = &base.register {
-                        let mod_ = register.to_sanitized_snake_case();
-                        let mod_ = Ident::from(&*mod_);
-
-                        mod_items.push(quote! {
-                            #[doc = #desc]
-                            pub type #_pc_r = super::#mod_::#base_pc_r;
-                        });
-                    } else {
-                        mod_items.push(quote! {
-                            #[doc = #desc]
-                            pub type #_pc_r = #base_pc_r;
-                        });
-                    }
-                }
-
                 let description = &util::escape_brackets(&f.description);
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
@@ -402,50 +350,66 @@ pub fn fields(
                     }
                 });
 
-                if base.is_none() {
-                    let desc = format!("Possible values of the field `{}`", f.name,);
+                if let Some(base) = &base {
+                    let pc = base.field.to_sanitized_upper_case();
+                    let base_pc_r = Ident::from(&*format!("{}_R", pc));
+                    derive_from_base(mod_items, &base, &_pc_r, &base_pc_r, f.name);
+                }
 
-                    let vars = variants
+                if base.is_none() {
+                    let has_reserved_variant = evs.values.len() != (1 << f.width);
+                    let variants = Variant::from_enumerated_values(evs)?;
+
+                    add_from_variants(mod_items, &variants, pc_r, &f);
+
+                    let mut enum_items = vec![];
+
+                    let mut arms = variants
                         .iter()
                         .map(|v| {
-                            let desc = util::escape_brackets(&v.doc);
+                            let i = util::unsuffixed_or_bool(v.value, f.width);
                             let pc = &v.pc;
-                            quote! {
-                                #[doc = #desc]
-                                #pc
+
+                            if has_reserved_variant {
+                                quote! { #i => Val(#pc_r::#pc) }
+                            } else {
+                                quote! { #i => #pc_r::#pc }
                             }
                         })
                         .collect::<Vec<_>>();
 
-                    mod_items.push(quote! {
-                        #[doc = #desc]
-                        #[derive(Clone, Copy, Debug, PartialEq)]
-                        pub enum #pc_r {
-                            #(#vars),*
-                        }
-                    });
+                    if has_reserved_variant {
+                        arms.push(quote! {
+                            i => Res(i)
+                        });
+                    } else if 1 << f.width.to_ty_width()? != variants.len() {
+                        arms.push(quote! {
+                            _ => unreachable!()
+                        });
+                    }
 
-                    let mut enum_items = vec![];
-
-                    let arms = variants.iter().map(|v| {
-                        let pc = &v.pc;
-                        let value = util::unsuffixed_or_bool(v.value, f.width);
-
-                        quote! {
-                            #pc_r::#pc => #value
-                        }
-                    });
-
-                    mod_items.push(quote! {
-                        impl crate::ToBits<#fty> for #pc_r {
+                    if has_reserved_variant {
+                        enum_items.push(quote! {
+                            ///Enumerated values
                             #[inline(always)]
-                            fn _bits(&self) -> #fty {
-                                match *self {
+                            pub fn variant(&self) -> crate::Variant<#fty, #pc_r> {
+                                use crate::Variant::*;
+                                match self.bits() {
                                     #(#arms),*
                                 }
                             }
-                        }
-                    });
+                        });
+                    } else {
+                        enum_items.push(quote! {
+                            ///Enumerated values
+                            #[inline(always)]
+                            pub fn variant(&self) -> #pc_r {
+                                match self.bits() {
+                                    #(#arms),*
+                                }
+                            }
+                        });
+                    }
 
                     for v in &variants {
                         let pc = &v.pc;
@@ -475,7 +439,7 @@ pub fn fields(
                         }
                     });
                 }
-    
+
             } else {
                 let description = &util::escape_brackets(&f.description);
                 let sc = &f.sc;
@@ -508,93 +472,22 @@ pub fn fields(
                     unsafety = None;
                 }
                 let pc_w = &f.pc_w;
-                let pc_w_doc = format!("Values that can be written to the field `{}`", f.name);
 
                 let base_pc_w = base.as_ref().map(|base| {
                     let pc = base.field.to_sanitized_upper_case();
                     let base_pc_w = Ident::from(&*format!("{}W", pc));
-
-                    if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
-                        let pmod_ = peripheral.to_sanitized_snake_case();
-                        let rmod_ = register.to_sanitized_snake_case();
-                        let pmod_ = Ident::from(&*pmod_);
-                        let rmod_ = Ident::from(&*rmod_);
-
-                        mod_items.push(quote! {
-                            #[doc = #pc_w_doc]
-                            pub type #pc_w =
-                                crate::#pmod_::#rmod_::#base_pc_w;
-                        });
-
-                        quote! {
-                            crate::#pmod_::#rmod_::#base_pc_w
-                        }
-                    } else if let Some(register) = &base.register {
-                        let mod_ = register.to_sanitized_snake_case();
-                        let mod_ = Ident::from(&*mod_);
-
-                        mod_items.push(quote! {
-                            #[doc = #pc_w_doc]
-                            pub type #pc_w =
-                                super::#mod_::#base_pc_w;
-                        });
-
-                        quote! {
-                            super::#mod_::#base_pc_w
-                        }
-                    } else {
-                        mod_items.push(quote! {
-                            #[doc = #pc_w_doc]
-                            pub type #pc_w = #base_pc_w;
-                        });
-
-                        quote! {
-                            #base_pc_w
-                        }
-                    }
+                    derive_from_base(mod_items, &base, &pc_w, &base_pc_w, f.name)
                 });
 
                 if base.is_none() {
-                    let variants_pc = variants.iter().map(|v| &v.pc);
-                    let variants_doc = variants
-                        .iter()
-                        .map(|v| util::escape_brackets(&v.doc).to_owned());
-                    mod_items.push(quote! {
-                        #[doc = #pc_w_doc]
-                        #[derive(Clone, Copy, Debug, PartialEq)]
-                        pub enum #pc_w {
-                            #(#[doc = #variants_doc]
-                            #variants_pc),*
-                        }
-                    });
-
-                    let arms = variants.iter().map(|v| {
-                        let pc = &v.pc;
-                        let value = util::unsuffixed_or_bool(v.value, f.width);
-
-                        quote! {
-                            #pc_w::#pc => #value
-                        }
-                    });
-
-                    mod_items.push(quote! {
-                        impl #pc_w {
-                            #[allow(missing_docs)]
-                            #[doc(hidden)]
-                            #[inline(always)]
-                            pub fn _bits(&self) -> #fty {
-                                match *self {
-                                    #(#arms),*
-                                }
-                            }
-                        }
-                    });
+                    add_from_variants(mod_items, &variants, pc_w, &f);
                 }
 
                 proxy_items.push(quote! {
                     ///Writes `variant` to the field
                     #[inline(always)]
                     pub fn variant(self, variant: #pc_w) -> &'a mut W {
+                        use crate::ToBits;
                         #unsafety {
                             self.#bits(variant._bits())
                         }
@@ -740,6 +633,113 @@ impl Variant {
             })
             .collect::<Result<Vec<_>>>()
     }
+}
+
+fn add_from_variants(mod_items: &mut Vec<Tokens>, variants: &Vec<Variant>, pc: &Ident, f: &F) {
+    let fty = &f.ty;
+    let desc = format!("Possible values of the field `{}`", f.name);
+
+    let vars = variants
+        .iter()
+        .map(|v| {
+            let desc = util::escape_brackets(&v.doc);
+            let pcv = &v.pc;
+            quote! {
+                #[doc = #desc]
+                #pcv
+            }
+        })
+        .collect::<Vec<_>>();
+
+    mod_items.push(quote! {
+        #[doc = #desc]
+        #[derive(Clone, Copy, Debug, PartialEq)]
+        pub enum #pc {
+            #(#vars),*
+        }
+    });
+
+    let arms = variants.iter().map(|v| {
+        let pcv = &v.pc;
+        let value = util::unsuffixed_or_bool(v.value, f.width);
+
+        quote! {
+            #pc::#pcv => #value
+        }
+    });
+
+    mod_items.push(quote! {
+        impl crate::ToBits<#fty> for #pc {
+            #[inline(always)]
+            fn _bits(&self) -> #fty {
+                match *self {
+                    #(#arms),*
+                }
+            }
+        }
+    });
+}
+
+fn derive_from_base(mod_items: &mut Vec<Tokens>, base: &Base, pc: &Ident, base_pc: &Ident, fname: &str) -> quote::Tokens {
+    let desc = format!("Possible values of the field `{}`", fname,);
+
+    if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
+        let pmod_ = peripheral.to_sanitized_snake_case();
+        let rmod_ = register.to_sanitized_snake_case();
+        let pmod_ = Ident::from(&*pmod_);
+        let rmod_ = Ident::from(&*rmod_);
+
+        mod_items.push(quote! {
+            #[doc = #desc]
+            pub type #pc =
+                crate::#pmod_::#rmod_::#base_pc;
+        });
+
+        quote! {
+            crate::#pmod_::#rmod_::#base_pc
+        }
+    } else if let Some(register) = &base.register {
+        let mod_ = register.to_sanitized_snake_case();
+        let mod_ = Ident::from(&*mod_);
+
+        mod_items.push(quote! {
+            #[doc = #desc]
+            pub type #pc =
+                super::#mod_::#base_pc;
+        });
+
+        quote! {
+            super::#mod_::#base_pc
+        }
+    } else {
+        mod_items.push(quote! {
+            #[doc = #desc]
+            pub type #pc = #base_pc;
+        });
+
+        quote! {
+            #base_pc
+        }
+    }
+}
+
+struct F<'a> {
+    _pc_w: Ident,
+    _sc: Ident,
+    access: Option<Access>,
+    description: String,
+    evs: &'a [EnumeratedValues],
+    mask: Tokens,
+    name: &'a str,
+    offset: Tokens,
+    pc_r: Ident,
+    _pc_r: Ident,
+    pc_w: Ident,
+    sc: Ident,
+    bits: Ident,
+    ty: Ident,
+    width: u32,
+    write_constraint: Option<&'a WriteConstraint>,
 }
 
 #[derive(Clone, Debug)]

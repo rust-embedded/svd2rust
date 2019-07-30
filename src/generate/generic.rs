@@ -74,6 +74,17 @@ pub fn render() -> Result<Vec<Tokens>> {
         }
     });
 
+    generic_items.push(quote! {
+        ///Used if enumerated values cover not the whole range
+        #[derive(Clone,Copy,PartialEq)]
+        pub enum Variant<U, T> {
+            ///Expected variant
+            Val(T),
+            ///Raw bits
+            Res(U),
+        }
+    });
+
     code.push(quote! {
         #[allow(unused_imports)]
         use generic::*;
