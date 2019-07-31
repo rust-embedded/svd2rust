@@ -11,7 +11,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - `variant()` method for field reader and `Variant` enum for fields with reserved values
 
-- Field readers and writers use one enum where it is possible
+### Changed
+
+  - Field readers and writers use one enum where it is possible
+
+  - Replace register and its reader/writer by generic types
 
 ## [v0.15.2] - 2019-07-29
 

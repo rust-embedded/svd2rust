@@ -19,6 +19,7 @@ pub fn render(
     let access = util::access_of(register);
     let name = util::name_of(register);
     let name_pc = Ident::from(&*name.to_sanitized_upper_case());
+    let _name_pc = Ident::from(format!("_{}", &*name.to_sanitized_upper_case()));
     let name_sc = Ident::from(&*name.to_sanitized_snake_case());
     let rsize = register
         .size
@@ -35,119 +36,50 @@ pub fn render(
     let description =
         util::escape_brackets(util::respace(&register.description.clone().unwrap()).as_ref());
 
-    let unsafety = unsafety(register.write_constraint.as_ref(), rsize);
-
     let mut mod_items = vec![];
-    let mut reg_impl_items = vec![];
     let mut r_impl_items = vec![];
     let mut w_impl_items = vec![];
+    let mut methods = vec![];
 
     let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access);
     let can_write = access != Access::ReadOnly;
 
-    if access == Access::ReadWrite || access == Access::ReadWriteOnce {
-        reg_impl_items.push(quote! {
-            ///Modifies the contents of the register
-            #[inline(always)]
-            pub fn modify<F>(&self, f: F)
-            where
-                for<'w> F: FnOnce(&R, &'w mut W) -> &'w mut W
-            {
-                let bits = self.register.get();
-                self.register.set(f(&R { bits }, &mut W { bits }).bits);
-            }
-        });
-    }
-
     if can_read {
-        reg_impl_items.push(quote! {
-            ///Reads the contents of the register
-            #[inline(always)]
-            pub fn read(&self) -> R {
-                R { bits: self.register.get() }
-            }
-        });
-
+        let desc = format!("Reader of register {}", register.name);
         mod_items.push(quote! {
-            ///Value read from the register
-            pub struct R {
-                bits: #rty,
-            }
+            #[doc = #desc]
+            pub type R = crate::R<#rty, super::#name_pc>;
         });
-
-        r_impl_items.push(quote! {
-            ///Value of the register as raw bits
-            #[inline(always)]
-            pub fn bits(&self) -> #rty {
-                self.bits
-            }
-        });
+        methods.push("read");
     }
 
     if can_write {
-        reg_impl_items.push(quote! {
-            ///Writes to the register
-            #[inline(always)]
-            pub fn write<F>(&self, f: F)
-            where
-                F: FnOnce(&mut W) -> &mut W
-            {
-                self.register.set(f(&mut W { bits: Self::reset_value() }).bits);
-            }
-        });
-
-        mod_items.push(quote! {
-            ///Value to write to the register
-            pub struct W {
-                bits: #rty,
-            }
-        });
-
         let rv = register
             .reset_value
             .or(defs.reset_value)
             .map(|v| util::hex(v as u64))
             .ok_or_else(|| format!("Register {} has no reset value", register.name))?;
 
-        reg_impl_items.push(quote! {
-            ///Reset value of the register
-            #[inline(always)]
-            pub const fn reset_value() -> #rty {
-                #rv
-            }
-            ///Writes the reset value to the register
-            #[inline(always)]
-            pub fn reset(&self) {
-                self.register.set(Self::reset_value())
-            }
-        });
-
-        w_impl_items.push(quote! {
-            ///Writes raw bits to the register
-            #[inline(always)]
-            pub #unsafety fn bits(&mut self, bits: #rty) -> &mut Self {
-                self.bits = bits;
-                self
-            }
-        });
-    }
-
-    let open = Ident::from("{");
-    let close = Ident::from("}");
-
-    mod_items.push(quote! {
-        impl super::#name_pc #open
-    });
-
-    for item in reg_impl_items {
+        let desc = format!("Writer for register {}", register.name);
+        let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
         mod_items.push(quote! {
-            #item
+            #[doc = #desc]
+            pub type W = crate::W<#rty, super::#name_pc>;
+            #[doc = #doc]
+            impl crate::ResetValue for super::#name_pc {
+                type Type = #rty;
+                #[inline(always)]
+                fn reset_value() -> Self::Type { #rv }
+            }
         });
+        methods.push("reset");
+        methods.push("write");
+        methods.push("write_with_zero");
     }
 
-    mod_items.push(quote! {
-       #close
-    });
+    if can_read && can_write {
+        methods.push("modify");
+    }
 
     if let Some(cur_fields) = register.fields.as_ref() {
         // filter out all reserved fields, as we should not generate code for
@@ -210,12 +142,38 @@ pub fn render(
     }
 
     let mut out = vec![];
-    out.push(quote! {
-        #[doc = #description]
-        pub struct #name_pc {
-            register: vcell::VolatileCell<#rty>
-        }
+    let methods = methods.iter().map(|s| format!("[`{0}`](crate::generic::Reg::{0})", s)).collect::<Vec<_>>();
+    let mut doc = format!("{}\n\nThis register you can {}. See [API](https://docs.rs/svd2rust/#read--modify--write-api).",
+                        &description, methods.join(", "));
 
+    if name_sc != "cfg" {
+        doc += format!("\n\nFor information about avaliable fields see [{0}]({0}) module", &name_sc).as_str();
+    }
+    out.push(quote! {
+        #[doc = #doc]
+        pub type #name_pc = crate::Reg<#rty, #_name_pc>;
+
+        #[allow(missing_docs)]
+        #[doc(hidden)]
+        pub struct #_name_pc;
+    });
+
+    if can_read {
+        let doc = format!("`read()` method returns [{0}::R]({0}::R) reader structure", &name_sc);
+        out.push(quote! {
+            #[doc = #doc]
+            impl crate::Readable for #name_pc {}
+        });
+    }
+    if can_write {
+        let doc = format!("`write(|w| ..)` method takes [{0}::W]({0}::W) writer structure", &name_sc);
+        out.push(quote! {
+            #[doc = #doc]
+            impl crate::Writable for #name_pc {}
+        });
+    }
+
+    out.push(quote! {
         #[doc = #description]
         pub mod #name_sc #open
     });
@@ -364,9 +322,10 @@ pub fn fields(
                     let base_pc_r = Ident::from(&*format!("{}_A", pc));
                     let base_pc_r = derive_from_base(mod_items, &base, &pc_r, &base_pc_r, f.name);
 
+                    let doc = format!("Reader of field `{}`", f.name);
                     mod_items.push(quote! {
-                        ///Reader of the field
-                        pub type #_pc_r = crate::FR<#fty, #base_pc_r>;
+                        #[doc = #doc]
+                        pub type #_pc_r = crate::R<#fty, #base_pc_r>;
                     });
 
                     base_pc_r
@@ -406,7 +365,7 @@ pub fn fields(
 
                     if has_reserved_variant {
                         enum_items.push(quote! {
-                            ///Enumerated values
+                            ///Get enumerated values variant
                             #[inline(always)]
                             pub fn variant(&self) -> crate::Variant<#fty, #pc_r> {
                                 use crate::Variant::*;
@@ -417,7 +376,7 @@ pub fn fields(
                         });
                     } else {
                         enum_items.push(quote! {
-                            ///Enumerated values
+                            ///Get enumerated values variant
                             #[inline(always)]
                             pub fn variant(&self) -> #pc_r {
                                 match self.bits {
@@ -447,9 +406,10 @@ pub fn fields(
                         });
                     }
 
+                    let doc = format!("Reader of field `{}`", f.name);
                     mod_items.push(quote! {
-                        ///Reader of the field
-                        pub type #_pc_r = crate::FR<#fty, #pc_r>;
+                        #[doc = #doc]
+                        pub type #_pc_r = crate::R<#fty, #pc_r>;
                         impl #_pc_r {
                             #(#enum_items)*
                         }
@@ -467,9 +427,10 @@ pub fn fields(
                     }
                 });
 
+                let doc = format!("Reader of field `{}`", f.name);
                 mod_items.push(quote! {
-                    ///Reader of the field
-                    pub type #_pc_r = crate::FR<#fty, #fty>;
+                    #[doc = #doc]
+                    pub type #_pc_r = crate::R<#fty, #fty>;
                 })
 
             }
@@ -575,8 +536,9 @@ pub fn fields(
                 }
             });
 
+            let doc = format!("Write proxy for field `{}`", f.name);
             mod_items.push(quote! {
-                ///Proxy
+                #[doc = #doc]
                 pub struct #_pc_w<'a> {
                     w: &'a mut W,
                 }
