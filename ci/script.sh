@@ -424,28 +424,6 @@ main() {
             test_svd ht32f275x
         ;;
 
-        # test other targets (architectures)
-        OTHER)
-            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.1.0"' >> $td/Cargo.toml
-
-            echo '[dependencies.msp430]' >> $td/Cargo.toml
-            echo 'version = "0.1.0"' >> $td/Cargo.toml
-
-            echo '[dependencies.riscv]' >> $td/Cargo.toml
-            echo 'version = "0.5.0"' >> $td/Cargo.toml
-
-            echo '[dependencies.riscv-rt]' >> $td/Cargo.toml
-            echo 'version = "0.6.0"' >> $td/Cargo.toml
-
-            # Test MSP430
-            test_svd_for_target msp430 https://github.com/pftbest/msp430g2553/raw/v0.1.0/msp430g2553.svd
-
-            # Test RISC-V chips
-            test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
-            test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/k210-pac/master/k210.svd
-        ;;
-
         Nordic)
             echo '[dependencies.bare-metal]' >> $td/Cargo.toml
             echo 'version = "0.2.0"' >> $td/Cargo.toml
@@ -506,6 +484,33 @@ main() {
             # FIXME(???) "duplicate definitions for `write`"
             # #99 regression test
             # test_svd LPC5410x_v0.4
+        ;;
+
+        # test other targets (architectures)
+        OTHER)
+            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
+            echo 'version = "0.1.0"' >> $td/Cargo.toml
+
+            echo '[dependencies.msp430]' >> $td/Cargo.toml
+            echo 'version = "0.1.0"' >> $td/Cargo.toml
+
+            # Test MSP430
+            test_svd_for_target msp430 https://github.com/pftbest/msp430g2553/raw/v0.1.0/msp430g2553.svd
+        ;;
+
+        # Community-provided RISC-V SVDs
+        RISC-V)
+            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
+            echo 'version = "0.2.0"' >> $td/Cargo.toml
+
+            echo '[dependencies.riscv]' >> $td/Cargo.toml
+            echo 'version = "0.5.0"' >> $td/Cargo.toml
+
+            echo '[dependencies.riscv-rt]' >> $td/Cargo.toml
+            echo 'version = "0.6.0"' >> $td/Cargo.toml
+
+            test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
+            test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/k210-pac/master/k210.svd
         ;;
 
         SiliconLabs)

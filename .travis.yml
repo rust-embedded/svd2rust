@@ -25,6 +25,8 @@ matrix:
 
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=NXP
 
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=RISC-V
+
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=SiliconLabs
 
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Spansion
