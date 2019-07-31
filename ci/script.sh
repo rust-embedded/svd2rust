@@ -511,6 +511,7 @@ main() {
 
             test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
             test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/k210-pac/master/k210.svd
+            test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/fu540-pac/master/fu540.svd
         ;;
 
         SiliconLabs)
