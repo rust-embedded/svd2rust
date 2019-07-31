@@ -20,7 +20,7 @@ pub fn render() -> Result<Vec<Tokens>> {
     generic_items.push(quote! {
         ///Value read from the register
         pub struct FR<U, T> {
-            bits: U,
+            pub(crate) bits: U,
             _reg: marker::PhantomData<T>,
         }
 
