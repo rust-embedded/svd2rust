@@ -1,4 +1,6 @@
-use quote::Tokens;
+use quote::{Tokens, ToTokens};
+use std::fs::File;
+use std::io::Write;
 use crate::svd::Device;
 use syn::Ident;
 
@@ -6,13 +8,14 @@ use crate::errors::*;
 use crate::util::{self, ToSanitizedUpperCase};
 use crate::Target;
 
-use crate::generate::{interrupt, peripheral, generic};
+use crate::generate::{interrupt, peripheral};
 
 /// Whole device generation
 pub fn render(
     d: &Device,
     target: Target,
     nightly: bool,
+    generic_mod: bool,
     device_x: &mut String,
 ) -> Result<Vec<Tokens>> {
     let mut out = vec![];
@@ -136,7 +139,22 @@ pub fn render(
         }
     }
 
-    out.extend(generic::render()?);
+    let generic_file = std::str::from_utf8(include_bytes!("generic.rs")).unwrap();
+    if generic_mod {
+        writeln!(File::create("generic.rs").unwrap(), "{}", generic_file).unwrap();
+    } else {
+        let mut tokens = Tokens::new();
+        (syn::parse_crate(generic_file)?).to_tokens(&mut tokens);
+
+        out.push(quote! {
+            #[allow(unused_imports)]
+            use generic::*;
+            ///Common register and bit access and modify traits
+            pub mod generic {
+                #tokens
+            }
+        });
+    }
 
     for p in &d.peripherals {
         if target == Target::CortexM && core_peripherals.contains(&&*p.name.to_uppercase()) {
