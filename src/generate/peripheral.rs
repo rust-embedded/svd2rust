@@ -2,10 +2,12 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
-use quote::{ToTokens, Tokens};
+use quote::ToTokens;
+use proc_macro2::TokenStream;
 use crate::svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register, RegisterCluster, RegisterInfo};
-use syn::{self, Ident};
+use proc_macro2::{Ident, Span, Punct, Spacing};
 use log::warn;
+use syn::{parse_str, Token};
 
 use crate::errors::*;
 use crate::util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
@@ -17,7 +19,7 @@ pub fn render(
     all_peripherals: &[Peripheral],
     defaults: &Defaults,
     nightly: bool,
-) -> Result<Vec<Tokens>> {
+) -> Result<Vec<TokenStream>> {
     let mut out = vec![];
 
     let p_derivedfrom = p_original.derived_from.as_ref().and_then(|s| {
@@ -33,14 +35,15 @@ pub fn render(
         return Ok(out);
     }
 
-    let name_pc = Ident::from(&*p.name.to_sanitized_upper_case());
+    let span = Span::call_site();
+    let name_pc = Ident::new(&p.name.to_sanitized_upper_case(), span);
     let address = util::hex(p.base_address as u64);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
     let derive_regs = p_derivedfrom.is_some() && p_original.registers.is_none();
 
-    let name_sc = Ident::from(&*p.name.to_sanitized_snake_case());
+    let name_sc = Ident::new(&p.name.to_sanitized_snake_case(), span);
     let base = if derive_regs {
-        Ident::from(&*p_derivedfrom.unwrap().name.to_sanitized_snake_case())
+        Ident::new(&p_derivedfrom.unwrap().name.to_sanitized_snake_case(), span)
     } else {
         name_sc.clone()
     };
@@ -186,8 +189,8 @@ pub fn render(
     let description =
         util::escape_brackets(util::respace(p.description.as_ref().unwrap_or(&p.name)).as_ref());
 
-    let open = Ident::from("{");
-    let close = Ident::from("}");
+    let open = Punct::new('{', Spacing::Alone);
+    let close = Punct::new('}', Spacing::Alone);
 
     out.push(quote! {
         #[doc = #description]
@@ -231,7 +234,7 @@ impl Region {
             .iter()
             .filter_map(|f| match &f.field.ident {
                 None => None,
-                Some(ident) => Some(ident.as_ref()),
+                Some(ident) => Some(ident.to_string()),
             })
             .collect();
         if idents.is_empty() {
@@ -272,7 +275,7 @@ impl Region {
             .iter()
             .filter_map(|f| match &f.field.ident {
                 None => None,
-                Some(ident) => Some(ident.as_ref()),
+                Some(ident) => Some(ident.to_string()),
             })
             .collect();
 
@@ -439,9 +442,9 @@ fn register_or_cluster_block(
     defs: &Defaults,
     name: Option<&str>,
     _nightly: bool,
-) -> Result<Tokens> {
-    let mut fields = Tokens::new();
-    let mut accessors = Tokens::new();
+) -> Result<TokenStream> {
+    let mut fields = TokenStream::new();
+    let mut accessors = TokenStream::new();
     let mut have_accessors = false;
 
     let ercs_expanded = expand(ercs, defs, name)?;
@@ -458,18 +461,19 @@ fn register_or_cluster_block(
     // The end of the region for which we previously emitted a field into `fields`
     let mut last_end = 0;
 
+    let span = Span::call_site();
     for (i, region) in regions.regions.iter().enumerate() {
         // Check if we need padding
         let pad = region.offset - last_end;
         if pad != 0 {
-            let name = Ident::from(format!("_reserved{}", i));
+            let name = Ident::new(&format!("_reserved{}", i), span);
             let pad = pad as usize;
-            fields.append(quote! {
+            fields.extend(quote! {
                 #name : [u8; #pad],
             });
         }
 
-        let mut region_fields = Tokens::new();
+        let mut region_fields = TokenStream::new();
         let is_region_a_union = region.is_union();
 
         for reg_block_field in &region.fields {
@@ -481,11 +485,11 @@ fn register_or_cluster_block(
 
             if is_region_a_union {
                 let name = &reg_block_field.field.ident;
-                let mut_name = Ident::from(format!("{}_mut", name.as_ref().unwrap()));
+                let mut_name = Ident::new(&format!("{}_mut", name.as_ref().unwrap()), span);
                 let ty = &reg_block_field.field.ty;
                 let offset = reg_block_field.offset as usize;
                 have_accessors = true;
-                accessors.append(quote! {
+                accessors.extend(quote! {
                     #[doc = #comment]
                     #[inline(always)]
                     pub fn #name(&self) -> &#ty {
@@ -503,17 +507,17 @@ fn register_or_cluster_block(
                     }
                 });
             } else {
-                region_fields.append(quote! {
+                region_fields.extend(quote! {
                     #[doc = #comment]
                 });
 
                 reg_block_field.field.to_tokens(&mut region_fields);
-                Ident::from(",").to_tokens(&mut region_fields);
+                Punct::new(',', Spacing::Alone).to_tokens(&mut region_fields);
             }
         }
 
         if !is_region_a_union {
-            fields.append(&region_fields);
+            fields.extend(region_fields);
         } else {
             // Emit padding for the items that we're not emitting
             // as fields so that subsequent fields have the correct
@@ -527,19 +531,23 @@ fn register_or_cluster_block(
             // name, along with the region number, falling back to
             // the offset and end in case we couldn't figure out a
             // nice identifier.
-            let name = Ident::from(format!("_reserved_{}_{}", i, region.compute_ident().unwrap_or_else(|| format!("{}_{}", region.offset, region.end))));
+            let name = Ident::new(&format!(
+                "_reserved_{}_{}",
+                i,
+                region.compute_ident().unwrap_or_else(|| format!("{}_{}", region.offset, region.end))
+            ), span);
             let pad = (region.end - region.offset) as usize;
-            fields.append(quote! {
+            fields.extend(quote! {
                 #name: [u8; #pad],
             })
         }
         last_end = region.end;
     }
 
-    let name = Ident::from(match name {
+    let name = Ident::new(&match name {
         Some(name) => name.to_sanitized_upper_case(),
         None => "RegisterBlock".into(),
-    });
+    }, span);
 
     let accessors = if have_accessors {
         quote! {
@@ -719,15 +727,15 @@ fn expand_register(
     Ok(register_expanded)
 }
 
-/// Render a Cluster Block into `Tokens`
+/// Render a Cluster Block into `TokenStream`
 fn cluster_block(
     c: &Cluster,
     defaults: &Defaults,
     p: &Peripheral,
     all_peripherals: &[Peripheral],
     nightly: bool,
-) -> Result<Tokens> {
-    let mut mod_items: Vec<Tokens> = vec![];
+) -> Result<TokenStream> {
+    let mut mod_items: Vec<TokenStream> = vec![];
 
     // name_sc needs to take into account array type.
     let description = util::escape_brackets(util::respace(&c.description).as_ref());
@@ -739,7 +747,7 @@ fn cluster_block(
     }
     .replace("[%s]", "")
     .replace("%s", "");
-    let name_sc = Ident::from(&*mod_name.to_sanitized_snake_case());
+    let name_sc = Ident::new(&mod_name.to_sanitized_snake_case(), Span::call_site());
 
     let reg_size = c.size.or(defaults.size);
     let mut defaults = defaults.clone();
@@ -779,7 +787,7 @@ fn cluster_block(
 /// Takes a svd::Register which may be a register array, and turn in into
 /// a list of syn::Field where the register arrays have been expanded.
 fn expand_svd_register(register: &Register, name: Option<&str>) -> Vec<syn::Field> {
-    let name_to_ty = |name: &String, ns: Option<&str>| -> syn::Ty {
+    let name_to_ty = |name: &String, ns: Option<&str>| -> syn::Type {
         let ident = if let Some(ns) = ns {
             Cow::Owned(
                 String::from("self::")
@@ -791,16 +799,7 @@ fn expand_svd_register(register: &Register, name: Option<&str>) -> Vec<syn::Fiel
             name.to_sanitized_upper_case()
         };
 
-        syn::Ty::Path(
-            None,
-            syn::Path {
-                global: false,
-                segments: vec![syn::PathSegment {
-                    ident: Ident::from(ident),
-                    parameters: syn::PathParameters::none(),
-                }],
-            },
-        )
+        syn::Type::Path(parse_str::<syn::TypePath>(&ident).unwrap())
     };
 
     let mut out = vec![];
@@ -835,13 +834,15 @@ fn expand_svd_register(register: &Register, name: Option<&str>) -> Vec<syn::Fiel
                     info.name.replace("%s", "")
                 };
 
-                let ident = Ident::from(nb_name.to_sanitized_snake_case());
+                let span = Span::call_site();
+                let ident = Ident::new(&nb_name.to_sanitized_snake_case(), span);
                 let ty = name_to_ty(&ty_name, name);
 
                 out.push(syn::Field {
                     ident: Some(ident),
-                    vis: syn::Visibility::Public,
+                    vis: syn::Visibility::Public(syn::VisPublic{ pub_token: Token![pub](span) }),
                     attrs: vec![],
+                    colon_token: Some(Token![:](span)),
                     ty,
                 });
             }
@@ -852,36 +853,25 @@ fn expand_svd_register(register: &Register, name: Option<&str>) -> Vec<syn::Fiel
 
 /// Convert a parsed `Register` into its `Field` equivalent
 fn convert_svd_register(register: &Register, name: Option<&str>) -> syn::Field {
-    let name_to_ty = |name: &String, ns: Option<&str>| -> syn::Ty {
-        let ident = if let Some(ns) = ns {
-            Cow::Owned(
+    let name_to_ty = |name: &String, ns: Option<&str>| -> String {
+        if let Some(ns) = ns {
                 String::from("self::")
                     + &ns.to_sanitized_snake_case()
                     + "::"
-                    + &name.to_sanitized_upper_case(),
-            )
+                    + &name.to_sanitized_upper_case()
         } else {
-            name.to_sanitized_upper_case()
-        };
-
-        syn::Ty::Path(
-            None,
-            syn::Path {
-                global: false,
-                segments: vec![syn::PathSegment {
-                    ident: Ident::from(ident),
-                    parameters: syn::PathParameters::none(),
-                }],
-            },
-        )
+            name.to_sanitized_upper_case().to_string()
+        }
     };
 
+    let span = Span::call_site();
     match register {
         Register::Single(info) => syn::Field {
-            ident: Some(Ident::from(info.name.to_sanitized_snake_case())),
-            vis: syn::Visibility::Public,
+            ident: Some(Ident::new(&info.name.to_sanitized_snake_case(), span)),
+            vis: syn::Visibility::Public(syn::VisPublic{ pub_token: Token![pub](span) }),
             attrs: vec![],
-            ty: name_to_ty(&info.name, name),
+            colon_token: Some(Token![:](span)),
+            ty: syn::Type::Path(parse_str::<syn::TypePath>(&name_to_ty(&info.name, name)).unwrap()),
         },
         Register::Array(info, array_info) => {
             let has_brackets = info.name.contains("[%s]");
@@ -892,20 +882,16 @@ fn convert_svd_register(register: &Register, name: Option<&str>) -> syn::Field {
                 info.name.replace("%s", "")
             };
 
-            let ident = Ident::from(nb_name.to_sanitized_snake_case());
+            let ident = Ident::new(&nb_name.to_sanitized_snake_case(), span);
 
-            let ty = syn::Ty::Array(
-                Box::new(name_to_ty(&nb_name, name)),
-                syn::ConstExpr::Lit(syn::Lit::Int(
-                    u64::from(array_info.dim),
-                    syn::IntTy::Unsuffixed,
-                )),
-            );
-
+            let ty = syn::Type::Array(parse_str::<syn::TypeArray>(
+                &format!("[{};{}]", name_to_ty(&nb_name, name), u64::from(array_info.dim))
+            ).unwrap());
             syn::Field {
                 ident: Some(ident),
-                vis: syn::Visibility::Public,
+                vis: syn::Visibility::Public(syn::VisPublic{ pub_token: Token![pub](span) }),
                 attrs: vec![],
+                colon_token: Some(Token![:](span)),
                 ty,
             }
         }
@@ -915,17 +901,8 @@ fn convert_svd_register(register: &Register, name: Option<&str>) -> syn::Field {
 /// Takes a svd::Cluster which may contain a register array, and turn in into
 /// a list of syn::Field where the register arrays have been expanded.
 fn expand_svd_cluster(cluster: &Cluster) -> Vec<syn::Field> {
-    let name_to_ty = |name: &String| -> syn::Ty {
-        syn::Ty::Path(
-            None,
-            syn::Path {
-                global: false,
-                segments: vec![syn::PathSegment {
-                    ident: Ident::from(name.to_sanitized_upper_case()),
-                    parameters: syn::PathParameters::none(),
-                }],
-            },
-        )
+    let name_to_ty = |name: &String| -> syn::Type {
+        syn::Type::Path(parse_str::<syn::TypePath>(&name.to_sanitized_upper_case()).unwrap())
     };
 
     let mut out = vec![];
@@ -960,13 +937,15 @@ fn expand_svd_cluster(cluster: &Cluster) -> Vec<syn::Field> {
                     info.name.replace("%s", "")
                 };
 
-                let ident = Ident::from(name.to_sanitized_snake_case());
+                let span = Span::call_site();
+                let ident = Ident::new(&name.to_sanitized_snake_case(), span);
                 let ty = name_to_ty(&ty_name);
 
                 out.push(syn::Field {
                     ident: Some(ident),
-                    vis: syn::Visibility::Public,
+                    vis: syn::Visibility::Public(syn::VisPublic{ pub_token: Token![pub](span) }),
                     attrs: vec![],
+                    colon_token: Some(Token![:](span)),
                     ty,
                 });
             }
@@ -977,25 +956,14 @@ fn expand_svd_cluster(cluster: &Cluster) -> Vec<syn::Field> {
 
 /// Convert a parsed `Cluster` into its `Field` equivalent
 fn convert_svd_cluster(cluster: &Cluster) -> syn::Field {
-    let name_to_ty = |name: &String| -> syn::Ty {
-        syn::Ty::Path(
-            None,
-            syn::Path {
-                global: false,
-                segments: vec![syn::PathSegment {
-                    ident: Ident::from(name.to_sanitized_upper_case()),
-                    parameters: syn::PathParameters::none(),
-                }],
-            },
-        )
-    };
-
+    let span = Span::call_site();
     match cluster {
         Cluster::Single(info) => syn::Field {
-            ident: Some(Ident::from(info.name.to_sanitized_snake_case())),
-            vis: syn::Visibility::Public,
+            ident: Some(Ident::new(&info.name.to_sanitized_snake_case(), span)),
+            vis: syn::Visibility::Public(syn::VisPublic{ pub_token: Token![pub](span) }),
             attrs: vec![],
-            ty: name_to_ty(&info.name),
+            colon_token: Some(Token![:](span)),
+            ty: syn::Type::Path(parse_str::<syn::TypePath>(&info.name.to_sanitized_upper_case()).unwrap()),
         },
         Cluster::Array(info, array_info) => {
             let has_brackets = info.name.contains("[%s]");
@@ -1006,20 +974,17 @@ fn convert_svd_cluster(cluster: &Cluster) -> syn::Field {
                 info.name.replace("%s", "")
             };
 
-            let ident = Ident::from(name.to_sanitized_snake_case());
+            let ident = Ident::new(&name.to_sanitized_snake_case(), span);
 
-            let ty = syn::Ty::Array(
-                Box::new(name_to_ty(&name)),
-                syn::ConstExpr::Lit(syn::Lit::Int(
-                    u64::from(array_info.dim),
-                    syn::IntTy::Unsuffixed,
-                )),
-            );
+            let ty = syn::Type::Array(parse_str::<syn::TypeArray>(
+                &format!("[{};{}]", &name.to_sanitized_upper_case(), u64::from(array_info.dim))
+            ).unwrap());
 
             syn::Field {
                 ident: Some(ident),
-                vis: syn::Visibility::Public,
+                vis: syn::Visibility::Public(syn::VisPublic{ pub_token: Token![pub](span) }),
                 attrs: vec![],
+                colon_token: Some(Token![:](span)),
                 ty,
             }
         }
