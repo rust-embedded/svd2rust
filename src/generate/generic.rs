@@ -42,7 +42,16 @@ where
 {
     ///Reads the contents of `Readable` register
     ///
-    ///See [reading](https://rust-embedded.github.io/book/start/registers.html#reading) in book.
+    ///You can read the contents of a register in such way:
+    ///```ignore
+    ///let bits = periph.reg.read().bits();
+    ///```
+    ///or get the content of a particular field of a register.
+    ///```ignore
+    ///let reader = periph.reg.read();
+    ///let bits = reader.field1().bits();
+    ///let flag = reader.field2().bit_is_set();
+    ///```
     #[inline(always)]
     pub fn read(&self) -> R<U, Self> {
         R {bits: self.register.get(), _reg: marker::PhantomData}
@@ -55,6 +64,8 @@ where
     U: Copy,
 {
     ///Writes the reset value to `Writable` register
+    ///
+    ///Resets the register to its initial state
     #[inline(always)]
     pub fn reset(&self) {
         self.register.set(Self::reset_value())
@@ -68,7 +79,19 @@ where
 {
     ///Writes bits to `Writable` register
     ///
-    ///See [writing](https://rust-embedded.github.io/book/start/registers.html#writing) in book.
+    ///You can write raw bits into a register:
+    ///```ignore
+    ///periph.reg.write(|w| unsafe { w.bits(rawbits) });
+    ///```
+    ///or write only the fields you need:
+    ///```ignore
+    ///periph.reg.write(|w| w
+    ///    .field1().bits(newfield1bits)
+    ///    .field2().set_bit()
+    ///    .field3().variant(VARIANT)
+    ///);
+    ///```
+    ///Other fields will have reset value.
     #[inline(always)]
     pub fn write<F>(&self, f: F)
     where
@@ -84,6 +107,8 @@ where
     U: Copy + Default
 {
     ///Writes Zero to `Writable` register
+    ///
+    ///Similar to `write`, but unused bits will contain 0.
     #[inline(always)]
     pub fn write_with_zero<F>(&self, f: F)
     where
@@ -100,7 +125,21 @@ where
 {
     ///Modifies the contents of the register
     ///
-    ///See [modifying](https://rust-embedded.github.io/book/start/registers.html#modifying) in book.
+    ///E.g. to do a read-modify-write sequence to change parts of a register:
+    ///```ignore
+    ///periph.reg.modify(|r, w| unsafe { w.bits(
+    ///   r.bits() | 3
+    ///) });
+    ///```
+    ///or
+    ///```ignore
+    ///periph.reg.modify(|_, w| w
+    ///    .field1().bits(newfield1bits)
+    ///    .field2().set_bit()
+    ///    .field3().variant(VARIANT)
+    ///);
+    ///```
+    ///Other fields will have value they had before call `modify`.
     #[inline(always)]
     pub fn modify<F>(&self, f: F)
     where
@@ -112,6 +151,9 @@ where
 }
 
 ///Register/field reader
+///
+///Result of the [`read`](Reg::read) method of a register.
+///Also it can be used in the [`modify`](Reg::read) method
 pub struct R<U, T> {
     pub(crate) bits: U,
     _reg: marker::PhantomData<T>,
@@ -141,6 +183,7 @@ where
     U: PartialEq,
     FI: ToBits<U>
 {
+    #[inline(always)]
     fn eq(&self, other: &FI) -> bool {
         self.bits.eq(&other._bits())
     }
@@ -165,16 +208,18 @@ impl<FI> R<bool, FI> {
 }
 
 ///Register writer
+///
+///Used as an argument to the closures in the [`write`](Reg::write) and [`modify`](Reg::modify) methods of the register
 pub struct W<U, REG> {
     ///Writable bits
-    pub bits: U,
+    pub(crate) bits: U,
     _reg: marker::PhantomData<REG>,
 }
 
 impl<U, REG> W<U, REG> {
     ///Writes raw bits to the register
     #[inline(always)]
-    pub fn bits(&mut self, bits: U) -> &mut Self {
+    pub unsafe fn bits(&mut self, bits: U) -> &mut Self {
         self.bits = bits;
         self
     }

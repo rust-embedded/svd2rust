@@ -11,11 +11,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - `variant()` method for field reader and `Variant` enum for fields with reserved values
 
+- Update documentation, add examples for register access methods
+
+- Add `write_with_zero` method for registers without reset value
+
 ### Changed
 
-  - Field readers and writers use one enum where it is possible
+- Field readers and writers use one enum where it is possible
 
-  - Replace register and its reader/writer by generic types
+- Replace register and its reader/writer by generic types
+
+- Restore `unsafe` marker on register writer `bits()` method
 
 ## [v0.15.2] - 2019-07-29
 

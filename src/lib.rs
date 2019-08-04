@@ -226,7 +226,13 @@
 //!         ..
 //!     }
 //! }
+//! impl crate::ResetValue for CR2 {
+//!     type Type = u32;
+//!     fn reset_value() -> Self::Type { 0 }
+//! }
 //! ```
+//!
+//! ## `read`
 //!
 //! The `read` method "reads" the register using a **single**, volatile `LDR` instruction and
 //! returns a proxy `R` struct that allows access to only the readable bits (i.e. not to the
@@ -236,10 +242,10 @@
 //! /// Value read from the register
 //! impl R {
 //!     /// Bit 0 - Slave address bit 0 (master mode)
-//!     pub fn sadd0(&self) -> SADD0R { .. }
+//!     pub fn sadd0(&self) -> SADD0_R { .. }
 //!
 //!     /// Bits 1:7 - Slave address bit 7:1 (master mode)
-//!     pub fn sadd1(&self) -> SADD1R { .. }
+//!     pub fn sadd1(&self) -> SADD1_R { .. }
 //!
 //!     (..)
 //! }
@@ -256,26 +262,30 @@
 //! }
 //! ```
 //!
+//! ## `reset`
+//!
+//! The `ResetValue` trait provides `reset_value` which returns the value of the `CR2`
+//! register after a reset. This value can be used to modify the
+//! writable bitfields of the `CR2` register or reset it to its initial state.
+//! Usage looks like this:
+//!
+//! ```ignore
+//! if i2c1.c2r.write().reset()
+//! ```
+//!
+//! ## `write`
+//!
 //! On the other hand, the `write` method writes some value to the register using a **single**,
 //! volatile `STR` instruction. This method involves a `W` struct that only allows constructing
 //! valid states of the `CR2` register.
 //!
-//! The only constructor that `W` provides is `reset_value` which returns the value of the `CR2`
-//! register after a reset. The rest of `W` methods are "builder-like" and can be used to modify the
-//! writable bitfields of the `CR2` register.
-//!
 //! ```ignore
-//! impl CR2W {
-//!     /// Reset value
-//!     pub fn reset_value() -> Self {
-//!         CR2W { bits: 0 }
-//!     }
-//!
+//! impl W {
 //!     /// Bits 1:7 - Slave address bit 7:1 (master mode)
-//!     pub fn sadd1(&mut self) -> _SADD1W { .. }
+//!     pub fn sadd1(&mut self) -> SADD1_W { .. }
 //!
 //!     /// Bit 0 - Slave address bit 0 (master mode)
-//!     pub fn sadd0(&mut self) -> SADD0R { .. }
+//!     pub fn sadd0(&mut self) -> SADD0_W { .. }
 //! }
 //! ```
 //!
@@ -299,6 +309,8 @@
 //! // bitfield. This makes it impossible to write, for example, `6` to a 2-bit
 //! // field; instead, `6 & 3` (i.e. `2`) will be written to the bitfield.
 //! ```
+//!
+//! ## `modify`
 //!
 //! Finally, the `modify` method performs a **single** read-modify-write
 //! operation that involves **one** read (`LDR`) to the register, modifying the
@@ -327,16 +339,16 @@
 //! The new `read` API returns an enum that you can match:
 //!
 //! ```ignore
-//! match gpioa.dir.read().pin0() {
-//!     gpioa::dir::PIN0R::Input => { .. },
-//!     gpioa::dir::PIN0R::Output => { .. },
+//! match gpioa.dir.read().pin0().variant() {
+//!     gpioa::dir::PIN0_A::Input => { .. },
+//!     gpioa::dir::PIN0_A::Output => { .. },
 //! }
 //! ```
 //!
 //! or test for equality
 //!
 //! ```ignore
-//! if gpioa.dir.read().pin0() == gpio::dir::PIN0R::Input {
+//! if gpioa.dir.read().pin0().variant() == gpio::dir::PIN0_A::Input {
 //!     ..
 //! }
 //! ```
@@ -366,8 +378,8 @@
 //! write from an `enum`eration of the possible ones:
 //!
 //! ```ignore
-//! // enum DIRW { Input, Output }
-//! gpioa.dir.write(|w| w.pin0().variant(gpio::dir::PIN0W::Output));
+//! // enum PIN0_A { Input, Output }
+//! gpioa.dir.write(|w| w.pin0().variant(gpio::dir::PIN0_A::Output));
 //! ```
 //!
 //! There are convenience methods to pick one of the variants without having to
