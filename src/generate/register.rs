@@ -54,26 +54,28 @@ pub fn render(
     }
 
     if can_write {
-        let rv = register
-            .reset_value
-            .or(defs.reset_value)
-            .map(|v| util::hex(v as u64))
-            .ok_or_else(|| format!("Register {} has no reset value", register.name))?;
-
         let desc = format!("Writer for register {}", register.name);
-        let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
         mod_items.push(quote! {
             #[doc = #desc]
             pub type W = crate::W<#rty, super::#name_pc>;
-            #[doc = #doc]
-            impl crate::ResetValue for super::#name_pc {
-                type Type = #rty;
-                #[inline(always)]
-                fn reset_value() -> Self::Type { #rv }
-            }
         });
-        methods.push("reset");
-        methods.push("write");
+        let res_val = register
+            .reset_value
+            .or(defs.reset_value)
+            .map(|v| util::hex(v as u64));
+        if let Some(rv) = res_val {
+            let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
+            mod_items.push(quote! {
+                #[doc = #doc]
+                impl crate::ResetValue for super::#name_pc {
+                    type Type = #rty;
+                    #[inline(always)]
+                    fn reset_value() -> Self::Type { #rv }
+                }
+            });
+            methods.push("reset");
+            methods.push("write");
+        }
         methods.push("write_with_zero");
     }
 
