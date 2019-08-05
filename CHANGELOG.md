@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.16.0] - 2019-08-05
+
 ### Added
 
 - `variant()` method for field reader and `Variant` enum for fields with reserved values
@@ -15,11 +17,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Add `write_with_zero` method for registers without reset value
 
+- command line option `--generic_mod` or `-g` for pushing common
+  structures and traits in separate `generic.rs` file
+
 ### Changed
 
 - Field readers and writers use one enum where it is possible
+  They also were renamed (suffix `_R` for readers, `_W` for writers
+  `_A` for common enums, `_AW` if writable variants and readable variants are different)
 
-- Replace register and its reader/writer by generic types
+- Replace register and its reader/writer by generic types `Reg`, `R` and `W`
 
 - Restore `unsafe` marker on register writer `bits()` method
 
@@ -464,7 +471,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.15.2...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.16.0...HEAD
+[v0.16.0]: https://github.com/rust-embedded/svd2rust/compare/v0.15.2...v0.16.0
 [v0.15.2]: https://github.com/rust-embedded/svd2rust/compare/v0.15.1...v0.15.2
 [v0.15.1]: https://github.com/rust-embedded/svd2rust/compare/v0.15.0...v0.15.1
 [v0.15.0]: https://github.com/rust-embedded/svd2rust/compare/v0.14.0...v0.15.0
