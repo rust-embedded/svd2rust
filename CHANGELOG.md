@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Handling of missing register description (optional field)
+
 ## [v0.16.0] - 2019-08-05
 
 ### Added

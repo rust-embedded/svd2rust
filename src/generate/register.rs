@@ -3,6 +3,7 @@ use crate::svd::{
     Usage, WriteConstraint,
 };
 use cast::u64;
+use log::warn;
 use quote::Tokens;
 use syn::Ident;
 
@@ -33,8 +34,13 @@ pub fn render(
         rsize.next_power_of_two()
     };
     let rty = rsize.to_ty()?;
-    let description =
-        util::escape_brackets(util::respace(&register.description.clone().unwrap()).as_ref());
+    let description = util::escape_brackets(
+        util::respace(&register.description.clone().unwrap_or_else(|| {
+            warn!("Missing description for register {}", register.name);
+            "".to_string()
+        }))
+        .as_ref(),
+    );
 
     let mut mod_items = vec![];
     let mut r_impl_items = vec![];
