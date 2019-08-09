@@ -679,7 +679,7 @@ fn expand_register(
     match register {
         Register::Single(info) => register_expanded.push(RegisterBlockField {
             field: convert_svd_register(register, name),
-            description: info.description.clone().unwrap(),
+            description: info.description.clone().unwrap_or_else(|| "".to_string()),
             offset: info.address_offset,
             size: register_size,
         }),
@@ -699,7 +699,7 @@ fn expand_register(
             if array_convertible {
                 register_expanded.push(RegisterBlockField {
                     field: convert_svd_register(&register, name),
-                    description: info.description.clone().unwrap(),
+                    description: info.description.clone().unwrap_or_else(|| "".to_string()),
                     offset: info.address_offset,
                     size: register_size * array_info.dim,
                 });
@@ -707,7 +707,7 @@ fn expand_register(
                 for (field_num, field) in expand_svd_register(register, name).iter().enumerate() {
                     register_expanded.push(RegisterBlockField {
                         field: field.clone(),
-                        description: info.description.clone().unwrap(),
+                        description: info.description.clone().unwrap_or_else(|| "".to_string()),
                         offset: info.address_offset + field_num as u32 * array_info.dim_increment,
                         size: register_size,
                     });
