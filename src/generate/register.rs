@@ -1,5 +1,5 @@
 use crate::svd::{
-    Access, BitRange, Defaults, EnumeratedValues, Field, Peripheral, Register, RegisterCluster,
+    Access, BitRange, EnumeratedValues, Field, Peripheral, Register, RegisterCluster,
     Usage, WriteConstraint,
 };
 use cast::u64;
@@ -15,7 +15,6 @@ pub fn render(
     all_registers: &[&Register],
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
-    defs: &Defaults,
 ) -> Result<Vec<Tokens>> {
     let access = util::access_of(register);
     let name = util::name_of(register);
@@ -24,7 +23,6 @@ pub fn render(
     let name_sc = Ident::from(&*name.to_sanitized_snake_case());
     let rsize = register
         .size
-        .or(defs.size)
         .ok_or_else(|| format!("Register {} has no `size` field", register.name))?;
     let rsize = if rsize < 8 {
         8
@@ -67,7 +65,6 @@ pub fn render(
         });
         let res_val = register
             .reset_value
-            .or(defs.reset_value)
             .map(|v| util::hex(v as u64));
         if let Some(rv) = res_val {
             let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);

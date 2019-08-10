@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use quote::{ToTokens, Tokens};
-use crate::svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register, RegisterCluster, RegisterInfo};
+use crate::svd::{Cluster, ClusterInfo, Peripheral, Register, RegisterCluster, RegisterInfo};
 use syn::{self, Ident};
 use log::warn;
 
@@ -15,7 +15,6 @@ use crate::generate::register;
 pub fn render(
     p_original: &Peripheral,
     all_peripherals: &[Peripheral],
-    defaults: &Defaults,
     nightly: bool,
 ) -> Result<Vec<Tokens>> {
     let mut out = vec![];
@@ -165,11 +164,11 @@ pub fn render(
 
     // Push any register or cluster blocks into the output
     let mut mod_items = vec![];
-    mod_items.push(register_or_cluster_block(ercs, defaults, None, nightly)?);
+    mod_items.push(register_or_cluster_block(ercs, None, nightly)?);
 
     // Push all cluster related information into the peripheral module
     for c in &clusters {
-        mod_items.push(cluster_block(c, defaults, p, all_peripherals, nightly)?);
+        mod_items.push(cluster_block(c, p, all_peripherals, nightly)?);
     }
 
     // Push all regsiter realted information into the peripheral module
@@ -179,7 +178,6 @@ pub fn render(
             registers,
             p,
             all_peripherals,
-            defaults,
         )?);
     }
 
@@ -436,7 +434,6 @@ impl FieldRegions {
 
 fn register_or_cluster_block(
     ercs: &[RegisterCluster],
-    defs: &Defaults,
     name: Option<&str>,
     _nightly: bool,
 ) -> Result<Tokens> {
@@ -444,7 +441,7 @@ fn register_or_cluster_block(
     let mut accessors = Tokens::new();
     let mut have_accessors = false;
 
-    let ercs_expanded = expand(ercs, defs, name)?;
+    let ercs_expanded = expand(ercs, name)?;
 
     // Locate conflicting regions; we'll need to use unions to represent them.
     let mut regions = FieldRegions::default();
@@ -566,15 +563,14 @@ fn register_or_cluster_block(
 /// `RegisterBlockField`s containing `Field`s.
 fn expand(
     ercs: &[RegisterCluster],
-    defs: &Defaults,
     name: Option<&str>,
 ) -> Result<Vec<RegisterBlockField>> {
     let mut ercs_expanded = vec![];
 
     for erc in ercs {
         ercs_expanded.extend(match &erc {
-            RegisterCluster::Register(register) => expand_register(register, defs, name)?,
-            RegisterCluster::Cluster(cluster) => expand_cluster(cluster, defs)?,
+            RegisterCluster::Register(register) => expand_register(register, name)?,
+            RegisterCluster::Cluster(cluster) => expand_cluster(cluster)?,
         });
     }
 
@@ -585,13 +581,13 @@ fn expand(
 
 /// Recursively calculate the size of a cluster. A cluster's size is the maximum
 /// end position of its recursive children.
-fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
+fn cluster_size_in_bits(info: &ClusterInfo) -> Result<u32> {
     let mut size = 0;
 
     for c in &info.children {
         let end = match c {
             RegisterCluster::Register(reg) => {
-                let reg_size: u32 = expand_register(reg, defs, None)?
+                let reg_size: u32 = expand_register(reg, None)?
                     .iter()
                     .map(|rbf| rbf.size)
                     .sum();
@@ -599,7 +595,7 @@ fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
                 (reg.address_offset * BITS_PER_BYTE) + reg_size
             }
             RegisterCluster::Cluster(clust) => {
-                (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, defs)?
+                (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust)?
             }
         };
 
@@ -609,14 +605,10 @@ fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
 }
 
 /// Render a given cluster (and any children) into `RegisterBlockField`s
-fn expand_cluster(cluster: &Cluster, defs: &Defaults) -> Result<Vec<RegisterBlockField>> {
+fn expand_cluster(cluster: &Cluster) -> Result<Vec<RegisterBlockField>> {
     let mut cluster_expanded = vec![];
 
-    let reg_size = cluster.size.or(defs.size);
-    let mut defs = defs.clone();
-    defs.size = reg_size;
-
-    let cluster_size = cluster_size_in_bits(cluster, &defs)
+    let cluster_size = cluster_size_in_bits(cluster)
         .chain_err(|| format!("Cluster {} has no determinable `size` field", cluster.name))?;
 
     match cluster {
@@ -666,14 +658,12 @@ fn expand_cluster(cluster: &Cluster, defs: &Defaults) -> Result<Vec<RegisterBloc
 /// numeral indexes, or not containing all elements from 0 to size) they will be expanded
 fn expand_register(
     register: &Register,
-    defs: &Defaults,
     name: Option<&str>,
 ) -> Result<Vec<RegisterBlockField>> {
     let mut register_expanded = vec![];
 
     let register_size = register
         .size
-        .or(defs.size)
         .ok_or_else(|| format!("Register {} has no `size` field", register.name))?;
 
     match register {
@@ -722,7 +712,6 @@ fn expand_register(
 /// Render a Cluster Block into `Tokens`
 fn cluster_block(
     c: &Cluster,
-    defaults: &Defaults,
     p: &Peripheral,
     all_peripherals: &[Peripheral],
     nightly: bool,
@@ -741,11 +730,7 @@ fn cluster_block(
     .replace("%s", "");
     let name_sc = Ident::from(&*mod_name.to_sanitized_snake_case());
 
-    let reg_size = c.size.or(defaults.size);
-    let mut defaults = defaults.clone();
-    defaults.size = reg_size;
-
-    let reg_block = register_or_cluster_block(&c.children, &defaults, Some(&mod_name), nightly)?;
+    let reg_block = register_or_cluster_block(&c.children, Some(&mod_name), nightly)?;
 
     // Generate definition for each of the registers.
     let registers = util::only_registers(&c.children);
@@ -755,14 +740,13 @@ fn cluster_block(
             &registers,
             p,
             all_peripherals,
-            &defaults,
         )?);
     }
 
     // Generate the sub-cluster blocks.
     let clusters = util::only_clusters(&c.children);
     for c in &clusters {
-        mod_items.push(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
+        mod_items.push(cluster_block(c, p, all_peripherals, nightly)?);
     }
 
     Ok(quote! {

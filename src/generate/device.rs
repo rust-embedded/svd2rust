@@ -162,7 +162,7 @@ pub fn render(
             continue;
         }
 
-        out.extend(peripheral::render(p, &d.peripherals, &d.defaults, nightly)?);
+        out.extend(peripheral::render(p, &d.peripherals, nightly)?);
 
         if p.registers
             .as_ref()
