@@ -475,9 +475,8 @@ pub fn fields(
                     ///Writes `variant` to the field
                     #[inline(always)]
                     pub fn variant(self, variant: #pc_w) -> &'a mut W {
-                        use crate::ToBits;
                         #unsafety {
-                            self.#bits(variant._bits())
+                            self.#bits(variant.into())
                         }
                     }
                 });
@@ -657,10 +656,10 @@ fn add_from_variants(mod_items: &mut Vec<Tokens>, variants: &Vec<Variant>, pc: &
     });
 
     mod_items.push(quote! {
-        impl crate::ToBits<#fty> for #pc {
+        impl From<#pc> for #fty {
             #[inline(always)]
-            fn _bits(&self) -> #fty {
-                match *self {
+            fn from(variant: #pc) -> Self {
+                match variant {
                     #(#arms),*
                 }
             }
