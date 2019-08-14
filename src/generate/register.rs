@@ -54,7 +54,7 @@ pub fn render(
         let desc = format!("Reader of register {}", register.name);
         mod_items.push(quote! {
             #[doc = #desc]
-            pub type R = crate::R<#rty, super::#name_pc>;
+            pub type R = super::super::R<#rty, super::#name_pc>;
         });
         methods.push("read");
     }
@@ -63,7 +63,7 @@ pub fn render(
         let desc = format!("Writer for register {}", register.name);
         mod_items.push(quote! {
             #[doc = #desc]
-            pub type W = crate::W<#rty, super::#name_pc>;
+            pub type W = super::super::W<#rty, super::#name_pc>;
         });
         let res_val = register
             .reset_value
@@ -73,7 +73,7 @@ pub fn render(
             let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
             mod_items.push(quote! {
                 #[doc = #doc]
-                impl crate::ResetValue for super::#name_pc {
+                impl super::super::ResetValue for super::#name_pc {
                     type Type = #rty;
                     #[inline(always)]
                     fn reset_value() -> Self::Type { #rv }
@@ -150,7 +150,10 @@ pub fn render(
     }
 
     let mut out = vec![];
-    let methods = methods.iter().map(|s| format!("[`{0}`](crate::generic::Reg::{0})", s)).collect::<Vec<_>>();
+    let methods = methods
+        .iter()
+        .map(|s| format!("[`{0}`](super::generic::Reg::{0})", s))
+        .collect::<Vec<_>>();
     let mut doc = format!("{}\n\nThis register you can {}. See [API](https://docs.rs/svd2rust/#read--modify--write-api).",
                         &description, methods.join(", "));
 
@@ -159,7 +162,7 @@ pub fn render(
     }
     out.push(quote! {
         #[doc = #doc]
-        pub type #name_pc = crate::Reg<#rty, #_name_pc>;
+        pub type #name_pc = super::generic::Reg<#rty, #_name_pc>;
 
         #[allow(missing_docs)]
         #[doc(hidden)]
@@ -170,14 +173,14 @@ pub fn render(
         let doc = format!("`read()` method returns [{0}::R]({0}::R) reader structure", &name_sc);
         out.push(quote! {
             #[doc = #doc]
-            impl crate::Readable for #name_pc {}
+            impl super::generic::Readable for #name_pc {}
         });
     }
     if can_write {
         let doc = format!("`write(|w| ..)` method takes [{0}::W]({0}::W) writer structure", &name_sc);
         out.push(quote! {
             #[doc = #doc]
-            impl crate::Writable for #name_pc {}
+            impl super::generic::Writable for #name_pc {}
         });
     }
 
@@ -285,7 +288,6 @@ pub fn fields(
             all_peripherals,
         )?;
 
-
         let pc_r = &f.pc_r;
         let mut pc_w = &f.pc_r;
 
@@ -333,7 +335,7 @@ pub fn fields(
                     let doc = format!("Reader of field `{}`", f.name);
                     mod_items.push(quote! {
                         #[doc = #doc]
-                        pub type #_pc_r = crate::R<#fty, #base_pc_r>;
+                        pub type #_pc_r = super::super::R<#fty, #base_pc_r>;
                     });
 
                     base_pc_r
@@ -375,8 +377,8 @@ pub fn fields(
                         enum_items.push(quote! {
                             ///Get enumerated values variant
                             #[inline(always)]
-                            pub fn variant(&self) -> crate::Variant<#fty, #pc_r> {
-                                use crate::Variant::*;
+                            pub fn variant(&self) -> super::super::Variant<#fty, #pc_r> {
+                                use super::super::Variant::*;
                                 match self.bits {
                                     #(#arms),*
                                 }
@@ -417,13 +419,12 @@ pub fn fields(
                     let doc = format!("Reader of field `{}`", f.name);
                     mod_items.push(quote! {
                         #[doc = #doc]
-                        pub type #_pc_r = crate::R<#fty, #pc_r>;
+                        pub type #_pc_r = super::super::R<#fty, #pc_r>;
                         impl #_pc_r {
                             #(#enum_items)*
                         }
                     });
                 }
-
             } else {
                 let description = &util::escape_brackets(&f.description);
                 let sc = &f.sc;
@@ -438,9 +439,8 @@ pub fn fields(
                 let doc = format!("Reader of field `{}`", f.name);
                 mod_items.push(quote! {
                     #[doc = #doc]
-                    pub type #_pc_r = crate::R<#fty, #fty>;
+                    pub type #_pc_r = super::super::R<#fty, #fty>;
                 })
-
             }
         }
 
