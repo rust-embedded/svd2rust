@@ -233,20 +233,26 @@ pub fn fields(
             } else {
                 Ident::from("bits")
             };
-            let mut description = if width == 1 {
+            let mut description_with_bits = if width == 1 {
                 format!("Bit {}", offset)
             } else {
                 format!("Bits {}:{}", offset, offset + width - 1)
             };
             if let Some(d) = &f.description {
-                description.push_str(" - ");
-                description.push_str(&*util::respace(&util::escape_brackets(d)));
+                description_with_bits.push_str(" - ");
+                description_with_bits.push_str(&*util::respace(&util::escape_brackets(d)));
             }
+            let description = if let Some(d) = &f.description {
+                util::respace(&util::escape_brackets(d))
+            } else {
+                "".to_owned()
+            };
 
             Ok(F {
                 _pc_w,
                 _sc,
                 description,
+                description_with_bits,
                 pc_r,
                 _pc_r,
                 pc_w,
@@ -298,7 +304,8 @@ pub fn fields(
 
         let _pc_r = &f._pc_r;
         let _pc_w = &f._pc_w;
-        let description = &util::escape_brackets(&f.description);
+        let description = &f.description;
+        let description_with_bits = &f.description_with_bits;
 
         if can_read {
             let cast = if f.width == 1 {
@@ -322,7 +329,7 @@ pub fn fields(
 
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
-                    #[doc = #description]
+                    #[doc = #description_with_bits]
                     #[inline(always)]
                     pub fn #sc(&self) -> #_pc_r {
                         #_pc_r::new( #value )
@@ -431,7 +438,7 @@ pub fn fields(
             } else {
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
-                    #[doc = #description]
+                    #[doc = #description_with_bits]
                     #[inline(always)]
                     pub fn #sc(&self) -> #_pc_r {
                         #_pc_r::new ( #value )
@@ -560,7 +567,7 @@ pub fn fields(
 
             let sc = &f.sc;
             w_impl_items.push(quote! {
-                #[doc = #description]
+                #[doc = #description_with_bits]
                 #[inline(always)]
                 pub fn #sc(&mut self) -> #_pc_w {
                     #_pc_w { w: self }
@@ -720,6 +727,7 @@ struct F<'a> {
     _sc: Ident,
     access: Option<Access>,
     description: String,
+    description_with_bits: String,
     evs: &'a [EnumeratedValues],
     mask: u64,
     name: &'a str,
