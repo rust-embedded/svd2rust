@@ -2,9 +2,8 @@ use std::collections::HashMap;
 use std::fmt::Write;
 
 use cast::u64;
-use quote::Tokens;
+use proc_macro2::{TokenStream, Ident, Span};
 use crate::svd::Peripheral;
-use syn::Ident;
 
 use crate::errors::*;
 use crate::util::{self, ToSanitizedUpperCase};
@@ -15,7 +14,7 @@ pub fn render(
     target: Target,
     peripherals: &[Peripheral],
     device_x: &mut String,
-) -> Result<Vec<Tokens>> {
+) -> Result<Vec<TokenStream>> {
     let interrupts = peripherals
         .iter()
         .flat_map(|p| p.interrupt.iter())
@@ -42,7 +41,7 @@ pub fn render(
         }
         pos += 1;
 
-        let name_uc = Ident::from(interrupt.name.to_sanitized_upper_case());
+        let name_uc = Ident::new(&interrupt.name.to_sanitized_upper_case(), Span::call_site());
         let description = format!(
             "{} - {}",
             interrupt.value,

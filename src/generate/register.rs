@@ -4,8 +4,7 @@ use crate::svd::{
 };
 use cast::u64;
 use log::warn;
-use quote::Tokens;
-use syn::Ident;
+use proc_macro2::{TokenStream, Ident, Span, Punct, Spacing};
 
 use crate::errors::*;
 use crate::util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
@@ -16,12 +15,13 @@ pub fn render(
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
     defs: &Defaults,
-) -> Result<Vec<Tokens>> {
+) -> Result<Vec<TokenStream>> {
     let access = util::access_of(register);
     let name = util::name_of(register);
-    let name_pc = Ident::from(&*name.to_sanitized_upper_case());
-    let _name_pc = Ident::from(format!("_{}", &*name.to_sanitized_upper_case()));
-    let name_sc = Ident::from(&*name.to_sanitized_snake_case());
+    let span = Span::call_site();
+    let name_pc = Ident::new(&name.to_sanitized_upper_case(), span);
+    let _name_pc = Ident::new(&format!("_{}", &name.to_sanitized_upper_case()), span);
+    let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
     let rsize = register
         .size
         .or(defs.size)
@@ -115,8 +115,8 @@ pub fn render(
         }
     }
 
-    let open = Ident::from("{");
-    let close = Ident::from("}");
+    let open = Punct::new('{', Spacing::Alone);
+    let close = Punct::new('}', Spacing::Alone);
 
     if can_read {
         mod_items.push(quote! {
@@ -209,9 +209,9 @@ pub fn fields(
     rty: &Ident,
     reset_value: Option<u64>,
     access: Access,
-    mod_items: &mut Vec<Tokens>,
-    r_impl_items: &mut Vec<Tokens>,
-    w_impl_items: &mut Vec<Tokens>,
+    mod_items: &mut Vec<TokenStream>,
+    r_impl_items: &mut Vec<TokenStream>,
+    w_impl_items: &mut Vec<TokenStream>,
 ) -> Result<()> {
     impl<'a> F<'a> {
         fn from(f: &'a Field) -> Result<Self> {
@@ -223,16 +223,17 @@ pub fn fields(
             } = f.bit_range;
             let sc = f.name.to_sanitized_snake_case();
             let pc = f.name.to_sanitized_upper_case();
-            let pc_r = Ident::from(&*format!("{}_A", pc));
-            let _pc_r = Ident::from(&*format!("{}_R", pc));
-            let pc_w = Ident::from(&*format!("{}_AW", pc));
-            let _pc_w = Ident::from(&*format!("{}_W", pc));
-            let _sc = Ident::from(&*format!("_{}", sc));
-            let bits = if width == 1 {
-                Ident::from("bit")
+            let span = Span::call_site();
+            let pc_r = Ident::new(&format!("{}_A", pc), span);
+            let _pc_r = Ident::new(&format!("{}_R", pc), span);
+            let pc_w = Ident::new(&format!("{}_AW", pc), span);
+            let _pc_w = Ident::new(&format!("{}_W", pc), span);
+            let _sc = Ident::new(&format!("_{}", sc), span);
+            let bits = Ident::new(if width == 1 {
+                "bit"
             } else {
-                Ident::from("bits")
-            };
+                "bits"
+            }, Span::call_site());
             let mut description_with_bits = if width == 1 {
                 format!("Bit {}", offset)
             } else {
@@ -240,7 +241,7 @@ pub fn fields(
             };
             if let Some(d) = &f.description {
                 description_with_bits.push_str(" - ");
-                description_with_bits.push_str(&*util::respace(&util::escape_brackets(d)));
+                description_with_bits.push_str(&util::respace(&util::escape_brackets(d)));
             }
             let description = if let Some(d) = &f.description {
                 util::respace(&util::escape_brackets(d))
@@ -260,7 +261,7 @@ pub fn fields(
                 width,
                 access: f.access,
                 evs: &f.enumerated_values,
-                sc: Ident::from(&*sc),
+                sc: Ident::new(&sc, Span::call_site()),
                 mask: 1u64.wrapping_neg() >> (64-width),
                 name: &f.name,
                 offset: u64::from(offset),
@@ -338,7 +339,7 @@ pub fn fields(
 
                 base_pc_w = base.as_ref().map(|base| {
                     let pc = base.field.to_sanitized_upper_case();
-                    let base_pc_r = Ident::from(&*format!("{}_A", pc));
+                    let base_pc_r = Ident::new(&format!("{}_A", pc), Span::call_site());
                     let base_pc_r = derive_from_base(mod_items, &base, &pc_r, &base_pc_r, description);
 
                     let doc = format!("Reader of field `{}`", f.name);
@@ -409,11 +410,11 @@ pub fn fields(
                         let pc = &v.pc;
                         let sc = &v.sc;
 
-                        let is_variant = if sc.as_ref().starts_with('_') {
-                            Ident::from(&*format!("is{}", sc))
+                        let is_variant = Ident::new(&if sc.to_string().starts_with('_') {
+                            format!("is{}", sc)
                         } else {
-                            Ident::from(&*format!("is_{}", sc))
-                        };
+                            format!("is_{}", sc)
+                        }, Span::call_site());
 
                         let doc = format!("Checks if the value of the field is `{}`", pc);
                         enum_items.push(quote! {
@@ -472,7 +473,7 @@ pub fn fields(
 
                     base_pc_w = base.as_ref().map(|base| {
                         let pc = base.field.to_sanitized_upper_case();
-                        let base_pc_w = Ident::from(&*format!("{}_AW", pc));
+                        let base_pc_w = Ident::new(&format!("{}_AW", pc), Span::call_site());
                         derive_from_base(mod_items, &base, &pc_w, &base_pc_w, description)
                     });
 
@@ -594,7 +595,7 @@ fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Id
             // if a writeConstraint exists then respect it
             None
         }
-        _ => Some(Ident::from("unsafe")),
+        _ => Some(Ident::new("unsafe", Span::call_site())),
     }
 }
 
@@ -607,6 +608,7 @@ struct Variant {
 
 impl Variant {
     fn from_enumerated_values(evs: &EnumeratedValues) -> Result<Vec<Self>> {
+        let span = Span::call_site();
         evs.values
             .iter()
             // filter out all reserved variants, as we should not
@@ -622,8 +624,8 @@ impl Variant {
                         .description
                         .clone()
                         .unwrap_or_else(|| format!("`{:b}`", value)),
-                    pc: Ident::from(&*ev.name.to_sanitized_upper_case()),
-                    sc: Ident::from(&*ev.name.to_sanitized_snake_case()),
+                    pc: Ident::new(&ev.name.to_sanitized_upper_case(), span),
+                    sc: Ident::new(&ev.name.to_sanitized_snake_case(), span),
                     value,
                 })
             })
@@ -631,7 +633,7 @@ impl Variant {
     }
 }
 
-fn add_from_variants(mod_items: &mut Vec<Tokens>, variants: &Vec<Variant>, pc: &Ident, f: &F, desc: &str, reset_value: Option<u64>) {
+fn add_from_variants(mod_items: &mut Vec<TokenStream>, variants: &Vec<Variant>, pc: &Ident, f: &F, desc: &str, reset_value: Option<u64>) {
     let fty = &f.ty;
 
     let vars = variants
@@ -681,12 +683,13 @@ fn add_from_variants(mod_items: &mut Vec<Tokens>, variants: &Vec<Variant>, pc: &
     });
 }
 
-fn derive_from_base(mod_items: &mut Vec<Tokens>, base: &Base, pc: &Ident, base_pc: &Ident, desc: &str) -> quote::Tokens {
+fn derive_from_base(mod_items: &mut Vec<TokenStream>, base: &Base, pc: &Ident, base_pc: &Ident, desc: &str) -> TokenStream {
+    let span = Span::call_site();
     if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
         let pmod_ = peripheral.to_sanitized_snake_case();
         let rmod_ = register.to_sanitized_snake_case();
-        let pmod_ = Ident::from(&*pmod_);
-        let rmod_ = Ident::from(&*rmod_);
+        let pmod_ = Ident::new(&pmod_, span);
+        let rmod_ = Ident::new(&rmod_, span);
 
         mod_items.push(quote! {
             #[doc = #desc]
@@ -699,7 +702,7 @@ fn derive_from_base(mod_items: &mut Vec<Tokens>, base: &Base, pc: &Ident, base_p
         }
     } else if let Some(register) = &base.register {
         let mod_ = register.to_sanitized_snake_case();
-        let mod_ = Ident::from(&*mod_);
+        let mod_ = Ident::new(&mod_, span);
 
         mod_items.push(quote! {
             #[doc = #desc]

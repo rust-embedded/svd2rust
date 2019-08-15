@@ -1,8 +1,8 @@
-use quote::{Tokens, ToTokens};
+use quote::ToTokens;
+use proc_macro2::{TokenStream, Ident, Span};
 use std::fs::File;
 use std::io::Write;
 use crate::svd::Device;
-use syn::Ident;
 
 use crate::errors::*;
 use crate::util::{self, ToSanitizedUpperCase};
@@ -17,7 +17,7 @@ pub fn render(
     nightly: bool,
     generic_mod: bool,
     device_x: &mut String,
-) -> Result<Vec<Tokens>> {
+) -> Result<Vec<TokenStream>> {
     let mut out = vec![];
 
     let doc = format!(
@@ -143,8 +143,7 @@ pub fn render(
     if generic_mod {
         writeln!(File::create("generic.rs").unwrap(), "{}", generic_file).unwrap();
     } else {
-        let mut tokens = Tokens::new();
-        (syn::parse_crate(generic_file)?).to_tokens(&mut tokens);
+        let tokens = syn::parse_file(generic_file).unwrap().into_token_stream();
 
         out.push(quote! {
             #[allow(unused_imports)]
@@ -177,7 +176,7 @@ pub fn render(
         }
 
         let p = p.name.to_sanitized_upper_case();
-        let id = Ident::from(&*p);
+        let id = Ident::new(&p, Span::call_site());
         fields.push(quote! {
             #[doc = #p]
             pub #id: #id
@@ -185,10 +184,11 @@ pub fn render(
         exprs.push(quote!(#id: #id { _marker: PhantomData }));
     }
 
+    let span = Span::call_site();
     let take = match target {
-        Target::CortexM => Some(Ident::from("cortex_m")),
-        Target::Msp430 => Some(Ident::from("msp430")),
-        Target::RISCV => Some(Ident::from("riscv")),
+        Target::CortexM => Some(Ident::new("cortex_m", span)),
+        Target::Msp430 => Some(Ident::new("msp430", span)),
+        Target::RISCV => Some(Ident::new("riscv", span)),
         Target::None => None,
     }
     .map(|krate| {
