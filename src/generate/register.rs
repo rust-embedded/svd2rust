@@ -59,17 +59,17 @@ pub fn render(
         methods.push("read");
     }
 
+    let res_val = register
+        .reset_value
+        .or(defs.reset_value)
+        .map(|v| v as u64);
     if can_write {
         let desc = format!("Writer for register {}", register.name);
         mod_items.push(quote! {
             #[doc = #desc]
             pub type W = crate::W<#rty, super::#name_pc>;
         });
-        let res_val = register
-            .reset_value
-            .or(defs.reset_value)
-            .map(|v| util::hex(v as u64));
-        if let Some(rv) = res_val {
+        if let Some(rv) = res_val.map(util::hex) {
             let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
             mod_items.push(quote! {
                 #[doc = #doc]
@@ -106,6 +106,7 @@ pub fn render(
                 peripheral,
                 all_peripherals,
                 &rty,
+                res_val,
                 access,
                 &mut mod_items,
                 &mut r_impl_items,
@@ -206,6 +207,7 @@ pub fn fields(
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
     rty: &Ident,
+    reset_value: Option<u64>,
     access: Access,
     mod_items: &mut Vec<Tokens>,
     r_impl_items: &mut Vec<Tokens>,
@@ -240,6 +242,7 @@ pub fn fields(
                 description.push_str(" - ");
                 description.push_str(&*util::respace(&util::escape_brackets(d)));
             }
+
             Ok(F {
                 _pc_w,
                 _sc,
@@ -252,9 +255,9 @@ pub fn fields(
                 access: f.access,
                 evs: &f.enumerated_values,
                 sc: Ident::from(&*sc),
-                mask: util::hex(1u64.wrapping_neg() >> (64-width)),
+                mask: 1u64.wrapping_neg() >> (64-width),
                 name: &f.name,
-                offset: util::unsuffixed(u64::from(f.bit_range.offset)),
+                offset: u64::from(offset),
                 ty: width.to_ty()?,
                 write_constraint: f.write_constraint.as_ref(),
             })
@@ -272,8 +275,9 @@ pub fn fields(
         let can_write = (access != Access::ReadOnly) && (f.access != Some(Access::ReadOnly));
 
         let bits = &f.bits;
-        let mask = &f.mask;
-        let offset: usize = f.offset.parse().unwrap();
+        let mask = &util::hex(f.mask);
+        let offset = f.offset;
+        let rv = reset_value.map(|rv| (rv >> offset) & f.mask);
         let fty = &f.ty;
 
         let lookup_results = lookup(
@@ -294,6 +298,7 @@ pub fn fields(
 
         let _pc_r = &f._pc_r;
         let _pc_w = &f._pc_w;
+        let description = &util::escape_brackets(&f.description);
 
         if can_read {
             let cast = if f.width == 1 {
@@ -302,7 +307,7 @@ pub fn fields(
                 quote! { as #fty }
             };
             let value = if offset != 0 {
-                let offset = &f.offset;
+                let offset = &util::unsuffixed(offset);
                 quote! {
                     ((self.bits >> #offset) & #mask) #cast
                 }
@@ -315,7 +320,6 @@ pub fn fields(
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
                 evs_r = Some(evs.clone());
 
-                let description = &util::escape_brackets(&f.description);
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
                     #[doc = #description]
@@ -328,7 +332,7 @@ pub fn fields(
                 base_pc_w = base.as_ref().map(|base| {
                     let pc = base.field.to_sanitized_upper_case();
                     let base_pc_r = Ident::from(&*format!("{}_A", pc));
-                    let base_pc_r = derive_from_base(mod_items, &base, &pc_r, &base_pc_r, f.name);
+                    let base_pc_r = derive_from_base(mod_items, &base, &pc_r, &base_pc_r, description);
 
                     let doc = format!("Reader of field `{}`", f.name);
                     mod_items.push(quote! {
@@ -343,7 +347,7 @@ pub fn fields(
                     let has_reserved_variant = evs.values.len() != (1 << f.width);
                     let variants = Variant::from_enumerated_values(evs)?;
 
-                    add_from_variants(mod_items, &variants, pc_r, &f);
+                    add_from_variants(mod_items, &variants, pc_r, &f, description, rv);
 
                     let mut enum_items = vec![];
 
@@ -425,7 +429,6 @@ pub fn fields(
                 }
 
             } else {
-                let description = &util::escape_brackets(&f.description);
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
                     #[doc = #description]
@@ -463,11 +466,11 @@ pub fn fields(
                     base_pc_w = base.as_ref().map(|base| {
                         let pc = base.field.to_sanitized_upper_case();
                         let base_pc_w = Ident::from(&*format!("{}_AW", pc));
-                        derive_from_base(mod_items, &base, &pc_w, &base_pc_w, f.name)
+                        derive_from_base(mod_items, &base, &pc_w, &base_pc_w, description)
                     });
 
                     if base.is_none() {
-                        add_from_variants(mod_items, &variants, pc_w, &f);
+                        add_from_variants(mod_items, &variants, pc_w, &f, description, rv);
                     }
                 }
 
@@ -523,7 +526,7 @@ pub fn fields(
             }
 
             proxy_items.push(if offset != 0 {
-                let offset = &f.offset;
+                let offset = &util::unsuffixed(offset);
                 quote! {
                     ///Writes raw bits to the field
                     #[inline(always)]
@@ -555,7 +558,6 @@ pub fn fields(
                 }
             });
 
-            let description = &util::escape_brackets(&f.description);
             let sc = &f.sc;
             w_impl_items.push(quote! {
                 #[doc = #description]
@@ -622,14 +624,13 @@ impl Variant {
     }
 }
 
-fn add_from_variants(mod_items: &mut Vec<Tokens>, variants: &Vec<Variant>, pc: &Ident, f: &F) {
+fn add_from_variants(mod_items: &mut Vec<Tokens>, variants: &Vec<Variant>, pc: &Ident, f: &F, desc: &str, reset_value: Option<u64>) {
     let fty = &f.ty;
-    let desc = format!("Possible values of the field `{}`", f.name);
 
     let vars = variants
         .iter()
         .map(|v| {
-            let desc = util::escape_brackets(&v.doc);
+            let desc = util::escape_brackets(&format!("{}: {}", v.value, v.doc));
             let pcv = &v.pc;
             quote! {
                 #[doc = #desc]
@@ -637,6 +638,12 @@ fn add_from_variants(mod_items: &mut Vec<Tokens>, variants: &Vec<Variant>, pc: &
             }
         })
         .collect::<Vec<_>>();
+
+    let desc = if let Some(rv) = reset_value {
+        format!("{}\n\nValue on reset: {}", desc, rv)
+    } else {
+        desc.to_owned()
+    };
 
     mod_items.push(quote! {
         #[doc = #desc]
@@ -667,9 +674,7 @@ fn add_from_variants(mod_items: &mut Vec<Tokens>, variants: &Vec<Variant>, pc: &
     });
 }
 
-fn derive_from_base(mod_items: &mut Vec<Tokens>, base: &Base, pc: &Ident, base_pc: &Ident, fname: &str) -> quote::Tokens {
-    let desc = format!("Possible values of the field `{}`", fname,);
-
+fn derive_from_base(mod_items: &mut Vec<Tokens>, base: &Base, pc: &Ident, base_pc: &Ident, desc: &str) -> quote::Tokens {
     if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
         let pmod_ = peripheral.to_sanitized_snake_case();
         let rmod_ = register.to_sanitized_snake_case();
@@ -716,9 +721,9 @@ struct F<'a> {
     access: Option<Access>,
     description: String,
     evs: &'a [EnumeratedValues],
-    mask: Tokens,
+    mask: u64,
     name: &'a str,
-    offset: Tokens,
+    offset: u64,
     pc_r: Ident,
     _pc_r: Ident,
     pc_w: Ident,

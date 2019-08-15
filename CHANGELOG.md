@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Handling of missing register description (optional field)
 
+- Improve field enum docs
+
 ## [v0.16.0] - 2019-08-05
 
 ### Added
