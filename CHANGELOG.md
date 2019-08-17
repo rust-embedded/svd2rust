@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.16.1] - 2019-08-17
+
 ### Fixed
 
 - Handling of missing register description (optional field)
@@ -477,7 +479,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.16.1...HEAD
+[v0.16.1]: https://github.com/rust-embedded/svd2rust/compare/v0.16.0...v0.16.1
 [v0.16.0]: https://github.com/rust-embedded/svd2rust/compare/v0.15.2...v0.16.0
 [v0.15.2]: https://github.com/rust-embedded/svd2rust/compare/v0.15.1...v0.15.2
 [v0.15.1]: https://github.com/rust-embedded/svd2rust/compare/v0.15.0...v0.15.1
