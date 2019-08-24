@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- Option-like API for `generic::Variant`
+
 - Generated crates now contain the git commit hash and date of svd2rust
   compilation.
 

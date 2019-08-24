@@ -221,15 +221,6 @@ impl<REG: RegisterSpec> W<REG> {
     }
 }
 
-/// Used if enumerated values cover not the whole range.
-#[derive(Clone, Copy, PartialEq)]
-pub enum Variant<U, T> {
-    /// Expected variant.
-    Val(T),
-    /// Raw bits.
-    Res(U),
-}
-
 /// Field reader.
 ///
 /// Result of the `read` methods of fields.
@@ -285,5 +276,86 @@ impl<FI> FieldReader<bool, FI> {
     #[inline(always)]
     pub fn bit_is_set(&self) -> bool {
         self.bit()
+    }
+}
+
+/// Used if enumerated values cover not the whole range.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Variant<U, T> {
+    /// Expected variant.
+    Val(T),
+    /// Raw bits.
+    Res(U),
+}
+
+use Variant::*;
+impl<U, T> Variant<U, T> {
+    /// Check if the variant is expected
+    pub fn is_expected(&self) -> bool {
+        match self {
+            Val(_) => true,
+            Res(_) => false,
+        }
+    }
+
+    /// Check if the variant is not expected
+    pub fn is_reserved(&self) -> bool {
+        match self {
+            Val(_) => false,
+            Res(_) => true,
+        }
+    }
+
+    /// Moves the value `v` out of the `Variant` if it is `Val(v)`.
+    ///
+    /// Panics if the self value equals `Res`
+    #[inline]
+    pub fn unwrap(self) -> T {
+        match self {
+            Val(v) => v,
+            Res(_) => panic!("Unexpected variant"),
+        }
+    }
+
+    /// Returns the contained value or a default
+    #[inline]
+    pub fn unwrap_or(self, def: T) -> T {
+        match self {
+            Val(v) => v,
+            Res(_) => def,
+        }
+    }
+
+    /// Returns the contained value or computes it from a closure
+    #[inline]
+    pub fn unwrap_or_else<F: FnOnce(U) -> T>(self, f: F) -> T {
+        match self {
+            Val(v) => v,
+            Res(u) => f(u),
+        }
+    }
+
+    /// Unwraps a result, yielding the content of an `Val`.
+    ///
+    /// Panics if the value is an `Res`, with a panic message including the
+    /// passed message, and the content of the `Res`.
+    pub fn expect(self, msg: &'static str) -> T {
+        match self {
+            Val(v) => v,
+            Res(_) => panic!(msg),
+        }
+    }
+}
+
+impl<U, T> Variant<U, T>
+where
+    T: Into<U>
+{
+    /// Get raw bits
+    pub fn to_bits(self) -> U {
+        match self {
+            Val(v) => v.into(),
+            Res(u) => u,
+        }
     }
 }
