@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use inflections::Inflect;
 use crate::svd::{Access, Cluster, Register, RegisterCluster};
-use syn::Ident;
-use quote::Tokens;
+use proc_macro2::{TokenStream, Ident, Span, Literal};
+use crate::quote::{TokenStreamExt, ToTokens};
 
 use crate::errors::*;
 
@@ -184,7 +184,7 @@ pub fn escape_brackets(s: &str) -> String {
 
 pub fn name_of(register: &Register) -> Cow<str> {
     match register {
-        Register::Single(info) => Cow::from(&*info.name),
+        Register::Single(info) => Cow::from(&info.name),
         Register::Array(info, _) => {
             if info.name.contains("[%s]") {
                 info.name.replace("[%s]", "").into()
@@ -216,36 +216,36 @@ pub fn access_of(register: &Register) -> Access {
 }
 
 /// Turns `n` into an unsuffixed separated hex token
-pub fn hex(n: u64) -> Tokens {
-    let mut t = Tokens::new();
+pub fn hex(n: u64) -> TokenStream {
     let (h4, h3, h2, h1) = ((n >> 48) & 0xffff, (n >> 32) & 0xffff, (n >> 16) & 0xffff, n & 0xffff);
-    t.append(if h4 != 0 {
-        Ident::from(format!("0x{:04x}_{:04x}_{:04x}_{:04x}", h4, h3, h2, h1))
-    } else if h3 != 0 {
-        Ident::from(format!("0x{:04x}_{:04x}_{:04x}", h3, h2, h1))
-    } else if h2 != 0 {
-        Ident::from(format!("0x{:04x}_{:04x}", h2, h1))
-    } else if h1 & 0xff00 != 0 {
-        Ident::from(format!("0x{:04x}", h1))
-    } else if h1 != 0 {
-        Ident::from(format!("0x{:02x}", h1 & 0xff))
-    } else {
-        Ident::from("0")
-    });
-    t
+    syn::parse_str::<syn::Lit>(
+        &(if h4 != 0 {
+            format!("0x{:04x}_{:04x}_{:04x}_{:04x}", h4, h3, h2, h1)
+        } else if h3 != 0 {
+            format!("0x{:04x}_{:04x}_{:04x}", h3, h2, h1)
+        } else if h2 != 0 {
+            format!("0x{:04x}_{:04x}", h2, h1)
+        } else if h1 & 0xff00 != 0 {
+            format!("0x{:04x}", h1)
+        } else if h1 != 0 {
+            format!("0x{:02x}", h1 & 0xff)
+        } else {
+            "0".to_string()
+        })
+    ).unwrap().into_token_stream()
 }
 
 /// Turns `n` into an unsuffixed token
-pub fn unsuffixed(n: u64) -> Tokens {
-    let mut t = Tokens::new();
-    t.append(Ident::from(format!("{}", n)));
+pub fn unsuffixed(n: u64) -> TokenStream {
+    let mut t = TokenStream::new();
+    t.append(Literal::u64_unsuffixed(n));
     t
 }
 
-pub fn unsuffixed_or_bool(n: u64, width: u32) -> Tokens {
+pub fn unsuffixed_or_bool(n: u64, width: u32) -> TokenStream {
     if width == 1 {
-        let mut t = Tokens::new();
-        t.append(Ident::from(if n == 0 { "false" } else { "true" }));
+        let mut t = TokenStream::new();
+        t.append(Ident::new(if n == 0 { "false" } else { "true" }, Span::call_site()));
         t
     } else {
         unsuffixed(n)
@@ -259,12 +259,13 @@ pub trait U32Ext {
 
 impl U32Ext for u32 {
     fn to_ty(&self) -> Result<Ident> {
+        let span = Span::call_site();
         Ok(match *self {
-            1 => Ident::from("bool"),
-            2..=8 => Ident::from("u8"),
-            9..=16 => Ident::from("u16"),
-            17..=32 => Ident::from("u32"),
-            33..=64 => Ident::from("u64"),
+            1 => Ident::new("bool", span),
+            2..=8 => Ident::new("u8", span),
+            9..=16 => Ident::new("u16", span),
+            17..=32 => Ident::new("u32", span),
+            33..=64 => Ident::new("u64", span),
             _ => Err(format!(
                 "can't convert {} bits into a Rust integral type",
                 *self
@@ -311,7 +312,7 @@ pub fn only_registers(ercs: &[RegisterCluster]) -> Vec<&Register> {
     registers
 }
 
-pub fn build_rs() -> Tokens {
+pub fn build_rs() -> TokenStream {
     quote! {
         use std::env;
         use std::fs::File;

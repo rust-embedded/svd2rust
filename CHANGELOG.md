@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Improve field enum docs
 
+### Changed
+
+- Bump dependencies: `syn`, `quote` and `proc_macro2` v1.0.
+
 ## [v0.16.0] - 2019-08-05
 
 ### Added
