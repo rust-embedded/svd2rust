@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::fmt::Write;
 
-use cast::u64;
-use proc_macro2::{TokenStream, Ident, Span};
 use crate::svd::Peripheral;
+use cast::u64;
+use proc_macro2::{Ident, Span, TokenStream};
 
 use crate::errors::*;
 use crate::util::{self, ToSanitizedUpperCase};
@@ -133,7 +133,7 @@ pub fn render(
                 #[doc(hidden)]
                 pub union Vector {
                     _handler: unsafe extern "msp430-interrupt" fn(),
-                    _reserved: u32,
+                    _reserved: u16,
                 }
 
                 #[cfg(feature = "rt")]
