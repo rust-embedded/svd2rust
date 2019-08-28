@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Improve field enum docs
 
+- Change interrupt vector size for MSP430 to 16 bits from 32 bits
+
 ### Changed
 
 - Bump dependencies: `syn`, `quote` and `proc_macro2` v1.0.
