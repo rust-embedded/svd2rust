@@ -219,7 +219,7 @@
 //!     pub fn read(&self) -> R { .. }
 //!
 //!     /// Writes to the register
-//!     pub fn write<F>(&mut self, f: F)
+//!     pub fn write<F>(&self, f: F)
 //!     where
 //!         F: FnOnce(&mut W) -> &mut W,
 //!     {
