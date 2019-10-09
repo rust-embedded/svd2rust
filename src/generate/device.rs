@@ -224,6 +224,7 @@ pub fn render(
             #take
 
             ///Unchecked version of `Peripherals::take`
+            #[inline]
             pub unsafe fn steal() -> Self {
                 DEVICE_PERIPHERALS = true;
 
