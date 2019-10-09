@@ -66,6 +66,7 @@ pub fn render(
         impl Deref for #name_pc {
             type Target = #base::RegisterBlock;
 
+            #[inline(always)]
             fn deref(&self) -> &Self::Target {
                 unsafe { &*#name_pc::ptr() }
             }
