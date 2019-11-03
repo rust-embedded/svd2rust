@@ -636,14 +636,23 @@ impl Variant {
 fn add_from_variants(mod_items: &mut Vec<TokenStream>, variants: &Vec<Variant>, pc: &Ident, f: &F, desc: &str, reset_value: Option<u64>) {
     let fty = &f.ty;
 
+    let mut repr = quote! { #[repr(#fty)] };
+    let mut cast = quote! { variant as _ };
+
+    if f.ty == "bool" {
+        repr = quote! { };
+        cast = quote! { variant as u8 != 0 };
+    }
+
     let vars = variants
         .iter()
         .map(|v| {
             let desc = util::escape_brackets(&format!("{}: {}", v.value, v.doc));
             let pcv = &v.pc;
+            let pcval = &util::unsuffixed(v.value);
             quote! {
                 #[doc = #desc]
-                #pcv
+                #pcv = #pcval
             }
         })
         .collect::<Vec<_>>();
@@ -657,27 +666,14 @@ fn add_from_variants(mod_items: &mut Vec<TokenStream>, variants: &Vec<Variant>, 
     mod_items.push(quote! {
         #[doc = #desc]
         #[derive(Clone, Copy, Debug, PartialEq)]
+        #repr
         pub enum #pc {
             #(#vars),*
         }
-    });
-
-    let arms = variants.iter().map(|v| {
-        let pcv = &v.pc;
-        let value = util::unsuffixed_or_bool(v.value, f.width);
-
-        quote! {
-            #pc::#pcv => #value
-        }
-    });
-
-    mod_items.push(quote! {
         impl From<#pc> for #fty {
             #[inline(always)]
             fn from(variant: #pc) -> Self {
-                match variant {
-                    #(#arms),*
-                }
+                #cast
             }
         }
     });
