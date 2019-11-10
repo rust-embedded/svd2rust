@@ -495,7 +495,7 @@ main() {
             echo 'version = "0.1.0"' >> $td/Cargo.toml
 
             # Test MSP430
-            test_svd_for_target msp430 https://github.com/pftbest/msp430g2553/raw/v0.1.0/msp430g2553.svd
+            test_svd_for_target msp430 https://raw.githubusercontent.com/pftbest/msp430g2553/v0.1.3-svd/msp430g2553.svd
         ;;
 
         # Community-provided RISC-V SVDs

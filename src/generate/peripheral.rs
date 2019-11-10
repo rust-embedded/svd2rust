@@ -4,7 +4,8 @@ use std::collections::HashMap;
 
 use quote::ToTokens;
 use proc_macro2::TokenStream;
-use crate::svd::{Cluster, ClusterInfo, Defaults, Peripheral, Register, RegisterCluster, RegisterInfo};
+use crate::svd::{Cluster, ClusterInfo, RegisterProperties, Peripheral, Register, RegisterCluster};
+use svd_parser::derive_from::DeriveFrom;
 use proc_macro2::{Ident, Span, Punct, Spacing};
 use log::warn;
 use syn::{parse_str, Token};
@@ -17,7 +18,7 @@ use crate::generate::register;
 pub fn render(
     p_original: &Peripheral,
     all_peripherals: &[Peripheral],
-    defaults: &Defaults,
+    defaults: &RegisterProperties,
     nightly: bool,
 ) -> Result<Vec<TokenStream>> {
     let mut out = vec![];
@@ -95,21 +96,6 @@ pub fn render(
         reg_map.insert(&r.name, r.clone());
     }
 
-    // Compute the effective, derived version of a register given the definition
-    // with the derived_from property on it (`info`) and its `ancestor`
-    fn derive_reg_info(info: &RegisterInfo, ancestor: &RegisterInfo) -> RegisterInfo {
-        let mut derived = info.clone();
-
-        derived.size = derived.size.or(ancestor.size);
-        derived.access = derived.access.or(ancestor.access);
-        derived.reset_value = derived.reset_value.or(ancestor.reset_value);
-        derived.reset_mask = derived.reset_mask.or(ancestor.reset_mask);
-        derived.fields = derived.fields.or(ancestor.fields.clone());
-        derived.write_constraint = derived.write_constraint.or(ancestor.write_constraint);
-
-        derived
-    }
-
     // Build up an alternate erc list by expanding any derived registers
     let mut alt_erc :Vec<RegisterCluster> = registers.iter().filter_map(|r| {
         match r.derived_from {
@@ -124,10 +110,10 @@ pub fn render(
 
                 let d = match **ancestor {
                     Register::Array(ref info, ref array_info) => {
-                        Some(RegisterCluster::Register(Register::Array(derive_reg_info(*r, info), array_info.clone())))
+                        Some(RegisterCluster::Register(Register::Array(r.derive_from(info), array_info.clone())))
                     }
                     Register::Single(ref info) => {
-                        Some(RegisterCluster::Register(Register::Single(derive_reg_info(*r, info))))
+                        Some(RegisterCluster::Register(Register::Single(r.derive_from(info))))
                     }
                 };
 
@@ -155,13 +141,15 @@ pub fn render(
         return Ok(out);
     }
 
+    let defaults = p.default_register_properties.derive_from(defaults);
+
     // Push any register or cluster blocks into the output
     let mut mod_items = vec![];
-    mod_items.push(register_or_cluster_block(ercs, defaults, None, nightly)?);
+    mod_items.push(register_or_cluster_block(ercs, &defaults, None, nightly)?);
 
     // Push all cluster related information into the peripheral module
     for c in &clusters {
-        mod_items.push(cluster_block(c, defaults, p, all_peripherals, nightly)?);
+        mod_items.push(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
     }
 
     // Push all regsiter realted information into the peripheral module
@@ -171,7 +159,7 @@ pub fn render(
             registers,
             p,
             all_peripherals,
-            defaults,
+            &defaults,
         )?);
     }
 
@@ -428,7 +416,7 @@ impl FieldRegions {
 
 fn register_or_cluster_block(
     ercs: &[RegisterCluster],
-    defs: &Defaults,
+    defs: &RegisterProperties,
     name: Option<&str>,
     _nightly: bool,
 ) -> Result<TokenStream> {
@@ -563,7 +551,7 @@ fn register_or_cluster_block(
 /// `RegisterBlockField`s containing `Field`s.
 fn expand(
     ercs: &[RegisterCluster],
-    defs: &Defaults,
+    defs: &RegisterProperties,
     name: Option<&str>,
 ) -> Result<Vec<RegisterBlockField>> {
     let mut ercs_expanded = vec![];
@@ -582,7 +570,7 @@ fn expand(
 
 /// Recursively calculate the size of a cluster. A cluster's size is the maximum
 /// end position of its recursive children.
-fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
+fn cluster_size_in_bits(info: &ClusterInfo, defs: &RegisterProperties) -> Result<u32> {
     let mut size = 0;
 
     for c in &info.children {
@@ -606,12 +594,10 @@ fn cluster_size_in_bits(info: &ClusterInfo, defs: &Defaults) -> Result<u32> {
 }
 
 /// Render a given cluster (and any children) into `RegisterBlockField`s
-fn expand_cluster(cluster: &Cluster, defs: &Defaults) -> Result<Vec<RegisterBlockField>> {
+fn expand_cluster(cluster: &Cluster, defs: &RegisterProperties) -> Result<Vec<RegisterBlockField>> {
     let mut cluster_expanded = vec![];
 
-    let reg_size = cluster.size.or(defs.size);
-    let mut defs = defs.clone();
-    defs.size = reg_size;
+    let defs = cluster.default_register_properties.derive_from(defs);
 
     let cluster_size = cluster_size_in_bits(cluster, &defs)
         .chain_err(|| format!("Cluster {} has no determinable `size` field", cluster.name))?;
@@ -663,7 +649,7 @@ fn expand_cluster(cluster: &Cluster, defs: &Defaults) -> Result<Vec<RegisterBloc
 /// numeral indexes, or not containing all elements from 0 to size) they will be expanded
 fn expand_register(
     register: &Register,
-    defs: &Defaults,
+    defs: &RegisterProperties,
     name: Option<&str>,
 ) -> Result<Vec<RegisterBlockField>> {
     let mut register_expanded = vec![];
@@ -719,7 +705,7 @@ fn expand_register(
 /// Render a Cluster Block into `TokenStream`
 fn cluster_block(
     c: &Cluster,
-    defaults: &Defaults,
+    defaults: &RegisterProperties,
     p: &Peripheral,
     all_peripherals: &[Peripheral],
     nightly: bool,
@@ -738,9 +724,7 @@ fn cluster_block(
     .replace("%s", "");
     let name_sc = Ident::new(&mod_name.to_sanitized_snake_case(), Span::call_site());
 
-    let reg_size = c.size.or(defaults.size);
-    let mut defaults = defaults.clone();
-    defaults.size = reg_size;
+    let defaults = c.default_register_properties.derive_from(defaults);
 
     let reg_block = register_or_cluster_block(&c.children, &defaults, Some(&mod_name), nightly)?;
 

@@ -1,5 +1,5 @@
 use crate::svd::{
-    Access, BitRange, Defaults, EnumeratedValues, Field, Peripheral, Register, RegisterCluster,
+    Access, BitRange, RegisterProperties, EnumeratedValues, Field, Peripheral, Register, RegisterCluster,
     Usage, WriteConstraint,
 };
 use cast::u64;
@@ -14,7 +14,7 @@ pub fn render(
     all_registers: &[&Register],
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
-    defs: &Defaults,
+    defs: &RegisterProperties,
 ) -> Result<Vec<TokenStream>> {
     let access = util::access_of(register);
     let name = util::name_of(register);
