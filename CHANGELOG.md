@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Properly use of default RegisterProperties.
+
+### Changed
+
+- Bump `svd-parser` dependency (0.8.1)
+
 ## [v0.16.1] - 2019-08-17
 
 ### Fixed
