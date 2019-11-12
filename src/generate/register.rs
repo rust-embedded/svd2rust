@@ -156,7 +156,7 @@ pub fn render(
                         &description, methods.join(", "));
 
     if name_sc != "cfg" {
-        doc += format!("\n\nFor information about avaliable fields see [{0}]({0}) module", &name_sc).as_str();
+        doc += format!("\n\nFor information about available fields see [{0}]({0}) module", &name_sc).as_str();
     }
     out.push(quote! {
         #[doc = #doc]
