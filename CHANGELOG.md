@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Enum items now associated with values (C-style), enums annotated with `repr(fty)`
 - Bump `svd-parser` dependency (0.8.1)
+- Switched from denying all warnings to only a subset.
 
 ## [v0.16.1] - 2019-08-17
 
