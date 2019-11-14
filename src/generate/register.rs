@@ -636,13 +636,11 @@ impl Variant {
 fn add_from_variants(mod_items: &mut Vec<TokenStream>, variants: &Vec<Variant>, pc: &Ident, f: &F, desc: &str, reset_value: Option<u64>) {
     let fty = &f.ty;
 
-    let mut repr = quote! { #[repr(#fty)] };
-    let mut cast = quote! { variant as _ };
-
-    if f.ty == "bool" {
-        repr = quote! { };
-        cast = quote! { variant as u8 != 0 };
-    }
+    let (repr, cast) = if f.ty == "bool" {
+        (quote! { }, quote! { variant as u8 != 0 })
+    } else {
+        (quote! { #[repr(#fty)] }, quote! { variant as _ })
+    };
 
     let vars = variants
         .iter()
