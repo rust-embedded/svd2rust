@@ -5,9 +5,9 @@ use crate::svd::Peripheral;
 use cast::u64;
 use proc_macro2::{Ident, Span, TokenStream};
 
-use crate::errors::*;
 use crate::util::{self, ToSanitizedUpperCase};
 use crate::Target;
+use anyhow::Result;
 
 /// Generates code for `src/interrupt.rs`
 pub fn render(
@@ -72,7 +72,7 @@ pub fn render(
     match target {
         Target::CortexM => {
             for name in &names {
-                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name).unwrap();
+                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name)?;
             }
 
             root.extend(quote! {

@@ -5,7 +5,7 @@ use crate::svd::{Access, Cluster, Register, RegisterCluster};
 use inflections::Inflect;
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 
-use crate::errors::*;
+use anyhow::{anyhow, bail, Result};
 
 pub const BITS_PER_BYTE: u32 = 8;
 
@@ -277,11 +277,10 @@ impl U32Ext for u32 {
                 9..=16 => "u16",
                 17..=32 => "u32",
                 33..=64 => "u64",
-                _ => {
-                    return Err(
-                        format!("can't convert {} bits into a Rust integral type", *self).into(),
-                    )
-                }
+                _ => Err(anyhow!(
+                    "can't convert {} bits into a Rust integral type",
+                    *self
+                ))?,
             },
             Span::call_site(),
         ))
@@ -294,13 +293,10 @@ impl U32Ext for u32 {
             9..=16 => 16,
             17..=32 => 32,
             33..=64 => 64,
-            _ => {
-                return Err(format!(
-                    "can't convert {} bits into a Rust integral type width",
-                    *self
-                )
-                .into())
-            }
+            _ => Err(anyhow!(
+                "can't convert {} bits into a Rust integral type width",
+                *self
+            ))?,
         })
     }
 }
