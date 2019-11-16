@@ -45,9 +45,29 @@ pub fn render(
 
     out.push(quote! {
         #![doc = #doc]
+        // Deny a subset of warnings
+        #![deny(const_err)]
+        #![deny(dead_code)]
+        #![deny(improper_ctypes)]
+        #![deny(legacy_directory_ownership)]
         #![deny(missing_docs)]
-        #![deny(warnings)]
+        #![deny(no_mangle_generic_items)]
+        #![deny(non_shorthand_field_patterns)]
+        #![deny(overflowing_literals)]
+        #![deny(path_statements)]
+        #![deny(patterns_in_fns_without_body)]
+        #![deny(plugin_as_library)]
+        #![deny(private_in_public)]
+        #![deny(safe_extern_statics)]
+        #![deny(unconditional_recursion)]
+        #![deny(unions_with_drop_fields)]
+        #![deny(unused_allocation)]
+        #![deny(unused_comparisons)]
+        #![deny(unused_parens)]
+        #![deny(while_true)]
+        // Explicitly allow a few warnings that may be verbose
         #![allow(non_camel_case_types)]
+        #![allow(non_snake_case)]
         #![no_std]
     });
 
