@@ -25,7 +25,6 @@ pub fn render(
     interrupts.sort_by_key(|i| i.value);
 
     let mut root = TokenStream::new();
-    let mut arms = vec![];
     let mut from_arms = vec![];
     let mut elements = vec![];
     let mut names = vec![];
@@ -58,11 +57,7 @@ pub fn render(
 
         variants.push(quote! {
             #[doc = #description]
-            #name_uc,
-        });
-
-        arms.push(quote! {
-            Interrupt::#name_uc => #value,
+            #name_uc = #value,
         });
 
         from_arms.push(quote! {
@@ -161,9 +156,7 @@ pub fn render(
         unsafe impl bare_metal::Nr for Interrupt {
             #[inline]
             fn nr(&self) -> u8 {
-                match *self {
-                    #(#arms)*
-                }
+                *self as u8
             }
         }
     };
