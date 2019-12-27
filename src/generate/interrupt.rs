@@ -149,12 +149,13 @@ pub fn render(
     let interrupt_enum = quote! {
         ///Enumeration of all the interrupts
         #[derive(Copy, Clone, Debug)]
+        #[repr(u8)]
         pub enum Interrupt {
             #(#variants)*
         }
 
         unsafe impl bare_metal::Nr for Interrupt {
-            #[inline]
+            #[inline(always)]
             fn nr(&self) -> u8 {
                 *self as u8
             }
