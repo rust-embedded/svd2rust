@@ -17,8 +17,8 @@ pub fn render(
     nightly: bool,
     generic_mod: bool,
     device_x: &mut String,
-) -> Result<Vec<TokenStream>> {
-    let mut out = vec![];
+) -> Result<TokenStream> {
+    let mut out = TokenStream::new();
 
     let doc = format!(
         "Peripheral access API for {0} microcontrollers \
@@ -30,20 +30,20 @@ pub fn render(
     );
 
     if target == Target::Msp430 {
-        out.push(quote! {
+        out.extend(quote! {
             #![feature(abi_msp430_interrupt)]
         });
     }
 
     if target != Target::None && target != Target::CortexM && target != Target::RISCV {
-        out.push(quote! {
+        out.extend(quote! {
             #![cfg_attr(feature = "rt", feature(global_asm))]
             #![cfg_attr(feature = "rt", feature(use_extern_macros))]
             #![cfg_attr(feature = "rt", feature(used))]
         });
     }
 
-    out.push(quote! {
+    out.extend(quote! {
         #![doc = #doc]
         // Deny a subset of warnings
         #![deny(const_err)]
@@ -73,14 +73,14 @@ pub fn render(
 
     match target {
         Target::CortexM => {
-            out.push(quote! {
+            out.extend(quote! {
                 extern crate cortex_m;
                 #[cfg(feature = "rt")]
                 extern crate cortex_m_rt;
             });
         }
         Target::Msp430 => {
-            out.push(quote! {
+            out.extend(quote! {
                 extern crate msp430;
                 #[cfg(feature = "rt")]
                 extern crate msp430_rt;
@@ -89,7 +89,7 @@ pub fn render(
             });
         }
         Target::RISCV => {
-            out.push(quote! {
+            out.extend(quote! {
                 extern crate riscv;
                 #[cfg(feature = "rt")]
                 extern crate riscv_rt;
@@ -98,7 +98,7 @@ pub fn render(
         Target::None => {}
     }
 
-    out.push(quote! {
+    out.extend(quote! {
         extern crate bare_metal;
         extern crate vcell;
 
@@ -112,7 +112,7 @@ pub fn render(
     if let Some(cpu) = d.cpu.as_ref() {
         let bits = util::unsuffixed(u64::from(cpu.nvic_priority_bits));
 
-        out.push(quote! {
+        out.extend(quote! {
             ///Number available in the NVIC for configuring priority
             pub const NVIC_PRIO_BITS: u8 = #bits;
         });
@@ -136,7 +136,7 @@ pub fn render(
     let mut fields = vec![];
     let mut exprs = vec![];
     if target == Target::CortexM {
-        out.push(quote! {
+        out.extend(quote! {
             pub use cortex_m::peripheral::Peripherals as CorePeripherals;
             #[cfg(feature = "rt")]
             pub use cortex_m_rt::interrupt;
@@ -145,13 +145,13 @@ pub fn render(
         });
 
         if fpu_present {
-            out.push(quote! {
+            out.extend(quote! {
                 pub use cortex_m::peripheral::{
                     CBP, CPUID, DCB, DWT, FPB, FPU, ITM, MPU, NVIC, SCB, SYST, TPIU,
                 };
             });
         } else {
-            out.push(quote! {
+            out.extend(quote! {
                 pub use cortex_m::peripheral::{
                     CBP, CPUID, DCB, DWT, FPB, ITM, MPU, NVIC, SCB, SYST, TPIU,
                 };
@@ -165,7 +165,7 @@ pub fn render(
     } else {
         let tokens = syn::parse_file(generic_file).unwrap().into_token_stream();
 
-        out.push(quote! {
+        out.extend(quote! {
             #[allow(unused_imports)]
             use generic::*;
             ///Common register and bit access and modify traits
@@ -227,7 +227,7 @@ pub fn render(
         }
     });
 
-    out.push(quote! {
+    out.extend(quote! {
         // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
         // crate as that would let you `take` the device peripherals more than once (one per minor
         // version)

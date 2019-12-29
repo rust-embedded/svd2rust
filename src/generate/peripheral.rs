@@ -20,8 +20,8 @@ pub fn render(
     all_peripherals: &[Peripheral],
     defaults: &RegisterProperties,
     nightly: bool,
-) -> Result<Vec<TokenStream>> {
-    let mut out = vec![];
+) -> Result<TokenStream> {
+    let mut out = TokenStream::new();
 
     let p_derivedfrom = p_original.derived_from.as_ref().and_then(|s| {
         all_peripherals.iter().find(|x| x.name == *s)
@@ -50,7 +50,7 @@ pub fn render(
     };
 
     // Insert the peripheral structure
-    out.push(quote! {
+    out.extend(quote! {
         #[doc = #description]
         pub struct #name_pc { _marker: PhantomData<*const ()> }
 
@@ -137,19 +137,18 @@ pub fn render(
     // No `struct RegisterBlock` can be generated
     if registers.is_empty() && clusters.is_empty() {
         // Drop the definition of the peripheral
-        out.pop();
-        return Ok(out);
+        return Ok(TokenStream::new());
     }
 
     let defaults = p.default_register_properties.derive_from(defaults);
 
     // Push any register or cluster blocks into the output
-    let mut mod_items = vec![];
-    mod_items.push(register_or_cluster_block(ercs, &defaults, None, nightly)?);
+    let mut mod_items = TokenStream::new();
+    mod_items.extend(register_or_cluster_block(ercs, &defaults, None, nightly)?);
 
     // Push all cluster related information into the peripheral module
     for c in &clusters {
-        mod_items.push(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
+        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
     }
 
     // Push all regsiter realted information into the peripheral module
@@ -169,18 +168,18 @@ pub fn render(
     let open = Punct::new('{', Spacing::Alone);
     let close = Punct::new('}', Spacing::Alone);
 
-    out.push(quote! {
+    out.extend(quote! {
         #[doc = #description]
         pub mod #name_sc #open
     });
 
     for item in mod_items {
-        out.push(quote! {
+        out.extend(quote! {
             #item
         });
     }
 
-    out.push(quote! {
+    out.extend(quote! {
        #close
     });
 
@@ -710,7 +709,7 @@ fn cluster_block(
     all_peripherals: &[Peripheral],
     nightly: bool,
 ) -> Result<TokenStream> {
-    let mut mod_items: Vec<TokenStream> = vec![];
+    let mut mod_items = TokenStream::new();
 
     // name_sc needs to take into account array type.
     let description = util::escape_brackets(util::respace(&c.description).as_ref());
@@ -743,7 +742,7 @@ fn cluster_block(
     // Generate the sub-cluster blocks.
     let clusters = util::only_clusters(&c.children);
     for c in &clusters {
-        mod_items.push(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
+        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
     }
 
     Ok(quote! {
@@ -752,7 +751,7 @@ fn cluster_block(
         ///Register block
         #[doc = #description]
         pub mod #name_sc {
-            #(#mod_items)*
+            #mod_items
         }
     })
 }
