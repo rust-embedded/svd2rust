@@ -54,6 +54,7 @@ matrix:
     # Windows
     - env: TARGET=x86_64-pc-windows-msvc
       os: windows
+      rust: stable-msvc
 
 install:
   - bash ci/install.sh
