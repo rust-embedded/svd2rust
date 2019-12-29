@@ -82,6 +82,7 @@
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
 //! - [`msp430`](https://crates.io/crates/msp430) v0.1.x if target = msp430.
 //! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.1.x if target = msp430.
+//! - [`msp430-atomic`](https://crates.io/crates/msp430-atomic) v0.1.1 if target = msp430.
 //! - [`riscv`](https://crates.io/crates/riscv) v0.4.x if target = riscv.
 //! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.4.x if target = riscv.
 //!
@@ -93,6 +94,7 @@
 //! bare-metal = "0.1.0"
 //! msp430 = "0.1.0"
 //! vcell = "0.1.0"
+//! msp430-atomic = "0.1.1"
 //!
 //! [dependencies.msp430-rt]
 //! optional = true

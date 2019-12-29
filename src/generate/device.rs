@@ -1,8 +1,8 @@
+use crate::svd::Device;
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
-use proc_macro2::{TokenStream, Ident, Span};
 use std::fs::File;
 use std::io::Write;
-use crate::svd::Device;
 
 use crate::errors::*;
 use crate::util::{self, ToSanitizedUpperCase};
@@ -124,8 +124,7 @@ pub fn render(
 
     let core_peripherals: &[_] = if fpu_present {
         &[
-            "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST",
-            "TPIU",
+            "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU",
         ]
     } else {
         &[
@@ -160,17 +159,31 @@ pub fn render(
     }
 
     let generic_file = std::str::from_utf8(include_bytes!("generic.rs")).unwrap();
-    if generic_mod {
-        writeln!(File::create("generic.rs").unwrap(), "{}", generic_file).unwrap();
-    } else {
-        let tokens = syn::parse_file(generic_file).unwrap().into_token_stream();
+    let mut generic_tokens = syn::parse_file(generic_file).unwrap().into_token_stream();
+    if target == Target::Msp430 {
+        let generic_msp430_atomic = syn::parse_file(
+            std::str::from_utf8(include_bytes!("generic_msp430_atomic.rs")).unwrap(),
+        )
+        .unwrap()
+        .into_token_stream();
+        generic_tokens = quote! {
+            use msp430_atomic::AtomicOperations;
+            use core::ops::Not;
 
+            #generic_tokens
+
+            #generic_msp430_atomic
+        };
+    }
+    if generic_mod {
+        writeln!(File::create("generic.rs").unwrap(), "{}", generic_tokens).unwrap();
+    } else {
         out.extend(quote! {
             #[allow(unused_imports)]
             use generic::*;
             ///Common register and bit access and modify traits
             pub mod generic {
-                #tokens
+                #generic_tokens
             }
         });
     }
@@ -181,7 +194,12 @@ pub fn render(
             continue;
         }
 
-        out.extend(peripheral::render(p, &d.peripherals, &d.default_register_properties, nightly)?);
+        out.extend(peripheral::render(
+            p,
+            &d.peripherals,
+            &d.default_register_properties,
+            nightly,
+        )?);
 
         if p.registers
             .as_ref()

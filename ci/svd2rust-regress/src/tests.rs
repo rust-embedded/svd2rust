@@ -709,7 +709,9 @@ pub const TESTS: &[&TestCase] = &[
         arch: CortexM,
         mfgr: Atmel,
         chip: "ATSAMD21G18A",
-        svd_url: Some("https://raw.githubusercontent.com/wez/atsamd21-rs/master/svd/ATSAMD21G18A.svd"),
+        svd_url: Some(
+            "https://raw.githubusercontent.com/wez/atsamd21-rs/master/svd/ATSAMD21G18A.svd",
+        ),
         should_pass: true,
         run_when: NotShort,
     },
@@ -4220,7 +4222,19 @@ pub const TESTS: &[&TestCase] = &[
         arch: Msp430,
         mfgr: TexasInstruments,
         chip: "msp430g2553",
-        svd_url: Some("https://github.com/pftbest/msp430g2553/raw/v0.1.0/msp430g2553.svd"),
+        svd_url: Some(
+            "https://raw.githubusercontent.com/pftbest/msp430g2553/v0.1.3-svd/msp430g2553.svd",
+        ),
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: Msp430,
+        mfgr: TexasInstruments,
+        chip: "msp430fr2355",
+        svd_url: Some(
+            "https://raw.githubusercontent.com/YuhanLiin/msp430fr2355/rt-up/msp430fr2355.svd",
+        ),
         should_pass: true,
         run_when: Always,
     },
