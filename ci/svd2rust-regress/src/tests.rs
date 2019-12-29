@@ -4231,6 +4231,16 @@ pub const TESTS: &[&TestCase] = &[
         run_when: Always,
     },
     &TestCase {
+        arch: Msp430,
+        mfgr: TexasInstruments,
+        chip: "msp430fr2355",
+        svd_url: Some(
+            "https://raw.githubusercontent.com/YuhanLiin/msp430fr2355/rt-up/msp430fr2355.svd",
+        ),
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
         arch: XtensaLX,
         mfgr: Espressif,
         chip: "esp32",

@@ -139,11 +139,13 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
 
     let generic_file = std::str::from_utf8(include_bytes!("generic.rs"))?;
     if config.generic_mod {
-        writeln!(
-            File::create(config.output_dir.join("generic.rs"))?,
-            "{}",
-            generic_file
-        )?;
+        let mut file = File::create(config.output_dir.join("generic.rs"))?;
+        writeln!(file, "{}", generic_file)?;
+        if config.target == Target::Msp430 && config.nightly {
+            let msp430_atomic_file =
+                std::str::from_utf8(include_bytes!("generic_msp430_atomic.rs"))?;
+            writeln!(file, "\n{}", msp430_atomic_file)?;
+        }
 
         if !config.make_mod {
             out.extend(quote! {
@@ -156,14 +158,30 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     } else {
         let tokens = syn::parse_file(generic_file)?.into_token_stream();
 
-        out.extend(quote! {
-            #[allow(unused_imports)]
-            use generic::*;
-            ///Common register and bit access and modify traits
-            pub mod generic {
-                #tokens
-            }
-        });
+        if config.target == Target::Msp430 && config.nightly {
+            let msp430_atomic_file =
+                std::str::from_utf8(include_bytes!("generic_msp430_atomic.rs"))?;
+            let generic_msp430_atomic = syn::parse_file(msp430_atomic_file)?.into_token_stream();
+            out.extend(quote! {
+                #[allow(unused_imports)]
+                use generic::*;
+                ///Common register and bit access and modify traits
+                pub mod generic {
+                    #tokens
+
+                    #generic_msp430_atomic
+                }
+            });
+        } else {
+            out.extend(quote! {
+                #[allow(unused_imports)]
+                use generic::*;
+                ///Common register and bit access and modify traits
+                pub mod generic {
+                    #tokens
+                }
+            });
+        }
     }
 
     out.extend(interrupt::render(config.target, &d.peripherals, device_x)?);
