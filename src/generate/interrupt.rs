@@ -146,10 +146,16 @@ pub fn render(
         Target::None => {}
     }
 
+    let enum_repr = if variants.is_empty() {
+        quote!()
+    } else {
+        quote!(#[repr(u8)])
+    };
+
     let interrupt_enum = quote! {
         ///Enumeration of all the interrupts
         #[derive(Copy, Clone, Debug)]
-        #[repr(u8)]
+        #enum_repr
         pub enum Interrupt {
             #(#variants)*
         }
