@@ -148,7 +148,7 @@ pub fn render(
 
     let self_token = quote!(self);
     let (enum_repr, nr_expr) = if variants.is_empty() {
-        (quote!(), quote!(match #self_token {}))
+        (quote!(), quote!(match *#self_token {}))
     } else {
         (quote!(#[repr(u8)]), quote!(*#self_token as u8))
     };
