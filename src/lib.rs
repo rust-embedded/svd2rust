@@ -482,7 +482,7 @@ pub fn generate(xml: &str, target: Target, nightly: bool) -> Result<Generation> 
         &mut lib_rs,
         "{}",
         quote! {
-            #(#items)*
+            #items
         }
     )
     .or(Err(SvdError::Fmt))?;

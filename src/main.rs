@@ -15,6 +15,7 @@ mod util;
 use std::fs::File;
 use std::io::Write;
 use std::process;
+use std::fmt::Write as _;
 
 use clap::{App, Arg};
 
@@ -102,9 +103,10 @@ fn run() -> Result<()> {
     let items = generate::device::render(&device, target, nightly, generic_mod, &mut device_x)?;
     let mut file = File::create("lib.rs").expect("Couldn't create lib.rs file");
 
-    for item in items {
-        writeln!(file, "{}", item).expect("Could not write item to lib.rs");
-    }
+    let mut data = String::new();
+    write!(data, "{}", items).expect("Could not output code");
+    let data = data.replace("] ", "]\n");
+    file.write_all(data.as_ref()).expect("Could not write code to lib.rs");
 
     if target == Target::CortexM {
         writeln!(File::create("device.x").unwrap(), "{}", device_x).unwrap();

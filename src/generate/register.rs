@@ -15,7 +15,7 @@ pub fn render(
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
     defs: &RegisterProperties,
-) -> Result<Vec<TokenStream>> {
+) -> Result<TokenStream> {
     let access = util::access_of(register);
     let name = util::name_of(register);
     let span = Span::call_site();
@@ -150,7 +150,7 @@ pub fn render(
         });
     }
 
-    let mut out = vec![];
+    let mut out = TokenStream::new();
     let methods = methods.iter().map(|s| format!("[`{0}`](crate::generic::Reg::{0})", s)).collect::<Vec<_>>();
     let mut doc = format!("{}\n\nThis register you can {}. See [API](https://docs.rs/svd2rust/#read--modify--write-api).",
                         &description, methods.join(", "));
@@ -158,7 +158,7 @@ pub fn render(
     if name_sc != "cfg" {
         doc += format!("\n\nFor information about available fields see [{0}]({0}) module", &name_sc).as_str();
     }
-    out.push(quote! {
+    out.extend(quote! {
         #[doc = #doc]
         pub type #name_pc = crate::Reg<#rty, #_name_pc>;
 
@@ -169,31 +169,31 @@ pub fn render(
 
     if can_read {
         let doc = format!("`read()` method returns [{0}::R]({0}::R) reader structure", &name_sc);
-        out.push(quote! {
+        out.extend(quote! {
             #[doc = #doc]
             impl crate::Readable for #name_pc {}
         });
     }
     if can_write {
         let doc = format!("`write(|w| ..)` method takes [{0}::W]({0}::W) writer structure", &name_sc);
-        out.push(quote! {
+        out.extend(quote! {
             #[doc = #doc]
             impl crate::Writable for #name_pc {}
         });
     }
 
-    out.push(quote! {
+    out.extend(quote! {
         #[doc = #description]
         pub mod #name_sc #open
     });
 
     for item in mod_items {
-        out.push(quote! {
+        out.extend(quote! {
             #item
         });
     }
 
-    out.push(quote! {
+    out.extend(quote! {
         #close
     });
 

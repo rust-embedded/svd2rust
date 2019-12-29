@@ -14,7 +14,7 @@ pub fn render(
     target: Target,
     peripherals: &[Peripheral],
     device_x: &mut String,
-) -> Result<Vec<TokenStream>> {
+) -> Result<TokenStream> {
     let interrupts = peripherals
         .iter()
         .flat_map(|p| p.interrupt.iter())
@@ -24,7 +24,7 @@ pub fn render(
     let mut interrupts = interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
     interrupts.sort_by_key(|i| i.value);
 
-    let mut root = vec![];
+    let mut root = TokenStream::new();
     let mut arms = vec![];
     let mut from_arms = vec![];
     let mut elements = vec![];
@@ -80,7 +80,7 @@ pub fn render(
                 writeln!(device_x, "PROVIDE({} = DefaultHandler);", name).unwrap();
             }
 
-            root.push(quote! {
+            root.extend(quote! {
                 #[cfg(feature = "rt")]
                 extern "C" {
                     #(fn #names();)*
@@ -169,7 +169,7 @@ pub fn render(
     };
 
     if target == Target::CortexM {
-        root.push(interrupt_enum);
+        root.extend(interrupt_enum);
     } else {
         mod_items.push(quote! {
             #interrupt_enum
@@ -283,14 +283,14 @@ pub fn render(
     }
 
     if !interrupts.is_empty() && target != Target::CortexM {
-        root.push(quote! {
+        root.extend(quote! {
             #[doc(hidden)]
             pub mod interrupt {
                 #(#mod_items)*
             }
         });
 
-        root.push(quote! {
+        root.extend(quote! {
             pub use self::interrupt::Interrupt;
         });
     }
