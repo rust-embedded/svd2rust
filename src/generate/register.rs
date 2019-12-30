@@ -1,10 +1,10 @@
 use crate::svd::{
-    Access, BitRange, RegisterProperties, EnumeratedValues, Field, Peripheral, Register, RegisterCluster,
-    Usage, WriteConstraint,
+    Access, BitRange, EnumeratedValues, Field, Peripheral, Register, RegisterCluster,
+    RegisterProperties, Usage, WriteConstraint,
 };
 use cast::u64;
 use log::warn;
-use proc_macro2::{TokenStream, Ident, Span, Punct, Spacing};
+use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 
 use crate::errors::*;
 use crate::util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
@@ -59,10 +59,7 @@ pub fn render(
         methods.push("read");
     }
 
-    let res_val = register
-        .reset_value
-        .or(defs.reset_value)
-        .map(|v| v as u64);
+    let res_val = register.reset_value.or(defs.reset_value).map(|v| v as u64);
     if can_write {
         let desc = format!("Writer for register {}", register.name);
         mod_items.push(quote! {
@@ -151,12 +148,19 @@ pub fn render(
     }
 
     let mut out = TokenStream::new();
-    let methods = methods.iter().map(|s| format!("[`{0}`](crate::generic::Reg::{0})", s)).collect::<Vec<_>>();
+    let methods = methods
+        .iter()
+        .map(|s| format!("[`{0}`](crate::generic::Reg::{0})", s))
+        .collect::<Vec<_>>();
     let mut doc = format!("{}\n\nThis register you can {}. See [API](https://docs.rs/svd2rust/#read--modify--write-api).",
                         &description, methods.join(", "));
 
     if name_sc != "cfg" {
-        doc += format!("\n\nFor information about available fields see [{0}]({0}) module", &name_sc).as_str();
+        doc += format!(
+            "\n\nFor information about available fields see [{0}]({0}) module",
+            &name_sc
+        )
+        .as_str();
     }
     out.extend(quote! {
         #[doc = #doc]
@@ -168,14 +172,20 @@ pub fn render(
     });
 
     if can_read {
-        let doc = format!("`read()` method returns [{0}::R]({0}::R) reader structure", &name_sc);
+        let doc = format!(
+            "`read()` method returns [{0}::R]({0}::R) reader structure",
+            &name_sc
+        );
         out.extend(quote! {
             #[doc = #doc]
             impl crate::Readable for #name_pc {}
         });
     }
     if can_write {
-        let doc = format!("`write(|w| ..)` method takes [{0}::W]({0}::W) writer structure", &name_sc);
+        let doc = format!(
+            "`write(|w| ..)` method takes [{0}::W]({0}::W) writer structure",
+            &name_sc
+        );
         out.extend(quote! {
             #[doc = #doc]
             impl crate::Writable for #name_pc {}
@@ -216,11 +226,7 @@ pub fn fields(
     impl<'a> F<'a> {
         fn from(f: &'a Field) -> Result<Self> {
             // TODO(AJM) - do we need to do anything with this range type?
-            let BitRange {
-                offset,
-                width,
-                range_type: _,
-            } = f.bit_range;
+            let BitRange { offset, width, .. } = f.bit_range;
             let sc = f.name.to_sanitized_snake_case();
             let pc = f.name.to_sanitized_upper_case();
             let span = Span::call_site();
@@ -229,11 +235,7 @@ pub fn fields(
             let pc_w = Ident::new(&format!("{}_AW", pc), span);
             let _pc_w = Ident::new(&format!("{}_W", pc), span);
             let _sc = Ident::new(&format!("_{}", sc), span);
-            let bits = Ident::new(if width == 1 {
-                "bit"
-            } else {
-                "bits"
-            }, Span::call_site());
+            let bits = Ident::new(if width == 1 { "bit" } else { "bits" }, Span::call_site());
             let mut description_with_bits = if width == 1 {
                 format!("Bit {}", offset)
             } else {
@@ -262,7 +264,7 @@ pub fn fields(
                 access: f.access,
                 evs: &f.enumerated_values,
                 sc: Ident::new(&sc, Span::call_site()),
-                mask: 1u64.wrapping_neg() >> (64-width),
+                mask: 1u64.wrapping_neg() >> (64 - width),
                 name: &f.name,
                 offset: u64::from(offset),
                 ty: width.to_ty()?,
@@ -295,7 +297,6 @@ pub fn fields(
             peripheral,
             all_peripherals,
         )?;
-
 
         let pc_r = &f.pc_r;
         let mut pc_w = &f.pc_r;
@@ -340,7 +341,8 @@ pub fn fields(
                 base_pc_w = base.as_ref().map(|base| {
                     let pc = base.field.to_sanitized_upper_case();
                     let base_pc_r = Ident::new(&format!("{}_A", pc), Span::call_site());
-                    let base_pc_r = derive_from_base(mod_items, &base, &pc_r, &base_pc_r, description);
+                    let base_pc_r =
+                        derive_from_base(mod_items, &base, &pc_r, &base_pc_r, description);
 
                     let doc = format!("Reader of field `{}`", f.name);
                     mod_items.push(quote! {
@@ -410,11 +412,14 @@ pub fn fields(
                         let pc = &v.pc;
                         let sc = &v.sc;
 
-                        let is_variant = Ident::new(&if sc.to_string().starts_with('_') {
-                            format!("is{}", sc)
-                        } else {
-                            format!("is_{}", sc)
-                        }, Span::call_site());
+                        let is_variant = Ident::new(
+                            &if sc.to_string().starts_with('_') {
+                                format!("is{}", sc)
+                            } else {
+                                format!("is_{}", sc)
+                            },
+                            Span::call_site(),
+                        );
 
                         let doc = format!("Checks if the value of the field is `{}`", pc);
                         enum_items.push(quote! {
@@ -435,7 +440,6 @@ pub fn fields(
                         }
                     });
                 }
-
             } else {
                 let sc = &f.sc;
                 r_impl_items.push(quote! {
@@ -451,7 +455,6 @@ pub fn fields(
                     #[doc = #doc]
                     pub type #_pc_r = crate::R<#fty, #fty>;
                 })
-
             }
         }
 
@@ -583,7 +586,8 @@ pub fn fields(
 fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Ident> {
     match &write_constraint {
         Some(&WriteConstraint::Range(range))
-            if u64::from(range.min) == 0 && u64::from(range.max) == 1u64.wrapping_neg() >> (64-width) =>
+            if u64::from(range.min) == 0
+                && u64::from(range.max) == 1u64.wrapping_neg() >> (64 - width) =>
         {
             // the SVD has acknowledged that it's safe to write
             // any value that can fit in the field
@@ -633,11 +637,18 @@ impl Variant {
     }
 }
 
-fn add_from_variants(mod_items: &mut Vec<TokenStream>, variants: &Vec<Variant>, pc: &Ident, f: &F, desc: &str, reset_value: Option<u64>) {
+fn add_from_variants(
+    mod_items: &mut Vec<TokenStream>,
+    variants: &[Variant],
+    pc: &Ident,
+    f: &F,
+    desc: &str,
+    reset_value: Option<u64>,
+) {
     let fty = &f.ty;
 
     let (repr, cast) = if f.ty == "bool" {
-        (quote! { }, quote! { variant as u8 != 0 })
+        (quote! {}, quote! { variant as u8 != 0 })
     } else {
         (quote! { #[repr(#fty)] }, quote! { variant as _ })
     };
@@ -677,7 +688,13 @@ fn add_from_variants(mod_items: &mut Vec<TokenStream>, variants: &Vec<Variant>, 
     });
 }
 
-fn derive_from_base(mod_items: &mut Vec<TokenStream>, base: &Base, pc: &Ident, base_pc: &Ident, desc: &str) -> TokenStream {
+fn derive_from_base(
+    mod_items: &mut Vec<TokenStream>,
+    base: &Base,
+    pc: &Ident,
+    base_pc: &Ident,
+    desc: &str,
+) -> TokenStream {
     let span = Span::call_site();
     if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
         let pmod_ = peripheral.to_sanitized_snake_case();
@@ -799,7 +816,7 @@ fn lookup<'a>(
 }
 
 fn lookup_filter<'a>(
-    evs: &Vec<(&'a EnumeratedValues, Option<Base<'a>>)>,
+    evs: &[(&'a EnumeratedValues, Option<Base<'a>>)],
     usage: Usage,
 ) -> Option<(&'a EnumeratedValues, Option<Base<'a>>)> {
     for (evs, base) in evs.iter() {
@@ -818,12 +835,13 @@ fn lookup_in_fields<'f>(
     register: &Register,
 ) -> Result<(&'f EnumeratedValues, Option<Base<'f>>)> {
     if let Some(base_field) = fields.iter().find(|f| f.name == base_field) {
-        return lookup_in_field(base_evs, None, None, base_field);
+        lookup_in_field(base_evs, None, None, base_field)
     } else {
         Err(format!(
             "Field {} not found in register {}",
             base_field, register.name
-        ))?
+        )
+        .into())
     }
 }
 
@@ -846,16 +864,14 @@ fn lookup_in_peripheral<'p>(
         {
             lookup_in_field(base_evs, Some(base_register), base_peripheral, field)
         } else {
-            Err(format!(
-                "No field {} in register {}",
-                base_field, register.name
-            ))?
+            Err(format!("No field {} in register {}", base_field, register.name).into())
         }
     } else {
         Err(format!(
             "No register {} in peripheral {}",
             base_register, peripheral.name
-        ))?
+        )
+        .into())
     }
 }
 
@@ -878,10 +894,7 @@ fn lookup_in_field<'f>(
         }
     }
 
-    Err(format!(
-        "No EnumeratedValues {} in field {}",
-        base_evs, field.name
-    ))?
+    Err(format!("No EnumeratedValues {} in field {}", base_evs, field.name).into())
 }
 
 fn lookup_in_register<'r>(
@@ -904,7 +917,8 @@ fn lookup_in_register<'r>(
         None => Err(format!(
             "EnumeratedValues {} not found in register {}",
             base_evs, register.name
-        ))?,
+        )
+        .into()),
         Some(&(evs, field)) => {
             if matches.len() == 1 {
                 Ok((
@@ -921,7 +935,8 @@ fn lookup_in_register<'r>(
                     "Fields {:?} have an \
                      enumeratedValues named {}",
                     fields, base_evs
-                ))?
+                )
+                .into())
             }
         }
     }
@@ -945,7 +960,7 @@ fn lookup_in_peripherals<'p>(
             peripheral,
         )
     } else {
-        Err(format!("No peripheral {}", base_peripheral))?
+        Err(format!("No peripheral {}", base_peripheral).into())
     }
 }
 
