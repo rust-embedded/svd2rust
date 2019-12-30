@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 
-use inflections::Inflect;
+use crate::quote::{ToTokens, TokenStreamExt};
 use crate::svd::{Access, Cluster, Register, RegisterCluster};
-use proc_macro2::{TokenStream, Ident, Span, Literal};
-use crate::quote::{TokenStreamExt, ToTokens};
+use inflections::Inflect;
+use proc_macro2::{Ident, Literal, Span, TokenStream};
 
 use crate::errors::*;
 
@@ -165,9 +165,9 @@ pub fn escape_brackets(s: &str) -> String {
             if acc == "" {
                 x.to_string()
             } else if acc.ends_with('\\') {
-                acc.to_owned() + "[" + &x.to_string()
+                acc + "[" + &x.to_string()
             } else {
-                acc.to_owned() + "\\[" + &x.to_string()
+                acc + "\\[" + &x.to_string()
             }
         })
         .split(']')
@@ -175,9 +175,9 @@ pub fn escape_brackets(s: &str) -> String {
             if acc == "" {
                 x.to_string()
             } else if acc.ends_with('\\') {
-                acc.to_owned() + "]" + &x.to_string()
+                acc + "]" + &x.to_string()
             } else {
-                acc.to_owned() + "\\]" + &x.to_string()
+                acc + "\\]" + &x.to_string()
             }
         })
 }
@@ -202,9 +202,15 @@ pub fn access_of(register: &Register) -> Access {
                 Access::ReadOnly
             } else if fields.iter().all(|f| f.access == Some(Access::WriteOnce)) {
                 Access::WriteOnce
-            } else if fields.iter().all(|f| f.access == Some(Access::ReadWriteOnce)) {
+            } else if fields
+                .iter()
+                .all(|f| f.access == Some(Access::ReadWriteOnce))
+            {
                 Access::ReadWriteOnce
-            } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly) || f.access == Some(Access::WriteOnce)) {
+            } else if fields
+                .iter()
+                .all(|f| f.access == Some(Access::WriteOnly) || f.access == Some(Access::WriteOnce))
+            {
                 Access::WriteOnly
             } else {
                 Access::ReadWrite
@@ -217,7 +223,12 @@ pub fn access_of(register: &Register) -> Access {
 
 /// Turns `n` into an unsuffixed separated hex token
 pub fn hex(n: u64) -> TokenStream {
-    let (h4, h3, h2, h1) = ((n >> 48) & 0xffff, (n >> 32) & 0xffff, (n >> 16) & 0xffff, n & 0xffff);
+    let (h4, h3, h2, h1) = (
+        (n >> 48) & 0xffff,
+        (n >> 32) & 0xffff,
+        (n >> 16) & 0xffff,
+        n & 0xffff,
+    );
     syn::parse_str::<syn::Lit>(
         &(if h4 != 0 {
             format!("0x{:04x}_{:04x}_{:04x}_{:04x}", h4, h3, h2, h1)
@@ -231,8 +242,10 @@ pub fn hex(n: u64) -> TokenStream {
             format!("0x{:02x}", h1 & 0xff)
         } else {
             "0".to_string()
-        })
-    ).unwrap().into_token_stream()
+        }),
+    )
+    .unwrap()
+    .into_token_stream()
 }
 
 /// Turns `n` into an unsuffixed token
@@ -245,7 +258,10 @@ pub fn unsuffixed(n: u64) -> TokenStream {
 pub fn unsuffixed_or_bool(n: u64, width: u32) -> TokenStream {
     if width == 1 {
         let mut t = TokenStream::new();
-        t.append(Ident::new(if n == 0 { "false" } else { "true" }, Span::call_site()));
+        t.append(Ident::new(
+            if n == 0 { "false" } else { "true" },
+            Span::call_site(),
+        ));
         t
     } else {
         unsuffixed(n)
@@ -266,10 +282,11 @@ impl U32Ext for u32 {
             9..=16 => Ident::new("u16", span),
             17..=32 => Ident::new("u32", span),
             33..=64 => Ident::new("u64", span),
-            _ => Err(format!(
-                "can't convert {} bits into a Rust integral type",
-                *self
-            ))?,
+            _ => {
+                return Err(
+                    format!("can't convert {} bits into a Rust integral type", *self).into(),
+                )
+            }
         })
     }
 
@@ -280,10 +297,13 @@ impl U32Ext for u32 {
             9..=16 => 16,
             17..=32 => 32,
             33..=64 => 64,
-            _ => Err(format!(
-                "can't convert {} bits into a Rust integral type width",
-                *self
-            ))?,
+            _ => {
+                return Err(format!(
+                    "can't convert {} bits into a Rust integral type width",
+                    *self
+                )
+                .into())
+            }
         })
     }
 }
