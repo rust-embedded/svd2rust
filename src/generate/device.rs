@@ -167,7 +167,9 @@ pub fn render(
         .unwrap()
         .into_token_stream();
         generic_tokens = quote! {
-            use msp430_atomic::AtomicOperations;
+            extern crate msp430_atomic;
+
+            use self::msp430_atomic::AtomicOperations;
             use core::ops::Not;
 
             #generic_tokens
