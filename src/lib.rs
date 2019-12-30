@@ -110,20 +110,16 @@
 //! method.
 //!
 //! ```ignore
-//! fn main() {
-//!     let mut peripherals = stm32f30x::Peripherals::take().unwrap();
-//!     peripherals.GPIOA.odr.write(|w| w.bits(1));
-//! }
+//! let mut peripherals = stm32f30x::Peripherals::take().unwrap();
+//! peripherals.GPIOA.odr.write(|w| w.bits(1));
 //! ```
 //!
 //! This method can only be successfully called *once* -- that's why the method returns an `Option`.
 //! Subsequent calls to the method will result in a `None` value being returned.
 //!
 //! ```ignore
-//! fn main() {
-//!     let ok = stm32f30x::Peripherals::take().unwrap();
-//!     let panics = stm32f30x::Peripherals::take().unwrap();
-//! }
+//! let ok = stm32f30x::Peripherals::take().unwrap();
+//! let panics = stm32f30x::Peripherals::take().unwrap();
 //! ```
 //!
 //! The singleton property can be *unsafely* bypassed using the `ptr` static method which is
