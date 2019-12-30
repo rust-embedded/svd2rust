@@ -25,7 +25,6 @@ pub fn render(
     interrupts.sort_by_key(|i| i.value);
 
     let mut root = TokenStream::new();
-    let mut arms = vec![];
     let mut from_arms = vec![];
     let mut elements = vec![];
     let mut names = vec![];
@@ -58,11 +57,7 @@ pub fn render(
 
         variants.push(quote! {
             #[doc = #description]
-            #name_uc,
-        });
-
-        arms.push(quote! {
-            Interrupt::#name_uc => #value,
+            #name_uc = #value,
         });
 
         from_arms.push(quote! {
@@ -151,19 +146,25 @@ pub fn render(
         Target::None => {}
     }
 
+    let self_token = quote!(self);
+    let (enum_repr, nr_expr) = if variants.is_empty() {
+        (quote!(), quote!(match *#self_token {}))
+    } else {
+        (quote!(#[repr(u8)]), quote!(*#self_token as u8))
+    };
+
     let interrupt_enum = quote! {
         ///Enumeration of all the interrupts
         #[derive(Copy, Clone, Debug)]
+        #enum_repr
         pub enum Interrupt {
             #(#variants)*
         }
 
         unsafe impl bare_metal::Nr for Interrupt {
-            #[inline]
-            fn nr(&self) -> u8 {
-                match *self {
-                    #(#arms)*
-                }
+            #[inline(always)]
+            fn nr(&#self_token) -> u8 {
+                #nr_expr
             }
         }
     };
