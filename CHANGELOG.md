@@ -7,12 +7,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.17.0] - 2019-12-31
+
 ### Fixed
 
 - Properly use of default RegisterProperties.
 
 ### Changed
 
+- Simplified code generation and sped up svd2rust by a some hundred percent
+- Represent interrupts directly as `u8` to avoid jump table generation
+- Added explicit #[inline] attributes to `Deref` impls
 - Enum items now associated with values (C-style), enums annotated with `repr(fty)`
 - Bump `svd-parser` dependency (0.9.0)
 - Switched from denying all warnings to only a subset.
@@ -496,7 +501,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.16.1...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.17.0...HEAD
+[v0.17.0]: https://github.com/rust-embedded/svd2rust/compare/v0.16.1...v0.17.0
 [v0.16.1]: https://github.com/rust-embedded/svd2rust/compare/v0.16.0...v0.16.1
 [v0.16.0]: https://github.com/rust-embedded/svd2rust/compare/v0.15.2...v0.16.0
 [v0.15.2]: https://github.com/rust-embedded/svd2rust/compare/v0.15.1...v0.15.2
