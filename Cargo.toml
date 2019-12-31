@@ -23,7 +23,7 @@ keywords = [
 license = "MIT OR Apache-2.0"
 name = "svd2rust"
 repository = "https://github.com/rust-embedded/svd2rust/"
-version = "0.16.1"
+version = "0.17.0"
 readme = "README.md"
 
 [[bin]]
