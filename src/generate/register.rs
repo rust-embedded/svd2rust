@@ -223,6 +223,26 @@ pub fn fields(
     r_impl_items: &mut Vec<TokenStream>,
     w_impl_items: &mut Vec<TokenStream>,
 ) -> Result<()> {
+    struct F<'a> {
+        _pc_w: Ident,
+        _sc: Ident,
+        access: Option<Access>,
+        description: String,
+        description_with_bits: String,
+        evs: &'a [EnumeratedValues],
+        mask: u64,
+        name: &'a str,
+        offset: u64,
+        pc_r: Ident,
+        _pc_r: Ident,
+        pc_w: Ident,
+        sc: Ident,
+        bits: Ident,
+        ty: Ident,
+        width: u32,
+        write_constraint: Option<&'a WriteConstraint>,
+    }
+
     impl<'a> F<'a> {
         fn from(f: &'a Field) -> Result<Self> {
             // TODO(AJM) - do we need to do anything with this range type?
@@ -235,7 +255,7 @@ pub fn fields(
             let pc_w = Ident::new(&format!("{}_AW", pc), span);
             let _pc_w = Ident::new(&format!("{}_W", pc), span);
             let _sc = Ident::new(&format!("_{}", sc), span);
-            let bits = Ident::new(if width == 1 { "bit" } else { "bits" }, Span::call_site());
+            let bits = Ident::new(if width == 1 { "bit" } else { "bits" }, span);
             let mut description_with_bits = if width == 1 {
                 format!("Bit {}", offset)
             } else {
@@ -263,7 +283,7 @@ pub fn fields(
                 width,
                 access: f.access,
                 evs: &f.enumerated_values,
-                sc: Ident::new(&sc, Span::call_site()),
+                sc: Ident::new(&sc, span),
                 mask: 1u64.wrapping_neg() >> (64 - width),
                 name: &f.name,
                 offset: u64::from(offset),
@@ -273,10 +293,10 @@ pub fn fields(
         }
     }
 
-    let fs = fields.iter().map(F::from).collect::<Result<Vec<_>>>()?;
-
     // TODO enumeratedValues
-    for f in &fs {
+    for f in fields.iter().map(F::from) {
+        let f = f?;
+
         let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite]
             .contains(&access)
             && (f.access != Some(Access::WriteOnly))
@@ -357,7 +377,7 @@ pub fn fields(
                     let has_reserved_variant = evs.values.len() != (1 << f.width);
                     let variants = Variant::from_enumerated_values(evs)?;
 
-                    add_from_variants(mod_items, &variants, pc_r, &f, description, rv);
+                    add_from_variants(mod_items, &variants, pc_r, fty, description, rv);
 
                     let mut enum_items = vec![];
 
@@ -481,7 +501,7 @@ pub fn fields(
                     });
 
                     if base.is_none() {
-                        add_from_variants(mod_items, &variants, pc_w, &f, description, rv);
+                        add_from_variants(mod_items, &variants, pc_w, fty, description, rv);
                     }
                 }
 
@@ -641,13 +661,11 @@ fn add_from_variants(
     mod_items: &mut Vec<TokenStream>,
     variants: &[Variant],
     pc: &Ident,
-    f: &F,
+    fty: &Ident,
     desc: &str,
     reset_value: Option<u64>,
 ) {
-    let fty = &f.ty;
-
-    let (repr, cast) = if f.ty == "bool" {
+    let (repr, cast) = if fty == "bool" {
         (quote! {}, quote! { variant as u8 != 0 })
     } else {
         (quote! { #[repr(#fty)] }, quote! { variant as _ })
@@ -734,26 +752,6 @@ fn derive_from_base(
             #base_pc
         }
     }
-}
-
-struct F<'a> {
-    _pc_w: Ident,
-    _sc: Ident,
-    access: Option<Access>,
-    description: String,
-    description_with_bits: String,
-    evs: &'a [EnumeratedValues],
-    mask: u64,
-    name: &'a str,
-    offset: u64,
-    pc_r: Ident,
-    _pc_r: Ident,
-    pc_w: Ident,
-    sc: Ident,
-    bits: Ident,
-    ty: Ident,
-    width: u32,
-    write_constraint: Option<&'a WriteConstraint>,
 }
 
 #[derive(Clone, Debug)]
