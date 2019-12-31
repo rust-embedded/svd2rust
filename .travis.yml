@@ -10,6 +10,10 @@ env:
 
 matrix:
   include:
+    # rustfmt
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=rustfmt
+      rust: stable
+
     # Nightly, for testing
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Atmel
 

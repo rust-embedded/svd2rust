@@ -50,6 +50,11 @@ main() {
         return
     fi
 
+    if [ $VENDOR = rustfmt ]; then
+        cargo fmt --all -- --check
+        return
+    fi
+
     cargo build --target $TARGET --release
 
     case $TRAVIS_OS_NAME in
