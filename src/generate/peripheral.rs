@@ -618,7 +618,7 @@ fn expand_cluster(cluster: &Cluster, defs: &RegisterProperties) -> Result<Vec<Re
     match cluster {
         Cluster::Single(info) => cluster_expanded.push(RegisterBlockField {
             field: convert_svd_cluster(cluster),
-            description: info.description.clone(),
+            description: info.description.as_ref().unwrap_or(&info.name).into(),
             offset: info.address_offset,
             size: cluster_size,
         }),
@@ -638,7 +638,7 @@ fn expand_cluster(cluster: &Cluster, defs: &RegisterProperties) -> Result<Vec<Re
             if array_convertible {
                 cluster_expanded.push(RegisterBlockField {
                     field: convert_svd_cluster(&cluster),
-                    description: info.description.clone(),
+                    description: info.description.as_ref().unwrap_or(&info.name).into(),
                     offset: info.address_offset,
                     size: cluster_size * array_info.dim,
                 });
@@ -646,7 +646,7 @@ fn expand_cluster(cluster: &Cluster, defs: &RegisterProperties) -> Result<Vec<Re
                 for (field_num, field) in expand_svd_cluster(cluster).iter().enumerate() {
                     cluster_expanded.push(RegisterBlockField {
                         field: field.clone(),
-                        description: info.description.clone(),
+                        description: info.description.as_ref().unwrap_or(&info.name).into(),
                         offset: info.address_offset + field_num as u32 * array_info.dim_increment,
                         size: cluster_size,
                     });
@@ -726,7 +726,8 @@ fn cluster_block(
     let mut mod_items = TokenStream::new();
 
     // name_sc needs to take into account array type.
-    let description = util::escape_brackets(util::respace(&c.description).as_ref());
+    let description =
+        util::escape_brackets(util::respace(c.description.as_ref().unwrap_or(&c.name)).as_ref());
 
     // Generate the register block.
     let mod_name = match c {
