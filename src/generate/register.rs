@@ -43,8 +43,8 @@ pub fn render(
     );
 
     let mut mod_items = TokenStream::new();
-    let mut r_impl_items = vec![];
-    let mut w_impl_items = vec![];
+    let mut r_impl_items = TokenStream::new();
+    let mut w_impl_items = TokenStream::new();
     let mut methods = vec![];
 
     let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access);
@@ -132,11 +132,7 @@ pub fn render(
             impl W #open
         });
 
-        for item in w_impl_items {
-            mod_items.extend(quote! {
-                #item
-            });
-        }
+        mod_items.extend(w_impl_items);
 
         mod_items.extend(quote! {
             #close
@@ -193,11 +189,7 @@ pub fn render(
         pub mod #name_sc #open
     });
 
-    for item in mod_items {
-        out.extend(quote! {
-            #item
-        });
-    }
+    out.extend(mod_items);
 
     out.extend(quote! {
         #close
@@ -216,8 +208,8 @@ pub fn fields(
     reset_value: Option<u64>,
     access: Access,
     mod_items: &mut TokenStream,
-    r_impl_items: &mut Vec<TokenStream>,
-    w_impl_items: &mut Vec<TokenStream>,
+    r_impl_items: &mut TokenStream,
+    w_impl_items: &mut TokenStream,
 ) -> Result<()> {
     // TODO enumeratedValues
     for f in fields.into_iter() {
@@ -293,7 +285,7 @@ pub fn fields(
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
                 evs_r = Some(evs.clone());
 
-                r_impl_items.push(quote! {
+                r_impl_items.extend(quote! {
                     #[doc = #description_with_bits]
                     #[inline(always)]
                     pub fn #sc(&self) -> #_pc_r {
@@ -399,7 +391,7 @@ pub fn fields(
                     });
                 }
             } else {
-                r_impl_items.push(quote! {
+                r_impl_items.extend(quote! {
                     #[doc = #description_with_bits]
                     #[inline(always)]
                     pub fn #sc(&self) -> #_pc_r {
@@ -514,7 +506,7 @@ pub fn fields(
                 }
             });
 
-            w_impl_items.push(quote! {
+            w_impl_items.extend(quote! {
                 #[doc = #description_with_bits]
                 #[inline(always)]
                 pub fn #sc(&mut self) -> #_pc_w {
