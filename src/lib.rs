@@ -71,35 +71,86 @@
 //! rt = ["cortex-m-rt/device"]
 //! ```
 //!
-//! ## target != cortex-m
+//! ## target = msp430
 //!
-//! When the target is msp430, riscv or none `svd2rust` will emit only the `lib.rs` file. Like in
+//! MSP430 does not natively use the SVD format. However, SVD files can be generated using the
+//! [`msp430_svd` application](https://github.com/pftbest/msp430_svd). Most header and DSLite
+//! files provided by TI are mirrored in the repository of `msp430_svd`.
+//!
+//! When targeting the MSP430 architecture `svd2rust` will _also_ generate three files in the
+//! current directory:
+//!
+//! - `build.rs`, build script that places `device.x` somewhere the linker can find.
+//! - `device.x`, linker script that weakly aliases all the interrupt handlers to the default
+//! exception handler (`DefaultHandler`).
+//! - `lib.rs`, the generated code.
+//!
+//! All these files must be included in the same device crate. The `lib.rs` file contains several
+//! inlined modules and its not formatted. It's recommend to split it out using the [`form`] tool
+//! and then format the output using `rustfmt` / `cargo fmt`:
+//!
+//! [`form`]: https://crates.io/crates/form
+//!
+//! ``` text
+//! $ msp430gen msp430g2553 > out.svd
+//!
+//! $ xmllint -format out.svd > msp430g2553.svd
+//!
+//! $ svd2rust --target=msp430 -i msp430g2553.svd
+//!
+//! $ rm -rf src
+//!
+//! $ form -i lib.rs -o src/ && rm lib.rs
+//!
+//! $ cargo fmt
+//! ```
+//!
+//! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
+//! `bare-metal` v0.2.x, `msp430` v0.2.x, `msp430-rt` v0.2.x and `vcell` v0.1.x. Furthermore
+//! the "device" feature of `msp430-rt` must be enabled when the "rt" feature is enabled. The
+//! `Cargo.toml` of the device crate will look like this:
+//!
+//! ``` toml
+//! [dependencies]
+//! bare-metal = "0.2.0"
+//! msp430 = "0.2.0"
+//! vcell = "0.1.0"
+//!
+//! [dependencies.msp430-rt]
+//! optional = true
+//! version = "0.2.0"
+//!
+//! [features]
+//! rt = ["msp430-rt/device"]
+//! ```
+//!
+//! ## Other targets
+//!
+//! When the target is riscv or none `svd2rust` will emit only the `lib.rs` file. Like in
 //! the cortex-m case we recommend you use `form` and `rustfmt` on the output.
 //!
 //! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
 //!
 //! - [`bare-metal`](https://crates.io/crates/bare-metal) v0.2.x
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
-//! - [`msp430`](https://crates.io/crates/msp430) v0.1.x if target = msp430.
-//! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.1.x if target = msp430.
 //! - [`riscv`](https://crates.io/crates/riscv) v0.4.x if target = riscv.
 //! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.4.x if target = riscv.
 //!
 //! The `*-rt` dependencies must be optional only enabled when the "rt" feature is enabled. The
-//! `Cargo.toml` of the device crate will look like this for an msp430 target:
+//! `Cargo.toml` of the device crate will look like this for a riscv target:
 //!
 //! ``` toml
 //! [dependencies]
-//! bare-metal = "0.1.0"
-//! msp430 = "0.1.0"
+//! bare-metal = "0.2.0"
+//! riscv = "0.4.0"
 //! vcell = "0.1.0"
 //!
-//! [dependencies.msp430-rt]
+//! [dependencies.riscv-rt]
 //! optional = true
-//! version = "0.1.0"
+//! version = "0.4.0"
 //!
 //! [features]
-//! rt = ["msp430-rt"]
+//! rt = ["riscv-rt"]
 //! ```
 //!
 //! # Peripheral API
@@ -418,8 +469,9 @@
 //!
 //! If the "rt" Cargo feature of the svd2rust generated crate is enabled the crate will populate the
 //! part of the vector table that contains the interrupt vectors and provide an
-//! [`interrupt!`](macro.interrupt.html) macro (non Cortex-M targets) or [`interrupt`] attribute
-//! (Cortex-M) that can be used to register interrupt handlers.
+//! [`interrupt!`](macro.interrupt.html) macro (non Cortex-M/MSP430 targets) or [`interrupt`] attribute
+//! (Cortex-M or [MSP430](https://docs.rs/msp430-rt-macros/0.1/msp430_rt_macros/attr.interrupt.html))
+//! that can be used to register interrupt handlers.
 //!
 //! [`interrupt`]: https://docs.rs/cortex-m-rt-macros/0.1/cortex_m_rt_macros/attr.interrupt.html
 //!
@@ -502,7 +554,7 @@ pub fn generate(xml: &str, target: Target, nightly: bool) -> Result<Generation> 
 
 /// Assigns a handler to an interrupt
 ///
-/// **NOTE** The `interrupt!` macro on Cortex-M device crates is closer in syntax to the
+/// **NOTE** The `interrupt!` macro on Cortex-M and MSP430 device crates is closer in syntax to the
 /// [`exception!`] macro. This documentation doesn't apply to it. For the exact syntax of this macro
 /// check the documentation of the device crate you are using.
 ///

@@ -1,10 +1,10 @@
 use crate::errors::*;
+use crate::tests::TestCase;
 use reqwest;
 use std::fs::{self, File, OpenOptions};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Output};
-use crate::tests::TestCase;
 
 static CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.0\""];
 static CRATES_MSP430: &[&str] = &["msp430 = \"0.1.0\""];
@@ -12,7 +12,8 @@ static CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.5.0\"", "cortex-m-rt = \"0.5
 static CRATES_RISCV: &[&str] = &["riscv = \"0.4.0\"", "riscv-rt = \"0.4.0\""];
 static PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
 static FEATURES_ALL: &[&str] = &["[features]"];
-static FEATURES_CORTEX_M: &[&str] = &["const-fn = [\"bare-metal/const-fn\", \"cortex-m/const-fn\"]"];
+static FEATURES_CORTEX_M: &[&str] =
+    &["const-fn = [\"bare-metal/const-fn\", \"cortex-m/const-fn\"]"];
 static FEATURES_EMPTY: &[&str] = &[];
 
 fn path_helper(input: &[&str]) -> PathBuf {
@@ -66,20 +67,26 @@ impl CommandHelper for Output {
         };
 
         if cant_fail && !self.status.success() {
-            return Err(
-                ErrorKind::ProcessFailed(name.into(),
-                    stdout.cloned(),
-                    stderr.cloned(),
-                    previous_processes_stderr.to_vec(),
-                ).into()
-            );
+            return Err(ErrorKind::ProcessFailed(
+                name.into(),
+                stdout.cloned(),
+                stderr.cloned(),
+                previous_processes_stderr.to_vec(),
+            )
+            .into());
         }
 
         Ok(())
     }
 }
 
-pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>, nightly: bool, verbosity: u8) -> Result<Option<Vec<PathBuf>>> {
+pub fn test(
+    t: &TestCase,
+    bin_path: &PathBuf,
+    rustfmt_bin_path: Option<&PathBuf>,
+    nightly: bool,
+    verbosity: u8,
+) -> Result<Option<Vec<PathBuf>>> {
     let user = match std::env::var("USER") {
         Ok(val) => val,
         Err(_) => "rusttester".into(),
@@ -90,7 +97,7 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
     if let Err(err) = fs::remove_dir_all(&chip_dir) {
         match err.kind() {
             std::io::ErrorKind::NotFound => (),
-            _ => Err(err).chain_err(|| "While removing chip directory")?
+            _ => Err(err).chain_err(|| "While removing chip directory")?,
         }
     }
 
@@ -151,7 +158,7 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
     file_helper(&svd, &svd_file)?;
 
     // Generate the lib.rs from the SVD file using the specified `svd2rust` binary
-    // If the architecture is cortex-m we move the generated lib.rs file to src/
+    // If the architecture is cortex-m or msp430 we move the generated lib.rs file to src/
     let lib_rs_file = path_helper_base(&chip_dir, &["src", "lib.rs"]);
     let svd2rust_err_file = path_helper_base(&chip_dir, &["svd2rust.err.log"]);
     let target = match t.arch {
@@ -173,21 +180,25 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
     output.capture_outputs(
         true,
         "svd2rust",
-        if t.arch != CortexM { Some(&lib_rs_file) } else { None }, // use Option.filter
+        Some(&lib_rs_file).filter(|_| (t.arch != CortexM) && (t.arch != Msp430)),
         Some(&svd2rust_err_file),
         &[],
     )?;
     process_stderr_paths.push(svd2rust_err_file);
 
-    if let CortexM = t.arch {
-        // TODO: Give error the path to stderr
-        fs::rename(path_helper_base(&chip_dir, &["lib.rs"]), &lib_rs_file).chain_err(|| "While moving lib.rs file")?
+    match t.arch {
+        CortexM | Msp430 => {
+            // TODO: Give error the path to stderr
+            fs::rename(path_helper_base(&chip_dir, &["lib.rs"]), &lib_rs_file)
+                .chain_err(|| "While moving lib.rs file")?
+        }
+        _ => {}
     }
 
     let rustfmt_err_file = path_helper_base(&chip_dir, &["rustfmt.err.log"]);
     if let Some(rustfmt_bin_path) = rustfmt_bin_path {
         // Run `cargo fmt`, capturing stderr to a log file
-        
+
         let output = Command::new(rustfmt_bin_path)
             .arg(lib_rs_file)
             .output()
@@ -200,7 +211,6 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
             &process_stderr_paths,
         )?;
         process_stderr_paths.push(rustfmt_err_file);
-
     }
     // Run `cargo check`, capturing stderr to a log file
     let cargo_check_err_file = path_helper_base(&chip_dir, &["cargo-check.err.log"]);
@@ -215,7 +225,11 @@ pub fn test(t: &TestCase, bin_path: &PathBuf, rustfmt_bin_path: Option<&PathBuf>
         None,
         Some(&cargo_check_err_file),
         &process_stderr_paths,
-        )?;
+    )?;
     process_stderr_paths.push(cargo_check_err_file);
-    Ok(if verbosity > 1 {Some(process_stderr_paths)} else {None})
+    Ok(if verbosity > 1 {
+        Some(process_stderr_paths)
+    } else {
+        None
+    })
 }

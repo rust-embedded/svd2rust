@@ -27,7 +27,7 @@ struct Opt {
     /// (which must be already built)
     #[structopt(short = "p", long = "svd2rust-path", parse(from_os_str))]
     bin_path: Option<PathBuf>,
-    
+
     // TODO: Consider using the same strategy cargo uses for passing args to rustc via `--`
     /// Run svd2rust with `--nightly`
     #[structopt(long = "nightly")]
@@ -38,12 +38,20 @@ struct Opt {
     chip: Vec<String>,
 
     /// Filter by manufacturer, case sensitive, may be combined with other filters
-    #[structopt(short = "m", long = "manufacturer", raw(validator = "validate_manufacturer"))]
+    #[structopt(
+        short = "m",
+        long = "manufacturer",
+        raw(validator = "validate_manufacturer")
+    )]
     mfgr: Option<String>,
 
     /// Filter by architecture, case sensitive, may be combined with other filters
     /// Options are: "CortexM", "RiscV", and "Msp430"
-    #[structopt(short = "a", long = "architecture", raw(validator = "validate_architecture"))]
+    #[structopt(
+        short = "a",
+        long = "architecture",
+        raw(validator = "validate_architecture")
+    )]
     arch: Option<String>,
 
     /// Include tests expected to fail (will cause a non-zero return code)
@@ -74,7 +82,7 @@ struct Opt {
     // TODO: Compile svd2rust?
 }
 
-fn validate_chips(s: String) -> Result<(), String>{
+fn validate_chips(s: String) -> Result<(), String> {
     if tests::TESTS.iter().any(|t| t.chip == s) {
         Ok(())
     } else {
@@ -82,7 +90,7 @@ fn validate_chips(s: String) -> Result<(), String>{
     }
 }
 
-fn validate_architecture(s: String) -> Result<(), String>{
+fn validate_architecture(s: String) -> Result<(), String> {
     if tests::TESTS.iter().any(|t| format!("{:?}", t.arch) == s) {
         Ok(())
     } else {
@@ -90,7 +98,7 @@ fn validate_architecture(s: String) -> Result<(), String>{
     }
 }
 
-fn validate_manufacturer(s: String) -> Result<(), String>{
+fn validate_manufacturer(s: String) -> Result<(), String> {
     if tests::TESTS.iter().any(|t| format!("{:?}", t.mfgr) == s) {
         Ok(())
     } else {
@@ -144,7 +152,8 @@ fn main() {
         default_svd2rust_iter.iter().chain(["svd2rust.exe"].iter())
     } else {
         default_svd2rust_iter.iter().chain(["svd2rust"].iter())
-    }.collect();
+    }
+    .collect();
 
     let bin_path = match opt.bin_path {
         Some(ref bp) => bp,
@@ -170,11 +179,7 @@ fn main() {
         (&Some(ref path), true) => Some(path),
         (&None, true) => {
             // FIXME: Use Option::filter instead when stable, rust-lang/rust#45860
-            if default_rustfmt
-                .iter()
-                .find(|p| p.is_file())
-                .is_none()
-            {
+            if default_rustfmt.iter().find(|p| p.is_file()).is_none() {
                 panic!("No rustfmt found");
             }
             default_rustfmt.as_ref()
@@ -260,8 +265,13 @@ fn main() {
                 any_fails.store(true, Ordering::Release);
                 let additional_info = if opt.verbose > 0 {
                     match *e.kind() {
-                        errors::ErrorKind::ProcessFailed(_, _, Some(ref stderr), ref previous_processes_stderr) => {
-                            let mut buf = String::new(); 
+                        errors::ErrorKind::ProcessFailed(
+                            _,
+                            _,
+                            Some(ref stderr),
+                            ref previous_processes_stderr,
+                        ) => {
+                            let mut buf = String::new();
                             if opt.verbose > 1 {
                                 for stderr in previous_processes_stderr {
                                     read_file(&stderr, &mut buf);
