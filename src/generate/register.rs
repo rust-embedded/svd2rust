@@ -223,79 +223,28 @@ pub fn fields(
     r_impl_items: &mut Vec<TokenStream>,
     w_impl_items: &mut Vec<TokenStream>,
 ) -> Result<()> {
-    struct F<'a> {
-        _pc_w: Ident,
-        _sc: Ident,
-        access: Option<Access>,
-        description: String,
-        description_with_bits: String,
-        evs: &'a [EnumeratedValues],
-        mask: u64,
-        name: &'a str,
-        offset: u64,
-        pc_r: Ident,
-        _pc_r: Ident,
-        pc_w: Ident,
-        sc: Ident,
-        bits: Ident,
-        ty: Ident,
-        width: u32,
-        write_constraint: Option<&'a WriteConstraint>,
-    }
-
-    impl<'a> F<'a> {
-        fn from(f: &'a Field) -> Result<Self> {
-            // TODO(AJM) - do we need to do anything with this range type?
-            let BitRange { offset, width, .. } = f.bit_range;
-            let sc = f.name.to_sanitized_snake_case();
-            let pc = f.name.to_sanitized_upper_case();
-            let span = Span::call_site();
-            let pc_r = Ident::new(&format!("{}_A", pc), span);
-            let _pc_r = Ident::new(&format!("{}_R", pc), span);
-            let pc_w = Ident::new(&format!("{}_AW", pc), span);
-            let _pc_w = Ident::new(&format!("{}_W", pc), span);
-            let _sc = Ident::new(&format!("_{}", sc), span);
-            let bits = Ident::new(if width == 1 { "bit" } else { "bits" }, span);
-            let mut description_with_bits = if width == 1 {
-                format!("Bit {}", offset)
-            } else {
-                format!("Bits {}:{}", offset, offset + width - 1)
-            };
-            if let Some(d) = &f.description {
-                description_with_bits.push_str(" - ");
-                description_with_bits.push_str(&util::respace(&util::escape_brackets(d)));
-            }
-            let description = if let Some(d) = &f.description {
-                util::respace(&util::escape_brackets(d))
-            } else {
-                "".to_owned()
-            };
-
-            Ok(F {
-                _pc_w,
-                _sc,
-                description,
-                description_with_bits,
-                pc_r,
-                _pc_r,
-                pc_w,
-                bits,
-                width,
-                access: f.access,
-                evs: &f.enumerated_values,
-                sc: Ident::new(&sc, span),
-                mask: 1u64.wrapping_neg() >> (64 - width),
-                name: &f.name,
-                offset: u64::from(offset),
-                ty: width.to_ty()?,
-                write_constraint: f.write_constraint.as_ref(),
-            })
-        }
-    }
-
     // TODO enumeratedValues
-    for f in fields.iter().map(F::from) {
-        let f = f?;
+    for f in fields.into_iter() {
+        // TODO(AJM) - do we need to do anything with this range type?
+        let BitRange { offset, width, .. } = f.bit_range;
+        let span = Span::call_site();
+        let sc = Ident::new(&f.name.to_sanitized_snake_case(), span);
+        let pc = f.name.to_sanitized_upper_case();
+        let bits = Ident::new(if width == 1 { "bit" } else { "bits" }, span);
+        let mut description_with_bits = if width == 1 {
+            format!("Bit {}", offset)
+        } else {
+            format!("Bits {}:{}", offset, offset + width - 1)
+        };
+        let description = if let Some(d) = &f.description {
+            util::respace(&util::escape_brackets(d))
+        } else {
+            "".to_owned()
+        };
+        if !description.is_empty() {
+            description_with_bits.push_str(" - ");
+            description_with_bits.push_str(&description);
+        }
 
         let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite]
             .contains(&access)
@@ -303,14 +252,15 @@ pub fn fields(
             && (f.access != Some(Access::WriteOnce));
         let can_write = (access != Access::ReadOnly) && (f.access != Some(Access::ReadOnly));
 
-        let bits = &f.bits;
-        let mask = &util::hex(f.mask);
-        let offset = f.offset;
-        let rv = reset_value.map(|rv| (rv >> offset) & f.mask);
-        let fty = &f.ty;
+        let mask = 1u64.wrapping_neg() >> (64 - width);
+        let hexmask = &util::hex(mask);
+        let offset = u64::from(offset);
+        let rv = reset_value.map(|rv| (rv >> offset) & mask);
+        let fty = width.to_ty()?;
+        let evs = &f.enumerated_values;
 
         let lookup_results = lookup(
-            &f.evs,
+            evs,
             fields,
             parent,
             all_registers,
@@ -318,19 +268,18 @@ pub fn fields(
             all_peripherals,
         )?;
 
-        let pc_r = &f.pc_r;
-        let mut pc_w = &f.pc_r;
+        // Reader and writer use one common `Enum_A` unless a fields have two `enumeratedValues`,
+        // then we have one for read-only `Enum_A` and another for write-only `Enum_AW`
+        let pc_r = Ident::new(&(pc.clone() + "_A"), span);
+        let mut pc_w = &pc_r;
 
         let mut base_pc_w = None;
         let mut evs_r = None;
 
-        let _pc_r = &f._pc_r;
-        let _pc_w = &f._pc_w;
-        let description = &f.description;
-        let description_with_bits = &f.description_with_bits;
-
         if can_read {
-            let cast = if f.width == 1 {
+            let _pc_r = Ident::new(&(pc.clone() + "_R"), span);
+
+            let cast = if width == 1 {
                 quote! { != 0 }
             } else {
                 quote! { as #fty }
@@ -338,18 +287,17 @@ pub fn fields(
             let value = if offset != 0 {
                 let offset = &util::unsuffixed(offset);
                 quote! {
-                    ((self.bits >> #offset) & #mask) #cast
+                    ((self.bits >> #offset) & #hexmask) #cast
                 }
             } else {
                 quote! {
-                    (self.bits & #mask) #cast
+                    (self.bits & #hexmask) #cast
                 }
             };
 
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
                 evs_r = Some(evs.clone());
 
-                let sc = &f.sc;
                 r_impl_items.push(quote! {
                     #[doc = #description_with_bits]
                     #[inline(always)]
@@ -360,9 +308,9 @@ pub fn fields(
 
                 base_pc_w = base.as_ref().map(|base| {
                     let pc = base.field.to_sanitized_upper_case();
-                    let base_pc_r = Ident::new(&format!("{}_A", pc), Span::call_site());
+                    let base_pc_r = Ident::new(&(pc.clone() + "_A"), span);
                     let base_pc_r =
-                        derive_from_base(mod_items, &base, &pc_r, &base_pc_r, description);
+                        derive_from_base(mod_items, &base, &pc_r, &base_pc_r, &description);
 
                     let doc = format!("Reader of field `{}`", f.name);
                     mod_items.push(quote! {
@@ -374,17 +322,17 @@ pub fn fields(
                 });
 
                 if base.is_none() {
-                    let has_reserved_variant = evs.values.len() != (1 << f.width);
+                    let has_reserved_variant = evs.values.len() != (1 << width);
                     let variants = Variant::from_enumerated_values(evs)?;
 
-                    add_from_variants(mod_items, &variants, pc_r, fty, description, rv);
+                    add_from_variants(mod_items, &variants, &pc_r, &fty, &description, rv);
 
                     let mut enum_items = vec![];
 
                     let mut arms = variants
                         .iter()
                         .map(|v| {
-                            let i = util::unsuffixed_or_bool(v.value, f.width);
+                            let i = util::unsuffixed_or_bool(v.value, width);
                             let pc = &v.pc;
 
                             if has_reserved_variant {
@@ -399,7 +347,7 @@ pub fn fields(
                         arms.push(quote! {
                             i => Res(i)
                         });
-                    } else if 1 << f.width.to_ty_width()? != variants.len() {
+                    } else if 1 << width.to_ty_width()? != variants.len() {
                         arms.push(quote! {
                             _ => unreachable!()
                         });
@@ -438,7 +386,7 @@ pub fn fields(
                             } else {
                                 format!("is_{}", sc)
                             },
-                            Span::call_site(),
+                            span,
                         );
 
                         let doc = format!("Checks if the value of the field is `{}`", pc);
@@ -461,7 +409,6 @@ pub fn fields(
                     });
                 }
             } else {
-                let sc = &f.sc;
                 r_impl_items.push(quote! {
                     #[doc = #description_with_bits]
                     #[inline(always)]
@@ -479,29 +426,29 @@ pub fn fields(
         }
 
         if can_write {
-            let mut proxy_items = vec![];
+            let new_pc_w = Ident::new(&(pc.clone() + "_AW"), span);
+            let _pc_w = Ident::new(&(pc.clone() + "_W"), span);
 
-            let mut unsafety = unsafety(f.write_constraint, f.width);
-            let width = f.width;
+            let mut proxy_items = vec![];
+            let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
 
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Write) {
                 let variants = Variant::from_enumerated_values(evs)?;
 
-                if variants.len() == 1 << f.width {
+                if variants.len() == 1 << width {
                     unsafety = None;
                 }
 
                 if Some(evs) != evs_r.as_ref() {
-                    pc_w = &f.pc_w;
-
+                    pc_w = &new_pc_w;
                     base_pc_w = base.as_ref().map(|base| {
                         let pc = base.field.to_sanitized_upper_case();
-                        let base_pc_w = Ident::new(&format!("{}_AW", pc), Span::call_site());
-                        derive_from_base(mod_items, &base, &pc_w, &base_pc_w, description)
+                        let base_pc_w = Ident::new(&(pc + "_AW"), span);
+                        derive_from_base(mod_items, &base, &pc_w, &base_pc_w, &description)
                     });
 
                     if base.is_none() {
-                        add_from_variants(mod_items, &variants, pc_w, fty, description, rv);
+                        add_from_variants(mod_items, &variants, &pc_w, &fty, &description, rv);
                     }
                 }
 
@@ -562,7 +509,7 @@ pub fn fields(
                     ///Writes raw bits to the field
                     #[inline(always)]
                     pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        self.w.bits = (self.w.bits & !(#mask << #offset)) | (((value as #rty) & #mask) << #offset);
+                        self.w.bits = (self.w.bits & !(#hexmask << #offset)) | (((value as #rty) & #hexmask) << #offset);
                         self.w
                     }
                 }
@@ -571,7 +518,7 @@ pub fn fields(
                     ///Writes raw bits to the field
                     #[inline(always)]
                     pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        self.w.bits = (self.w.bits & !#mask) | ((value as #rty) & #mask);
+                        self.w.bits = (self.w.bits & !#hexmask) | ((value as #rty) & #hexmask);
                         self.w
                     }
                 }
@@ -589,7 +536,6 @@ pub fn fields(
                 }
             });
 
-            let sc = &f.sc;
             w_impl_items.push(quote! {
                 #[doc = #description_with_bits]
                 #[inline(always)]
