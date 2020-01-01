@@ -1,8 +1,8 @@
+use crate::svd::Device;
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
-use proc_macro2::{TokenStream, Ident, Span};
 use std::fs::File;
 use std::io::Write;
-use crate::svd::Device;
 
 use crate::errors::*;
 use crate::util::{self, ToSanitizedUpperCase};
@@ -32,14 +32,6 @@ pub fn render(
     if target == Target::Msp430 {
         out.extend(quote! {
             #![feature(abi_msp430_interrupt)]
-        });
-    }
-
-    if target != Target::None && target != Target::CortexM && target != Target::RISCV {
-        out.extend(quote! {
-            #![cfg_attr(feature = "rt", feature(global_asm))]
-            #![cfg_attr(feature = "rt", feature(use_extern_macros))]
-            #![cfg_attr(feature = "rt", feature(used))]
         });
     }
 
@@ -84,8 +76,6 @@ pub fn render(
                 extern crate msp430;
                 #[cfg(feature = "rt")]
                 extern crate msp430_rt;
-                #[cfg(feature = "rt")]
-                pub use msp430_rt::default_handler;
             });
         }
         Target::RISCV => {
@@ -124,8 +114,7 @@ pub fn render(
 
     let core_peripherals: &[_] = if fpu_present {
         &[
-            "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST",
-            "TPIU",
+            "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU",
         ]
     } else {
         &[
@@ -159,6 +148,17 @@ pub fn render(
         }
     }
 
+    if target == Target::Msp430 {
+        out.extend(quote! {
+            // XXX: Are there any core peripherals, really? Requires bump of msp430 crate.
+            // pub use msp430::peripheral::Peripherals as CorePeripherals;
+            #[cfg(feature = "rt")]
+            pub use msp430_rt::interrupt;
+            #[cfg(feature = "rt")]
+            pub use self::Interrupt as interrupt;
+        });
+    }
+
     let generic_file = std::str::from_utf8(include_bytes!("generic.rs")).unwrap();
     if generic_mod {
         writeln!(File::create("generic.rs").unwrap(), "{}", generic_file).unwrap();
@@ -181,7 +181,12 @@ pub fn render(
             continue;
         }
 
-        out.extend(peripheral::render(p, &d.peripherals, &d.default_register_properties, nightly)?);
+        out.extend(peripheral::render(
+            p,
+            &d.peripherals,
+            &d.default_register_properties,
+            nightly,
+        )?);
 
         if p.registers
             .as_ref()

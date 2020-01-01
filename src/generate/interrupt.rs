@@ -97,29 +97,11 @@ pub fn render(
             });
         }
         Target::Msp430 => {
-            let aliases = names
-                .iter()
-                .map(|n| {
-                    format!(
-                        "
-.weak {0}
-{0} = DH_TRAMPOLINE",
-                        n
-                    )
-                })
-                .collect::<Vec<_>>()
-                .concat();
+            for name in &names {
+                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name).unwrap();
+            }
 
-            mod_items.push(quote! {
-                #[cfg(feature = "rt")]
-                global_asm!("
-                DH_TRAMPOLINE:
-                    br #DEFAULT_HANDLER
-                ");
-
-                #[cfg(feature = "rt")]
-                global_asm!(#aliases);
-
+            root.extend(quote! {
                 #[cfg(feature = "rt")]
                 extern "msp430-interrupt" {
                     #(fn #names();)*
@@ -136,7 +118,7 @@ pub fn render(
                 #[link_section = ".vector_table.interrupts"]
                 #[no_mangle]
                 #[used]
-                pub static INTERRUPTS:
+                pub static __INTERRUPTS:
                     [Vector; #n] = [
                         #(#elements,)*
                     ];
@@ -169,7 +151,7 @@ pub fn render(
         }
     };
 
-    if target == Target::CortexM {
+    if target == Target::CortexM || target == Target::Msp430 {
         root.extend(interrupt_enum);
     } else {
         mod_items.push(quote! {
@@ -196,7 +178,7 @@ pub fn render(
             _ => "C",
         };
 
-        if target != Target::CortexM {
+        if target != Target::CortexM && target != Target::Msp430 {
             mod_items.push(quote! {
                 #[cfg(feature = "rt")]
                 #[macro_export]
@@ -283,7 +265,7 @@ pub fn render(
         }
     }
 
-    if !interrupts.is_empty() && target != Target::CortexM {
+    if !interrupts.is_empty() && target != Target::CortexM && target != Target::Msp430 {
         root.extend(quote! {
             #[doc(hidden)]
             pub mod interrupt {
