@@ -273,7 +273,6 @@ pub fn fields(
         let pc_r = Ident::new(&(pc.clone() + "_A"), span);
         let mut pc_w = &pc_r;
 
-        let mut base_pc_w = None;
         let mut evs_r = None;
 
         if can_read {
@@ -306,22 +305,17 @@ pub fn fields(
                     }
                 });
 
-                base_pc_w = base.as_ref().map(|base| {
+                if let Some(base) = base {
                     let pc = base.field.to_sanitized_upper_case();
                     let base_pc_r = Ident::new(&(pc.clone() + "_A"), span);
-                    let base_pc_r =
-                        derive_from_base(mod_items, &base, &pc_r, &base_pc_r, &description);
+                    derive_from_base(mod_items, &base, &pc_r, &base_pc_r, &description);
 
                     let doc = format!("Reader of field `{}`", f.name);
                     mod_items.push(quote! {
                         #[doc = #doc]
-                        pub type #_pc_r = crate::R<#fty, #base_pc_r>;
+                        pub type #_pc_r = crate::R<#fty, #pc_r>;
                     });
-
-                    base_pc_r
-                });
-
-                if base.is_none() {
+                } else {
                     let has_reserved_variant = evs.values.len() != (1 << width);
                     let variants = Variant::from_enumerated_values(evs)?;
 
@@ -441,14 +435,12 @@ pub fn fields(
 
                 if Some(evs) != evs_r.as_ref() {
                     pc_w = &new_pc_w;
-                    base_pc_w = base.as_ref().map(|base| {
+                    if let Some(base) = base {
                         let pc = base.field.to_sanitized_upper_case();
                         let base_pc_w = Ident::new(&(pc + "_AW"), span);
                         derive_from_base(mod_items, &base, &pc_w, &base_pc_w, &description)
-                    });
-
-                    if base.is_none() {
-                        add_from_variants(mod_items, &variants, &pc_w, &fty, &description, rv);
+                    } else {
+                        add_from_variants(mod_items, &variants, pc_w, &fty, &description, rv);
                     }
                 }
 
@@ -467,23 +459,13 @@ pub fn fields(
                     let sc = &v.sc;
 
                     let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
-                    if let Some(enum_) = base_pc_w.as_ref() {
-                        proxy_items.push(quote! {
-                            #[doc = #doc]
-                            #[inline(always)]
-                            pub fn #sc(self) -> &'a mut W {
-                                self.variant(#enum_::#pc)
-                            }
-                        });
-                    } else {
-                        proxy_items.push(quote! {
-                            #[doc = #doc]
-                            #[inline(always)]
-                            pub fn #sc(self) -> &'a mut W {
-                                self.variant(#pc_w::#pc)
-                            }
-                        });
-                    }
+                    proxy_items.push(quote! {
+                        #[doc = #doc]
+                        #[inline(always)]
+                        pub fn #sc(self) -> &'a mut W {
+                            self.variant(#pc_w::#pc)
+                        }
+                    });
                 }
             }
 
@@ -658,7 +640,7 @@ fn derive_from_base(
     pc: &Ident,
     base_pc: &Ident,
     desc: &str,
-) -> TokenStream {
+) {
     let span = Span::call_site();
     if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
         let pmod_ = peripheral.to_sanitized_snake_case();
@@ -671,10 +653,6 @@ fn derive_from_base(
             pub type #pc =
                 crate::#pmod_::#rmod_::#base_pc;
         });
-
-        quote! {
-            crate::#pmod_::#rmod_::#base_pc
-        }
     } else if let Some(register) = &base.register {
         let mod_ = register.to_sanitized_snake_case();
         let mod_ = Ident::new(&mod_, span);
@@ -684,19 +662,11 @@ fn derive_from_base(
             pub type #pc =
                 super::#mod_::#base_pc;
         });
-
-        quote! {
-            super::#mod_::#base_pc
-        }
     } else {
         mod_items.push(quote! {
             #[doc = #desc]
             pub type #pc = #base_pc;
         });
-
-        quote! {
-            #base_pc
-        }
     }
 }
 
