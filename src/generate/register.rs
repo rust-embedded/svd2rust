@@ -42,9 +42,9 @@ pub fn render(
         .as_ref(),
     );
 
-    let mut mod_items = vec![];
-    let mut r_impl_items = vec![];
-    let mut w_impl_items = vec![];
+    let mut mod_items = TokenStream::new();
+    let mut r_impl_items = TokenStream::new();
+    let mut w_impl_items = TokenStream::new();
     let mut methods = vec![];
 
     let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access);
@@ -52,7 +52,7 @@ pub fn render(
 
     if can_read {
         let desc = format!("Reader of register {}", register.name);
-        mod_items.push(quote! {
+        mod_items.extend(quote! {
             #[doc = #desc]
             pub type R = crate::R<#rty, super::#name_pc>;
         });
@@ -62,13 +62,13 @@ pub fn render(
     let res_val = register.reset_value.or(defs.reset_value).map(|v| v as u64);
     if can_write {
         let desc = format!("Writer for register {}", register.name);
-        mod_items.push(quote! {
+        mod_items.extend(quote! {
             #[doc = #desc]
             pub type W = crate::W<#rty, super::#name_pc>;
         });
         if let Some(rv) = res_val.map(util::hex) {
             let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
-            mod_items.push(quote! {
+            mod_items.extend(quote! {
                 #[doc = #doc]
                 impl crate::ResetValue for super::#name_pc {
                     type Type = #rty;
@@ -116,33 +116,25 @@ pub fn render(
     let close = Punct::new('}', Spacing::Alone);
 
     if can_read {
-        mod_items.push(quote! {
+        mod_items.extend(quote! {
             impl R #open
         });
 
-        for item in r_impl_items {
-            mod_items.push(quote! {
-                #item
-            });
-        }
+        mod_items.extend(r_impl_items);
 
-        mod_items.push(quote! {
+        mod_items.extend(quote! {
             #close
         });
     }
 
     if can_write {
-        mod_items.push(quote! {
+        mod_items.extend(quote! {
             impl W #open
         });
 
-        for item in w_impl_items {
-            mod_items.push(quote! {
-                #item
-            });
-        }
+        mod_items.extend(w_impl_items);
 
-        mod_items.push(quote! {
+        mod_items.extend(quote! {
             #close
         });
     }
@@ -197,11 +189,7 @@ pub fn render(
         pub mod #name_sc #open
     });
 
-    for item in mod_items {
-        out.extend(quote! {
-            #item
-        });
-    }
+    out.extend(mod_items);
 
     out.extend(quote! {
         #close
@@ -219,9 +207,9 @@ pub fn fields(
     rty: &Ident,
     reset_value: Option<u64>,
     access: Access,
-    mod_items: &mut Vec<TokenStream>,
-    r_impl_items: &mut Vec<TokenStream>,
-    w_impl_items: &mut Vec<TokenStream>,
+    mod_items: &mut TokenStream,
+    r_impl_items: &mut TokenStream,
+    w_impl_items: &mut TokenStream,
 ) -> Result<()> {
     // TODO enumeratedValues
     for f in fields.into_iter() {
@@ -297,7 +285,7 @@ pub fn fields(
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
                 evs_r = Some(evs.clone());
 
-                r_impl_items.push(quote! {
+                r_impl_items.extend(quote! {
                     #[doc = #description_with_bits]
                     #[inline(always)]
                     pub fn #sc(&self) -> #_pc_r {
@@ -311,7 +299,7 @@ pub fn fields(
                     derive_from_base(mod_items, &base, &pc_r, &base_pc_r, &description);
 
                     let doc = format!("Reader of field `{}`", f.name);
-                    mod_items.push(quote! {
+                    mod_items.extend(quote! {
                         #[doc = #doc]
                         pub type #_pc_r = crate::R<#fty, #pc_r>;
                     });
@@ -394,7 +382,7 @@ pub fn fields(
                     }
 
                     let doc = format!("Reader of field `{}`", f.name);
-                    mod_items.push(quote! {
+                    mod_items.extend(quote! {
                         #[doc = #doc]
                         pub type #_pc_r = crate::R<#fty, #pc_r>;
                         impl #_pc_r {
@@ -403,7 +391,7 @@ pub fn fields(
                     });
                 }
             } else {
-                r_impl_items.push(quote! {
+                r_impl_items.extend(quote! {
                     #[doc = #description_with_bits]
                     #[inline(always)]
                     pub fn #sc(&self) -> #_pc_r {
@@ -412,7 +400,7 @@ pub fn fields(
                 });
 
                 let doc = format!("Reader of field `{}`", f.name);
-                mod_items.push(quote! {
+                mod_items.extend(quote! {
                     #[doc = #doc]
                     pub type #_pc_r = crate::R<#fty, #fty>;
                 })
@@ -507,7 +495,7 @@ pub fn fields(
             });
 
             let doc = format!("Write proxy for field `{}`", f.name);
-            mod_items.push(quote! {
+            mod_items.extend(quote! {
                 #[doc = #doc]
                 pub struct #_pc_w<'a> {
                     w: &'a mut W,
@@ -518,7 +506,7 @@ pub fn fields(
                 }
             });
 
-            w_impl_items.push(quote! {
+            w_impl_items.extend(quote! {
                 #[doc = #description_with_bits]
                 #[inline(always)]
                 pub fn #sc(&mut self) -> #_pc_w {
@@ -586,7 +574,7 @@ impl Variant {
 }
 
 fn add_from_variants(
-    mod_items: &mut Vec<TokenStream>,
+    mod_items: &mut TokenStream,
     variants: &[Variant],
     pc: &Ident,
     fty: &Ident,
@@ -618,7 +606,7 @@ fn add_from_variants(
         desc.to_owned()
     };
 
-    mod_items.push(quote! {
+    mod_items.extend(quote! {
         #[doc = #desc]
         #[derive(Clone, Copy, Debug, PartialEq)]
         #repr
@@ -635,7 +623,7 @@ fn add_from_variants(
 }
 
 fn derive_from_base(
-    mod_items: &mut Vec<TokenStream>,
+    mod_items: &mut TokenStream,
     base: &Base,
     pc: &Ident,
     base_pc: &Ident,
@@ -648,7 +636,7 @@ fn derive_from_base(
         let pmod_ = Ident::new(&pmod_, span);
         let rmod_ = Ident::new(&rmod_, span);
 
-        mod_items.push(quote! {
+        mod_items.extend(quote! {
             #[doc = #desc]
             pub type #pc =
                 crate::#pmod_::#rmod_::#base_pc;
@@ -657,13 +645,13 @@ fn derive_from_base(
         let mod_ = register.to_sanitized_snake_case();
         let mod_ = Ident::new(&mod_, span);
 
-        mod_items.push(quote! {
+        mod_items.extend(quote! {
             #[doc = #desc]
             pub type #pc =
                 super::#mod_::#base_pc;
         });
     } else {
-        mod_items.push(quote! {
+        mod_items.extend(quote! {
             #[doc = #desc]
             pub type #pc = #base_pc;
         });
