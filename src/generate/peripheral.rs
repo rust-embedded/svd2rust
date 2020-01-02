@@ -323,13 +323,13 @@ impl FieldRegions {
         let mut indices = Vec::new();
 
         let field_start = field.offset;
-        let field_end = field_start + field.size / BITS_PER_BYTE;
+        let field_end = field_start + (( field.size as f32 ) / (BITS_PER_BYTE as f32)).ceil() as u32;
 
         // The region that we're going to insert
         let mut new_region = Region {
             fields: vec![field.clone()],
             offset: field.offset,
-            end: field.offset + field.size / BITS_PER_BYTE,
+            end: field_end,
             ident: None,
         };
 
