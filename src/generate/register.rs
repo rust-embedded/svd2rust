@@ -282,16 +282,16 @@ pub fn fields(
                 }
             };
 
+            r_impl_items.extend(quote! {
+                #[doc = #description_with_bits]
+                #[inline(always)]
+                pub fn #sc(&self) -> #_pc_r {
+                    #_pc_r::new ( #value )
+                }
+            });
+
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
                 evs_r = Some(evs.clone());
-
-                r_impl_items.extend(quote! {
-                    #[doc = #description_with_bits]
-                    #[inline(always)]
-                    pub fn #sc(&self) -> #_pc_r {
-                        #_pc_r::new( #value )
-                    }
-                });
 
                 if let Some(base) = base {
                     let pc = base.field.to_sanitized_upper_case();
@@ -309,50 +309,50 @@ pub fn fields(
 
                     add_from_variants(mod_items, &variants, &pc_r, &fty, &description, rv);
 
-                    let mut enum_items = vec![];
+                    let mut enum_items = TokenStream::new();
 
-                    let mut arms = variants
-                        .iter()
-                        .map(|v| {
-                            let i = util::unsuffixed_or_bool(v.value, width);
-                            let pc = &v.pc;
+                    let mut arms = TokenStream::new();
+                    for v in variants.iter().map(|v| {
+                        let i = util::unsuffixed_or_bool(v.value, width);
+                        let pc = &v.pc;
 
-                            if has_reserved_variant {
-                                quote! { #i => Val(#pc_r::#pc) }
-                            } else {
-                                quote! { #i => #pc_r::#pc }
-                            }
-                        })
-                        .collect::<Vec<_>>();
+                        if has_reserved_variant {
+                            quote! { #i => Val(#pc_r::#pc), }
+                        } else {
+                            quote! { #i => #pc_r::#pc, }
+                        }
+                    }) {
+                        arms.extend(v);
+                    }
 
                     if has_reserved_variant {
-                        arms.push(quote! {
-                            i => Res(i)
+                        arms.extend(quote! {
+                            i => Res(i),
                         });
                     } else if 1 << width.to_ty_width()? != variants.len() {
-                        arms.push(quote! {
-                            _ => unreachable!()
+                        arms.extend(quote! {
+                            _ => unreachable!(),
                         });
                     }
 
                     if has_reserved_variant {
-                        enum_items.push(quote! {
+                        enum_items.extend(quote! {
                             ///Get enumerated values variant
                             #[inline(always)]
                             pub fn variant(&self) -> crate::Variant<#fty, #pc_r> {
                                 use crate::Variant::*;
                                 match self.bits {
-                                    #(#arms),*
+                                    #arms
                                 }
                             }
                         });
                     } else {
-                        enum_items.push(quote! {
+                        enum_items.extend(quote! {
                             ///Get enumerated values variant
                             #[inline(always)]
                             pub fn variant(&self) -> #pc_r {
                                 match self.bits {
-                                    #(#arms),*
+                                    #arms
                                 }
                             }
                         });
@@ -372,7 +372,7 @@ pub fn fields(
                         );
 
                         let doc = format!("Checks if the value of the field is `{}`", pc);
-                        enum_items.push(quote! {
+                        enum_items.extend(quote! {
                             #[doc = #doc]
                             #[inline(always)]
                             pub fn #is_variant(&self) -> bool {
@@ -386,19 +386,11 @@ pub fn fields(
                         #[doc = #doc]
                         pub type #_pc_r = crate::R<#fty, #pc_r>;
                         impl #_pc_r {
-                            #(#enum_items)*
+                            #enum_items
                         }
                     });
                 }
             } else {
-                r_impl_items.extend(quote! {
-                    #[doc = #description_with_bits]
-                    #[inline(always)]
-                    pub fn #sc(&self) -> #_pc_r {
-                        #_pc_r::new ( #value )
-                    }
-                });
-
                 let doc = format!("Reader of field `{}`", f.name);
                 mod_items.extend(quote! {
                     #[doc = #doc]
@@ -411,7 +403,7 @@ pub fn fields(
             let new_pc_w = Ident::new(&(pc.clone() + "_AW"), span);
             let _pc_w = Ident::new(&(pc.clone() + "_W"), span);
 
-            let mut proxy_items = vec![];
+            let mut proxy_items = TokenStream::new();
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
 
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Write) {
@@ -432,7 +424,7 @@ pub fn fields(
                     }
                 }
 
-                proxy_items.push(quote! {
+                proxy_items.extend(quote! {
                     ///Writes `variant` to the field
                     #[inline(always)]
                     pub fn variant(self, variant: #pc_w) -> &'a mut W {
@@ -447,7 +439,7 @@ pub fn fields(
                     let sc = &v.sc;
 
                     let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
-                    proxy_items.push(quote! {
+                    proxy_items.extend(quote! {
                         #[doc = #doc]
                         #[inline(always)]
                         pub fn #sc(self) -> &'a mut W {
@@ -458,7 +450,7 @@ pub fn fields(
             }
 
             if width == 1 {
-                proxy_items.push(quote! {
+                proxy_items.extend(quote! {
                     ///Sets the field bit
                     #[inline(always)]
                     pub #unsafety fn set_bit(self) -> &'a mut W {
@@ -473,7 +465,7 @@ pub fn fields(
                 });
             }
 
-            proxy_items.push(if offset != 0 {
+            proxy_items.extend(if offset != 0 {
                 let offset = &util::unsuffixed(offset);
                 quote! {
                     ///Writes raw bits to the field
@@ -502,7 +494,7 @@ pub fn fields(
                 }
 
                 impl<'a> #_pc_w<'a> {
-                    #(#proxy_items)*
+                    #proxy_items
                 }
             });
 
@@ -587,18 +579,18 @@ fn add_from_variants(
         (quote! { #[repr(#fty)] }, quote! { variant as _ })
     };
 
-    let vars = variants
-        .iter()
-        .map(|v| {
-            let desc = util::escape_brackets(&format!("{}: {}", v.value, v.doc));
-            let pcv = &v.pc;
-            let pcval = &util::unsuffixed(v.value);
-            quote! {
-                #[doc = #desc]
-                #pcv = #pcval
-            }
-        })
-        .collect::<Vec<_>>();
+    let mut vars = TokenStream::new();
+    for v in variants.iter().map(|v| {
+        let desc = util::escape_brackets(&format!("{}: {}", v.value, v.doc));
+        let pcv = &v.pc;
+        let pcval = &util::unsuffixed(v.value);
+        quote! {
+            #[doc = #desc]
+            #pcv = #pcval,
+        }
+    }) {
+        vars.extend(v);
+    }
 
     let desc = if let Some(rv) = reset_value {
         format!("{}\n\nValue on reset: {}", desc, rv)
@@ -611,7 +603,7 @@ fn add_from_variants(
         #[derive(Clone, Copy, Debug, PartialEq)]
         #repr
         pub enum #pc {
-            #(#vars),*
+            #vars
         }
         impl From<#pc> for #fty {
             #[inline(always)]

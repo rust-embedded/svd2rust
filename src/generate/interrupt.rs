@@ -25,17 +25,17 @@ pub fn render(
     interrupts.sort_by_key(|i| i.value);
 
     let mut root = TokenStream::new();
-    let mut from_arms = vec![];
-    let mut elements = vec![];
+    let mut from_arms = TokenStream::new();
+    let mut elements = TokenStream::new();
     let mut names = vec![];
-    let mut variants = vec![];
+    let mut variants = TokenStream::new();
 
     // Current position in the vector table
     let mut pos = 0;
-    let mut mod_items = vec![];
+    let mut mod_items = TokenStream::new();
     for interrupt in &interrupts {
         while pos < interrupt.value {
-            elements.push(quote!(Vector { _reserved: 0 }));
+            elements.extend(quote!(Vector { _reserved: 0 },));
             pos += 1;
         }
         pos += 1;
@@ -55,16 +55,16 @@ pub fn render(
 
         let value = util::unsuffixed(u64(interrupt.value));
 
-        variants.push(quote! {
+        variants.extend(quote! {
             #[doc = #description]
             #name_uc = #value,
         });
 
-        from_arms.push(quote! {
+        from_arms.extend(quote! {
             #value => Ok(Interrupt::#name_uc),
         });
 
-        elements.push(quote!(Vector { _handler: #name_uc }));
+        elements.extend(quote!(Vector { _handler: #name_uc },));
         names.push(name_uc);
     }
 
@@ -92,7 +92,7 @@ pub fn render(
                 #[link_section = ".vector_table.interrupts"]
                 #[no_mangle]
                 pub static __INTERRUPTS: [Vector; #n] = [
-                    #(#elements,)*
+                    #elements
                 ];
             });
         }
@@ -120,7 +120,7 @@ pub fn render(
                 #[used]
                 pub static __INTERRUPTS:
                     [Vector; #n] = [
-                        #(#elements,)*
+                        #elements
                     ];
             });
         }
@@ -140,7 +140,7 @@ pub fn render(
         #[derive(Copy, Clone, Debug)]
         #enum_repr
         pub enum Interrupt {
-            #(#variants)*
+            #variants
         }
 
         unsafe impl bare_metal::Nr for Interrupt {
@@ -154,7 +154,7 @@ pub fn render(
     if target == Target::CortexM || target == Target::Msp430 {
         root.extend(interrupt_enum);
     } else {
-        mod_items.push(quote! {
+        mod_items.extend(quote! {
             #interrupt_enum
 
             #[derive(Debug, Copy, Clone)]
@@ -164,7 +164,7 @@ pub fn render(
                 #[inline]
                 pub fn try_from(value: u8) -> Result<Self, TryFromInterruptError> {
                     match value {
-                        #(#from_arms)*
+                        #from_arms
                         _ => Err(TryFromInterruptError(())),
                     }
                 }
@@ -179,7 +179,7 @@ pub fn render(
         };
 
         if target != Target::CortexM && target != Target::Msp430 {
-            mod_items.push(quote! {
+            mod_items.extend(quote! {
                 #[cfg(feature = "rt")]
                 #[macro_export]
                 /// Assigns a handler to an interrupt
@@ -269,7 +269,7 @@ pub fn render(
         root.extend(quote! {
             #[doc(hidden)]
             pub mod interrupt {
-                #(#mod_items)*
+                #mod_items
             }
         });
 
