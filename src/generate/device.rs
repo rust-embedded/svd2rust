@@ -122,8 +122,8 @@ pub fn render(
         ]
     };
 
-    let mut fields = vec![];
-    let mut exprs = vec![];
+    let mut fields = TokenStream::new();
+    let mut exprs = TokenStream::new();
     if target == Target::CortexM {
         out.extend(quote! {
             pub use cortex_m::peripheral::Peripherals as CorePeripherals;
@@ -202,11 +202,11 @@ pub fn render(
 
         let p = p.name.to_sanitized_upper_case();
         let id = Ident::new(&p, Span::call_site());
-        fields.push(quote! {
+        fields.extend(quote! {
             #[doc = #p]
-            pub #id: #id
+            pub #id: #id,
         });
-        exprs.push(quote!(#id: #id { _marker: PhantomData }));
+        exprs.extend(quote!(#id: #id { _marker: PhantomData },));
     }
 
     let span = Span::call_site();
@@ -242,7 +242,7 @@ pub fn render(
         ///All the peripherals
         #[allow(non_snake_case)]
         pub struct Peripherals {
-            #(#fields,)*
+            #fields
         }
 
         impl Peripherals {
@@ -254,7 +254,7 @@ pub fn render(
                 DEVICE_PERIPHERALS = true;
 
                 Peripherals {
-                    #(#exprs,)*
+                    #exprs
                 }
             }
         }
