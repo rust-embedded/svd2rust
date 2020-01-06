@@ -12,7 +12,6 @@ mod errors;
 mod generate;
 mod util;
 
-use std::fmt::Write as _;
 use std::fs::File;
 use std::io::Write;
 use std::process;
@@ -103,9 +102,7 @@ fn run() -> Result<()> {
     let items = generate::device::render(&device, target, nightly, generic_mod, &mut device_x)?;
     let mut file = File::create("lib.rs").expect("Couldn't create lib.rs file");
 
-    let mut data = String::new();
-    write!(data, "{}", items).expect("Could not output code");
-    let data = data.replace("] ", "]\n");
+    let data = items.to_string().replace("] ", "]\n");
     file.write_all(data.as_ref())
         .expect("Could not write code to lib.rs");
 
