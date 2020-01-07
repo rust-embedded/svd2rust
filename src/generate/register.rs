@@ -1,3 +1,4 @@
+use crate::quote::ToTokens;
 use crate::svd::{
     Access, BitRange, EnumeratedValues, Field, Peripheral, Register, RegisterCluster,
     RegisterProperties, Usage, WriteConstraint,
@@ -122,9 +123,7 @@ pub fn render(
 
         mod_items.extend(r_impl_items);
 
-        mod_items.extend(quote! {
-            #close
-        });
+        close.to_tokens(&mut mod_items);
     }
 
     if can_write {
@@ -134,9 +133,7 @@ pub fn render(
 
         mod_items.extend(w_impl_items);
 
-        mod_items.extend(quote! {
-            #close
-        });
+        close.to_tokens(&mut mod_items);
     }
 
     let mut out = TokenStream::new();

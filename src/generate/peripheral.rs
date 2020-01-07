@@ -179,15 +179,9 @@ pub fn render(
         pub mod #name_sc #open
     });
 
-    for item in mod_items {
-        out.extend(quote! {
-            #item
-        });
-    }
+    out.extend(mod_items);
 
-    out.extend(quote! {
-       #close
-    });
+    close.to_tokens(&mut out);
 
     Ok(out)
 }
@@ -730,12 +724,13 @@ fn cluster_block(
         util::escape_brackets(util::respace(c.description.as_ref().unwrap_or(&c.name)).as_ref());
 
     // Generate the register block.
-    let mod_name = match c {
-        Cluster::Single(info) => &info.name,
-        Cluster::Array(info, _ai) => &info.name,
-    }
-    .replace("[%s]", "")
-    .replace("%s", "");
+    let mod_name = util::replace_suffix(
+        match c {
+            Cluster::Single(info) => &info.name,
+            Cluster::Array(info, _ai) => &info.name,
+        },
+        "",
+    );
     let name_sc = Ident::new(&mod_name.to_sanitized_snake_case(), Span::call_site());
 
     let defaults = c.default_register_properties.derive_from(defaults);
@@ -794,8 +789,6 @@ fn expand_svd_register(register: &Register, name: Option<&str>) -> Vec<syn::Fiel
     match register {
         Register::Single(_info) => out.push(convert_svd_register(register, name)),
         Register::Array(info, array_info) => {
-            let has_brackets = info.name.contains("[%s]");
-
             let indices = array_info
                 .dim_index
                 .as_ref()
@@ -808,18 +801,10 @@ fn expand_svd_register(register: &Register, name: Option<&str>) -> Vec<syn::Fiel
                     )
                 });
 
-            for (idx, _i) in indices.iter().zip(0..) {
-                let nb_name = if has_brackets {
-                    info.name.replace("[%s]", idx)
-                } else {
-                    info.name.replace("%s", idx)
-                };
+            let ty_name = util::replace_suffix(&info.name, "");
 
-                let ty_name = if has_brackets {
-                    info.name.replace("[%s]", "")
-                } else {
-                    info.name.replace("%s", "")
-                };
+            for (idx, _i) in indices.iter().zip(0..) {
+                let nb_name = util::replace_suffix(&info.name, idx);
 
                 let ty = name_to_ty(&ty_name, name);
 
@@ -849,13 +834,7 @@ fn convert_svd_register(register: &Register, name: Option<&str>) -> syn::Field {
             syn::Type::Path(parse_str::<syn::TypePath>(&name_to_ty(&info.name, name)).unwrap()),
         ),
         Register::Array(info, array_info) => {
-            let has_brackets = info.name.contains("[%s]");
-
-            let nb_name = if has_brackets {
-                info.name.replace("[%s]", "")
-            } else {
-                info.name.replace("%s", "")
-            };
+            let nb_name = util::replace_suffix(&info.name, "");
 
             let ty = syn::Type::Array(
                 parse_str::<syn::TypeArray>(&format!(
@@ -883,8 +862,6 @@ fn expand_svd_cluster(cluster: &Cluster) -> Vec<syn::Field> {
     match &cluster {
         Cluster::Single(_info) => out.push(convert_svd_cluster(cluster)),
         Cluster::Array(info, array_info) => {
-            let has_brackets = info.name.contains("[%s]");
-
             let indices = array_info
                 .dim_index
                 .as_ref()
@@ -897,18 +874,10 @@ fn expand_svd_cluster(cluster: &Cluster) -> Vec<syn::Field> {
                     )
                 });
 
-            for (idx, _i) in indices.iter().zip(0..) {
-                let name = if has_brackets {
-                    info.name.replace("[%s]", idx)
-                } else {
-                    info.name.replace("%s", idx)
-                };
+            let ty_name = util::replace_suffix(&info.name, "");
 
-                let ty_name = if has_brackets {
-                    info.name.replace("[%s]", "")
-                } else {
-                    info.name.replace("%s", "")
-                };
+            for (idx, _i) in indices.iter().zip(0..) {
+                let name = util::replace_suffix(&info.name, idx);
 
                 let ty = name_to_ty(&ty_name);
 
@@ -929,13 +898,7 @@ fn convert_svd_cluster(cluster: &Cluster) -> syn::Field {
             ),
         ),
         Cluster::Array(info, array_info) => {
-            let has_brackets = info.name.contains("[%s]");
-
-            let name = if has_brackets {
-                info.name.replace("[%s]", "")
-            } else {
-                info.name.replace("%s", "")
-            };
+            let name = util::replace_suffix(&info.name, "");
 
             let ty = syn::Type::Array(
                 parse_str::<syn::TypeArray>(&format!(
