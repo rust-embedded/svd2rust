@@ -211,11 +211,14 @@ pub fn fields(
     r_impl_items: &mut TokenStream,
     w_impl_items: &mut TokenStream,
 ) -> Result<()> {
+    let span = Span::call_site();
+    let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access);
+    let can_write = access != Access::ReadOnly;
+
     // TODO enumeratedValues
-    for f in fields.into_iter() {
+    for f in fields.iter() {
         // TODO(AJM) - do we need to do anything with this range type?
         let BitRange { offset, width, .. } = f.bit_range;
-        let span = Span::call_site();
         let sc = Ident::new(&f.name.to_sanitized_snake_case(), span);
         let pc = f.name.to_sanitized_upper_case();
         let bits = Ident::new(if width == 1 { "bit" } else { "bits" }, span);
@@ -234,11 +237,10 @@ pub fn fields(
             description_with_bits.push_str(&description);
         }
 
-        let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite]
-            .contains(&access)
+        let can_read = can_read
             && (f.access != Some(Access::WriteOnly))
             && (f.access != Some(Access::WriteOnce));
-        let can_write = (access != Access::ReadOnly) && (f.access != Some(Access::ReadOnly));
+        let can_write = can_write && (f.access != Some(Access::ReadOnly));
 
         let mask = 1u64.wrapping_neg() >> (64 - width);
         let hexmask = &util::hex(mask);
@@ -246,6 +248,8 @@ pub fn fields(
         let rv = reset_value.map(|rv| (rv >> offset) & mask);
         let fty = width.to_ty()?;
         let evs = &f.enumerated_values;
+        let quotedfield = String::from("`") + &f.name + "`";
+        let readerdoc = String::from("Reader of field ") + &quotedfield;
 
         let lookup_results = lookup(
             evs,
@@ -298,9 +302,8 @@ pub fn fields(
                     let base_pc_r = Ident::new(&(pc.clone() + "_A"), span);
                     derive_from_base(mod_items, &base, &pc_r, &base_pc_r, &description);
 
-                    let doc = format!("Reader of field `{}`", f.name);
                     mod_items.extend(quote! {
-                        #[doc = #doc]
+                        #[doc = #readerdoc]
                         pub type #_pc_r = crate::R<#fty, #pc_r>;
                     });
                 } else {
@@ -381,9 +384,8 @@ pub fn fields(
                         });
                     }
 
-                    let doc = format!("Reader of field `{}`", f.name);
                     mod_items.extend(quote! {
-                        #[doc = #doc]
+                        #[doc = #readerdoc]
                         pub type #_pc_r = crate::R<#fty, #pc_r>;
                         impl #_pc_r {
                             #enum_items
@@ -391,9 +393,8 @@ pub fn fields(
                     });
                 }
             } else {
-                let doc = format!("Reader of field `{}`", f.name);
                 mod_items.extend(quote! {
-                    #[doc = #doc]
+                    #[doc = #readerdoc]
                     pub type #_pc_r = crate::R<#fty, #fty>;
                 })
             }
