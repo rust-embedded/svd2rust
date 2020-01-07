@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::quote::{ToTokens, TokenStreamExt};
+use crate::quote::ToTokens;
 use crate::svd::{Access, Cluster, Register, RegisterCluster};
 use inflections::Inflect;
 use proc_macro2::{Ident, Literal, Span, TokenStream};
@@ -185,13 +185,15 @@ pub fn escape_brackets(s: &str) -> String {
 pub fn name_of(register: &Register) -> Cow<str> {
     match register {
         Register::Single(info) => Cow::from(&info.name),
-        Register::Array(info, _) => {
-            if info.name.contains("[%s]") {
-                info.name.replace("[%s]", "").into()
-            } else {
-                info.name.replace("%s", "").into()
-            }
-        }
+        Register::Array(info, _) => replace_suffix(&info.name, "").into(),
+    }
+}
+
+pub fn replace_suffix(name: &str, suffix: &str) -> String {
+    if name.contains("[%s]") {
+        name.replace("[%s]", suffix)
+    } else {
+        name.replace("%s", suffix)
     }
 }
 
@@ -250,19 +252,12 @@ pub fn hex(n: u64) -> TokenStream {
 
 /// Turns `n` into an unsuffixed token
 pub fn unsuffixed(n: u64) -> TokenStream {
-    let mut t = TokenStream::new();
-    t.append(Literal::u64_unsuffixed(n));
-    t
+    Literal::u64_unsuffixed(n).into_token_stream()
 }
 
 pub fn unsuffixed_or_bool(n: u64, width: u32) -> TokenStream {
     if width == 1 {
-        let mut t = TokenStream::new();
-        t.append(Ident::new(
-            if n == 0 { "false" } else { "true" },
-            Span::call_site(),
-        ));
-        t
+        Ident::new(if n == 0 { "false" } else { "true" }, Span::call_site()).into_token_stream()
     } else {
         unsuffixed(n)
     }
@@ -275,19 +270,21 @@ pub trait U32Ext {
 
 impl U32Ext for u32 {
     fn to_ty(&self) -> Result<Ident> {
-        let span = Span::call_site();
-        Ok(match *self {
-            1 => Ident::new("bool", span),
-            2..=8 => Ident::new("u8", span),
-            9..=16 => Ident::new("u16", span),
-            17..=32 => Ident::new("u32", span),
-            33..=64 => Ident::new("u64", span),
-            _ => {
-                return Err(
-                    format!("can't convert {} bits into a Rust integral type", *self).into(),
-                )
-            }
-        })
+        Ok(Ident::new(
+            match *self {
+                1 => "bool",
+                2..=8 => "u8",
+                9..=16 => "u16",
+                17..=32 => "u32",
+                33..=64 => "u64",
+                _ => {
+                    return Err(
+                        format!("can't convert {} bits into a Rust integral type", *self).into(),
+                    )
+                }
+            },
+            Span::call_site(),
+        ))
     }
 
     fn to_ty_width(&self) -> Result<u32> {
