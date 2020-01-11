@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Keyword sanitizing (`async`)
+
 ### Changed
 
 - [breaking-change] Among other cleanups, MSP430 crates are now expected to
