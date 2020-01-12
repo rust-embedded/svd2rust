@@ -1,5 +1,14 @@
 use core::marker;
 
+///This trait allows to get raw pointer on derived peripheral
+///as block of registers of base peripheral (like unsafe `Deref`)
+pub trait RegisterBlock {
+    ///Type of RegisterBlock of base peripheral
+    type RB;
+    ///Take peripheral address as raw pointer
+    fn rb() -> *const Self::RB;
+}
+
 /// Raw register type
 pub trait RegisterSpec {
     /// Raw register type (`u8`, `u16`, `u32`, ...).

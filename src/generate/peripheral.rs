@@ -79,6 +79,15 @@ pub fn render(
             }
         }
 
+        impl crate::RegisterBlock for #name_pc {
+            type RB = #base::RegisterBlock;
+
+            #[inline(always)]
+            fn rb() -> *const Self::RB {
+                #name_pc::ptr()
+            }
+        }
+
         impl core::fmt::Debug for #name_pc {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 f.debug_struct(#name_str).finish()

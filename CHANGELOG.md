@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- RegisterBlock trait (like `Deref`, but don't require `self` instance,
+  only for fixed in memory peripherals)
+
 - Support for registers with alternateGroup
 
 - New `-m` switch generates a `mod.rs` file instead of `lib.rs`, which can
