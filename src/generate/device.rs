@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::Write;
 
 use crate::errors::*;
+use crate::modules::Module;
 use crate::util::{self, ToSanitizedUpperCase};
 use crate::Target;
 
@@ -17,8 +18,8 @@ pub fn render(
     nightly: bool,
     generic_mod: bool,
     device_x: &mut String,
-) -> Result<TokenStream> {
-    let mut out = TokenStream::new();
+) -> Result<Module> {
+    let mut out = Module::new("lib", "");
 
     let doc = format!(
         "Peripheral access API for {0} microcontrollers \
@@ -159,16 +160,16 @@ pub fn render(
     if generic_mod {
         writeln!(File::create("generic.rs").unwrap(), "{}", generic_file).unwrap();
     } else {
-        let tokens = syn::parse_file(generic_file).unwrap().into_token_stream();
-
-        out.extend(quote! {
+        let mut generic_module = Module::new(
+            "generic",
+            "Common register and bit access and modify traits",
+        );
+        generic_module.out.extend(quote! {
             #[allow(unused_imports)]
             use generic::*;
-            ///Common register and bit access and modify traits
-            pub mod generic {
-                #tokens
-            }
         });
+        generic_module.extend(syn::parse_file(generic_file).unwrap().into_token_stream());
+        out.push_module(generic_module);
     }
 
     for p in &d.peripherals {
@@ -177,7 +178,7 @@ pub fn render(
             continue;
         }
 
-        out.extend(peripheral::render(
+        out.push_module(peripheral::render(
             p,
             &d.peripherals,
             &d.default_register_properties,

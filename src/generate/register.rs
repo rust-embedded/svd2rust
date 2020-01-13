@@ -1,3 +1,4 @@
+use crate::modules::Module;
 use crate::quote::ToTokens;
 use crate::svd::{
     Access, BitRange, EnumeratedValues, Field, Peripheral, Register, RegisterCluster,
@@ -16,13 +17,13 @@ pub fn render(
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
     defs: &RegisterProperties,
-) -> Result<TokenStream> {
+) -> Result<Module> {
     let access = util::access_of(register);
     let name = util::name_of(register);
     let span = Span::call_site();
     let name_pc = Ident::new(&name.to_sanitized_upper_case(), span);
     let _name_pc = Ident::new(&format!("_{}", &name.to_sanitized_upper_case()), span);
-    let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
+    let name_sc = name.to_sanitized_snake_case();
     let rsize = register
         .size
         .or(defs.size)
@@ -43,7 +44,7 @@ pub fn render(
         .as_ref(),
     );
 
-    let mut mod_items = TokenStream::new();
+    let mut module = Module::new(&name_sc, &description);
     let mut r_impl_items = TokenStream::new();
     let mut w_impl_items = TokenStream::new();
     let mut methods = vec![];
@@ -53,7 +54,7 @@ pub fn render(
 
     if can_read {
         let desc = format!("Reader of register {}", register.name);
-        mod_items.extend(quote! {
+        module.extend(quote! {
             #[doc = #desc]
             pub type R = crate::R<#rty, super::#name_pc>;
         });
@@ -63,13 +64,13 @@ pub fn render(
     let res_val = register.reset_value.or(defs.reset_value).map(|v| v as u64);
     if can_write {
         let desc = format!("Writer for register {}", register.name);
-        mod_items.extend(quote! {
+        module.extend(quote! {
             #[doc = #desc]
             pub type W = crate::W<#rty, super::#name_pc>;
         });
         if let Some(rv) = res_val.map(util::hex) {
             let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
-            mod_items.extend(quote! {
+            module.extend(quote! {
                 #[doc = #doc]
                 impl crate::ResetValue for super::#name_pc {
                     type Type = #rty;
@@ -106,7 +107,7 @@ pub fn render(
                 &rty,
                 res_val,
                 access,
-                &mut mod_items,
+                &mut module,
                 &mut r_impl_items,
                 &mut w_impl_items,
             )?;
@@ -114,29 +115,28 @@ pub fn render(
     }
 
     let open = Punct::new('{', Spacing::Alone);
-    let close = Punct::new('}', Spacing::Alone);
+    let close = Punct::new('}', Spacing::Alone).into_token_stream();
 
     if can_read {
-        mod_items.extend(quote! {
+        module.extend(quote! {
             impl R #open
         });
 
-        mod_items.extend(r_impl_items);
+        module.extend(r_impl_items);
 
-        close.to_tokens(&mut mod_items);
+        module.extend(close.clone());
     }
 
     if can_write {
-        mod_items.extend(quote! {
+        module.extend(quote! {
             impl W #open
         });
 
-        mod_items.extend(w_impl_items);
+        module.extend(w_impl_items);
 
-        close.to_tokens(&mut mod_items);
+        module.extend(close);
     }
 
-    let mut out = TokenStream::new();
     let methods = methods
         .iter()
         .map(|s| format!("[`{0}`](crate::generic::Reg::{0})", s))
@@ -151,7 +151,7 @@ pub fn render(
         )
         .as_str();
     }
-    out.extend(quote! {
+    module.out.extend(quote! {
         #[doc = #doc]
         pub type #name_pc = crate::Reg<#rty, #_name_pc>;
 
@@ -165,7 +165,7 @@ pub fn render(
             "`read()` method returns [{0}::R]({0}::R) reader structure",
             &name_sc
         );
-        out.extend(quote! {
+        module.out.extend(quote! {
             #[doc = #doc]
             impl crate::Readable for #name_pc {}
         });
@@ -175,24 +175,12 @@ pub fn render(
             "`write(|w| ..)` method takes [{0}::W]({0}::W) writer structure",
             &name_sc
         );
-        out.extend(quote! {
+        module.out.extend(quote! {
             #[doc = #doc]
             impl crate::Writable for #name_pc {}
         });
     }
-
-    out.extend(quote! {
-        #[doc = #description]
-        pub mod #name_sc #open
-    });
-
-    out.extend(mod_items);
-
-    out.extend(quote! {
-        #close
-    });
-
-    Ok(out)
+    Ok(module)
 }
 
 pub fn fields(
@@ -204,7 +192,7 @@ pub fn fields(
     rty: &Ident,
     reset_value: Option<u64>,
     access: Access,
-    mod_items: &mut TokenStream,
+    module: &mut Module,
     r_impl_items: &mut TokenStream,
     w_impl_items: &mut TokenStream,
 ) -> Result<()> {
@@ -374,9 +362,9 @@ pub fn fields(
                     let pc = util::replace_suffix(base.field, "");
                     let pc = pc.to_sanitized_upper_case();
                     let base_pc_r = Ident::new(&(pc + "_A"), span);
-                    derive_from_base(mod_items, &base, &pc_r, &base_pc_r, &description);
+                    derive_from_base(module, &base, &pc_r, &base_pc_r, &description);
 
-                    mod_items.extend(quote! {
+                    module.extend(quote! {
                         #[doc = #readerdoc]
                         pub type #_pc_r = crate::R<#fty, #pc_r>;
                     });
@@ -384,7 +372,7 @@ pub fn fields(
                     let has_reserved_variant = evs.values.len() != (1 << width);
                     let variants = Variant::from_enumerated_values(evs)?;
 
-                    add_from_variants(mod_items, &variants, &pc_r, &fty, &description, rv);
+                    add_from_variants(module, &variants, &pc_r, &fty, &description, rv);
 
                     let mut enum_items = TokenStream::new();
 
@@ -458,7 +446,7 @@ pub fn fields(
                         });
                     }
 
-                    mod_items.extend(quote! {
+                    module.extend(quote! {
                         #[doc = #readerdoc]
                         pub type #_pc_r = crate::R<#fty, #pc_r>;
                         impl #_pc_r {
@@ -467,7 +455,7 @@ pub fn fields(
                     });
                 }
             } else {
-                mod_items.extend(quote! {
+                module.extend(quote! {
                     #[doc = #readerdoc]
                     pub type #_pc_r = crate::R<#fty, #fty>;
                 })
@@ -494,9 +482,9 @@ pub fn fields(
                         let pc = util::replace_suffix(base.field, "");
                         let pc = pc.to_sanitized_upper_case();
                         let base_pc_w = Ident::new(&(pc + "_AW"), span);
-                        derive_from_base(mod_items, &base, &pc_w, &base_pc_w, &description)
+                        derive_from_base(module, &base, &pc_w, &base_pc_w, &description)
                     } else {
-                        add_from_variants(mod_items, &variants, pc_w, &fty, &description, rv);
+                        add_from_variants(module, &variants, pc_w, &fty, &description, rv);
                     }
                 }
 
@@ -584,7 +572,7 @@ pub fn fields(
                 offset_entry = quote! {};
             }
 
-            mod_items.extend(quote! {
+            module.extend(quote! {
                 #[doc = #doc]
                 pub struct #_pc_w<'a> {
                     w: &'a mut W,
@@ -696,7 +684,7 @@ impl Variant {
 }
 
 fn add_from_variants(
-    mod_items: &mut TokenStream,
+    module: &mut Module,
     variants: &[Variant],
     pc: &Ident,
     fty: &Ident,
@@ -728,7 +716,7 @@ fn add_from_variants(
         desc.to_owned()
     };
 
-    mod_items.extend(quote! {
+    module.extend(quote! {
         #[doc = #desc]
         #[derive(Clone, Copy, Debug, PartialEq)]
         #repr
@@ -779,13 +767,7 @@ fn description_with_bits(description: &str, offset: u64, width: u32) -> String {
     res
 }
 
-fn derive_from_base(
-    mod_items: &mut TokenStream,
-    base: &Base,
-    pc: &Ident,
-    base_pc: &Ident,
-    desc: &str,
-) {
+fn derive_from_base(module: &mut Module, base: &Base, pc: &Ident, base_pc: &Ident, desc: &str) {
     let span = Span::call_site();
     if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
         let pmod_ = peripheral.to_sanitized_snake_case();
@@ -793,7 +775,7 @@ fn derive_from_base(
         let pmod_ = Ident::new(&pmod_, span);
         let rmod_ = Ident::new(&rmod_, span);
 
-        mod_items.extend(quote! {
+        module.extend(quote! {
             #[doc = #desc]
             pub type #pc =
                 crate::#pmod_::#rmod_::#base_pc;
@@ -802,13 +784,13 @@ fn derive_from_base(
         let mod_ = register.to_sanitized_snake_case();
         let mod_ = Ident::new(&mod_, span);
 
-        mod_items.extend(quote! {
+        module.extend(quote! {
             #[doc = #desc]
             pub type #pc =
                 super::#mod_::#base_pc;
         });
     } else {
-        mod_items.extend(quote! {
+        module.extend(quote! {
             #[doc = #desc]
             pub type #pc = #base_pc;
         });

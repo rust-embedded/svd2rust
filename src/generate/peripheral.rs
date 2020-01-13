@@ -1,3 +1,4 @@
+use crate::modules::Module;
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -20,9 +21,7 @@ pub fn render(
     all_peripherals: &[Peripheral],
     defaults: &RegisterProperties,
     nightly: bool,
-) -> Result<TokenStream> {
-    let mut out = TokenStream::new();
-
+) -> Result<Module> {
     let p_derivedfrom = p_original
         .derived_from
         .as_ref()
@@ -31,13 +30,19 @@ pub fn render(
     let p_merged = p_derivedfrom.map(|ancestor| p_original.derive_from(ancestor));
     let p = p_merged.as_ref().unwrap_or(p_original);
 
+    let name_sc = p.name.to_sanitized_snake_case();
+    let description =
+        util::escape_brackets(util::respace(p.description.as_ref().unwrap_or(&p.name)).as_ref());
+
+    let mut module = Module::new(&name_sc, &description);
+
     if p_original.derived_from.is_some() && p_derivedfrom.is_none() {
         eprintln!(
             "Couldn't find derivedFrom original: {} for {}, skipping",
             p_original.derived_from.as_ref().unwrap(),
             p_original.name
         );
-        return Ok(out);
+        return Ok(module);
     }
 
     let span = Span::call_site();
@@ -46,15 +51,14 @@ pub fn render(
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
     let derive_regs = p_derivedfrom.is_some() && p_original.registers.is_none();
 
-    let name_sc = Ident::new(&p.name.to_sanitized_snake_case(), span);
     let base = if derive_regs {
         Ident::new(&p_derivedfrom.unwrap().name.to_sanitized_snake_case(), span)
     } else {
-        name_sc.clone()
+        Ident::new(&name_sc, span)
     };
 
     // Insert the peripheral structure
-    out.extend(quote! {
+    module.out.extend(quote! {
         #[doc = #description]
         pub struct #name_pc { _marker: PhantomData<*const ()> }
 
@@ -81,7 +85,7 @@ pub fn render(
     // Derived peripherals may not require re-implementation, and will instead
     // use a single definition of the non-derived version.
     if derive_regs {
-        return Ok(out);
+        return Ok(module);
     }
 
     // erc: *E*ither *R*egister or *C*luster
@@ -143,23 +147,22 @@ pub fn render(
     // No `struct RegisterBlock` can be generated
     if registers.is_empty() && clusters.is_empty() {
         // Drop the definition of the peripheral
-        return Ok(TokenStream::new());
+        return Ok(Module::new(&name_sc, &description));
     }
 
     let defaults = p.default_register_properties.derive_from(defaults);
 
     // Push any register or cluster blocks into the output
-    let mut mod_items = TokenStream::new();
-    mod_items.extend(register_or_cluster_block(ercs, &defaults, None, nightly)?);
+    module.extend(register_or_cluster_block(ercs, &defaults, None, nightly)?);
 
     // Push all cluster related information into the peripheral module
     for c in &clusters {
-        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
+        module.push_module(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
     }
 
     // Push all regsiter realted information into the peripheral module
     for reg in registers {
-        mod_items.extend(register::render(
+        module.push_module(register::render(
             reg,
             registers,
             p,
@@ -168,22 +171,7 @@ pub fn render(
         )?);
     }
 
-    let description =
-        util::escape_brackets(util::respace(p.description.as_ref().unwrap_or(&p.name)).as_ref());
-
-    let open = Punct::new('{', Spacing::Alone);
-    let close = Punct::new('}', Spacing::Alone);
-
-    out.extend(quote! {
-        #[doc = #description]
-        pub mod #name_sc #open
-    });
-
-    out.extend(mod_items);
-
-    close.to_tokens(&mut out);
-
-    Ok(out)
+    Ok(module)
 }
 
 #[derive(Clone, Debug)]
@@ -716,9 +704,7 @@ fn cluster_block(
     p: &Peripheral,
     all_peripherals: &[Peripheral],
     nightly: bool,
-) -> Result<TokenStream> {
-    let mut mod_items = TokenStream::new();
-
+) -> Result<Module> {
     // name_sc needs to take into account array type.
     let description =
         util::escape_brackets(util::respace(c.description.as_ref().unwrap_or(&c.name)).as_ref());
@@ -731,16 +717,25 @@ fn cluster_block(
         },
         "",
     );
-    let name_sc = Ident::new(&mod_name.to_sanitized_snake_case(), Span::call_site());
+
+    let mut module = Module::new(
+        &mod_name.to_sanitized_snake_case(),
+        &("Register block\n".to_string() + &description),
+    );
 
     let defaults = c.default_register_properties.derive_from(defaults);
 
-    let reg_block = register_or_cluster_block(&c.children, &defaults, Some(&mod_name), nightly)?;
+    module.out.extend(register_or_cluster_block(
+        &c.children,
+        &defaults,
+        Some(&mod_name),
+        nightly,
+    )?);
 
     // Generate definition for each of the registers.
     let registers = util::only_registers(&c.children);
     for reg in &registers {
-        mod_items.extend(register::render(
+        module.push_module(register::render(
             reg,
             &registers,
             p,
@@ -752,18 +747,9 @@ fn cluster_block(
     // Generate the sub-cluster blocks.
     let clusters = util::only_clusters(&c.children);
     for c in &clusters {
-        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
+        module.push_module(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
     }
-
-    Ok(quote! {
-        #reg_block
-
-        ///Register block
-        #[doc = #description]
-        pub mod #name_sc {
-            #mod_items
-        }
-    })
+    Ok(module)
 }
 
 /// Takes a svd::Register which may be a register array, and turn in into

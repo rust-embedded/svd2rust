@@ -6,10 +6,12 @@ extern crate error_chain;
 extern crate log;
 #[macro_use]
 extern crate quote;
+use std::path::PathBuf;
 use svd_parser as svd;
 
 mod errors;
 mod generate;
+mod modules;
 mod util;
 
 use std::fs::File;
@@ -50,6 +52,18 @@ fn run() -> Result<()> {
                 .long("generic_mod")
                 .short("g")
                 .help("Push generic mod in separate file"),
+        )
+        .arg(
+            Arg::with_name("form")
+                .long("form")
+                .short("f")
+                .help("Split on modules"),
+        )
+        .arg(
+            Arg::with_name("output")
+                .long("output")
+                .short("o")
+                .help("Directory to place generated files"),
         )
         .arg(
             Arg::with_name("log_level")
@@ -98,17 +112,41 @@ fn run() -> Result<()> {
 
     let generic_mod = matches.is_present("generic_mod");
 
+    let form = matches.is_present("form");
+
     let mut device_x = String::new();
     let items = generate::device::render(&device, target, nightly, generic_mod, &mut device_x)?;
-    let mut file = File::create("lib.rs").expect("Couldn't create lib.rs file");
 
-    let data = items.to_string().replace("] ", "]\n");
-    file.write_all(data.as_ref())
-        .expect("Could not write code to lib.rs");
+    let path = PathBuf::from(match matches.value_of("output") {
+        Some(path) => path,
+        None => ".",
+    });
+    if form {
+        items.lib_to_files(&path.join("src"));
+    } else {
+        let mut file = File::create(&path.join("lib.rs")).expect("Couldn't create lib.rs file");
+
+        let data = items
+            .items_into_token_stream()
+            .to_string()
+            .replace("] ", "]\n");
+        file.write_all(data.as_ref())
+            .expect("Could not write code to lib.rs");
+    }
 
     if target == Target::CortexM || target == Target::Msp430 {
-        writeln!(File::create("device.x").unwrap(), "{}", device_x).unwrap();
-        writeln!(File::create("build.rs").unwrap(), "{}", build_rs()).unwrap();
+        writeln!(
+            File::create(&path.join("device.x")).unwrap(),
+            "{}",
+            device_x
+        )
+        .unwrap();
+        writeln!(
+            File::create(&path.join("build.rs")).unwrap(),
+            "{}",
+            build_rs()
+        )
+        .unwrap();
     }
 
     Ok(())
