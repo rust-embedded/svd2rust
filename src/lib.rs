@@ -489,6 +489,7 @@ use svd_parser as svd;
 
 mod errors;
 mod generate;
+mod modules;
 mod util;
 
 pub use crate::util::Target;
@@ -523,7 +524,8 @@ pub fn generate(xml: &str, target: Target, nightly: bool) -> Result<Generation> 
     let device = svd::parse(xml).unwrap(); //TODO(AJM)
     let mut device_x = String::new();
     let items = generate::device::render(&device, target, nightly, false, &mut device_x)
-        .or(Err(SvdError::Render))?;
+        .or(Err(SvdError::Render))?
+        .items_into_token_stream();
 
     let mut lib_rs = String::new();
     writeln!(

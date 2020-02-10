@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Option `-f`(`--form`) let you split `lib.rs` on modules, as the `form` tool does
+- Option `-o`(`--output`) let you specify output directory path
+
 ### Fixed
 
 - Keyword sanitizing (`async`)
