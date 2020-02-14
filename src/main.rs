@@ -15,7 +15,6 @@ mod util;
 use std::fs::File;
 use std::io::Write;
 use std::process;
-use std::fmt::Write as _;
 
 use clap::{App, Arg};
 
@@ -103,12 +102,11 @@ fn run() -> Result<()> {
     let items = generate::device::render(&device, target, nightly, generic_mod, &mut device_x)?;
     let mut file = File::create("lib.rs").expect("Couldn't create lib.rs file");
 
-    let mut data = String::new();
-    write!(data, "{}", items).expect("Could not output code");
-    let data = data.replace("] ", "]\n");
-    file.write_all(data.as_ref()).expect("Could not write code to lib.rs");
+    let data = items.to_string().replace("] ", "]\n");
+    file.write_all(data.as_ref())
+        .expect("Could not write code to lib.rs");
 
-    if target == Target::CortexM {
+    if target == Target::CortexM || target == Target::Msp430 {
         writeln!(File::create("device.x").unwrap(), "{}", device_x).unwrap();
         writeln!(File::create("build.rs").unwrap(), "{}", build_rs()).unwrap();
     }
@@ -124,7 +122,7 @@ fn setup_logging(matches: &clap::ArgMatches) {
     //   command line argument.
     let env = env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info");
     let mut builder = env_logger::Builder::from_env(env);
-    builder.default_format_timestamp(false);
+    builder.format_timestamp(None);
 
     let log_lvl_from_env = std::env::var_os(env_logger::DEFAULT_FILTER_ENV).is_some();
 

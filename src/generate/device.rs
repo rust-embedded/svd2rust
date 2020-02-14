@@ -35,32 +35,20 @@ pub fn render(
         });
     }
 
-    if target != Target::None && target != Target::CortexM && target != Target::RISCV {
-        out.extend(quote! {
-            #![cfg_attr(feature = "rt", feature(global_asm))]
-            #![cfg_attr(feature = "rt", feature(use_extern_macros))]
-            #![cfg_attr(feature = "rt", feature(used))]
-        });
-    }
-
     out.extend(quote! {
         #![doc = #doc]
         // Deny a subset of warnings
         #![deny(const_err)]
         #![deny(dead_code)]
         #![deny(improper_ctypes)]
-        #![deny(legacy_directory_ownership)]
         #![deny(missing_docs)]
         #![deny(no_mangle_generic_items)]
         #![deny(non_shorthand_field_patterns)]
         #![deny(overflowing_literals)]
         #![deny(path_statements)]
         #![deny(patterns_in_fns_without_body)]
-        #![deny(plugin_as_library)]
         #![deny(private_in_public)]
-        #![deny(safe_extern_statics)]
         #![deny(unconditional_recursion)]
-        #![deny(unions_with_drop_fields)]
         #![deny(unused_allocation)]
         #![deny(unused_comparisons)]
         #![deny(unused_parens)]
@@ -84,8 +72,6 @@ pub fn render(
                 extern crate msp430;
                 #[cfg(feature = "rt")]
                 extern crate msp430_rt;
-                #[cfg(feature = "rt")]
-                pub use msp430_rt::default_handler;
             });
         }
         Target::RISCV => {
@@ -132,8 +118,8 @@ pub fn render(
         ]
     };
 
-    let mut fields = vec![];
-    let mut exprs = vec![];
+    let mut fields = TokenStream::new();
+    let mut exprs = TokenStream::new();
     if target == Target::CortexM {
         out.extend(quote! {
             pub use cortex_m::peripheral::Peripherals as CorePeripherals;
@@ -156,6 +142,17 @@ pub fn render(
                 };
             });
         }
+    }
+
+    if target == Target::Msp430 {
+        out.extend(quote! {
+            // XXX: Are there any core peripherals, really? Requires bump of msp430 crate.
+            // pub use msp430::peripheral::Peripherals as CorePeripherals;
+            #[cfg(feature = "rt")]
+            pub use msp430_rt::interrupt;
+            #[cfg(feature = "rt")]
+            pub use self::Interrupt as interrupt;
+        });
     }
 
     let generic_file = std::str::from_utf8(include_bytes!("generic.rs")).unwrap();
@@ -217,11 +214,11 @@ pub fn render(
 
         let p = p.name.to_sanitized_upper_case();
         let id = Ident::new(&p, Span::call_site());
-        fields.push(quote! {
+        fields.extend(quote! {
             #[doc = #p]
-            pub #id: #id
+            pub #id: #id,
         });
-        exprs.push(quote!(#id: #id { _marker: PhantomData }));
+        exprs.extend(quote!(#id: #id { _marker: PhantomData },));
     }
 
     let span = Span::call_site();
@@ -257,7 +254,7 @@ pub fn render(
         ///All the peripherals
         #[allow(non_snake_case)]
         pub struct Peripherals {
-            #(#fields,)*
+            #fields
         }
 
         impl Peripherals {
@@ -269,7 +266,7 @@ pub fn render(
                 DEVICE_PERIPHERALS = true;
 
                 Peripherals {
-                    #(#exprs,)*
+                    #exprs
                 }
             }
         }

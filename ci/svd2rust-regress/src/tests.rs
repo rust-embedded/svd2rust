@@ -4222,9 +4222,7 @@ pub const TESTS: &[&TestCase] = &[
         arch: Msp430,
         mfgr: TexasInstruments,
         chip: "msp430g2553",
-        svd_url: Some(
-            "https://raw.githubusercontent.com/pftbest/msp430g2553/v0.1.3-svd/msp430g2553.svd",
-        ),
+        svd_url: Some("https://github.com/pftbest/msp430g2553/raw/v0.1.3-svd/msp430g2553.svd"),
         should_pass: true,
         run_when: Always,
     },

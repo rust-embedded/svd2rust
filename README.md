@@ -11,6 +11,12 @@ This project is developed and maintained by the [Tools team][team].
 
 # [API](https://docs.rs/svd2rust)
 
+## Requirements
+
+The **generated code** is intended to compile on all stable versions of Rust greater or equal to **1.37.0**, as well as the latest beta and the latest nightly.
+
+If you encounter compilation errors on any stable version newer than 1.37.0, please open an issue.
+
 # Testing Locally
 
 `svd2rust-regress` is a helper program for regression testing changes against `svd2rust`. This tool can be used locally to check modifications of `svd2rust` locally before submitting a PR.

@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 
-use inflections::Inflect;
+use crate::quote::ToTokens;
 use crate::svd::{Access, Cluster, Register, RegisterCluster};
-use proc_macro2::{TokenStream, Ident, Span, Literal};
-use crate::quote::{TokenStreamExt, ToTokens};
+use inflections::Inflect;
+use proc_macro2::{Ident, Literal, Span, TokenStream};
 
 use crate::errors::*;
 
@@ -68,8 +68,8 @@ impl ToSanitizedSnakeCase for str {
                     abstract,
                     alignof,
                     as,
-                    r#async,
-                    r#await,
+                    async,
+                    await,
                     become,
                     box,
                     break,
@@ -109,7 +109,7 @@ impl ToSanitizedSnakeCase for str {
                     super,
                     trait,
                     true,
-                    r#try,
+                    try,
                     type,
                     typeof,
                     unsafe,
@@ -165,9 +165,9 @@ pub fn escape_brackets(s: &str) -> String {
             if acc == "" {
                 x.to_string()
             } else if acc.ends_with('\\') {
-                acc.to_owned() + "[" + &x.to_string()
+                acc + "[" + &x.to_string()
             } else {
-                acc.to_owned() + "\\[" + &x.to_string()
+                acc + "\\[" + &x.to_string()
             }
         })
         .split(']')
@@ -175,9 +175,9 @@ pub fn escape_brackets(s: &str) -> String {
             if acc == "" {
                 x.to_string()
             } else if acc.ends_with('\\') {
-                acc.to_owned() + "]" + &x.to_string()
+                acc + "]" + &x.to_string()
             } else {
-                acc.to_owned() + "\\]" + &x.to_string()
+                acc + "\\]" + &x.to_string()
             }
         })
 }
@@ -185,13 +185,15 @@ pub fn escape_brackets(s: &str) -> String {
 pub fn name_of(register: &Register) -> Cow<str> {
     match register {
         Register::Single(info) => Cow::from(&info.name),
-        Register::Array(info, _) => {
-            if info.name.contains("[%s]") {
-                info.name.replace("[%s]", "").into()
-            } else {
-                info.name.replace("%s", "").into()
-            }
-        }
+        Register::Array(info, _) => replace_suffix(&info.name, "").into(),
+    }
+}
+
+pub fn replace_suffix(name: &str, suffix: &str) -> String {
+    if name.contains("[%s]") {
+        name.replace("[%s]", suffix)
+    } else {
+        name.replace("%s", suffix)
     }
 }
 
@@ -202,9 +204,15 @@ pub fn access_of(register: &Register) -> Access {
                 Access::ReadOnly
             } else if fields.iter().all(|f| f.access == Some(Access::WriteOnce)) {
                 Access::WriteOnce
-            } else if fields.iter().all(|f| f.access == Some(Access::ReadWriteOnce)) {
+            } else if fields
+                .iter()
+                .all(|f| f.access == Some(Access::ReadWriteOnce))
+            {
                 Access::ReadWriteOnce
-            } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly) || f.access == Some(Access::WriteOnce)) {
+            } else if fields
+                .iter()
+                .all(|f| f.access == Some(Access::WriteOnly) || f.access == Some(Access::WriteOnce))
+            {
                 Access::WriteOnly
             } else {
                 Access::ReadWrite
@@ -217,7 +225,12 @@ pub fn access_of(register: &Register) -> Access {
 
 /// Turns `n` into an unsuffixed separated hex token
 pub fn hex(n: u64) -> TokenStream {
-    let (h4, h3, h2, h1) = ((n >> 48) & 0xffff, (n >> 32) & 0xffff, (n >> 16) & 0xffff, n & 0xffff);
+    let (h4, h3, h2, h1) = (
+        (n >> 48) & 0xffff,
+        (n >> 32) & 0xffff,
+        (n >> 16) & 0xffff,
+        n & 0xffff,
+    );
     syn::parse_str::<syn::Lit>(
         &(if h4 != 0 {
             format!("0x{:04x}_{:04x}_{:04x}_{:04x}", h4, h3, h2, h1)
@@ -231,22 +244,20 @@ pub fn hex(n: u64) -> TokenStream {
             format!("0x{:02x}", h1 & 0xff)
         } else {
             "0".to_string()
-        })
-    ).unwrap().into_token_stream()
+        }),
+    )
+    .unwrap()
+    .into_token_stream()
 }
 
 /// Turns `n` into an unsuffixed token
 pub fn unsuffixed(n: u64) -> TokenStream {
-    let mut t = TokenStream::new();
-    t.append(Literal::u64_unsuffixed(n));
-    t
+    Literal::u64_unsuffixed(n).into_token_stream()
 }
 
 pub fn unsuffixed_or_bool(n: u64, width: u32) -> TokenStream {
     if width == 1 {
-        let mut t = TokenStream::new();
-        t.append(Ident::new(if n == 0 { "false" } else { "true" }, Span::call_site()));
-        t
+        Ident::new(if n == 0 { "false" } else { "true" }, Span::call_site()).into_token_stream()
     } else {
         unsuffixed(n)
     }
@@ -259,18 +270,21 @@ pub trait U32Ext {
 
 impl U32Ext for u32 {
     fn to_ty(&self) -> Result<Ident> {
-        let span = Span::call_site();
-        Ok(match *self {
-            1 => Ident::new("bool", span),
-            2..=8 => Ident::new("u8", span),
-            9..=16 => Ident::new("u16", span),
-            17..=32 => Ident::new("u32", span),
-            33..=64 => Ident::new("u64", span),
-            _ => Err(format!(
-                "can't convert {} bits into a Rust integral type",
-                *self
-            ))?,
-        })
+        Ok(Ident::new(
+            match *self {
+                1 => "bool",
+                2..=8 => "u8",
+                9..=16 => "u16",
+                17..=32 => "u32",
+                33..=64 => "u64",
+                _ => {
+                    return Err(
+                        format!("can't convert {} bits into a Rust integral type", *self).into(),
+                    )
+                }
+            },
+            Span::call_site(),
+        ))
     }
 
     fn to_ty_width(&self) -> Result<u32> {
@@ -280,10 +294,13 @@ impl U32Ext for u32 {
             9..=16 => 16,
             17..=32 => 32,
             33..=64 => 64,
-            _ => Err(format!(
-                "can't convert {} bits into a Rust integral type width",
-                *self
-            ))?,
+            _ => {
+                return Err(format!(
+                    "can't convert {} bits into a Rust integral type width",
+                    *self
+                )
+                .into())
+            }
         })
     }
 }

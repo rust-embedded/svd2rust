@@ -9,8 +9,15 @@ env:
     - TARGET=x86_64-unknown-linux-gnu
 
 matrix:
+  allow_failures:
+    - rust: nightly
+
   include:
-    # Nightly, for testing
+    # rustfmt
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=rustfmt
+      rust: stable
+
+    # All generated code should be running on stable now
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Atmel
 
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Freescale
@@ -35,6 +42,11 @@ matrix:
 
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Toshiba
 
+    # MSRV
+    - env: TARGET=x86_64-unknown-linux-gnu VENDOR=Nordic
+      rust: 1.37.0
+
+    # Only works on nightly for now
     - env: TARGET=x86_64-unknown-linux-gnu VENDOR=OTHER
       rust: nightly
 
