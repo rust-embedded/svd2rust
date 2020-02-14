@@ -7,7 +7,11 @@ use std::path::PathBuf;
 use std::process::{Command, Output};
 
 static CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.0\""];
-static CRATES_MSP430: &[&str] = &["msp430 = \"0.1.0\""];
+static CRATES_MSP430: &[&str] = &[
+    "msp430 = \"0.2.0\"",
+    "msp430-rt = \"0.2.0\"",
+    "msp430-atomic = \"0.1.1\"",
+];
 static CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.5.0\"", "cortex-m-rt = \"0.5.0\""];
 static CRATES_RISCV: &[&str] = &["riscv = \"0.4.0\"", "riscv-rt = \"0.4.0\""];
 static PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
