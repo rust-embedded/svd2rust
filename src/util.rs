@@ -165,9 +165,9 @@ pub fn escape_brackets(s: &str) -> String {
             if acc == "" {
                 x.to_string()
             } else if acc.ends_with('\\') {
-                acc + "[" + &x.to_string()
+                acc + "[" + x
             } else {
-                acc + "\\[" + &x.to_string()
+                acc + "\\[" + x
             }
         })
         .split(']')
@@ -175,9 +175,9 @@ pub fn escape_brackets(s: &str) -> String {
             if acc == "" {
                 x.to_string()
             } else if acc.ends_with('\\') {
-                acc + "]" + &x.to_string()
+                acc + "]" + x
             } else {
-                acc + "\\]" + &x.to_string()
+                acc + "\\]" + x
             }
         })
 }
