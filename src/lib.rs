@@ -3,8 +3,8 @@
 //! [CMSIS-SVD]: http://www.keil.com/pack/doc/CMSIS/SVD/html/index.html
 //!
 //! A SVD file is an XML file that describes the hardware features of a
-//! microcontroller. In particular, it list all the peripherals available to the
-//! device, where the registers associated to each device are located in memory
+//! microcontroller. In particular, it lists all the peripherals available to the
+//! device, where the registers associated to each device are located in memory,
 //! and what's the function of each register.
 //!
 //! `svd2rust` is a command line tool that transforms SVD files into crates that
@@ -28,7 +28,7 @@
 //!
 //! ## target = cortex-m
 //!
-//! When targeting the Cortex-M architecture `svd2rust` will generate three files in the current
+//! When targeting the Cortex-M architecture, `svd2rust` will generate three files in the current
 //! directory:
 //!
 //! - `build.rs`, build script that places `device.x` somewhere the linker can find.
@@ -174,7 +174,7 @@
 //! ```
 //!
 //! The singleton property can be *unsafely* bypassed using the `ptr` static method which is
-//! available on all the peripheral types. This method is a useful for implementing safe higher
+//! available on all the peripheral types. This method is useful for implementing safe higher
 //! level abstractions.
 //!
 //! ```ignore
@@ -240,15 +240,15 @@
 //! # `read` / `modify` / `write` API
 //!
 //! Each register in the register block, e.g. the `cr1` field in the `I2C` struct, exposes a
-//! combination of the `read`, `modify` and `write` methods. Which methods exposes each register
+//! combination of the `read`, `modify`, and `write` methods. Which method exposes each register
 //! depends on whether the register is read-only, read-write or write-only:
 //!
 //! - read-only registers only expose the `read` method.
 //! - write-only registers only expose the `write` method.
-//! - read-write registers expose all the methods: `read`, `modify` and
+//! - read-write registers expose all the methods: `read`, `modify`, and
 //!   `write`.
 //!
-//! This is signature of each of these methods:
+//! Below shows signatures of each of these methods:
 //!
 //! (using `I2C`'s `CR2` register as an example)
 //!
@@ -467,7 +467,7 @@
 //!
 //! ## the "rt" feature
 //!
-//! If the "rt" Cargo feature of the svd2rust generated crate is enabled the crate will populate the
+//! If the "rt" Cargo feature of the svd2rust generated crate is enabled, the crate will populate the
 //! part of the vector table that contains the interrupt vectors and provide an
 //! [`interrupt!`](macro.interrupt.html) macro (non Cortex-M/MSP430 targets) or [`interrupt`] attribute
 //! (Cortex-M or [MSP430](https://docs.rs/msp430-rt-macros/0.1/msp430_rt_macros/attr.interrupt.html))
