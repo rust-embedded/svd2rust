@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- `anyhow` crate is used for error handling
+
 - [breaking-change] Among other cleanups, MSP430 crates are now expected to
   use the `msp430_rt::interrupt` attribute macro and `device.x` for interrupt
   support. The `INTERRUPT` array has been renamed `__INTERRUPT`.

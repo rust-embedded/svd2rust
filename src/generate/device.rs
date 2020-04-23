@@ -4,9 +4,9 @@ use quote::ToTokens;
 use std::fs::File;
 use std::io::Write;
 
-use crate::errors::*;
 use crate::util::{self, ToSanitizedUpperCase};
 use crate::Target;
+use anyhow::Result;
 
 use crate::generate::{interrupt, peripheral};
 
@@ -155,11 +155,11 @@ pub fn render(
         });
     }
 
-    let generic_file = std::str::from_utf8(include_bytes!("generic.rs")).unwrap();
+    let generic_file = std::str::from_utf8(include_bytes!("generic.rs"))?;
     if generic_mod {
-        writeln!(File::create("generic.rs").unwrap(), "{}", generic_file).unwrap();
+        writeln!(File::create("generic.rs")?, "{}", generic_file)?;
     } else {
-        let tokens = syn::parse_file(generic_file).unwrap().into_token_stream();
+        let tokens = syn::parse_file(generic_file)?.into_token_stream();
 
         out.extend(quote! {
             #[allow(unused_imports)]

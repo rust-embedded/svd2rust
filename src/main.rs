@@ -1,14 +1,11 @@
 #![recursion_limit = "128"]
 
 #[macro_use]
-extern crate error_chain;
-#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate quote;
 use svd_parser as svd;
 
-mod errors;
 mod generate;
 mod util;
 
@@ -16,9 +13,9 @@ use std::fs::File;
 use std::io::Write;
 use std::process;
 
+use anyhow::{Context, Result};
 use clap::{App, Arg};
 
-use crate::errors::*;
 use crate::util::{build_rs, Target};
 
 fn run() -> Result<()> {
@@ -79,20 +76,20 @@ fn run() -> Result<()> {
     match matches.value_of("input") {
         Some(file) => {
             File::open(file)
-                .chain_err(|| "couldn't open the SVD file")?
+                .context("Cannot open the SVD file")?
                 .read_to_string(xml)
-                .chain_err(|| "couldn't read the SVD file")?;
+                .context("Cannot read the SVD file")?;
         }
         None => {
             let stdin = std::io::stdin();
             stdin
                 .lock()
                 .read_to_string(xml)
-                .chain_err(|| "couldn't read from stdin")?;
+                .context("Cannot read from stdin")?;
         }
     }
 
-    let device = svd::parse(xml).unwrap(); //TODO(AJM)
+    let device = svd::parse(xml)?;
 
     let nightly = matches.is_present("nightly_features");
 
@@ -107,8 +104,8 @@ fn run() -> Result<()> {
         .expect("Could not write code to lib.rs");
 
     if target == Target::CortexM || target == Target::Msp430 {
-        writeln!(File::create("device.x").unwrap(), "{}", device_x).unwrap();
-        writeln!(File::create("build.rs").unwrap(), "{}", build_rs()).unwrap();
+        writeln!(File::create("device.x")?, "{}", device_x)?;
+        writeln!(File::create("build.rs")?, "{}", build_rs())?;
     }
 
     Ok(())
@@ -142,17 +139,7 @@ fn setup_logging(matches: &clap::ArgMatches) {
 
 fn main() {
     if let Err(ref e) = run() {
-        error!("{}", e);
-
-        for e in e.iter().skip(1) {
-            error!("caused by: {}", e);
-        }
-
-        if let Some(backtrace) = e.backtrace() {
-            error!("backtrace: {:?}", backtrace);
-        } else {
-            error!("note: run with `RUST_BACKTRACE=1` for a backtrace")
-        }
+        error!("{:?}", e);
 
         process::exit(1);
     }
