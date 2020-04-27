@@ -24,7 +24,7 @@ pub fn render(
         let tmp = include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"));
 
         if tmp.is_empty() {
-            " (unknown commit)"
+            " (untracked)"
         } else {
             tmp
         }
