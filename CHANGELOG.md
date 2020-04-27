@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Generated crates now contain the git commit hash and date of svd2rust
+  compilation.
+
 ### Fixed
 
 - Keyword sanitizing (`async`)
