@@ -1,0 +1,59 @@
+on:
+  push:
+    branches: [ staging, trying, master ]
+  pull_request:
+
+name: Continuous integration
+
+jobs:
+  ci-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # All generated code should be running on stable now
+        rust: [stable]
+
+        # All vendor files we want to test on stable
+        VENDOR: [rustfmt, Atmel, Freescale, Fujitsu, Holtek, Nordic, Nuvoton, NXP, RISC-V, SiliconLabs, Spansion, STMicro, Toshiba]
+
+        # The default target we're compiling on and for
+        TARGET: [x86_64-unknown-linux-gnu]
+
+        # Temporary hack as long as we use the current CI script
+        TRAVIS_OS_NAME: [linux]
+
+        include:
+          # Test MSRV
+          - rust: 1.37.0
+            VENDOR: Nordic
+            TARGET: x86_64-unknown-linux-gnu
+            TRAVIS_OS_NAME: linux
+
+          # Use nightly for architectures which don't support stable
+          - rust: nightly
+            experimental: true
+            VENDOR: OTHER
+            TARGET: x86_64-unknown-linux-gnu
+            TRAVIS_OS_NAME: linux
+
+          # OSX
+          - rust: stable
+            TARGET: x86_64-apple-darwin
+            TRAVIS_OS_NAME: osx
+
+          # Windows
+          - rust: stable
+            TARGET: x86_64-pc-windows-msvc
+            TRAVIS_OS_NAME: windows
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.TARGET }}
+          override: true
+          components: rustfmt
+      - name: Run CI script for ${{ matrix.VENDOR }} under ${{ matrix.rust }}
+        run: TARGET=${{ matrix.TARGET }} VENDOR=${{ matrix.VENDOR }} TRAVIS_OS_NAME=${{ matrix.TRAVIS_OS_NAME }} bash ci/script.sh
