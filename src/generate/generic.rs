@@ -36,7 +36,7 @@ impl<U, REG> Reg<U, REG>
 where
     U: Copy,
 {
-    /// Gets a memory address of a register.
+    /// Returns the underlying memory address of register.
     ///
     /// ```ignore
     /// let reg_ptr = periph.reg.as_ptr();
