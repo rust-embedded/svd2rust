@@ -34,6 +34,21 @@ unsafe impl<U: Send, REG> Send for Reg<U, REG> {}
 
 impl<U, REG> Reg<U, REG>
 where
+    U: Copy,
+{
+    /// Returns the underlying memory address of register.
+    ///
+    /// ```ignore
+    /// let reg_ptr = periph.reg.as_ptr();
+    /// ```
+    #[inline(always)]
+    pub fn as_ptr(&self) -> *mut U {
+        self.register.as_ptr()
+    }
+}
+
+impl<U, REG> Reg<U, REG>
+where
     Self: Readable,
     U: Copy,
 {
