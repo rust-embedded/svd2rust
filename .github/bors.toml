@@ -2,6 +2,21 @@ block_labels = ["needs-decision", "S-waiting-on-team"]
 delete_merged_branches = true
 required_approvals = 1
 status = [
-  "continuous-integration/travis-ci/push",
+  "ci-linux (stable, rustfmt, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (stable, Atmel, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (stable, Freescale, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (stable, Fujitsu, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (stable, Holtek, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (stable, Nordic, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (stable, Nuvoton, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (stable, NXP, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (stable, RISC-V, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (stable, SiliconLabs, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (stable, Spansion, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (stable, STMicro, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (stable, Toshiba, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (1.37.0, Nordic, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (stable, x86_64-apple-darwin, osx)",
+  "ci-linux (stable, x86_64-pc-windows-msvc, windows)",
 ]
 timeout_sec = 14400
