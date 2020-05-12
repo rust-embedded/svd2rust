@@ -564,7 +564,7 @@ fn expand(
     for erc in ercs {
         ercs_expanded.extend(match &erc {
             RegisterCluster::Register(register) => expand_register(register, defs, name)?,
-            RegisterCluster::Cluster(cluster) => expand_cluster(cluster, defs)?,
+            RegisterCluster::Cluster(cluster) => expand_cluster(cluster, defs, name)?,
         });
     }
 
@@ -599,7 +599,11 @@ fn cluster_size_in_bits(info: &ClusterInfo, defs: &RegisterProperties) -> Result
 }
 
 /// Render a given cluster (and any children) into `RegisterBlockField`s
-fn expand_cluster(cluster: &Cluster, defs: &RegisterProperties) -> Result<Vec<RegisterBlockField>> {
+fn expand_cluster(
+    cluster: &Cluster,
+    defs: &RegisterProperties,
+    name: Option<&str>,
+) -> Result<Vec<RegisterBlockField>> {
     let mut cluster_expanded = vec![];
 
     let defs = cluster.default_register_properties.derive_from(defs);
@@ -635,7 +639,7 @@ fn expand_cluster(cluster: &Cluster, defs: &RegisterProperties) -> Result<Vec<Re
                     size: cluster_size * array_info.dim,
                 });
             } else {
-                for (field_num, field) in expand_svd_cluster(cluster)?.iter().enumerate() {
+                for (field_num, field) in expand_svd_cluster(cluster, name)?.iter().enumerate() {
                     cluster_expanded.push(RegisterBlockField {
                         field: field.clone(),
                         description: info.description.as_ref().unwrap_or(&info.name).into(),
@@ -770,21 +774,6 @@ fn expand_svd_register(
     register: &Register,
     name: Option<&str>,
 ) -> Result<Vec<syn::Field>, syn::Error> {
-    let name_to_ty = |name: &String, ns: Option<&str>| -> Result<syn::Type, syn::Error> {
-        let ident = if let Some(ns) = ns {
-            Cow::Owned(
-                String::from("self::")
-                    + &ns.to_sanitized_snake_case()
-                    + "::"
-                    + &name.to_sanitized_upper_case(),
-            )
-        } else {
-            name.to_sanitized_upper_case()
-        };
-
-        Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
-    };
-
     let mut out = vec![];
 
     match register {
@@ -818,7 +807,7 @@ fn expand_svd_register(
 
 /// Convert a parsed `Register` into its `Field` equivalent
 fn convert_svd_register(register: &Register, name: Option<&str>) -> Result<syn::Field, syn::Error> {
-    let name_to_ty = |name: &String, ns: Option<&str>| -> String {
+    let name_to_ty_str = |name: &String, ns: Option<&str>| -> String {
         if let Some(ns) = ns {
             String::from("self::")
                 + &ns.to_sanitized_snake_case()
@@ -832,14 +821,14 @@ fn convert_svd_register(register: &Register, name: Option<&str>) -> Result<syn::
     Ok(match register {
         Register::Single(info) => new_syn_field(
             &info.name.to_sanitized_snake_case(),
-            syn::Type::Path(parse_str::<syn::TypePath>(&name_to_ty(&info.name, name))?),
+            name_to_ty(&info.name, name)?,
         ),
         Register::Array(info, array_info) => {
             let nb_name = util::replace_suffix(&info.name, "");
 
             let ty = syn::Type::Array(parse_str::<syn::TypeArray>(&format!(
                 "[{};{}]",
-                name_to_ty(&nb_name, name),
+                name_to_ty_str(&nb_name, name),
                 u64::from(array_info.dim)
             ))?);
 
@@ -850,13 +839,10 @@ fn convert_svd_register(register: &Register, name: Option<&str>) -> Result<syn::
 
 /// Takes a svd::Cluster which may contain a register array, and turn in into
 /// a list of syn::Field where the register arrays have been expanded.
-fn expand_svd_cluster(cluster: &Cluster) -> Result<Vec<syn::Field>, syn::Error> {
-    let name_to_ty = |name: &String| -> Result<syn::Type, syn::Error> {
-        Ok(syn::Type::Path(parse_str::<syn::TypePath>(
-            &name.to_sanitized_upper_case(),
-        )?))
-    };
-
+fn expand_svd_cluster(
+    cluster: &Cluster,
+    name: Option<&str>,
+) -> Result<Vec<syn::Field>, syn::Error> {
     let mut out = vec![];
 
     match &cluster {
@@ -877,11 +863,11 @@ fn expand_svd_cluster(cluster: &Cluster) -> Result<Vec<syn::Field>, syn::Error> 
             let ty_name = util::replace_suffix(&info.name, "");
 
             for (idx, _i) in indices.iter().zip(0..) {
-                let name = util::replace_suffix(&info.name, idx);
+                let nb_name = util::replace_suffix(&info.name, idx);
 
-                let ty = name_to_ty(&ty_name)?;
+                let ty = name_to_ty(&ty_name, name)?;
 
-                out.push(new_syn_field(&name.to_sanitized_snake_case(), ty));
+                out.push(new_syn_field(&nb_name.to_sanitized_snake_case(), ty));
             }
         }
     }
@@ -922,4 +908,19 @@ fn new_syn_field(ident: &str, ty: syn::Type) -> syn::Field {
         colon_token: Some(Token![:](span)),
         ty,
     }
+}
+
+fn name_to_ty(name: &String, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
+    let ident = if let Some(ns) = ns {
+        Cow::Owned(
+            String::from("self::")
+                + &ns.to_sanitized_snake_case()
+                + "::"
+                + &name.to_sanitized_upper_case(),
+        )
+    } else {
+        name.to_sanitized_upper_case()
+    };
+
+    Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
 }
