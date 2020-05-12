@@ -155,7 +155,7 @@ pub fn render(
         mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
     }
 
-    // Push all regsiter realted information into the peripheral module
+    // Push all register related information into the peripheral module
     for reg in registers {
         mod_items.extend(register::render(
             reg,
