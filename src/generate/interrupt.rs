@@ -125,6 +125,30 @@ pub fn render(
             });
         }
         Target::RISCV => {}
+        Target::ESP32 => {
+            for name in &names {
+                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name)?;
+            }
+
+            root.extend(quote! {
+                #[cfg(feature = "rt")]
+                extern "C" {
+                    #(fn #names();)*
+                }
+
+                #[doc(hidden)]
+                pub union Vector {
+                    pub _handler: unsafe extern "C" fn(),
+                    _reserved: u32,
+                }
+
+                #[cfg(feature = "rt")]
+                #[doc(hidden)]
+                pub static __INTERRUPTS: [Vector; #n] = [
+                    #elements
+                ];
+            });
+        }
         Target::None => {}
     }
 
@@ -137,7 +161,7 @@ pub fn render(
 
     let interrupt_enum = quote! {
         ///Enumeration of all the interrupts
-        #[derive(Copy, Clone, Debug)]
+        #[derive(Copy, Clone, Debug, PartialEq, Eq)]
         #enum_repr
         pub enum Interrupt {
             #variants
@@ -178,7 +202,7 @@ pub fn render(
             _ => "C",
         };
 
-        if target != Target::CortexM && target != Target::Msp430 {
+        if target != Target::CortexM && target != Target::Msp430 && target != Target::ESP32 {
             mod_items.extend(quote! {
                 #[cfg(feature = "rt")]
                 #[macro_export]

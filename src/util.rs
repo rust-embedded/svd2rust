@@ -18,6 +18,7 @@ pub enum Target {
     CortexM,
     Msp430,
     RISCV,
+    ESP32,
     None,
 }
 
@@ -27,6 +28,7 @@ impl Target {
             "cortex-m" => Target::CortexM,
             "msp430" => Target::Msp430,
             "riscv" => Target::RISCV,
+            "esp32" => Target::ESP32,
             "none" => Target::None,
             _ => bail!("unknown target {}", s),
         })
