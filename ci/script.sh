@@ -692,6 +692,17 @@ main() {
             # OK
             test_svd M061
         ;;
+
+        Espressif)
+            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
+            echo 'version = "0.2.0"' >> $td/Cargo.toml
+
+            echo '[dependencies.xtensa-lx6-rt]' >> $td/Cargo.toml
+            echo 'git = "https://github.com/esp-rs/xtensa-lx6-rt.git"' >> $td/Cargo.toml
+
+            test_svd_for_target esp32 https://raw.githubusercontent.com/arjanmels/esp32/add-output-svd/svd/esp32.svd
+        ;;
+
     esac
 
     rm -rf $td

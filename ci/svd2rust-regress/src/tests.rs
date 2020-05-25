@@ -7,6 +7,7 @@ pub enum Architecture {
     CortexM,
     Msp430,
     RiscV,
+    ESP32,
 }
 
 #[derive(Debug)]
@@ -24,6 +25,7 @@ pub enum Manufacturer {
     Toshiba,
     SiFive,
     TexasInstruments,
+    Espressif,
 }
 
 #[derive(Debug)]
@@ -4223,6 +4225,16 @@ pub const TESTS: &[&TestCase] = &[
         mfgr: TexasInstruments,
         chip: "msp430g2553",
         svd_url: Some("https://github.com/pftbest/msp430g2553/raw/v0.1.3-svd/msp430g2553.svd"),
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: ESP32,
+        mfgr: Espressif,
+        chip: "esp32",
+        svd_url: Some(
+            "https://raw.githubusercontent.com/arjanmels/esp32/add-output-svd/svd/esp32.svd",
+        ),
         should_pass: true,
         run_when: Always,
     },
