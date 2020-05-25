@@ -36,6 +36,13 @@ jobs:
             TARGET: x86_64-unknown-linux-gnu
             TRAVIS_OS_NAME: linux
 
+            # Use nightly for architectures which don't support stable
+          - rust: nightly
+            experimental: true
+            VENDOR: Espressif
+            TARGET: x86_64-unknown-linux-gnu
+            TRAVIS_OS_NAME: linux
+
           # OSX
           - rust: stable
             TARGET: x86_64-apple-darwin

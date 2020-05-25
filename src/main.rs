@@ -103,7 +103,7 @@ fn run() -> Result<()> {
     file.write_all(data.as_ref())
         .expect("Could not write code to lib.rs");
 
-    if target == Target::CortexM || target == Target::Msp430 {
+    if target == Target::CortexM || target == Target::Msp430 || target == Target::ESP32 {
         writeln!(File::create("device.x")?, "{}", device_x)?;
         writeln!(File::create("build.rs")?, "{}", build_rs())?;
     }
