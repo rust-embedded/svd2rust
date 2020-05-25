@@ -14,7 +14,7 @@ jobs:
         rust: [stable]
 
         # All vendor files we want to test on stable
-        VENDOR: [rustfmt, Atmel, Freescale, Fujitsu, Holtek, Nordic, Nuvoton, NXP, RISC-V, SiliconLabs, Spansion, STMicro, Toshiba, Espressif]
+        VENDOR: [rustfmt, Atmel, Freescale, Fujitsu, Holtek, Nordic, Nuvoton, NXP, RISC-V, SiliconLabs, Spansion, STMicro, Toshiba]
 
         # The default target we're compiling on and for
         TARGET: [x86_64-unknown-linux-gnu]
@@ -33,6 +33,13 @@ jobs:
           - rust: nightly
             experimental: true
             VENDOR: OTHER
+            TARGET: x86_64-unknown-linux-gnu
+            TRAVIS_OS_NAME: linux
+
+            # Use nightly for architectures which don't support stable
+          - rust: nightly
+            experimental: true
+            VENDOR: Espressif
             TARGET: x86_64-unknown-linux-gnu
             TRAVIS_OS_NAME: linux
 
