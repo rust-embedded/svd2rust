@@ -43,9 +43,12 @@ anyhow = "1.0.19"
 thiserror = "1.0.5"
 
 [dependencies.svd-parser]
-version = "0.9"
+version = "0.10"
 features = ["derive-from"]
 
 [dependencies.syn]
 version = "1.0"
 features = ["full","extra-traits"]
+
+[features]
+strict = ["svd-parser/strict"]
