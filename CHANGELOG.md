@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- split out register size type (`RawType`) from `ResetValue` trait
+
 - `anyhow` crate is used for error handling
 
 - [breaking-change] Among other cleanups, MSP430 crates are now expected to

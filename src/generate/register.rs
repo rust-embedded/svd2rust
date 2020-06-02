@@ -72,9 +72,8 @@ pub fn render(
             mod_items.extend(quote! {
                 #[doc = #doc]
                 impl crate::ResetValue for super::#name_pc {
-                    type Type = #rty;
                     #[inline(always)]
-                    fn reset_value() -> Self::Type { #rv }
+                    fn reset_value() -> Self::Ux { #rv }
                 }
             });
             methods.push("reset");

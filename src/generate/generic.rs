@@ -12,16 +12,19 @@ pub trait Readable {}
 /// Registers marked with `Readable` can be also `modify`'ed.
 pub trait Writable {}
 
+
+/// Raw register type (autoimplemented for `Reg` type)
+pub trait RawType {
+    /// Raw register type (`u8`, `u16`, `u32`, ...).
+    type Ux: Copy;
+}
 /// Reset value of the register.
 ///
 /// This value is the initial value for the `write` method. It can also be directly written to the
 /// register by using the `reset` method.
-pub trait ResetValue {
-    /// Raw register type (`u8`, `u16`, `u32`, ...).
-    type Type;
-
+pub trait ResetValue: RawType {
     /// Reset value of the register.
-    fn reset_value() -> Self::Type;
+    fn reset_value() -> Self::Ux;
 }
 
 /// This structure provides volatile access to registers.
@@ -73,9 +76,16 @@ where
     }
 }
 
+impl<U, REG> RawType for Reg<U, REG>
+where
+    U: Copy,
+{
+    type Ux = U;
+}
+
 impl<U, REG> Reg<U, REG>
 where
-    Self: ResetValue<Type = U> + Writable,
+    Self: ResetValue + RawType<Ux = U> + Writable,
     U: Copy,
 {
     /// Writes the reset value to `Writable` register.
@@ -89,8 +99,8 @@ where
 
 impl<U, REG> Reg<U, REG>
 where
-    Self: ResetValue<Type = U> + Writable,
-    U: Copy,
+    Self: ResetValue + RawType<Ux = U> + Writable,
+    U: Copy
 {
     /// Writes bits to a `Writable` register.
     ///
