@@ -697,6 +697,9 @@ main() {
             echo '[dependencies.bare-metal]' >> $td/Cargo.toml
             echo 'version = "0.2.0"' >> $td/Cargo.toml
 
+            echo '[dependencies.xtensa-lx6]' >> $td/Cargo.toml
+            echo 'git = "https://github.com/esp-rs/xtensa-lx6.git"' >> $td/Cargo.toml
+
             echo '[dependencies.xtensa-lx6-rt]' >> $td/Cargo.toml
             echo 'git = "https://github.com/esp-rs/xtensa-lx6-rt.git"' >> $td/Cargo.toml
 

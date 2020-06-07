@@ -125,7 +125,7 @@ pub fn render(
             });
         }
         Target::RISCV => {}
-        Target::ESP32 => {
+        Target::XtensaLX6 => {
             for name in &names {
                 writeln!(device_x, "PROVIDE({} = DefaultHandler);", name)?;
             }
@@ -202,7 +202,7 @@ pub fn render(
             _ => "C",
         };
 
-        if target != Target::CortexM && target != Target::Msp430 && target != Target::ESP32 {
+        if target != Target::CortexM && target != Target::Msp430 && target != Target::XtensaLX6 {
             mod_items.extend(quote! {
                 #[cfg(feature = "rt")]
                 #[macro_export]

@@ -97,8 +97,10 @@ pub fn render(
                 extern crate riscv_rt;
             });
         }
-        Target::ESP32 => {
+        Target::XtensaLX6 => {
             out.extend(quote! {
+                extern crate xtensa_lx6;
+                #[cfg(feature = "rt")]
                 extern crate xtensa_lx6_rt;
             });
         }
@@ -231,7 +233,7 @@ pub fn render(
         Target::CortexM => Some(Ident::new("cortex_m", span)),
         Target::Msp430 => Some(Ident::new("msp430", span)),
         Target::RISCV => Some(Ident::new("riscv", span)),
-        Target::ESP32 => Some(Ident::new("xtensa_lx6_rt", span)),
+        Target::XtensaLX6 => Some(Ident::new("xtensa_lx6", span)),
         Target::None => None,
     }
     .map(|krate| {
