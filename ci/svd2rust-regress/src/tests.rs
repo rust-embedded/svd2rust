@@ -4232,7 +4232,9 @@ pub const TESTS: &[&TestCase] = &[
         arch: XtensaLX6,
         mfgr: Espressif,
         chip: "esp32",
-        svd_url: Some("https://raw.githubusercontent.com/esp-rs/esp32/master/svd/esp32.svd"),
+        svd_url: Some(
+            "https://raw.githubusercontent.com/arjanmels/esp32/add-output-svd/svd/esp32.svd",
+        ),
         should_pass: true,
         run_when: Always,
     },
