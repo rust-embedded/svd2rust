@@ -703,7 +703,7 @@ main() {
             echo '[dependencies.xtensa-lx6-rt]' >> $td/Cargo.toml
             echo 'git = "https://github.com/esp-rs/xtensa-lx6-rt.git"' >> $td/Cargo.toml
 
-            test_svd_for_target esp32 https://raw.githubusercontent.com/arjanmels/esp32/add-output-svd/svd/esp32.svd
+            test_svd_for_target xtensalx6 https://raw.githubusercontent.com/arjanmels/esp32/add-output-svd/svd/esp32.svd
         ;;
 
     esac
