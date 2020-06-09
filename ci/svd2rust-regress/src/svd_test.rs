@@ -10,8 +10,7 @@ static CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.0\""];
 static CRATES_MSP430: &[&str] = &["msp430 = \"0.1.0\""];
 static CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.5.0\"", "cortex-m-rt = \"0.5.0\""];
 static CRATES_RISCV: &[&str] = &["riscv = \"0.4.0\"", "riscv-rt = \"0.4.0\""];
-static CRATES_ESP32: &[&str] =
-    &["xtensa-lx6-rt = {git=\"https://github.com/esp-rs/xtensa-lx6-rt\"}"];
+static CRATES_XTENSALX6: &[&str] = &["xtensa-lx6-rt = \"0.2.0\"", "xtensa-lx6 = \"0.1.0\""];
 static PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
 static FEATURES_ALL: &[&str] = &["[features]"];
 static FEATURES_CORTEX_M: &[&str] =
@@ -135,7 +134,7 @@ pub fn test(
             CortexM => CRATES_CORTEX_M.iter(),
             RiscV => CRATES_RISCV.iter(),
             Msp430 => CRATES_MSP430.iter(),
-            ESP32 => CRATES_ESP32.iter(),
+            XtensaLX6 => CRATES_XTENSALX6.iter(),
         })
         .chain(PROFILE_ALL.iter())
         .chain(FEATURES_ALL.iter())
@@ -168,7 +167,7 @@ pub fn test(
         CortexM => "cortex-m",
         Msp430 => "msp430",
         RiscV => "riscv",
-        ESP32 => "esp32",
+        XtensaLX6 => "xtensalx6",
     };
     let mut svd2rust_bin = Command::new(bin_path);
     if nightly {
@@ -185,14 +184,14 @@ pub fn test(
         true,
         "svd2rust",
         Some(&lib_rs_file)
-            .filter(|_| (t.arch != CortexM) && (t.arch != Msp430) && (t.arch != ESP32)),
+            .filter(|_| (t.arch != CortexM) && (t.arch != Msp430) && (t.arch != XtensaLX6)),
         Some(&svd2rust_err_file),
         &[],
     )?;
     process_stderr_paths.push(svd2rust_err_file);
 
     match t.arch {
-        CortexM | Msp430 | ESP32 => {
+        CortexM | Msp430 | XtensaLX6 => {
             // TODO: Give error the path to stderr
             fs::rename(path_helper_base(&chip_dir, &["lib.rs"]), &lib_rs_file)
                 .chain_err(|| "While moving lib.rs file")?
