@@ -499,15 +499,25 @@ pub fn fields(
                     }
                 }
 
-                proxy_items.extend(quote! {
-                    ///Writes `variant` to the field
-                    #inline
-                    pub fn variant(self, variant: #pc_w) -> &'a mut W {
-                        #unsafety {
-                            self.#bits(variant.into())
+                if unsafety.is_some() {
+                    proxy_items.extend(quote! {
+                        ///Writes `variant` to the field
+                        #inline
+                        pub fn variant(self, variant: #pc_w) -> &'a mut W {
+                            unsafe {
+                                self.#bits(variant.into())
+                            }
                         }
-                    }
-                });
+                    });
+                } else {
+                    proxy_items.extend(quote! {
+                        ///Writes `variant` to the field
+                        #inline
+                        pub fn variant(self, variant: #pc_w) -> &'a mut W {
+                                self.#bits(variant.into())
+                        }
+                    });
+                }
 
                 for v in &variants {
                     let pc = &v.pc;
