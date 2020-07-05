@@ -152,11 +152,10 @@ pub fn render(
         Target::None => {}
     }
 
-    let self_token = quote!(self);
-    let (enum_repr, nr_expr) = if variants.is_empty() {
-        (quote!(), quote!(match *#self_token {}))
+    let enum_repr = if variants.is_empty() {
+        quote!()
     } else {
-        (quote!(#[repr(u8)]), quote!(*#self_token as u8))
+        quote!(#[repr(u8)])
     };
 
     let interrupt_enum = quote! {
@@ -165,13 +164,6 @@ pub fn render(
         #enum_repr
         pub enum Interrupt {
             #variants
-        }
-
-        unsafe impl bare_metal::Nr for Interrupt {
-            #[inline(always)]
-            fn nr(&#self_token) -> u8 {
-                #nr_expr
-            }
         }
     };
 

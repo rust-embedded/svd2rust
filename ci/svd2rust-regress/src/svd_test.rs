@@ -6,7 +6,7 @@ use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Output};
 
-static CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.0\""];
+static CRATES_ALL: &[&str] = &["vcell = \"0.1.0\""];
 static CRATES_MSP430: &[&str] = &["msp430 = \"0.1.0\""];
 static CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.5.0\"", "cortex-m-rt = \"0.5.0\""];
 static CRATES_RISCV: &[&str] = &["riscv = \"0.4.0\"", "riscv-rt = \"0.4.0\""];
@@ -14,7 +14,7 @@ static CRATES_XTENSALX6: &[&str] = &["xtensa-lx6-rt = \"0.2.0\"", "xtensa-lx6 = 
 static PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
 static FEATURES_ALL: &[&str] = &["[features]"];
 static FEATURES_CORTEX_M: &[&str] =
-    &["const-fn = [\"bare-metal/const-fn\", \"cortex-m/const-fn\"]"];
+    &["const-fn = [\"cortex-m/const-fn\"]"];
 static FEATURES_EMPTY: &[&str] = &[];
 
 fn path_helper(input: &[&str]) -> PathBuf {

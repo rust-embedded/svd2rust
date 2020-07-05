@@ -108,7 +108,6 @@ pub fn render(
     }
 
     out.extend(quote! {
-        extern crate bare_metal;
         extern crate vcell;
 
         use core::ops::Deref;

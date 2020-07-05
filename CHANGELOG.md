@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   use the `msp430_rt::interrupt` attribute macro and `device.x` for interrupt
   support. The `INTERRUPT` array has been renamed `__INTERRUPT`.
 
+- [breaking-change] Remove use of `bare_metal::Nr` trait and consecutively the
+  use of `bare-metal`.
+
 ## [v0.17.0] - 2019-12-31
 
 ### Fixed
