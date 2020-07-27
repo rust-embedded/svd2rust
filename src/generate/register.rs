@@ -1,4 +1,3 @@
-use crate::quote::ToTokens;
 use crate::svd::{
     Access, BitRange, EnumeratedValues, Field, Peripheral, Register, RegisterCluster,
     RegisterProperties, Usage, WriteConstraint,
@@ -6,6 +5,7 @@ use crate::svd::{
 use cast::u64;
 use log::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
+use quote::{quote, ToTokens};
 
 use crate::util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
 use anyhow::{anyhow, Result};

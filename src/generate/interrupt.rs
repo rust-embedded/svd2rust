@@ -4,6 +4,7 @@ use std::fmt::Write;
 use crate::svd::Peripheral;
 use cast::u64;
 use proc_macro2::{Ident, Span, TokenStream};
+use quote::quote;
 
 use crate::util::{self, ToSanitizedUpperCase};
 use crate::Target;
