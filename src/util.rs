@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 
-use crate::quote::ToTokens;
 use crate::svd::{Access, Cluster, Register, RegisterCluster};
 use inflections::Inflect;
 use proc_macro2::{Ident, Literal, Span, TokenStream};
+use quote::{quote, ToTokens};
 
 use anyhow::{anyhow, bail, Result};
 

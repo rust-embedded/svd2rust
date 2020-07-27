@@ -451,9 +451,6 @@
 //! used with the `cortex-m` crate `NVIC` API.
 //!
 //! ```ignore
-//! extern crate cortex_m;
-//! extern crate stm32f30x;
-//!
 //! use cortex_m::interrupt;
 //! use cortex_m::peripheral::Peripherals;
 //! use stm32f30x::Interrupt;
@@ -481,8 +478,7 @@
 //! compiler. Currently there are no nightly features the flag is only kept for compatibility with prior versions.
 #![recursion_limit = "128"]
 
-#[macro_use]
-extern crate quote;
+use quote::quote;
 use svd_parser as svd;
 
 mod generate;

@@ -1,9 +1,6 @@
 #![recursion_limit = "128"]
 
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate quote;
+use log::error;
 use svd_parser as svd;
 
 mod generate;

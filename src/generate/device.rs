@@ -1,6 +1,6 @@
 use crate::svd::Device;
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::ToTokens;
+use quote::{quote, ToTokens};
 use std::fs::File;
 use std::io::Write;
 
@@ -75,42 +75,7 @@ pub fn render(
         #![no_std]
     });
 
-    match target {
-        Target::CortexM => {
-            out.extend(quote! {
-                extern crate cortex_m;
-                #[cfg(feature = "rt")]
-                extern crate cortex_m_rt;
-            });
-        }
-        Target::Msp430 => {
-            out.extend(quote! {
-                extern crate msp430;
-                #[cfg(feature = "rt")]
-                extern crate msp430_rt;
-            });
-        }
-        Target::RISCV => {
-            out.extend(quote! {
-                extern crate riscv;
-                #[cfg(feature = "rt")]
-                extern crate riscv_rt;
-            });
-        }
-        Target::XtensaLX6 => {
-            out.extend(quote! {
-                extern crate xtensa_lx6;
-                #[cfg(feature = "rt")]
-                extern crate xtensa_lx6_rt;
-            });
-        }
-        Target::None => {}
-    }
-
     out.extend(quote! {
-        extern crate bare_metal;
-        extern crate vcell;
-
         use core::ops::Deref;
         use core::marker::PhantomData;
     });

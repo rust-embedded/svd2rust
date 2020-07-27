@@ -6,7 +6,7 @@ use crate::svd::{Cluster, ClusterInfo, Peripheral, Register, RegisterCluster, Re
 use log::warn;
 use proc_macro2::TokenStream;
 use proc_macro2::{Ident, Punct, Spacing, Span};
-use quote::ToTokens;
+use quote::{quote, ToTokens};
 use svd_parser::derive_from::DeriveFrom;
 use syn::{parse_str, Token};
 
