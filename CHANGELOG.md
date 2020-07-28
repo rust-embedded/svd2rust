@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Don't generate pre Edition 2018 `extern crate` statements anymore
 
+- Remove `PhantomData` marker from peripherals
+
 ## [v0.17.0] - 2019-12-31
 
 ### Fixed

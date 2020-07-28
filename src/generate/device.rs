@@ -77,7 +77,6 @@ pub fn render(
 
     out.extend(quote! {
         use core::ops::Deref;
-        use core::marker::PhantomData;
     });
 
     // Retaining the previous assumption
@@ -190,7 +189,7 @@ pub fn render(
             #[doc = #p]
             pub #id: #id,
         });
-        exprs.extend(quote!(#id: #id { _marker: PhantomData },));
+        exprs.extend(quote!(#id: #id {}, ));
     }
 
     let span = Span::call_site();

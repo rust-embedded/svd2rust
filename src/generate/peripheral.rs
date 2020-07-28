@@ -54,7 +54,7 @@ pub fn render(
     // Insert the peripheral structure
     out.extend(quote! {
         #[doc = #description]
-        pub struct #name_pc { _marker: PhantomData<*const ()> }
+        pub struct #name_pc { }
 
         unsafe impl Send for #name_pc {}
 
