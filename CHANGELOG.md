@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Generated crates now contain the git commit hash and date of svd2rust
   compilation.
 
+- Provide an associated const ptr `PTR` per peripheral RegisterBlock
+
 ### Fixed
 
 - Keyword sanitizing (`async`)
