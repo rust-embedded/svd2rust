@@ -59,10 +59,13 @@ pub fn render(
         unsafe impl Send for #name_pc {}
 
         impl #name_pc {
-            ///Returns a pointer to the register block
+            ///Pointer to the register block
+            pub const PTR: *const #base::RegisterBlock = #address as *const _;
+
+            ///Return the pointer to the register block
             #[inline(always)]
             pub const fn ptr() -> *const #base::RegisterBlock {
-                #address as *const _
+                Self::PTR
             }
         }
 
@@ -71,7 +74,7 @@ pub fn render(
 
             #[inline(always)]
             fn deref(&self) -> &Self::Target {
-                unsafe { &*#name_pc::ptr() }
+                unsafe { &*Self::PTR }
             }
         }
     });
