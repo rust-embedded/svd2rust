@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   use the `msp430_rt::interrupt` attribute macro and `device.x` for interrupt
   support. The `INTERRUPT` array has been renamed `__INTERRUPT`.
 
+- Documented the nature of the `Interrupt` enum on MSP430 and consequently
+  removed all use of `bare-metal` from that architecture
+
 - Don't generate pre Edition 2018 `extern crate` statements anymore
 
 ## [v0.17.0] - 2019-12-31

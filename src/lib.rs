@@ -106,13 +106,12 @@
 //! ```
 //!
 //! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
-//! `bare-metal` v0.2.x, `msp430` v0.2.x, `msp430-rt` v0.2.x and `vcell` v0.1.x. Furthermore
+//! `msp430` v0.2.x, `msp430-rt` v0.2.x and `vcell` v0.1.x. Furthermore
 //! the "device" feature of `msp430-rt` must be enabled when the "rt" feature is enabled. The
 //! `Cargo.toml` of the device crate will look like this:
 //!
 //! ``` toml
 //! [dependencies]
-//! bare-metal = "0.2.0"
 //! msp430 = "0.2.0"
 //! vcell = "0.1.0"
 //!

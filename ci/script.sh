@@ -493,9 +493,6 @@ main() {
 
         # test other targets (architectures)
         OTHER)
-            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.1.0"' >> $td/Cargo.toml
-
             echo '[dependencies.msp430]' >> $td/Cargo.toml
             echo 'version = "0.2.2"' >> $td/Cargo.toml
 
