@@ -203,24 +203,6 @@ where
     }
 }
 
-impl<REG: Register<Ux=bool>> R<REG> {
-    /// Value of the field as raw bits.
-    #[inline(always)]
-    pub fn bit(&self) -> bool {
-        self.bits
-    }
-    /// Returns `true` if the bit is clear (0).
-    #[inline(always)]
-    pub fn bit_is_clear(&self) -> bool {
-        !self.bit()
-    }
-    /// Returns `true` if the bit is set (1).
-    #[inline(always)]
-    pub fn bit_is_set(&self) -> bool {
-        self.bit()
-    }
-}
-
 /// Register writer.
 ///
 /// Used as an argument to the closures in the `write` and `modify` methods of the register.
