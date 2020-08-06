@@ -217,7 +217,7 @@ pub fn fields(
         // TODO(AJM) - do we need to do anything with this range type?
         let BitRange { offset, width, .. } = f.bit_range;
         let name = util::replace_suffix(&f.name, "");
-        let sc = Ident::new(&name.to_sanitized_snake_case(), span);
+        let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
         let name_pc = name.to_sanitized_upper_case();
         let bits = Ident::new(if width == 1 { "bit" } else { "bits" }, span);
         let description = if let Some(d) = &f.description {
@@ -323,7 +323,7 @@ pub fn fields(
                 r_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub unsafe fn #sc(&self, n: usize) -> #name_pc_r {
+                    pub unsafe fn #name_sc(&self, n: usize) -> #name_pc_r {
                         #name_pc_r::new ( #value )
                     }
                 });
@@ -339,7 +339,7 @@ pub fn fields(
                             (self.bits & #hexmask) #cast
                         }
                     };
-                    let sc_n = Ident::new(
+                    let name_sc_n = Ident::new(
                         &util::replace_suffix(&f.name.to_sanitized_snake_case(), &suffix),
                         Span::call_site(),
                     );
@@ -350,7 +350,7 @@ pub fn fields(
                     r_impl_items.extend(quote! {
                         #[doc = #doc]
                         #inline
-                        pub fn #sc_n(&self) -> #name_pc_r {
+                        pub fn #name_sc_n(&self) -> #name_pc_r {
                             #name_pc_r::new ( #value )
                         }
                     });
@@ -360,7 +360,7 @@ pub fn fields(
                 r_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub fn #sc(&self) -> #name_pc_r {
+                    pub fn #name_sc(&self) -> #name_pc_r {
                         #name_pc_r::new ( #value )
                     }
                 });
@@ -611,13 +611,13 @@ pub fn fields(
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub unsafe fn #sc(&mut self, n: usize) -> #name_pc_w {
+                    pub unsafe fn #name_sc(&mut self, n: usize) -> #name_pc_w {
                         #name_pc_w { w: self, offset: #offset_calc }
                     }
                 });
                 for (i, suffix) in (0..*dim).zip(suffixes.iter()) {
                     let sub_offset = offset + (i as u64) * (*increment as u64);
-                    let sc_n = Ident::new(
+                    let name_sc_n = Ident::new(
                         &util::replace_suffix(&f.name.to_sanitized_snake_case(), &suffix),
                         Span::call_site(),
                     );
@@ -629,7 +629,7 @@ pub fn fields(
                     w_impl_items.extend(quote! {
                         #[doc = #doc]
                         #inline
-                        pub fn #sc_n(&mut self) -> #name_pc_w {
+                        pub fn #name_sc_n(&mut self) -> #name_pc_w {
                             #name_pc_w { w: self, offset: #sub_offset }
                         }
                     });
@@ -639,7 +639,7 @@ pub fn fields(
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub fn #sc(&mut self) -> #name_pc_w {
+                    pub fn #name_sc(&mut self) -> #name_pc_w {
                         #name_pc_w { w: self }
                     }
                 });
