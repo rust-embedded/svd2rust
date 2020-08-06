@@ -810,17 +810,6 @@ fn expand_svd_register(
 
 /// Convert a parsed `Register` into its `Field` equivalent
 fn convert_svd_register(register: &Register, name: Option<&str>) -> Result<syn::Field, syn::Error> {
-    let name_to_ty_str = |name: &String, ns: Option<&str>| -> String {
-        if let Some(ns) = ns {
-            String::from("self::")
-                + &ns.to_sanitized_snake_case()
-                + "::"
-                + &name.to_sanitized_upper_case()
-        } else {
-            name.to_sanitized_upper_case().to_string()
-        }
-    };
-
     Ok(match register {
         Register::Single(info) => new_syn_field(
             &info.name.to_sanitized_snake_case(),
@@ -831,7 +820,7 @@ fn convert_svd_register(register: &Register, name: Option<&str>) -> Result<syn::
 
             let ty = syn::Type::Array(parse_str::<syn::TypeArray>(&format!(
                 "[{};{}]",
-                name_to_ty_str(&nb_name, name),
+                name_to_ty_cow(&nb_name, name),
                 u64::from(array_info.dim)
             ))?);
 
@@ -913,8 +902,8 @@ fn new_syn_field(ident: &str, ty: syn::Type) -> syn::Field {
     }
 }
 
-fn name_to_ty(name: &String, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
-    let ident = if let Some(ns) = ns {
+fn name_to_ty_cow<'a>(name: &'a String, ns: Option<&str>) -> Cow<'a, str> {
+    if let Some(ns) = ns {
         Cow::Owned(
             String::from("self::")
                 + &ns.to_sanitized_snake_case()
@@ -923,7 +912,10 @@ fn name_to_ty(name: &String, ns: Option<&str>) -> Result<syn::Type, syn::Error> 
         )
     } else {
         name.to_sanitized_upper_case()
-    };
+    }
+}
 
+fn name_to_ty(name: &String, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
+    let ident = name_to_ty_cow(name, ns);
     Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
 }
