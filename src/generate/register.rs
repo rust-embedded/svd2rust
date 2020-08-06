@@ -80,13 +80,6 @@ pub fn render(
             #[doc = #desc]
             pub struct W(crate::W<#name_pc>);
 
-            impl W {
-                pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
-                    self.0.bits(bits);
-                    self
-                }
-            }
-
             impl core::ops::Deref for W {
                 type Target = crate::W<#name_pc>;
 
@@ -171,6 +164,14 @@ pub fn render(
         });
 
         mod_items.extend(w_impl_items);
+
+        mod_items.extend(quote! {
+                #[doc = "Writes raw bits to the register."]
+                pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
+                    self.0.bits(bits);
+                    self
+                }
+        });
 
         close.to_tokens(&mut mod_items);
     }
