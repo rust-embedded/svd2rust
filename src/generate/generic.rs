@@ -20,6 +20,7 @@ pub trait Readable: Register {
 ///
 /// Registers marked with `Readable` can be also `modify`'ed.
 pub trait Writable: Register {
+    /// Writer type argument to `write`, et al.
     type Writer: core::convert::From<W<Self>> + core::ops::Deref<Target = W<Self>>;
 }
 
