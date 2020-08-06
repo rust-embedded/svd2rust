@@ -1,38 +1,28 @@
 use core::marker;
 
+/// Raw register type
 pub trait Register {
+    /// Raw register type (`u8`, `u16`, `u32`, ...).
     type Ux: Copy;
-}
-
-pub trait ReadableRegister: Register {}
-pub trait WritableRegister: Register {}
-pub trait ResettableRegister: Register {
-    fn reset_value() -> Self::Ux;
 }
 
 /// Trait implemented by readable registers to enable the `read` method.
 ///
 /// Registers marked with `Writable` can be also `modify`'ed.
-pub trait Readable {}
+pub trait ReadableRegister: Register {}
 
 /// Trait implemented by writeable registers.
 ///
 /// This enables the  `write`, `write_with_zero` and `reset` methods.
 ///
 /// Registers marked with `Readable` can be also `modify`'ed.
-pub trait Writable {}
+pub trait WritableRegister: Register {}
 
-
-/// Raw register type (autoimplemented for `Reg` type)
-pub trait RawType {
-    /// Raw register type (`u8`, `u16`, `u32`, ...).
-    type Ux: Copy;
-}
 /// Reset value of the register.
 ///
 /// This value is the initial value for the `write` method. It can also be directly written to the
 /// register by using the `reset` method.
-pub trait ResetValue: RawType {
+pub trait ResettableRegister: Register {
     /// Reset value of the register.
     fn reset_value() -> Self::Ux;
 }
@@ -41,15 +31,6 @@ pub trait ResetValue: RawType {
 pub struct Reg<REG: Register> {
     register: vcell::VolatileCell<REG::Ux>,
     _marker: marker::PhantomData<REG>,
-}
-
-impl<REG: ReadableRegister> Readable for Reg<REG> {}
-impl<REG: WritableRegister> Writable for Reg<REG> {}
-impl<REG: ResettableRegister> ResetValue for Reg<REG> {
-    #[inline(always)]
-    fn reset_value() -> Self::Ux {
-        REG::reset_value()
-    }
 }
 
 unsafe impl<REG: Register> Send for Reg<REG> where REG::Ux: Send {}
@@ -69,9 +50,8 @@ where
     }
 }
 
-impl<REG: Register> Reg<REG>
+impl<REG: ReadableRegister> Reg<REG>
 where
-    Self: Readable,
     REG::Ux: Copy,
 {
     /// Reads the contents of a `Readable` register.
@@ -95,16 +75,8 @@ where
     }
 }
 
-impl<REG: Register> RawType for Reg<REG>
+impl<REG: ResettableRegister + WritableRegister> Reg<REG>
 where
-    REG::Ux: Copy,
-{
-    type Ux = REG::Ux;
-}
-
-impl<REG: Register> Reg<REG>
-where
-    Self: ResetValue + RawType<Ux = REG::Ux> + Writable,
     REG::Ux: Copy,
 {
     /// Writes the reset value to `Writable` register.
@@ -112,15 +84,9 @@ where
     /// Resets the register to its initial state.
     #[inline(always)]
     pub fn reset(&self) {
-        self.register.set(Self::reset_value())
+        self.register.set(REG::reset_value())
     }
-}
 
-impl<REG: Register> Reg<REG>
-where
-    Self: ResetValue + RawType<Ux = REG::Ux> + Writable,
-    REG::Ux: Copy
-{
     /// Writes bits to a `Writable` register.
     ///
     /// You can write raw bits into a register:
@@ -143,7 +109,7 @@ where
     {
         self.register.set(
             f(&mut W {
-                bits: Self::reset_value(),
+                bits: REG::reset_value(),
                 _reg: marker::PhantomData,
             })
             .bits,
@@ -151,9 +117,8 @@ where
     }
 }
 
-impl<REG: Register> Reg<REG>
+impl<REG: WritableRegister> Reg<REG>
 where
-    Self: Writable,
     REG::Ux: Copy + Default,
 {
     /// Writes 0 to a `Writable` register.
@@ -174,9 +139,8 @@ where
     }
 }
 
-impl<REG: Register> Reg<REG>
+impl<REG: ReadableRegister + WritableRegister> Reg<REG>
 where
-    Self: Readable + Writable,
     REG::Ux: Copy,
 {
     /// Modifies the contents of the register by reading and then writing it.
