@@ -9,14 +9,19 @@ pub trait Register {
 /// Trait implemented by readable registers to enable the `read` method.
 ///
 /// Registers marked with `Writable` can be also `modify`'ed.
-pub trait Readable: Register {}
+pub trait Readable: Register {
+    /// Result from a call to `read` and argument to `modify`.
+    type Reader: core::convert::From<R<Self>> + core::ops::Deref<Target = R<Self>>;
+}
 
 /// Trait implemented by writeable registers.
 ///
 /// This enables the  `write`, `write_with_zero` and `reset` methods.
 ///
 /// Registers marked with `Readable` can be also `modify`'ed.
-pub trait Writable: Register {}
+pub trait Writable: Register {
+    type Writer: core::convert::From<W<Self>> + core::ops::Deref<Target = W<Self>>;
+}
 
 /// Reset value of the register.
 ///
@@ -61,11 +66,11 @@ impl<REG: Readable> Reg<REG> {
     /// let flag = reader.field2().bit_is_set();
     /// ```
     #[inline(always)]
-    pub fn read(&self) -> R<REG> {
-        R {
+    pub fn read(&self) -> REG::Reader {
+        REG::Reader::from(R {
             bits: self.register.get(),
             _reg: marker::PhantomData,
-        }
+        })
     }
 }
 
@@ -96,13 +101,13 @@ impl<REG: Resettable + Writable> Reg<REG> {
     #[inline(always)]
     pub fn write<F>(&self, f: F)
     where
-        F: FnOnce(&mut W<REG>) -> &mut W<REG>,
+        F: FnOnce(&mut REG::Writer) -> &mut REG::Writer,
     {
         self.register.set(
-            f(&mut W {
+            f(&mut REG::Writer::from(W {
                 bits: REG::reset_value(),
                 _reg: marker::PhantomData,
-            })
+            }))
             .bits,
         );
     }
@@ -118,13 +123,13 @@ where
     #[inline(always)]
     pub fn write_with_zero<F>(&self, f: F)
     where
-        F: FnOnce(&mut W<REG>) -> &mut W<REG>,
+        F: FnOnce(&mut REG::Writer) -> &mut REG::Writer,
     {
         self.register.set(
-            f(&mut W {
+            (*f(&mut REG::Writer::from(W {
                 bits: REG::Ux::default(),
                 _reg: marker::PhantomData,
-            })
+            })))
             .bits,
         );
     }
@@ -151,19 +156,19 @@ impl<REG: Readable + Writable> Reg<REG> {
     #[inline(always)]
     pub fn modify<F>(&self, f: F)
     where
-        for<'w> F: FnOnce(&R<REG>, &'w mut W<REG>) -> &'w mut W<REG>,
+        for<'w> F: FnOnce(&REG::Reader, &'w mut REG::Writer) -> &'w mut REG::Writer,
     {
         let bits = self.register.get();
         self.register.set(
             f(
-                &R {
+                &REG::Reader::from(R {
                     bits,
                     _reg: marker::PhantomData,
-                },
-                &mut W {
+                }),
+                &mut REG::Writer::from(W {
                     bits,
                     _reg: marker::PhantomData,
-                },
+                }),
             )
             .bits,
         );
@@ -174,7 +179,7 @@ impl<REG: Readable + Writable> Reg<REG> {
 ///
 /// Result of the `read` methods of registers. Also used as a closure argument in the `modify`
 /// method.
-pub struct R<REG: Register> {
+pub struct R<REG: Register + ?Sized> {
     pub(crate) bits: REG::Ux,
     _reg: marker::PhantomData<REG>,
 }
@@ -219,7 +224,7 @@ impl<REG: Register<Ux=bool>> R<REG> {
 /// Register writer.
 ///
 /// Used as an argument to the closures in the `write` and `modify` methods of the register.
-pub struct W<REG: Register> {
+pub struct W<REG: Register + ?Sized> {
     ///Writable bits
     pub(crate) bits: REG::Ux,
     _reg: marker::PhantomData<REG>,
@@ -228,9 +233,8 @@ pub struct W<REG: Register> {
 impl<REG: Register> W<REG> {
     /// Writes raw bits to the register.
     #[inline(always)]
-    pub unsafe fn bits(&mut self, bits: REG::Ux) -> &mut Self {
+    pub unsafe fn bits(&mut self, bits: REG::Ux) {
         self.bits = bits;
-        self
     }
 }
 

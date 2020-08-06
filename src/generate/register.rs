@@ -54,7 +54,21 @@ pub fn render(
         let desc = format!("Reader of register {}", register.name);
         mod_items.extend(quote! {
             #[doc = #desc]
-            pub type R = crate::R<super::#name_pc>;
+            pub struct R(crate::R<super::#name_pc>);
+
+            impl core::ops::Deref for R {
+                type Target = crate::R<super::#name_pc>;
+
+                fn deref(&self) -> &Self::Target {
+                    &self.0
+                }
+            }
+
+            impl core::convert::From<crate::R<#name_pc>> for R {
+                fn from(reader: crate::R<#name_pc>) -> Self {
+                    R(reader)
+                }
+            }
         });
         methods.push("read");
     }
@@ -64,7 +78,34 @@ pub fn render(
         let desc = format!("Writer for register {}", register.name);
         mod_items.extend(quote! {
             #[doc = #desc]
-            pub type W = crate::W<super::#name_pc>;
+            pub struct W(crate::W<super::#name_pc>);
+
+            impl W {
+                pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
+                    self.0.bits(bits);
+                    self
+                }
+            }
+
+            impl core::ops::Deref for W {
+                type Target = crate::W<#name_pc>;
+
+                fn deref(&self) -> &Self::Target {
+                    &self.0
+                }
+            }
+
+            impl core::ops::DerefMut for W {
+                fn deref_mut(&mut self) -> &mut Self::Target {
+                    &mut self.0
+                }
+            }
+
+            impl core::convert::From<crate::W<super::#name_pc>> for W {
+                fn from(writer: crate::W<super::#name_pc>) -> Self {
+                    W(writer)
+                }
+            }
         });
         if let Some(rv) = res_val.map(util::hex) {
             let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
@@ -165,7 +206,9 @@ pub fn render(
         );
         out.extend(quote! {
             #[doc = #doc]
-            impl crate::Readable for #name_pc {}
+            impl crate::Readable for #name_pc {
+                type Reader = R;
+            }
         });
     }
     if can_write {
@@ -175,7 +218,9 @@ pub fn render(
         );
         out.extend(quote! {
             #[doc = #doc]
-            impl crate::Writable for #name_pc {}
+            impl crate::Writable for #name_pc {
+                type Writer = #name_sc::W;
+            }
         });
     }
 
@@ -376,7 +421,21 @@ pub fn fields(
 
                     mod_items.extend(quote! {
                         #[doc = #readerdoc]
-                        pub type #name_pc_r = crate::FieldReader<#fty, #name_pc_a>;
+                        pub struct #name_pc_r(crate::FieldReader<#fty, #name_pc_a>);
+
+                        impl #name_pc_r {
+                            pub(crate) fn new(bits: #fty) -> Self {
+                                #name_pc_r(crate::FieldReader::new(bits))
+                            }
+                        }
+
+                        impl core::ops::Deref for #name_pc_r {
+                            type Target = crate::FieldReader<#fty, #name_pc_a>;
+
+                            fn deref(&self) -> &Self::Target {
+                                &self.0
+                            }
+                        }
                     });
                 } else {
                     let has_reserved_variant = evs.values.len() != (1 << width);
@@ -451,23 +510,49 @@ pub fn fields(
                             #[doc = #doc]
                             #inline
                             pub fn #is_variant(&self) -> bool {
-                                *self == #name_pc_a::#pc
+                                **self == #name_pc_a::#pc
                             }
                         });
                     }
 
                     mod_items.extend(quote! {
                         #[doc = #readerdoc]
-                        pub type #name_pc_r = crate::FieldReader<#fty, #name_pc_a>;
+                        pub struct #name_pc_r(crate::FieldReader<#fty, #name_pc_a>);
+
                         impl #name_pc_r {
+                            pub(crate) fn new(bits: #fty) -> Self {
+                                #name_pc_r(crate::FieldReader::new(bits))
+                            }
                             #enum_items
+                        }
+
+                        impl core::ops::Deref for #name_pc_r {
+                            type Target = crate::FieldReader<#fty, #name_pc_a>;
+
+                            fn deref(&self) -> &Self::Target {
+                                &self.0
+                            }
                         }
                     });
                 }
             } else {
                 mod_items.extend(quote! {
                     #[doc = #readerdoc]
-                    pub type #name_pc_r = crate::FieldReader<#fty, #fty>;
+                    pub struct #name_pc_r(crate::FieldReader<#fty, #fty>);
+
+                    impl #name_pc_r {
+                        pub(crate) fn new(bits: #fty) -> Self {
+                            #name_pc_r(crate::FieldReader::new(bits))
+                        }
+                    }
+
+                    impl core::ops::Deref for #name_pc_r {
+                        type Target = crate::FieldReader<#fty, #fty>;
+
+                        fn deref(&self) -> &Self::Target {
+                            &self.0
+                        }
+                    }
                 })
             }
         }
