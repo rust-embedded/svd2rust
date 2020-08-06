@@ -143,7 +143,12 @@ pub fn render(
         )
         .as_str();
     }
+    let alias_doc = format!(
+        "{} register accessor: an alias for `Reg<{}>`",
+        name, name_uc_spec,
+    );
     out.extend(quote! {
+        #[doc = #alias_doc]
         pub type #name_pc = crate::Reg<#name_sc::#name_uc_spec>;
     });
     mod_items.extend(quote! {
