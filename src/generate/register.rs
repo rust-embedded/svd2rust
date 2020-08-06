@@ -218,7 +218,12 @@ pub fn render(
         });
     }
 
+    let alias_doc = format!(
+        "{} register accessor: an alias for `Reg<{}::{}>`",
+        name, name_sc, name_pc
+    );
     out.extend(quote! {
+        #[doc = #alias_doc]
         pub type #name_pc = crate::Reg<#name_sc::#name_pc>;
     });
 
