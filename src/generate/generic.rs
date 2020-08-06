@@ -1,5 +1,15 @@
 use core::marker;
 
+pub trait Register {
+    type Ux: Copy;
+}
+
+pub trait ReadableRegister: Register {}
+pub trait WritableRegister: Register {}
+pub trait ResettableRegister: Register {
+    fn reset_value() -> Self::Ux;
+}
+
 /// Trait implemented by readable registers to enable the `read` method.
 ///
 /// Registers marked with `Writable` can be also `modify`'ed.
@@ -28,16 +38,25 @@ pub trait ResetValue: RawType {
 }
 
 /// This structure provides volatile access to registers.
-pub struct Reg<U, REG> {
-    register: vcell::VolatileCell<U>,
+pub struct Reg<REG: Register> {
+    register: vcell::VolatileCell<REG::Ux>,
     _marker: marker::PhantomData<REG>,
 }
 
-unsafe impl<U: Send, REG> Send for Reg<U, REG> {}
+impl<REG: ReadableRegister> Readable for Reg<REG> {}
+impl<REG: WritableRegister> Writable for Reg<REG> {}
+impl<REG: ResettableRegister> ResetValue for Reg<REG> {
+    #[inline(always)]
+    fn reset_value() -> Self::Ux {
+        REG::reset_value()
+    }
+}
 
-impl<U, REG> Reg<U, REG>
+unsafe impl<REG: Register> Send for Reg<REG> where REG::Ux: Send {}
+
+impl<REG: Register> Reg<REG>
 where
-    U: Copy,
+    REG::Ux: Copy,
 {
     /// Returns the underlying memory address of register.
     ///
@@ -45,15 +64,15 @@ where
     /// let reg_ptr = periph.reg.as_ptr();
     /// ```
     #[inline(always)]
-    pub fn as_ptr(&self) -> *mut U {
+    pub fn as_ptr(&self) -> *mut REG::Ux {
         self.register.as_ptr()
     }
 }
 
-impl<U, REG> Reg<U, REG>
+impl<REG: Register> Reg<REG>
 where
     Self: Readable,
-    U: Copy,
+    REG::Ux: Copy,
 {
     /// Reads the contents of a `Readable` register.
     ///
@@ -68,7 +87,7 @@ where
     /// let flag = reader.field2().bit_is_set();
     /// ```
     #[inline(always)]
-    pub fn read(&self) -> R<U, Self> {
+    pub fn read(&self) -> R<REG::Ux, Self> {
         R {
             bits: self.register.get(),
             _reg: marker::PhantomData,
@@ -76,17 +95,17 @@ where
     }
 }
 
-impl<U, REG> RawType for Reg<U, REG>
+impl<REG: Register> RawType for Reg<REG>
 where
-    U: Copy,
+    REG::Ux: Copy,
 {
-    type Ux = U;
+    type Ux = REG::Ux;
 }
 
-impl<U, REG> Reg<U, REG>
+impl<REG: Register> Reg<REG>
 where
-    Self: ResetValue + RawType<Ux = U> + Writable,
-    U: Copy,
+    Self: ResetValue + RawType<Ux = REG::Ux> + Writable,
+    REG::Ux: Copy,
 {
     /// Writes the reset value to `Writable` register.
     ///
@@ -97,10 +116,10 @@ where
     }
 }
 
-impl<U, REG> Reg<U, REG>
+impl<REG: Register> Reg<REG>
 where
-    Self: ResetValue + RawType<Ux = U> + Writable,
-    U: Copy
+    Self: ResetValue + RawType<Ux = REG::Ux> + Writable,
+    REG::Ux: Copy
 {
     /// Writes bits to a `Writable` register.
     ///
@@ -120,7 +139,7 @@ where
     #[inline(always)]
     pub fn write<F>(&self, f: F)
     where
-        F: FnOnce(&mut W<U, Self>) -> &mut W<U, Self>,
+        F: FnOnce(&mut W<REG::Ux, Self>) -> &mut W<REG::Ux, Self>,
     {
         self.register.set(
             f(&mut W {
@@ -132,10 +151,10 @@ where
     }
 }
 
-impl<U, REG> Reg<U, REG>
+impl<REG: Register> Reg<REG>
 where
     Self: Writable,
-    U: Copy + Default,
+    REG::Ux: Copy + Default,
 {
     /// Writes 0 to a `Writable` register.
     ///
@@ -143,11 +162,11 @@ where
     #[inline(always)]
     pub fn write_with_zero<F>(&self, f: F)
     where
-        F: FnOnce(&mut W<U, Self>) -> &mut W<U, Self>,
+        F: FnOnce(&mut W<REG::Ux, Self>) -> &mut W<REG::Ux, Self>,
     {
         self.register.set(
             f(&mut W {
-                bits: U::default(),
+                bits: REG::Ux::default(),
                 _reg: marker::PhantomData,
             })
             .bits,
@@ -155,10 +174,10 @@ where
     }
 }
 
-impl<U, REG> Reg<U, REG>
+impl<REG: Register> Reg<REG>
 where
     Self: Readable + Writable,
-    U: Copy,
+    REG::Ux: Copy,
 {
     /// Modifies the contents of the register by reading and then writing it.
     ///
@@ -180,7 +199,7 @@ where
     #[inline(always)]
     pub fn modify<F>(&self, f: F)
     where
-        for<'w> F: FnOnce(&R<U, Self>, &'w mut W<U, Self>) -> &'w mut W<U, Self>,
+        for<'w> F: FnOnce(&R<REG::Ux, Self>, &'w mut W<REG::Ux, Self>) -> &'w mut W<REG::Ux, Self>,
     {
         let bits = self.register.get();
         self.register.set(
@@ -260,13 +279,13 @@ impl<FI> R<bool, FI> {
 /// Register writer.
 ///
 /// Used as an argument to the closures in the `write` and `modify` methods of the register.
-pub struct W<U, REG> {
+pub struct W<U, T> {
     ///Writable bits
     pub(crate) bits: U,
-    _reg: marker::PhantomData<REG>,
+    _reg: marker::PhantomData<T>,
 }
 
-impl<U, REG> W<U, REG> {
+impl<U, T> W<U, T> {
     /// Writes raw bits to the register.
     #[inline(always)]
     pub unsafe fn bits(&mut self, bits: U) -> &mut Self {

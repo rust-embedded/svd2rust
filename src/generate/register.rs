@@ -71,7 +71,7 @@ pub fn render(
             let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
             mod_items.extend(quote! {
                 #[doc = #doc]
-                impl crate::ResetValue for super::#name_pc {
+                impl crate::ResettableRegister for super::#u_name_pc {
                     #[inline(always)]
                     fn reset_value() -> Self::Ux { #rv }
                 }
@@ -152,11 +152,15 @@ pub fn render(
     }
     out.extend(quote! {
         #[doc = #doc]
-        pub type #name_pc = crate::Reg<#rty, #u_name_pc>;
+        pub type #name_pc = crate::Reg<#u_name_pc>;
 
         #[allow(missing_docs)]
         #[doc(hidden)]
         pub struct #u_name_pc;
+
+        impl crate::Register for #u_name_pc {
+            type Ux = #rty;
+        }
     });
 
     if can_read {
@@ -166,7 +170,7 @@ pub fn render(
         );
         out.extend(quote! {
             #[doc = #doc]
-            impl crate::Readable for #name_pc {}
+            impl crate::ReadableRegister for #u_name_pc {}
         });
     }
     if can_write {
@@ -176,7 +180,7 @@ pub fn render(
         );
         out.extend(quote! {
             #[doc = #doc]
-            impl crate::Writable for #name_pc {}
+            impl crate::WritableRegister for #u_name_pc {}
         });
     }
 
