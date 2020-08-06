@@ -21,7 +21,6 @@ pub fn render(
     let name = util::name_of(register);
     let span = Span::call_site();
     let name_pc = Ident::new(&name.to_sanitized_upper_case(), span);
-    let u_name_pc = Ident::new(&format!("_{}", &name.to_sanitized_upper_case()), span);
     let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
     let rsize = register
         .size
@@ -55,7 +54,7 @@ pub fn render(
         let desc = format!("Reader of register {}", register.name);
         mod_items.extend(quote! {
             #[doc = #desc]
-            pub type R = crate::R<super::#u_name_pc>;
+            pub type R = crate::R<super::#name_pc>;
         });
         methods.push("read");
     }
@@ -65,13 +64,13 @@ pub fn render(
         let desc = format!("Writer for register {}", register.name);
         mod_items.extend(quote! {
             #[doc = #desc]
-            pub type W = crate::W<super::#u_name_pc>;
+            pub type W = crate::W<super::#name_pc>;
         });
         if let Some(rv) = res_val.map(util::hex) {
             let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
             mod_items.extend(quote! {
                 #[doc = #doc]
-                impl crate::ResettableRegister for super::#u_name_pc {
+                impl crate::ResettableRegister for super::#name_pc {
                     #[inline(always)]
                     fn reset_value() -> Self::Ux { #rv }
                 }
@@ -152,13 +151,9 @@ pub fn render(
     }
     out.extend(quote! {
         #[doc = #doc]
-        pub type #name_pc = crate::Reg<#u_name_pc>;
+        pub struct #name_pc;
 
-        #[allow(missing_docs)]
-        #[doc(hidden)]
-        pub struct #u_name_pc;
-
-        impl crate::Register for #u_name_pc {
+        impl crate::Register for #name_pc {
             type Ux = #rty;
         }
     });
@@ -170,7 +165,7 @@ pub fn render(
         );
         out.extend(quote! {
             #[doc = #doc]
-            impl crate::ReadableRegister for #u_name_pc {}
+            impl crate::ReadableRegister for #name_pc {}
         });
     }
     if can_write {
@@ -180,7 +175,7 @@ pub fn render(
         );
         out.extend(quote! {
             #[doc = #doc]
-            impl crate::WritableRegister for #u_name_pc {}
+            impl crate::WritableRegister for #name_pc {}
         });
     }
 

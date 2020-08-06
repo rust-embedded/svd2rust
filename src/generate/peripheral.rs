@@ -917,7 +917,7 @@ fn name_to_ty_cow<'a>(name: &'a String, ns: Option<&str>) -> Cow<'a, str> {
 
 fn name_to_ty_str_wrapped(name: &String, ns: Option<&str>) -> String {
     let ident = name_to_ty_cow(name, ns);
-    format!("crate::Reg<_{}>", ident)
+    format!("crate::Reg<{}>", ident)
 }
 
 fn name_to_ty(name: &String, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
