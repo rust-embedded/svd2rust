@@ -55,7 +55,7 @@ pub fn render(
         let desc = format!("Reader of register {}", register.name);
         mod_items.extend(quote! {
             #[doc = #desc]
-            pub type R = crate::R<#rty, super::#name_pc>;
+            pub type R = crate::R<super::#u_name_pc>;
         });
         methods.push("read");
     }
@@ -65,7 +65,7 @@ pub fn render(
         let desc = format!("Writer for register {}", register.name);
         mod_items.extend(quote! {
             #[doc = #desc]
-            pub type W = crate::W<#rty, super::#name_pc>;
+            pub type W = crate::W<super::#u_name_pc>;
         });
         if let Some(rv) = res_val.map(util::hex) {
             let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
@@ -381,7 +381,7 @@ pub fn fields(
 
                     mod_items.extend(quote! {
                         #[doc = #readerdoc]
-                        pub type #name_pc_r = crate::R<#fty, #name_pc_a>;
+                        pub type #name_pc_r = crate::FieldReader<#fty, #name_pc_a>;
                     });
                 } else {
                     let has_reserved_variant = evs.values.len() != (1 << width);
@@ -463,7 +463,7 @@ pub fn fields(
 
                     mod_items.extend(quote! {
                         #[doc = #readerdoc]
-                        pub type #name_pc_r = crate::R<#fty, #name_pc_a>;
+                        pub type #name_pc_r = crate::FieldReader<#fty, #name_pc_a>;
                         impl #name_pc_r {
                             #enum_items
                         }
@@ -472,7 +472,7 @@ pub fn fields(
             } else {
                 mod_items.extend(quote! {
                     #[doc = #readerdoc]
-                    pub type #name_pc_r = crate::R<#fty, #fty>;
+                    pub type #name_pc_r = crate::FieldReader<#fty, #fty>;
                 })
             }
         }

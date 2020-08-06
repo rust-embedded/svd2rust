@@ -87,7 +87,7 @@ where
     /// let flag = reader.field2().bit_is_set();
     /// ```
     #[inline(always)]
-    pub fn read(&self) -> R<REG::Ux, Self> {
+    pub fn read(&self) -> R<REG> {
         R {
             bits: self.register.get(),
             _reg: marker::PhantomData,
@@ -139,7 +139,7 @@ where
     #[inline(always)]
     pub fn write<F>(&self, f: F)
     where
-        F: FnOnce(&mut W<REG::Ux, Self>) -> &mut W<REG::Ux, Self>,
+        F: FnOnce(&mut W<REG>) -> &mut W<REG>,
     {
         self.register.set(
             f(&mut W {
@@ -162,7 +162,7 @@ where
     #[inline(always)]
     pub fn write_with_zero<F>(&self, f: F)
     where
-        F: FnOnce(&mut W<REG::Ux, Self>) -> &mut W<REG::Ux, Self>,
+        F: FnOnce(&mut W<REG>) -> &mut W<REG>,
     {
         self.register.set(
             f(&mut W {
@@ -199,7 +199,7 @@ where
     #[inline(always)]
     pub fn modify<F>(&self, f: F)
     where
-        for<'w> F: FnOnce(&R<REG::Ux, Self>, &'w mut W<REG::Ux, Self>) -> &'w mut W<REG::Ux, Self>,
+        for<'w> F: FnOnce(&R<REG>, &'w mut W<REG>) -> &'w mut W<REG>,
     {
         let bits = self.register.get();
         self.register.set(
@@ -218,39 +218,30 @@ where
     }
 }
 
-/// Register/field reader.
+/// Register reader.
 ///
 /// Result of the `read` methods of registers. Also used as a closure argument in the `modify`
 /// method.
-pub struct R<U, T> {
-    pub(crate) bits: U,
-    _reg: marker::PhantomData<T>,
+pub struct R<REG: Register> {
+    pub(crate) bits: REG::Ux,
+    _reg: marker::PhantomData<REG>,
 }
 
-impl<U, T> R<U, T>
+impl<REG: Register> R<REG>
 where
-    U: Copy,
+    REG::Ux: Copy,
 {
-    /// Creates a new instance of the reader.
+    /// Reads raw bits from register.
     #[inline(always)]
-    pub(crate) fn new(bits: U) -> Self {
-        Self {
-            bits,
-            _reg: marker::PhantomData,
-        }
-    }
-
-    /// Reads raw bits from register/field.
-    #[inline(always)]
-    pub fn bits(&self) -> U {
+    pub fn bits(&self) -> REG::Ux {
         self.bits
     }
 }
 
-impl<U, T, FI> PartialEq<FI> for R<U, T>
+impl<REG: Register, FI> PartialEq<FI> for R<REG>
 where
-    U: PartialEq,
-    FI: Copy + Into<U>,
+    REG::Ux: PartialEq,
+    FI: Copy + Into<REG::Ux>,
 {
     #[inline(always)]
     fn eq(&self, other: &FI) -> bool {
@@ -258,7 +249,7 @@ where
     }
 }
 
-impl<FI> R<bool, FI> {
+impl<REG: Register<Ux=bool>> R<REG> {
     /// Value of the field as raw bits.
     #[inline(always)]
     pub fn bit(&self) -> bool {
@@ -279,16 +270,16 @@ impl<FI> R<bool, FI> {
 /// Register writer.
 ///
 /// Used as an argument to the closures in the `write` and `modify` methods of the register.
-pub struct W<U, T> {
+pub struct W<REG: Register> {
     ///Writable bits
-    pub(crate) bits: U,
-    _reg: marker::PhantomData<T>,
+    pub(crate) bits: REG::Ux,
+    _reg: marker::PhantomData<REG>,
 }
 
-impl<U, T> W<U, T> {
+impl<REG: Register> W<REG> {
     /// Writes raw bits to the register.
     #[inline(always)]
-    pub unsafe fn bits(&mut self, bits: U) -> &mut Self {
+    pub unsafe fn bits(&mut self, bits: REG::Ux) -> &mut Self {
         self.bits = bits;
         self
     }
@@ -301,4 +292,61 @@ pub enum Variant<U, T> {
     Val(T),
     /// Raw bits.
     Res(U),
+}
+
+/// Field reader.
+///
+/// Result of the `read` methods of fields.
+pub struct FieldReader<U, T> {
+    pub(crate) bits: U,
+    _reg: marker::PhantomData<T>,
+}
+
+impl<U, T> FieldReader<U, T>
+where
+    U: Copy,
+{
+    /// Creates a new instance of the reader.
+    #[inline(always)]
+    pub(crate) fn new(bits: U) -> Self {
+        Self {
+            bits,
+            _reg: marker::PhantomData,
+        }
+    }
+
+    /// Reads raw bits from field.
+    #[inline(always)]
+    pub fn bits(&self) -> U {
+        self.bits
+    }
+}
+
+impl<U, T, FI> PartialEq<FI> for FieldReader<U, T>
+where
+    U: PartialEq,
+    FI: Copy + Into<U>,
+{
+    #[inline(always)]
+    fn eq(&self, other: &FI) -> bool {
+        self.bits.eq(&(*other).into())
+    }
+}
+
+impl<FI> FieldReader<bool, FI> {
+    /// Value of the field as raw bits.
+    #[inline(always)]
+    pub fn bit(&self) -> bool {
+        self.bits
+    }
+    /// Returns `true` if the bit is clear (0).
+    #[inline(always)]
+    pub fn bit_is_clear(&self) -> bool {
+        !self.bit()
+    }
+    /// Returns `true` if the bit is set (1).
+    #[inline(always)]
+    pub fn bit_is_set(&self) -> bool {
+        self.bit()
+    }
 }
