@@ -9,20 +9,20 @@ pub trait Register {
 /// Trait implemented by readable registers to enable the `read` method.
 ///
 /// Registers marked with `Writable` can be also `modify`'ed.
-pub trait ReadableRegister: Register {}
+pub trait Readable: Register {}
 
 /// Trait implemented by writeable registers.
 ///
 /// This enables the  `write`, `write_with_zero` and `reset` methods.
 ///
 /// Registers marked with `Readable` can be also `modify`'ed.
-pub trait WritableRegister: Register {}
+pub trait Writable: Register {}
 
 /// Reset value of the register.
 ///
 /// This value is the initial value for the `write` method. It can also be directly written to the
 /// register by using the `reset` method.
-pub trait ResettableRegister: Register {
+pub trait Resettable: Register {
     /// Reset value of the register.
     fn reset_value() -> Self::Ux;
 }
@@ -50,7 +50,7 @@ where
     }
 }
 
-impl<REG: ReadableRegister> Reg<REG>
+impl<REG: Readable> Reg<REG>
 where
     REG::Ux: Copy,
 {
@@ -75,7 +75,7 @@ where
     }
 }
 
-impl<REG: ResettableRegister + WritableRegister> Reg<REG>
+impl<REG: Resettable + Writable> Reg<REG>
 where
     REG::Ux: Copy,
 {
@@ -117,7 +117,7 @@ where
     }
 }
 
-impl<REG: WritableRegister> Reg<REG>
+impl<REG: Writable> Reg<REG>
 where
     REG::Ux: Copy + Default,
 {
@@ -139,7 +139,7 @@ where
     }
 }
 
-impl<REG: ReadableRegister + WritableRegister> Reg<REG>
+impl<REG: Readable + Writable> Reg<REG>
 where
     REG::Ux: Copy,
 {
