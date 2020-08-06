@@ -902,8 +902,23 @@ fn new_syn_field(ident: &str, ty: syn::Type) -> syn::Field {
     }
 }
 
-fn name_to_ty_cow<'a>(name: &'a String, ns: Option<&str>) -> Cow<'a, str> {
-    if let Some(ns) = ns {
+fn name_to_ty_str_wrapped(name: &String, ns: Option<&str>) -> String {
+    let namespace = if let Some(ns) = ns {
+        Cow::Owned(
+            String::from("self::")
+                + &ns.to_sanitized_snake_case()
+                + "::"
+                + &name.to_sanitized_snake_case(),
+        )
+    } else {
+        name.to_sanitized_snake_case()
+    };
+    let ident = name.to_sanitized_upper_case();
+    format!("crate::Reg<{}::{}>", namespace, ident)
+}
+
+fn name_to_ty(name: &String, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
+    let ident = if let Some(ns) = ns {
         Cow::Owned(
             String::from("self::")
                 + &ns.to_sanitized_snake_case()
@@ -912,16 +927,7 @@ fn name_to_ty_cow<'a>(name: &'a String, ns: Option<&str>) -> Cow<'a, str> {
         )
     } else {
         name.to_sanitized_upper_case()
-    }
-}
-
-fn name_to_ty_str_wrapped(name: &String, ns: Option<&str>) -> String {
-    let ident = name_to_ty_cow(name, ns);
-    format!("crate::Reg<{}>", ident)
-}
-
-fn name_to_ty(name: &String, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
-    let ident = name_to_ty_cow(name, ns);
+    };
     Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
 }
 

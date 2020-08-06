@@ -54,10 +54,10 @@ pub fn render(
         let desc = format!("Reader of register {}", register.name);
         mod_items.extend(quote! {
             #[doc = #desc]
-            pub struct R(crate::R<super::#name_pc>);
+            pub struct R(crate::R<#name_pc>);
 
             impl core::ops::Deref for R {
-                type Target = crate::R<super::#name_pc>;
+                type Target = crate::R<#name_pc>;
 
                 fn deref(&self) -> &Self::Target {
                     &self.0
@@ -78,7 +78,7 @@ pub fn render(
         let desc = format!("Writer for register {}", register.name);
         mod_items.extend(quote! {
             #[doc = #desc]
-            pub struct W(crate::W<super::#name_pc>);
+            pub struct W(crate::W<#name_pc>);
 
             impl W {
                 pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
@@ -101,8 +101,8 @@ pub fn render(
                 }
             }
 
-            impl core::convert::From<crate::W<super::#name_pc>> for W {
-                fn from(writer: crate::W<super::#name_pc>) -> Self {
+            impl core::convert::From<crate::W<#name_pc>> for W {
+                fn from(writer: crate::W<#name_pc>) -> Self {
                     W(writer)
                 }
             }
@@ -111,7 +111,7 @@ pub fn render(
             let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
             mod_items.extend(quote! {
                 #[doc = #doc]
-                impl crate::Resettable for super::#name_pc {
+                impl crate::Resettable for #name_pc {
                     #[inline(always)]
                     fn reset_value() -> Self::Ux { #rv }
                 }
@@ -185,12 +185,12 @@ pub fn render(
 
     if name_sc != "cfg" {
         doc += format!(
-            "\n\nFor information about available fields see [{0}]({0}) module",
+            "\n\nFor information about available fields see [{0}](index.html) module",
             &name_sc
         )
         .as_str();
     }
-    out.extend(quote! {
+    mod_items.extend(quote! {
         #[doc = #doc]
         pub struct #name_pc;
 
@@ -200,11 +200,8 @@ pub fn render(
     });
 
     if can_read {
-        let doc = format!(
-            "`read()` method returns [{0}::R]({0}::R) reader structure",
-            &name_sc
-        );
-        out.extend(quote! {
+        let doc = "`read()` method returns [R](R) reader structure";
+        mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Readable for #name_pc {
                 type Reader = R;
@@ -212,17 +209,18 @@ pub fn render(
         });
     }
     if can_write {
-        let doc = format!(
-            "`write(|w| ..)` method takes [{0}::W]({0}::W) writer structure",
-            &name_sc
-        );
-        out.extend(quote! {
+        let doc = "`write(|w| ..)` method takes [W](W) writer structure";
+        mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Writable for #name_pc {
-                type Writer = #name_sc::W;
+                type Writer = W;
             }
         });
     }
+
+    out.extend(quote! {
+        pub type #name_pc = crate::Reg<#name_sc::#name_pc>;
+    });
 
     out.extend(quote! {
         #[doc = #description]
