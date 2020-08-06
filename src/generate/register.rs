@@ -298,7 +298,7 @@ pub fn fields(
                 String::from("Reader of field ") + &quotedfield
             };
 
-            let _pc_r = Ident::new(&(name_pc.clone() + "_R"), span);
+            let name_pc_r = Ident::new(&(name_pc.clone() + "_R"), span);
 
             let cast = if width == 1 {
                 quote! { != 0 }
@@ -323,8 +323,8 @@ pub fn fields(
                 r_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub unsafe fn #sc(&self, n: usize) -> #_pc_r {
-                        #_pc_r::new ( #value )
+                    pub unsafe fn #sc(&self, n: usize) -> #name_pc_r {
+                        #name_pc_r::new ( #value )
                     }
                 });
                 for (i, suffix) in (0..*dim).zip(suffixes.iter()) {
@@ -350,8 +350,8 @@ pub fn fields(
                     r_impl_items.extend(quote! {
                         #[doc = #doc]
                         #inline
-                        pub fn #sc_n(&self) -> #_pc_r {
-                            #_pc_r::new ( #value )
+                        pub fn #sc_n(&self) -> #name_pc_r {
+                            #name_pc_r::new ( #value )
                         }
                     });
                 }
@@ -360,8 +360,8 @@ pub fn fields(
                 r_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub fn #sc(&self) -> #_pc_r {
-                        #_pc_r::new ( #value )
+                    pub fn #sc(&self) -> #name_pc_r {
+                        #name_pc_r::new ( #value )
                     }
                 });
             }
@@ -377,7 +377,7 @@ pub fn fields(
 
                     mod_items.extend(quote! {
                         #[doc = #readerdoc]
-                        pub type #_pc_r = crate::R<#fty, #name_pc_a>;
+                        pub type #name_pc_r = crate::R<#fty, #name_pc_a>;
                     });
                 } else {
                     let has_reserved_variant = evs.values.len() != (1 << width);
@@ -459,8 +459,8 @@ pub fn fields(
 
                     mod_items.extend(quote! {
                         #[doc = #readerdoc]
-                        pub type #_pc_r = crate::R<#fty, #name_pc_a>;
-                        impl #_pc_r {
+                        pub type #name_pc_r = crate::R<#fty, #name_pc_a>;
+                        impl #name_pc_r {
                             #enum_items
                         }
                     });
@@ -468,14 +468,14 @@ pub fn fields(
             } else {
                 mod_items.extend(quote! {
                     #[doc = #readerdoc]
-                    pub type #_pc_r = crate::R<#fty, #fty>;
+                    pub type #name_pc_r = crate::R<#fty, #fty>;
                 })
             }
         }
 
         if can_write {
             let new_pc_aw = Ident::new(&(name_pc.clone() + "_AW"), span);
-            let _pc_w = Ident::new(&(name_pc.clone() + "_W"), span);
+            let name_pc_w = Ident::new(&(name_pc.clone() + "_W"), span);
 
             let mut proxy_items = TokenStream::new();
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
@@ -595,12 +595,12 @@ pub fn fields(
 
             mod_items.extend(quote! {
                 #[doc = #doc]
-                pub struct #_pc_w<'a> {
+                pub struct #name_pc_w<'a> {
                     w: &'a mut W,
                     #offset_entry
                 }
 
-                impl<'a> #_pc_w<'a> {
+                impl<'a> #name_pc_w<'a> {
                     #proxy_items
                 }
             });
@@ -611,8 +611,8 @@ pub fn fields(
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub unsafe fn #sc(&mut self, n: usize) -> #_pc_w {
-                        #_pc_w { w: self, offset: #offset_calc }
+                    pub unsafe fn #sc(&mut self, n: usize) -> #name_pc_w {
+                        #name_pc_w { w: self, offset: #offset_calc }
                     }
                 });
                 for (i, suffix) in (0..*dim).zip(suffixes.iter()) {
@@ -629,8 +629,8 @@ pub fn fields(
                     w_impl_items.extend(quote! {
                         #[doc = #doc]
                         #inline
-                        pub fn #sc_n(&mut self) -> #_pc_w {
-                            #_pc_w { w: self, offset: #sub_offset }
+                        pub fn #sc_n(&mut self) -> #name_pc_w {
+                            #name_pc_w { w: self, offset: #sub_offset }
                         }
                     });
                 }
@@ -639,8 +639,8 @@ pub fn fields(
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub fn #sc(&mut self) -> #_pc_w {
-                        #_pc_w { w: self }
+                    pub fn #sc(&mut self) -> #name_pc_w {
+                        #name_pc_w { w: self }
                     }
                 });
             }
