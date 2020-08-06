@@ -35,10 +35,7 @@ pub struct Reg<REG: Register> {
 
 unsafe impl<REG: Register> Send for Reg<REG> where REG::Ux: Send {}
 
-impl<REG: Register> Reg<REG>
-where
-    REG::Ux: Copy,
-{
+impl<REG: Register> Reg<REG> {
     /// Returns the underlying memory address of register.
     ///
     /// ```ignore
@@ -50,10 +47,7 @@ where
     }
 }
 
-impl<REG: Readable> Reg<REG>
-where
-    REG::Ux: Copy,
-{
+impl<REG: Readable> Reg<REG> {
     /// Reads the contents of a `Readable` register.
     ///
     /// You can read the raw contents of a register by using `bits`:
@@ -75,10 +69,7 @@ where
     }
 }
 
-impl<REG: Resettable + Writable> Reg<REG>
-where
-    REG::Ux: Copy,
-{
+impl<REG: Resettable + Writable> Reg<REG> {
     /// Writes the reset value to `Writable` register.
     ///
     /// Resets the register to its initial state.
@@ -119,7 +110,7 @@ where
 
 impl<REG: Writable> Reg<REG>
 where
-    REG::Ux: Copy + Default,
+    REG::Ux: Default,
 {
     /// Writes 0 to a `Writable` register.
     ///
@@ -139,10 +130,7 @@ where
     }
 }
 
-impl<REG: Readable + Writable> Reg<REG>
-where
-    REG::Ux: Copy,
-{
+impl<REG: Readable + Writable> Reg<REG> {
     /// Modifies the contents of the register by reading and then writing it.
     ///
     /// E.g. to do a read-modify-write sequence to change parts of a register:
@@ -191,10 +179,7 @@ pub struct R<REG: Register> {
     _reg: marker::PhantomData<REG>,
 }
 
-impl<REG: Register> R<REG>
-where
-    REG::Ux: Copy,
-{
+impl<REG: Register> R<REG> {
     /// Reads raw bits from register.
     #[inline(always)]
     pub fn bits(&self) -> REG::Ux {
