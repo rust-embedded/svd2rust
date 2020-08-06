@@ -21,7 +21,7 @@ pub fn render(
     let name = util::name_of(register);
     let span = Span::call_site();
     let name_pc = Ident::new(&name.to_sanitized_upper_case(), span);
-    let _name_pc = Ident::new(&format!("_{}", &name.to_sanitized_upper_case()), span);
+    let u_name_pc = Ident::new(&format!("_{}", &name.to_sanitized_upper_case()), span);
     let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
     let rsize = register
         .size
@@ -152,11 +152,11 @@ pub fn render(
     }
     out.extend(quote! {
         #[doc = #doc]
-        pub type #name_pc = crate::Reg<#rty, #_name_pc>;
+        pub type #name_pc = crate::Reg<#rty, #u_name_pc>;
 
         #[allow(missing_docs)]
         #[doc(hidden)]
-        pub struct #_name_pc;
+        pub struct #u_name_pc;
     });
 
     if can_read {
