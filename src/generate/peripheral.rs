@@ -799,7 +799,7 @@ fn expand_svd_register(
             for (idx, _i) in indices.iter().zip(0..) {
                 let nb_name = util::replace_suffix(&info.name, idx);
 
-                let ty = name_to_ty(&ty_name, name)?;
+                let ty = name_to_ty_wrapped(&ty_name, name)?;
 
                 out.push(new_syn_field(&nb_name.to_sanitized_snake_case(), ty));
             }
@@ -813,14 +813,14 @@ fn convert_svd_register(register: &Register, name: Option<&str>) -> Result<syn::
     Ok(match register {
         Register::Single(info) => new_syn_field(
             &info.name.to_sanitized_snake_case(),
-            name_to_ty(&info.name, name)?,
+            name_to_ty_wrapped(&info.name, name)?,
         ),
         Register::Array(info, array_info) => {
             let nb_name = util::replace_suffix(&info.name, "");
 
             let ty = syn::Type::Array(parse_str::<syn::TypeArray>(&format!(
                 "[{};{}]",
-                name_to_ty_cow(&nb_name, name),
+                name_to_ty_str_wrapped(&nb_name, name),
                 u64::from(array_info.dim)
             ))?);
 
@@ -915,7 +915,17 @@ fn name_to_ty_cow<'a>(name: &'a String, ns: Option<&str>) -> Cow<'a, str> {
     }
 }
 
+fn name_to_ty_str_wrapped(name: &String, ns: Option<&str>) -> String {
+    let ident = name_to_ty_cow(name, ns);
+    format!("crate::Reg<_{}>", ident)
+}
+
 fn name_to_ty(name: &String, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
     let ident = name_to_ty_cow(name, ns);
+    Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
+}
+
+fn name_to_ty_wrapped(name: &String, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
+    let ident = name_to_ty_str_wrapped(name, ns);
     Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
 }
