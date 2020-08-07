@@ -42,6 +42,7 @@ pub fn render(
         }))
         .as_ref(),
     );
+    let res_val = register.reset_value.or(defs.reset_value).map(|v| v as u64);
 
     let mut mod_items = TokenStream::new();
     let mut r_impl_items = TokenStream::new();
@@ -50,6 +51,7 @@ pub fn render(
 
     let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access);
     let can_write = access != Access::ReadOnly;
+    let can_reset = res_val.is_some();
 
     if can_read {
         let desc = format!("Reader of register {}", register.name);
@@ -60,26 +62,17 @@ pub fn render(
         methods.push("read");
     }
 
-    let res_val = register.reset_value.or(defs.reset_value).map(|v| v as u64);
     if can_write {
         let desc = format!("Writer for register {}", register.name);
         mod_items.extend(quote! {
             #[doc = #desc]
             pub type W = crate::W<super::#u_name_pc>;
         });
-        if let Some(rv) = res_val.map(util::hex) {
-            let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
-            mod_items.extend(quote! {
-                #[doc = #doc]
-                impl crate::Resettable for super::#u_name_pc {
-                    #[inline(always)]
-                    fn reset_value() -> Self::Ux { #rv }
-                }
-            });
+        methods.push("write_with_zero");
+        if can_reset {
             methods.push("reset");
             methods.push("write");
         }
-        methods.push("write_with_zero");
     }
 
     if can_read && can_write {
@@ -181,6 +174,16 @@ pub fn render(
         out.extend(quote! {
             #[doc = #doc]
             impl crate::Writable for #u_name_pc {}
+        });
+    }
+    if let Some(rv) = res_val.map(util::hex) {
+        let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
+        out.extend(quote! {
+            #[doc = #doc]
+            impl crate::Resettable for #u_name_pc {
+                #[inline(always)]
+                fn reset_value() -> Self::Ux { #rv }
+            }
         });
     }
 
