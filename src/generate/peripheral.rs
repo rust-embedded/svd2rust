@@ -799,7 +799,7 @@ fn expand_svd_register(
             for (idx, _i) in indices.iter().zip(0..) {
                 let nb_name = util::replace_suffix(&info.name, idx);
 
-                let ty = name_to_ty(&ty_name, name)?;
+                let ty = name_to_wrapped_ty(&ty_name, name)?;
 
                 out.push(new_syn_field(&nb_name.to_sanitized_snake_case(), ty));
             }
@@ -810,28 +810,17 @@ fn expand_svd_register(
 
 /// Convert a parsed `Register` into its `Field` equivalent
 fn convert_svd_register(register: &Register, name: Option<&str>) -> Result<syn::Field, syn::Error> {
-    let name_to_ty_str = |name: &String, ns: Option<&str>| -> String {
-        if let Some(ns) = ns {
-            String::from("self::")
-                + &ns.to_sanitized_snake_case()
-                + "::"
-                + &name.to_sanitized_upper_case()
-        } else {
-            name.to_sanitized_upper_case().to_string()
-        }
-    };
-
     Ok(match register {
         Register::Single(info) => new_syn_field(
             &info.name.to_sanitized_snake_case(),
-            name_to_ty(&info.name, name)?,
+            name_to_wrapped_ty(&info.name, name)?,
         ),
         Register::Array(info, array_info) => {
             let nb_name = util::replace_suffix(&info.name, "");
 
             let ty = syn::Type::Array(parse_str::<syn::TypeArray>(&format!(
                 "[{};{}]",
-                name_to_ty_str(&nb_name, name),
+                name_to_wrapped_ty_str(&nb_name, name),
                 u64::from(array_info.dim)
             ))?);
 
@@ -924,6 +913,27 @@ fn name_to_ty(name: &String, ns: Option<&str>) -> Result<syn::Type, syn::Error> 
     } else {
         name.to_sanitized_upper_case()
     };
+    Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
+}
 
+fn name_to_wrapped_ty_str(name: &String, ns: Option<&str>) -> String {
+    if let Some(ns) = ns {
+        format!(
+            "crate::Reg<self::{}::{}::{}_SPEC>",
+            &ns.to_sanitized_snake_case(),
+            &name.to_sanitized_snake_case(),
+            &name.to_sanitized_upper_case(),
+        )
+    } else {
+        format!(
+            "crate::Reg<{}::{}_SPEC>",
+            &name.to_sanitized_snake_case(),
+            &name.to_sanitized_upper_case(),
+        )
+    }
+}
+
+fn name_to_wrapped_ty(name: &String, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
+    let ident = name_to_wrapped_ty_str(name, ns);
     Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
 }
