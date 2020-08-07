@@ -21,7 +21,7 @@ pub fn render(
     let name = util::name_of(register);
     let span = Span::call_site();
     let name_pc = Ident::new(&name.to_sanitized_upper_case(), span);
-    let u_name_pc = Ident::new(&format!("_{}", &name.to_sanitized_upper_case()), span);
+    let name_uc_spec = Ident::new(&format!("{}_SPEC", &name.to_sanitized_upper_case()), span);
     let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
     let rsize = register
         .size
@@ -42,6 +42,7 @@ pub fn render(
         }))
         .as_ref(),
     );
+    let res_val = register.reset_value.or(defs.reset_value).map(|v| v as u64);
 
     let mut mod_items = TokenStream::new();
     let mut r_impl_items = TokenStream::new();
@@ -50,36 +51,28 @@ pub fn render(
 
     let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access);
     let can_write = access != Access::ReadOnly;
+    let can_reset = res_val.is_some();
 
     if can_read {
         let desc = format!("Reader of register {}", register.name);
         mod_items.extend(quote! {
             #[doc = #desc]
-            pub type R = crate::R<#rty, super::#name_pc>;
+            pub type R = crate::R<#name_uc_spec>;
         });
         methods.push("read");
     }
 
-    let res_val = register.reset_value.or(defs.reset_value).map(|v| v as u64);
     if can_write {
         let desc = format!("Writer for register {}", register.name);
         mod_items.extend(quote! {
             #[doc = #desc]
-            pub type W = crate::W<#rty, super::#name_pc>;
+            pub type W = crate::W<#name_uc_spec>;
         });
-        if let Some(rv) = res_val.map(util::hex) {
-            let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
-            mod_items.extend(quote! {
-                #[doc = #doc]
-                impl crate::ResetValue for super::#name_pc {
-                    #[inline(always)]
-                    fn reset_value() -> Self::Ux { #rv }
-                }
-            });
+        methods.push("write_with_zero");
+        if can_reset {
             methods.push("reset");
             methods.push("write");
         }
-        methods.push("write_with_zero");
     }
 
     if can_read && can_write {
@@ -145,38 +138,56 @@ pub fn render(
 
     if name_sc != "cfg" {
         doc += format!(
-            "\n\nFor information about available fields see [{0}]({0}) module",
+            "\n\nFor information about available fields see [{0}](index.html) module",
             &name_sc
         )
         .as_str();
     }
+    let alias_doc = format!(
+        "{} register accessor: an alias for `Reg<{}>`",
+        name, name_uc_spec,
+    );
     out.extend(quote! {
+        #[doc = #alias_doc]
+        pub type #name_pc = crate::Reg<#name_sc::#name_uc_spec>;
+    });
+    mod_items.extend(quote! {
         #[doc = #doc]
-        pub type #name_pc = crate::Reg<#rty, #u_name_pc>;
+        pub struct #name_uc_spec;
 
-        #[allow(missing_docs)]
-        #[doc(hidden)]
-        pub struct #u_name_pc;
+        impl crate::RegisterSpec for #name_uc_spec {
+            type Ux = #rty;
+        }
     });
 
     if can_read {
         let doc = format!(
-            "`read()` method returns [{0}::R]({0}::R) reader structure",
+            "`read()` method returns [{0}::R](R) reader structure",
             &name_sc
         );
-        out.extend(quote! {
+        mod_items.extend(quote! {
             #[doc = #doc]
-            impl crate::Readable for #name_pc {}
+            impl crate::Readable for #name_uc_spec {}
         });
     }
     if can_write {
         let doc = format!(
-            "`write(|w| ..)` method takes [{0}::W]({0}::W) writer structure",
+            "`write(|w| ..)` method takes [{0}::W](W) writer structure",
             &name_sc
         );
-        out.extend(quote! {
+        mod_items.extend(quote! {
             #[doc = #doc]
-            impl crate::Writable for #name_pc {}
+            impl crate::Writable for #name_uc_spec {}
+        });
+    }
+    if let Some(rv) = res_val.map(util::hex) {
+        let doc = format!("`reset()` method sets {} to value {}", register.name, &rv);
+        mod_items.extend(quote! {
+            #[doc = #doc]
+            impl crate::Resettable for #name_uc_spec {
+                #[inline(always)]
+                fn reset_value() -> Self::Ux { #rv }
+            }
         });
     }
 
@@ -377,7 +388,7 @@ pub fn fields(
 
                     mod_items.extend(quote! {
                         #[doc = #readerdoc]
-                        pub type #name_pc_r = crate::R<#fty, #name_pc_a>;
+                        pub type #name_pc_r = crate::FieldReader<#fty, #name_pc_a>;
                     });
                 } else {
                     let has_reserved_variant = evs.values.len() != (1 << width);
@@ -459,7 +470,7 @@ pub fn fields(
 
                     mod_items.extend(quote! {
                         #[doc = #readerdoc]
-                        pub type #name_pc_r = crate::R<#fty, #name_pc_a>;
+                        pub type #name_pc_r = crate::FieldReader<#fty, #name_pc_a>;
                         impl #name_pc_r {
                             #enum_items
                         }
@@ -468,7 +479,7 @@ pub fn fields(
             } else {
                 mod_items.extend(quote! {
                     #[doc = #readerdoc]
-                    pub type #name_pc_r = crate::R<#fty, #fty>;
+                    pub type #name_pc_r = crate::FieldReader<#fty, #fty>;
                 })
             }
         }
