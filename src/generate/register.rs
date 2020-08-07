@@ -62,6 +62,7 @@ pub fn render(
             impl core::ops::Deref for R {
                 type Target = crate::R<#name_uc_spec>;
 
+                #[inline(always)]
                 fn deref(&self) -> &Self::Target {
                     &self.0
                 }
@@ -85,12 +86,14 @@ pub fn render(
             impl core::ops::Deref for W {
                 type Target = crate::W<#name_uc_spec>;
 
+                #[inline(always)]
                 fn deref(&self) -> &Self::Target {
                     &self.0
                 }
             }
 
             impl core::ops::DerefMut for W {
+                #[inline(always)]
                 fn deref_mut(&mut self) -> &mut Self::Target {
                     &mut self.0
                 }
@@ -445,6 +448,7 @@ pub fn fields(
                         impl core::ops::Deref for #name_pc_r {
                             type Target = crate::FieldReader<#fty, #name_pc_a>;
 
+                            #[inline(always)]
                             fn deref(&self) -> &Self::Target {
                                 &self.0
                             }
@@ -542,6 +546,7 @@ pub fn fields(
                         impl core::ops::Deref for #name_pc_r {
                             type Target = crate::FieldReader<#fty, #name_pc_a>;
 
+                            #[inline(always)]
                             fn deref(&self) -> &Self::Target {
                                 &self.0
                             }
@@ -562,6 +567,7 @@ pub fn fields(
                     impl core::ops::Deref for #name_pc_r {
                         type Target = crate::FieldReader<#fty, #fty>;
 
+                        #[inline(always)]
                         fn deref(&self) -> &Self::Target {
                             &self.0
                         }
