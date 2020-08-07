@@ -1,7 +1,7 @@
 use core::marker;
 
 /// Raw register type
-pub trait Register {
+pub trait RegisterSpec {
     /// Raw register type (`u8`, `u16`, `u32`, ...).
     type Ux: Copy;
 }
@@ -9,33 +9,33 @@ pub trait Register {
 /// Trait implemented by readable registers to enable the `read` method.
 ///
 /// Registers marked with `Writable` can be also `modify`'ed.
-pub trait Readable: Register {}
+pub trait Readable: RegisterSpec {}
 
 /// Trait implemented by writeable registers.
 ///
 /// This enables the  `write`, `write_with_zero` and `reset` methods.
 ///
 /// Registers marked with `Readable` can be also `modify`'ed.
-pub trait Writable: Register {}
+pub trait Writable: RegisterSpec {}
 
 /// Reset value of the register.
 ///
 /// This value is the initial value for the `write` method. It can also be directly written to the
 /// register by using the `reset` method.
-pub trait Resettable: Register {
+pub trait Resettable: RegisterSpec {
     /// Reset value of the register.
     fn reset_value() -> Self::Ux;
 }
 
 /// This structure provides volatile access to registers.
-pub struct Reg<REG: Register> {
+pub struct Reg<REG: RegisterSpec> {
     register: vcell::VolatileCell<REG::Ux>,
     _marker: marker::PhantomData<REG>,
 }
 
-unsafe impl<REG: Register> Send for Reg<REG> where REG::Ux: Send {}
+unsafe impl<REG: RegisterSpec> Send for Reg<REG> where REG::Ux: Send {}
 
-impl<REG: Register> Reg<REG> {
+impl<REG: RegisterSpec> Reg<REG> {
     /// Returns the underlying memory address of register.
     ///
     /// ```ignore
@@ -174,12 +174,12 @@ impl<REG: Readable + Writable> Reg<REG> {
 ///
 /// Result of the `read` methods of registers. Also used as a closure argument in the `modify`
 /// method.
-pub struct R<REG: Register> {
+pub struct R<REG: RegisterSpec> {
     pub(crate) bits: REG::Ux,
     _reg: marker::PhantomData<REG>,
 }
 
-impl<REG: Register> R<REG> {
+impl<REG: RegisterSpec> R<REG> {
     /// Reads raw bits from register.
     #[inline(always)]
     pub fn bits(&self) -> REG::Ux {
@@ -187,7 +187,7 @@ impl<REG: Register> R<REG> {
     }
 }
 
-impl<REG: Register, FI> PartialEq<FI> for R<REG>
+impl<REG: RegisterSpec, FI> PartialEq<FI> for R<REG>
 where
     REG::Ux: PartialEq,
     FI: Copy + Into<REG::Ux>,
@@ -201,13 +201,13 @@ where
 /// Register writer.
 ///
 /// Used as an argument to the closures in the `write` and `modify` methods of the register.
-pub struct W<REG: Register> {
+pub struct W<REG: RegisterSpec> {
     ///Writable bits
     pub(crate) bits: REG::Ux,
     _reg: marker::PhantomData<REG>,
 }
 
-impl<REG: Register> W<REG> {
+impl<REG: RegisterSpec> W<REG> {
     /// Writes raw bits to the register.
     #[inline(always)]
     pub unsafe fn bits(&mut self, bits: REG::Ux) -> &mut Self {

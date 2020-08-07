@@ -158,7 +158,7 @@ pub fn render(
         #[doc(hidden)]
         pub struct #u_name_pc;
 
-        impl crate::Register for #u_name_pc {
+        impl crate::RegisterSpec for #u_name_pc {
             type Ux = #rty;
         }
     });
