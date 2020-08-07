@@ -177,7 +177,7 @@ pub fn render(
         });
     }
     if let Some(rv) = res_val.map(util::hex) {
-        let doc = format!("Register {} `reset()`'s with value {}", register.name, &rv);
+        let doc = format!("`reset()` method sets {} to value {}", register.name, &rv);
         out.extend(quote! {
             #[doc = #doc]
             impl crate::Resettable for #u_name_pc {
