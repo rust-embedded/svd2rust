@@ -144,12 +144,10 @@ pub fn render(
         .as_str();
     }
     out.extend(quote! {
-        #[doc = #doc]
         pub type #name_pc = crate::Reg<#name_sc::#name_uc_spec>;
     });
     mod_items.extend(quote! {
-        #[allow(missing_docs)]
-        #[doc(hidden)]
+        #[doc = #doc]
         pub struct #name_uc_spec;
 
         impl crate::RegisterSpec for #name_uc_spec {
