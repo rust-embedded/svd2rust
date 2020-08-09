@@ -160,41 +160,54 @@ pub fn render(
         (quote!(#[repr(u8)]), quote!(*#self_token as u8))
     };
 
-    let interrupt_enum = quote! {
-        ///Enumeration of all the interrupts
-        #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-        #enum_repr
-        pub enum Interrupt {
-            #variants
-        }
-
-        unsafe impl bare_metal::Nr for Interrupt {
-            #[inline(always)]
-            fn nr(&#self_token) -> u8 {
-                #nr_expr
+    if target == Target::Msp430 {
+        let interrupt_enum = quote! {
+            ///Enumeration of all the interrupts. This enum is seldom used in application or library crates. It is present primarily for documenting the device's implemented interrupts.
+            #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+            #enum_repr
+            pub enum Interrupt {
+                #variants
             }
-        }
-    };
+        };
 
-    if target == Target::CortexM || target == Target::Msp430 {
         root.extend(interrupt_enum);
     } else {
-        mod_items.extend(quote! {
-            #interrupt_enum
+        let interrupt_enum = quote! {
+            ///Enumeration of all the interrupts
+            #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+            #enum_repr
+            pub enum Interrupt {
+                #variants
+            }
 
-            #[derive(Debug, Copy, Clone)]
-            pub struct TryFromInterruptError(());
-
-            impl Interrupt {
-                #[inline]
-                pub fn try_from(value: u8) -> Result<Self, TryFromInterruptError> {
-                    match value {
-                        #from_arms
-                        _ => Err(TryFromInterruptError(())),
-                    }
+            unsafe impl bare_metal::Nr for Interrupt {
+                #[inline(always)]
+                fn nr(&#self_token) -> u8 {
+                    #nr_expr
                 }
             }
-        });
+        };
+
+        if target == Target::CortexM {
+            root.extend(interrupt_enum);
+        } else {
+            mod_items.extend(quote! {
+                #interrupt_enum
+
+                #[derive(Debug, Copy, Clone)]
+                pub struct TryFromInterruptError(());
+
+                impl Interrupt {
+                    #[inline]
+                    pub fn try_from(value: u8) -> Result<Self, TryFromInterruptError> {
+                        match value {
+                            #from_arms
+                            _ => Err(TryFromInterruptError(())),
+                        }
+                    }
+                }
+            });
+        }
     }
 
     if target != Target::None {
