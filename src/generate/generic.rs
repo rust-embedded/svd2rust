@@ -243,6 +243,7 @@ where
     U: Copy,
 {
     /// Creates a new instance of the reader.
+    #[allow(unused)]
     #[inline(always)]
     pub(crate) fn new(bits: U) -> Self {
         Self {
