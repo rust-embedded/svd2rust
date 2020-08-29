@@ -462,7 +462,6 @@ fn register_or_cluster_block(
 
             if is_region_a_union {
                 let name = &reg_block_field.field.ident;
-                let mut_name = Ident::new(&format!("{}_mut", name.as_ref().unwrap()), span);
                 let ty = &reg_block_field.field.ty;
                 let offset = reg_block_field.offset as usize;
                 have_accessors = true;
@@ -472,14 +471,6 @@ fn register_or_cluster_block(
                     pub fn #name(&self) -> &#ty {
                         unsafe {
                             &*(((self as *const Self) as *const u8).add(#offset) as *const #ty)
-                        }
-                    }
-
-                    #[doc = #comment]
-                    #[inline(always)]
-                    pub fn #mut_name(&self) -> &mut #ty {
-                        unsafe {
-                            &mut *(((self as *const Self) as *mut u8).add(#offset) as *mut #ty)
                         }
                     }
                 });
