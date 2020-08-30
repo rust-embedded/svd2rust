@@ -54,7 +54,7 @@ pub fn render(
     let can_reset = res_val.is_some();
 
     if can_read {
-        let desc = format!("Reader of register {}", register.name);
+        let desc = format!("Register `{}` reader", register.name);
         mod_items.extend(quote! {
             #[doc = #desc]
             pub struct R(crate::R<#name_uc_spec>);
@@ -78,7 +78,7 @@ pub fn render(
     }
 
     if can_write {
-        let desc = format!("Writer for register {}", register.name);
+        let desc = format!("Register `{}` writer", register.name);
         mod_items.extend(quote! {
             #[doc = #desc]
             pub struct W(crate::W<#name_uc_spec>);
@@ -350,12 +350,12 @@ pub fn fields(
         if can_read {
             let readerdoc = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
                 format!(
-                    "Reader of fields `{}`",
-                    util::replace_suffix(&f.name, suffixes_str)
+                    "Fields `{}` reader - {}",
+                    util::replace_suffix(&f.name, suffixes_str),
+                    description,
                 )
             } else {
-                let quotedfield = String::from("`") + &f.name + "`";
-                String::from("Reader of field ") + &quotedfield
+                format!("Field `{}` reader - {}", f.name, description)
             };
 
             let name_pc_r = Ident::new(&(name_pc.clone() + "_R"), span);
@@ -687,12 +687,13 @@ pub fn fields(
             let offset_entry;
             if let Some((_, _, _, _, suffixes_str)) = &field_dim {
                 doc = format!(
-                    "Write proxy for fields `{}`",
-                    util::replace_suffix(&f.name, suffixes_str)
+                    "Fields `{}` writer - {}",
+                    util::replace_suffix(&f.name, suffixes_str),
+                    description
                 );
                 offset_entry = quote! {offset: usize,};
             } else {
-                doc = format!("Write proxy for field `{}`", f.name);
+                doc = format!("Field `{}` writer - {}", f.name, description);
                 offset_entry = quote! {};
             }
 
