@@ -134,7 +134,7 @@ pub fn test(
             CortexM => CRATES_CORTEX_M.iter(),
             RiscV => CRATES_RISCV.iter(),
             Msp430 => CRATES_MSP430.iter(),
-            XtensaLX6 => CRATES_XTENSALX6.iter(),
+            XtensaLX => CRATES_XTENSALX6.iter(),
         })
         .chain(PROFILE_ALL.iter())
         .chain(FEATURES_ALL.iter())
@@ -167,7 +167,7 @@ pub fn test(
         CortexM => "cortex-m",
         Msp430 => "msp430",
         RiscV => "riscv",
-        XtensaLX6 => "xtensalx6",
+        XtensaLX => "xtensa-lx",
     };
     let mut svd2rust_bin = Command::new(bin_path);
     if nightly {
@@ -184,14 +184,14 @@ pub fn test(
         true,
         "svd2rust",
         Some(&lib_rs_file)
-            .filter(|_| (t.arch != CortexM) && (t.arch != Msp430) && (t.arch != XtensaLX6)),
+            .filter(|_| (t.arch != CortexM) && (t.arch != Msp430) && (t.arch != XtensaLX)),
         Some(&svd2rust_err_file),
         &[],
     )?;
     process_stderr_paths.push(svd2rust_err_file);
 
     match t.arch {
-        CortexM | Msp430 | XtensaLX6 => {
+        CortexM | Msp430 | XtensaLX => {
             // TODO: Give error the path to stderr
             fs::rename(path_helper_base(&chip_dir, &["lib.rs"]), &lib_rs_file)
                 .chain_err(|| "While moving lib.rs file")?

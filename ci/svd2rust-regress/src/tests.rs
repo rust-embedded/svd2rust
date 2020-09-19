@@ -7,7 +7,7 @@ pub enum Architecture {
     CortexM,
     Msp430,
     RiscV,
-    XtensaLX6,
+    XtensaLX,
 }
 
 #[derive(Debug)]
@@ -4229,7 +4229,7 @@ pub const TESTS: &[&TestCase] = &[
         run_when: Always,
     },
     &TestCase {
-        arch: XtensaLX6,
+        arch: XtensaLX,
         mfgr: Espressif,
         chip: "esp32",
         svd_url: Some(
