@@ -33,6 +33,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Don't generate pre Edition 2018 `extern crate` statements anymore
 
+- [breaking-change] Cortex-M PACs now rely on
+  `cortex_m::interrupt::InterruptNumber` instead of `bare_metal::Nr` for
+  interrupt number handling. The minimum supported `cortex-m` version is now
+  **0.7** and `bare-metal` is not a dependency anymore.
+
 ## [v0.17.0] - 2019-12-31
 
 ### Fixed

@@ -155,9 +155,9 @@ pub fn render(
 
     let self_token = quote!(self);
     let (enum_repr, nr_expr) = if variants.is_empty() {
-        (quote!(), quote!(match *#self_token {}))
+        (quote!(), quote!(match #self_token {}))
     } else {
-        (quote!(#[repr(u8)]), quote!(*#self_token as u8))
+        (quote!(#[repr(u16)]), quote!(#self_token as u16))
     };
 
     if target == Target::Msp430 {
@@ -180,9 +180,9 @@ pub fn render(
                 #variants
             }
 
-            unsafe impl bare_metal::Nr for Interrupt {
+            unsafe impl cortex_m::interrupt::InterruptNumber for Interrupt {
                 #[inline(always)]
-                fn nr(&#self_token) -> u8 {
+                fn number(#self_token) -> u16 {
                     #nr_expr
                 }
             }
