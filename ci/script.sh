@@ -702,7 +702,7 @@ main() {
             echo 'version = "0.5.0"' >> $td/Cargo.toml
             echo 'features = ["lx6"]' >> $td/Cargo.toml
 
-            test_svd_for_target xtensa-lx https://raw.githubusercontent.com/arjanmels/esp32/add-output-svd/svd/esp32.svd
+            test_svd_for_target xtensa-lx https://raw.githubusercontent.com/esp-rs/esp32/master/svd/esp32.svd
         ;;
 
     esac
