@@ -5,8 +5,8 @@ version = "0.1.0"
 authors = ["James Munns <james.munns@gmail.com>", "The svd2rust developers"]
 
 [dependencies]
-reqwest = "0.9"
-rayon = "1.1"
+reqwest = { version = "0.10", features= ["blocking"] }
+rayon = "1.4"
 structopt = "0.2"
 error-chain = "0.12"
 inflections = "1.1"

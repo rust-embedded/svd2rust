@@ -1,21 +1,17 @@
 use crate::errors::*;
 use crate::tests::TestCase;
-use reqwest;
 use std::fs::{self, File, OpenOptions};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Output};
 
-static CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.0\""];
-static CRATES_MSP430: &[&str] = &["msp430 = \"0.1.0\""];
-static CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.5.0\"", "cortex-m-rt = \"0.5.0\""];
-static CRATES_RISCV: &[&str] = &["riscv = \"0.4.0\"", "riscv-rt = \"0.4.0\""];
-static CRATES_XTENSALX6: &[&str] = &["xtensa-lx6-rt = \"0.2.0\"", "xtensa-lx6 = \"0.1.0\""];
-static PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
-static FEATURES_ALL: &[&str] = &["[features]"];
-static FEATURES_CORTEX_M: &[&str] =
-    &["const-fn = [\"bare-metal/const-fn\", \"cortex-m/const-fn\"]"];
-static FEATURES_EMPTY: &[&str] = &[];
+const CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.0\""];
+const CRATES_MSP430: &[&str] = &["msp430 = \"0.2.2\""];
+const CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.6.0\"", "cortex-m-rt = \"0.6.0\""];
+const CRATES_RISCV: &[&str] = &["riscv = \"0.5.0\"", "riscv-rt = \"0.6.0\""];
+const CRATES_XTENSALX6: &[&str] = &["xtensa-lx6-rt = \"0.2.0\"", "xtensa-lx6 = \"0.1.0\""];
+const PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
+const FEATURES_ALL: &[&str] = &["[features]"];
 
 fn path_helper(input: &[&str]) -> PathBuf {
     input.iter().collect()
@@ -137,11 +133,7 @@ pub fn test(
             XtensaLX6 => CRATES_XTENSALX6.iter(),
         })
         .chain(PROFILE_ALL.iter())
-        .chain(FEATURES_ALL.iter())
-        .chain(match &t.arch {
-            CortexM => FEATURES_CORTEX_M.iter(),
-            _ => FEATURES_EMPTY.iter(),
-        });
+        .chain(FEATURES_ALL.iter());
 
     for c in crates {
         writeln!(file, "{}", c).chain_err(|| "Failed to append to file!")?;
@@ -149,7 +141,7 @@ pub fn test(
 
     // Download the SVD as specified in the URL
     // TODO: Check for existing svd files? `--no-cache` flag?
-    let svd = reqwest::get(&t.svd_url())
+    let svd = reqwest::blocking::get(&t.svd_url())
         .chain_err(|| "Failed to get svd URL")?
         .text()
         .chain_err(|| "SVD is bad text")?;
