@@ -198,7 +198,7 @@ pub fn render(
         Target::CortexM => Some(Ident::new("cortex_m", span)),
         Target::Msp430 => Some(Ident::new("msp430", span)),
         Target::RISCV => Some(Ident::new("riscv", span)),
-        Target::XtensaLX6 => Some(Ident::new("xtensa_lx6", span)),
+        Target::XtensaLX => Some(Ident::new("xtensa_lx", span)),
         Target::None => None,
     }
     .map(|krate| {

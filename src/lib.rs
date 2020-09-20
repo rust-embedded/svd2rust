@@ -20,7 +20,7 @@
 //!
 //! `svd2rust` supports Cortex-M, MSP430, RISCV and Xtensa LX6 microcontrollers. The generated crate can
 //! be tailored for either architecture using the `--target` flag. The flag accepts "cortex-m",
-//! "msp430", "riscv", "xtensalx6" and "none" as values. "none" can be used to generate a crate that's
+//! "msp430", "riscv", "xtensa-lx" and "none" as values. "none" can be used to generate a crate that's
 //! architecture agnostic and that should work for architectures that `svd2rust` doesn't currently
 //! know about like the Cortex-A architecture.
 //!
