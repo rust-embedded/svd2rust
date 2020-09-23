@@ -430,30 +430,15 @@ pub fn fields(
                 evs_r = Some(evs.clone());
 
                 if let Some(base) = base {
-                    let pc = util::replace_suffix(base.field, "");
-                    let pc = pc.to_sanitized_upper_case();
-                    let base_pc_r = Ident::new(&(pc + "_A"), span);
-                    derive_from_base(mod_items, &base, &name_pc_a, &base_pc_r, &description);
+                    let pc_orig = util::replace_suffix(base.field, "");
 
-                    mod_items.extend(quote! {
-                        #[doc = #readerdoc]
-                        pub struct #name_pc_r(crate::FieldReader<#fty, #name_pc_a>);
+                    let pc = pc_orig.to_sanitized_upper_case();
+                    let base_pc_a = Ident::new(&(pc + "_A"), span);
+                    derive_from_base(mod_items, &base, &name_pc_a, &base_pc_a, &description);
 
-                        impl #name_pc_r {
-                            pub(crate) fn new(bits: #fty) -> Self {
-                                #name_pc_r(crate::FieldReader::new(bits))
-                            }
-                        }
-
-                        impl core::ops::Deref for #name_pc_r {
-                            type Target = crate::FieldReader<#fty, #name_pc_a>;
-
-                            #[inline(always)]
-                            fn deref(&self) -> &Self::Target {
-                                &self.0
-                            }
-                        }
-                    });
+                    let pc = pc_orig.to_sanitized_upper_case();
+                    let base_pc_r = Ident::new(&(pc + "_R"), span);
+                    derive_from_base(mod_items, &base, &name_pc_r, &base_pc_r, &readerdoc);
                 } else {
                     let has_reserved_variant = evs.values.len() != (1 << width);
                     let variants = Variant::from_enumerated_values(evs)?;
