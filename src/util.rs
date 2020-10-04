@@ -279,10 +279,12 @@ impl U32Ext for u32 {
                 9..=16 => "u16",
                 17..=32 => "u32",
                 33..=64 => "u64",
-                _ => Err(anyhow!(
-                    "can't convert {} bits into a Rust integral type",
-                    *self
-                ))?,
+                _ => {
+                    return Err(anyhow!(
+                        "can't convert {} bits into a Rust integral type",
+                        *self
+                    ))
+                }
             },
             Span::call_site(),
         ))
@@ -295,10 +297,12 @@ impl U32Ext for u32 {
             9..=16 => 16,
             17..=32 => 32,
             33..=64 => 64,
-            _ => Err(anyhow!(
-                "can't convert {} bits into a Rust integral type width",
-                *self
-            ))?,
+            _ => {
+                return Err(anyhow!(
+                    "can't convert {} bits into a Rust integral type width",
+                    *self
+                ))
+            }
         })
     }
 }
