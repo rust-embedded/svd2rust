@@ -893,7 +893,7 @@ fn new_syn_field(ident: &str, ty: syn::Type) -> syn::Field {
     }
 }
 
-fn name_to_ty(name: &String, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
+fn name_to_ty(name: &str, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
     let ident = if let Some(ns) = ns {
         Cow::Owned(
             String::from("self::")
@@ -907,7 +907,7 @@ fn name_to_ty(name: &String, ns: Option<&str>) -> Result<syn::Type, syn::Error> 
     Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
 }
 
-fn name_to_wrapped_ty_str(name: &String, ns: Option<&str>) -> String {
+fn name_to_wrapped_ty_str(name: &str, ns: Option<&str>) -> String {
     if let Some(ns) = ns {
         format!(
             "crate::Reg<self::{}::{}::{}_SPEC>",
@@ -924,7 +924,7 @@ fn name_to_wrapped_ty_str(name: &String, ns: Option<&str>) -> String {
     }
 }
 
-fn name_to_wrapped_ty(name: &String, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
+fn name_to_wrapped_ty(name: &str, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
     let ident = name_to_wrapped_ty_str(name, ns);
     Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
 }

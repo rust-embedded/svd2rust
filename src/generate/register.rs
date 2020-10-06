@@ -323,7 +323,7 @@ pub fn fields(
                             .map(|element| element.parse::<u32>())
                             .eq((first..de.dim + first).map(Ok));
                         if !sequential_indexes {
-                            return Err(anyhow!("unsupported array indexes in {}", f.name))?;
+                            return Err(anyhow!("unsupported array indexes in {}", f.name));
                         }
                         (first, None)
                     } else {
@@ -341,7 +341,7 @@ pub fn fields(
             }
             Field::Single(_) => {
                 if f.name.contains("%s") {
-                    return Err(anyhow!("incorrect field {}", f.name))?;
+                    return Err(anyhow!("incorrect field {}", f.name));
                 }
                 None
             }
@@ -870,7 +870,7 @@ fn description_with_bits(description: &str, offset: u64, width: u32) -> String {
     } else {
         format!("Bits {}:{}", offset, offset + width as u64 - 1)
     };
-    if description.len() > 0 {
+    if !description.is_empty() {
         res.push_str(" - ");
         res.push_str(&util::respace(&util::escape_brackets(description)));
     }
@@ -998,8 +998,7 @@ fn lookup_in_fields<'f>(
             "Field {} not found in register {}",
             base_field,
             register.name
-        )
-        .into())
+        ))
     }
 }
 
@@ -1026,15 +1025,14 @@ fn lookup_in_peripheral<'p>(
                 "No field {} in register {}",
                 base_field,
                 register.name
-            ))?
+            ))
         }
     } else {
         Err(anyhow!(
             "No register {} in peripheral {}",
             base_register,
             peripheral.name
-        )
-        .into())
+        ))
     }
 }
 
@@ -1061,7 +1059,7 @@ fn lookup_in_field<'f>(
         "No EnumeratedValues {} in field {}",
         base_evs,
         field.name
-    ))?
+    ))
 }
 
 fn lookup_in_register<'r>(
@@ -1085,8 +1083,7 @@ fn lookup_in_register<'r>(
             "EnumeratedValues {} not found in register {}",
             base_evs,
             register.name
-        )
-        .into()),
+        )),
         Some(&(evs, field)) => {
             if matches.len() == 1 {
                 Ok((
@@ -1104,8 +1101,7 @@ fn lookup_in_register<'r>(
                      enumeratedValues named {}",
                     fields,
                     base_evs
-                )
-                .into())
+                ))
             }
         }
     }
@@ -1129,7 +1125,7 @@ fn lookup_in_peripherals<'p>(
             peripheral,
         )
     } else {
-        Err(anyhow!("No peripheral {}", base_peripheral))?
+        Err(anyhow!("No peripheral {}", base_peripheral))
     }
 }
 
@@ -1146,20 +1142,16 @@ fn periph_all_registers<'a>(p: &'a Peripheral) -> Vec<&'a Register> {
         }
     }
 
-    loop {
-        if let Some(b) = rem.pop() {
-            match b {
-                RegisterCluster::Register(reg) => {
-                    par.push(reg);
-                }
-                RegisterCluster::Cluster(cluster) => {
-                    for c in cluster.children.iter() {
-                        rem.push(c);
-                    }
+    while let Some(b) = rem.pop() {
+        match b {
+            RegisterCluster::Register(reg) => {
+                par.push(reg);
+            }
+            RegisterCluster::Cluster(cluster) => {
+                for c in cluster.children.iter() {
+                    rem.push(c);
                 }
             }
-        } else {
-            break;
         }
     }
     par
