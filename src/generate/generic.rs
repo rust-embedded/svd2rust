@@ -102,7 +102,7 @@ impl<REG: Resettable + Writable> Reg<REG> {
     #[inline(always)]
     pub fn write<F>(&self, f: F)
     where
-        F: FnOnce(&mut REG::Writer) -> &mut REG::Writer,
+        F: FnOnce(&mut REG::Writer) -> &mut W<REG>
     {
         self.register.set(
             f(&mut REG::Writer::from(W {
@@ -124,7 +124,7 @@ where
     #[inline(always)]
     pub fn write_with_zero<F>(&self, f: F)
     where
-        F: FnOnce(&mut REG::Writer) -> &mut REG::Writer,
+        F: FnOnce(&mut REG::Writer) -> &mut W<REG>
     {
         self.register.set(
             (*f(&mut REG::Writer::from(W {
@@ -157,7 +157,7 @@ impl<REG: Readable + Writable> Reg<REG> {
     #[inline(always)]
     pub fn modify<F>(&self, f: F)
     where
-        for<'w> F: FnOnce(&REG::Reader, &'w mut REG::Writer) -> &'w mut REG::Writer,
+        for<'w> F: FnOnce(&REG::Reader, &'w mut REG::Writer) -> &'w mut W<REG>
     {
         let bits = self.register.get();
         self.register.set(
@@ -216,8 +216,9 @@ pub struct W<REG: RegisterSpec + ?Sized> {
 impl<REG: RegisterSpec> W<REG> {
     /// Writes raw bits to the register.
     #[inline(always)]
-    pub unsafe fn bits(&mut self, bits: REG::Ux) {
+    pub unsafe fn bits(&mut self, bits: REG::Ux) -> &mut Self {
         self.bits = bits;
+        self
     }
 }
 
