@@ -173,23 +173,25 @@ pub fn render(
         root.extend(interrupt_enum);
     } else {
         let interrupt_enum = quote! {
-            ///Enumeration of all the interrupts
+            ///Enumeration of all the interrupts.
             #[derive(Copy, Clone, Debug, PartialEq, Eq)]
             #enum_repr
             pub enum Interrupt {
                 #variants
             }
-
-            unsafe impl cortex_m::interrupt::InterruptNumber for Interrupt {
-                #[inline(always)]
-                fn number(#self_token) -> u16 {
-                    #nr_expr
-                }
-            }
         };
 
         if target == Target::CortexM {
-            root.extend(interrupt_enum);
+            root.extend(quote! {
+                #interrupt_enum
+
+                unsafe impl cortex_m::interrupt::InterruptNumber for Interrupt {
+                    #[inline(always)]
+                    fn number(#self_token) -> u16 {
+                        #nr_expr
+                    }
+                }
+            });
         } else {
             mod_items.extend(quote! {
                 #interrupt_enum
