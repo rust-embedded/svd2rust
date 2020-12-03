@@ -5,7 +5,7 @@ use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Output};
 
-const CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.0\""];
+const CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.2\""];
 const CRATES_MSP430: &[&str] = &["msp430 = \"0.2.2\""];
 const CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.7.0\"", "cortex-m-rt = \"0.6.13\""];
 const CRATES_RISCV: &[&str] = &["riscv = \"0.5.0\"", "riscv-rt = \"0.6.0\""];
