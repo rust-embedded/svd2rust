@@ -87,59 +87,78 @@ pub fn render(
 
     // erc: *E*ither *R*egister or *C*luster
     let ercs = p.registers.as_ref().map(|x| x.as_ref()).unwrap_or(&[][..]);
-    let registers: &[&Register] = &util::only_registers(&ercs)[..];
 
-    // make a pass to expand derived registers.  Ideally, for the most minimal
+    // make a pass to expand derived registers and clusters.  Ideally, for the most minimal
     // code size, we'd do some analysis to figure out if we can 100% reuse the
     // code that we're deriving from.  For the sake of proving the concept, we're
     // just going to emit a second copy of the accessor code.  It'll probably
     // get inlined by the compiler anyway, right? :-)
 
     // Build a map so that we can look up registers within this peripheral
-    let mut reg_map = HashMap::new();
-    for r in registers {
-        reg_map.insert(&r.name, svd_parser::svd::register::Register::clone(r));
+    let mut erc_map = HashMap::new();
+    for erc in ercs {
+        erc_map.insert(util::erc_name(erc), erc.clone());
     }
 
-    // Build up an alternate erc list by expanding any derived registers
-    let mut alt_erc: Vec<RegisterCluster> = registers
+    // Build up an alternate erc list by expanding any derived registers/clusters
+    let ercs: Vec<RegisterCluster> = ercs
         .iter()
-        .filter_map(|r| match r.derived_from {
+        .filter_map(|erc| match util::erc_derived_from(erc) {
             Some(ref derived) => {
-                let ancestor = match reg_map.get(derived) {
-                    Some(r) => r,
+                let ancestor = match erc_map.get(derived) {
+                    Some(erc) => erc,
                     None => {
                         eprintln!(
-                            "register {} derivedFrom missing register {}",
-                            r.name, derived
+                            "register/cluster {} derivedFrom missing register/cluster {}",
+                            util::erc_name(erc),
+                            derived
                         );
                         return None;
                     }
                 };
 
-                match *ancestor {
-                    Register::Array(ref info, ref array_info) => Some(RegisterCluster::Register(
-                        Register::Array(r.derive_from(info), array_info.clone()),
-                    )),
-                    Register::Single(ref info) => Some(RegisterCluster::Register(
-                        Register::Single(r.derive_from(info)),
-                    )),
+                match (erc, ancestor) {
+                    (RegisterCluster::Register(reg), RegisterCluster::Register(other_reg)) => {
+                        match other_reg {
+                            Register::Array(ref info, ref array_info) => {
+                                Some(RegisterCluster::Register(Register::Array(
+                                    reg.derive_from(info),
+                                    array_info.clone(),
+                                )))
+                            }
+                            Register::Single(ref info) => Some(RegisterCluster::Register(
+                                Register::Single(reg.derive_from(info)),
+                            )),
+                        }
+                    }
+                    (
+                        RegisterCluster::Cluster(cluster),
+                        RegisterCluster::Cluster(other_cluster),
+                    ) => match other_cluster {
+                        Cluster::Array(ref info, ref array_info) => Some(RegisterCluster::Cluster(
+                            Cluster::Array(cluster.derive_from(info), array_info.clone()),
+                        )),
+                        Cluster::Single(ref info) => Some(RegisterCluster::Cluster(
+                            Cluster::Single(cluster.derive_from(info)),
+                        )),
+                    },
+                    _ => {
+                        eprintln!(
+                            "{} can't derive from {}",
+                            util::erc_name(erc),
+                            util::erc_name(ancestor)
+                        );
+                        None
+                    }
                 }
             }
-            None => Some(RegisterCluster::Register((*r).clone())),
+            None => Some(erc.clone()),
         })
         .collect();
 
-    // Now add the clusters to our alternate erc list
-    let clusters = util::only_clusters(ercs);
-    for cluster in &clusters {
-        alt_erc.push(RegisterCluster::Cluster((*cluster).clone()));
-    }
-
     // And revise registers, clusters and ercs to refer to our expanded versions
-    let registers: &[&Register] = &util::only_registers(&alt_erc)[..];
-    let clusters = util::only_clusters(ercs);
-    let ercs = &alt_erc;
+    let registers: &[&Register] = &util::only_registers(&ercs)[..];
+    let clusters = util::only_clusters(&ercs);
 
     // No `struct RegisterBlock` can be generated
     if registers.is_empty() && clusters.is_empty() {
@@ -151,7 +170,7 @@ pub fn render(
 
     // Push any register or cluster blocks into the output
     let mut mod_items = TokenStream::new();
-    mod_items.extend(register_or_cluster_block(ercs, &defaults, None, nightly)?);
+    mod_items.extend(register_or_cluster_block(&ercs, &defaults, None, nightly)?);
 
     // Push all cluster related information into the peripheral module
     for c in &clusters {

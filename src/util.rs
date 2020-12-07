@@ -307,6 +307,22 @@ impl U32Ext for u32 {
     }
 }
 
+/// Return the name of either register or cluster.
+pub fn erc_name(erc: &RegisterCluster) -> &String {
+    match erc {
+        RegisterCluster::Register(r) => &r.name,
+        RegisterCluster::Cluster(c) => &c.name,
+    }
+}
+
+/// Return the name of either register or cluster from which this register or cluster is derived.
+pub fn erc_derived_from(erc: &RegisterCluster) -> &Option<String> {
+    match erc {
+        RegisterCluster::Register(r) => &r.derived_from,
+        RegisterCluster::Cluster(c) => &c.derived_from,
+    }
+}
+
 /// Return only the clusters from the slice of either register or clusters.
 pub fn only_clusters(ercs: &[RegisterCluster]) -> Vec<&Cluster> {
     let clusters: Vec<&Cluster> = ercs
