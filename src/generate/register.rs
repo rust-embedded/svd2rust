@@ -442,79 +442,82 @@ pub fn fields(
                 } else {
                     let has_reserved_variant = evs.values.len() != (1 << width);
                     let variants = Variant::from_enumerated_values(evs)?;
-
-                    add_from_variants(mod_items, &variants, &name_pc_a, &fty, &description, rv);
-
                     let mut enum_items = TokenStream::new();
 
-                    let mut arms = TokenStream::new();
-                    for v in variants.iter().map(|v| {
-                        let i = util::unsuffixed_or_bool(v.value, width);
-                        let pc = &v.pc;
+                    if variants.is_empty() {
+                        add_with_no_variants(mod_items, &name_pc_a, &fty, &description, rv);
+                    } else {
+                        add_from_variants(mod_items, &variants, &name_pc_a, &fty, &description, rv);
+
+                        let mut arms = TokenStream::new();
+                        for v in variants.iter().map(|v| {
+                            let i = util::unsuffixed_or_bool(v.value, width);
+                            let pc = &v.pc;
+
+                            if has_reserved_variant {
+                                quote! { #i => Val(#name_pc_a::#pc), }
+                            } else {
+                                quote! { #i => #name_pc_a::#pc, }
+                            }
+                        }) {
+                            arms.extend(v);
+                        }
 
                         if has_reserved_variant {
-                            quote! { #i => Val(#name_pc_a::#pc), }
-                        } else {
-                            quote! { #i => #name_pc_a::#pc, }
-                        }
-                    }) {
-                        arms.extend(v);
-                    }
-
-                    if has_reserved_variant {
-                        arms.extend(quote! {
+                            arms.extend(quote! {
                             i => Res(i),
-                        });
-                    } else if 1 << width.to_ty_width()? != variants.len() {
-                        arms.extend(quote! {
+                                        });
+                        } else if 1 << width.to_ty_width()? != variants.len() {
+                            arms.extend(quote! {
                             _ => unreachable!(),
-                        });
-                    }
+                                        });
+                        }
 
-                    if has_reserved_variant {
-                        enum_items.extend(quote! {
+                        if has_reserved_variant {
+                            enum_items.extend(quote! {
                             ///Get enumerated values variant
                             #inline
                             pub fn variant(&self) -> crate::Variant<#fty, #name_pc_a> {
-                                use crate::Variant::*;
-                                match self.bits {
-                                    #arms
-                                }
+                                                use crate::Variant::*;
+                                                match self.bits {
+                                #arms
+                                                }
                             }
-                        });
-                    } else {
-                        enum_items.extend(quote! {
+                                        });
+                        } else {
+                            enum_items.extend(quote! {
                             ///Get enumerated values variant
                             #inline
                             pub fn variant(&self) -> #name_pc_a {
-                                match self.bits {
-                                    #arms
-                                }
+                                                match self.bits {
+                                #arms
+                                                }
                             }
-                        });
-                    }
+                                        });
+                        }
 
-                    for v in &variants {
-                        let pc = &v.pc;
-                        let sc = &v.sc;
+                        for v in &variants {
+                            let pc = &v.pc;
+                            let sc = &v.sc;
 
-                        let is_variant = Ident::new(
-                            &if sc.to_string().starts_with('_') {
-                                format!("is{}", sc)
-                            } else {
-                                format!("is_{}", sc)
-                            },
-                            span,
-                        );
+                            let is_variant = Ident::new(
+                                &if sc.to_string().starts_with('_') {
+                                    format!("is{}", sc)
+                                } else {
+                                    format!("is_{}", sc)
+                                },
+                                span,
+                            );
 
-                        let doc = format!("Checks if the value of the field is `{}`", pc);
-                        enum_items.extend(quote! {
+                            let doc = format!("Checks if the value of the field is `{}`", pc);
+                            enum_items.extend(quote! {
                             #[doc = #doc]
                             #inline
                             pub fn #is_variant(&self) -> bool {
-                                **self == #name_pc_a::#pc
+                                                **self == #name_pc_a::#pc
                             }
-                        });
+                                        });
+                        }
                     }
 
                     mod_items.extend(quote! {
@@ -582,43 +585,47 @@ pub fn fields(
                         let pc = pc.to_sanitized_upper_case();
                         let base_pc_w = Ident::new(&(pc + "_AW"), span);
                         derive_from_base(mod_items, &base, &name_pc_aw, &base_pc_w, &description)
+                    } else if variants.is_empty() {
+                        add_with_no_variants(mod_items, name_pc_aw, &fty, &description, rv);
                     } else {
                         add_from_variants(mod_items, &variants, name_pc_aw, &fty, &description, rv);
                     }
                 }
 
-                if unsafety.is_some() {
-                    proxy_items.extend(quote! {
-                        ///Writes `variant` to the field
-                        #inline
-                        pub fn variant(self, variant: #name_pc_aw) -> &'a mut W {
+                if !variants.is_empty() {
+                    if unsafety.is_some() {
+                        proxy_items.extend(quote! {
+                                        ///Writes `variant` to the field
+                                        #inline
+                                        pub fn variant(self, variant: #name_pc_aw) -> &'a mut W {
                             unsafe {
-                                self.#bits(variant.into())
+                                                self.#bits(variant.into())
                             }
-                        }
-                    });
-                } else {
-                    proxy_items.extend(quote! {
-                        ///Writes `variant` to the field
-                        #inline
-                        pub fn variant(self, variant: #name_pc_aw) -> &'a mut W {
-                                self.#bits(variant.into())
-                        }
-                    });
-                }
+                                        }
+                        });
+                    } else {
+                        proxy_items.extend(quote! {
+                                        ///Writes `variant` to the field
+                                        #inline
+                                        pub fn variant(self, variant: #name_pc_aw) -> &'a mut W {
+                                            self.#bits(variant.into())
+                                        }
+                        });
+                    }
 
-                for v in &variants {
-                    let pc = &v.pc;
-                    let sc = &v.sc;
+                    for v in &variants {
+                        let pc = &v.pc;
+                        let sc = &v.sc;
 
-                    let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
-                    proxy_items.extend(quote! {
-                        #[doc = #doc]
-                        #inline
-                        pub fn #sc(self) -> &'a mut W {
+                        let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
+                        proxy_items.extend(quote! {
+                                        #[doc = #doc]
+                                        #inline
+                                        pub fn #sc(self) -> &'a mut W {
                             self.variant(#name_pc_aw::#pc)
-                        }
-                    });
+                                        }
+                        });
+                    }
                 }
             }
 
@@ -773,7 +780,7 @@ impl Variant {
             .iter()
             // filter out all reserved variants, as we should not
             // generate code for them
-            .filter(|field| field.name.to_lowercase() != "reserved")
+            .filter(|field| field.name.to_lowercase() != "reserved" && field.is_default == None)
             .map(|ev| {
                 let value = u64(ev.value.ok_or_else(|| {
                     anyhow!("EnumeratedValue {} has no `<value>` field", ev.name)
@@ -791,6 +798,38 @@ impl Variant {
             })
             .collect::<Result<Vec<_>>>()
     }
+}
+
+fn add_with_no_variants(
+    mod_items: &mut TokenStream,
+    pc: &Ident,
+    fty: &Ident,
+    desc: &str,
+    reset_value: Option<u64>,
+) {
+    let cast = if fty == "bool" {
+        quote! { val.0 as u8 != 0 }
+    } else {
+        quote! { val.0 as _ }
+    };
+
+    let desc = if let Some(rv) = reset_value {
+        format!("{}\n\nValue on reset: {}", desc, rv)
+    } else {
+        desc.to_owned()
+    };
+
+    mod_items.extend(quote! {
+        #[doc = #desc]
+        #[derive(Clone, Copy, Debug, PartialEq)]
+        pub struct #pc(#fty);
+        impl From<#pc> for #fty {
+            #[inline(always)]
+            fn from(val: #pc) -> Self {
+                #cast
+            }
+        }
+    });
 }
 
 fn add_from_variants(
