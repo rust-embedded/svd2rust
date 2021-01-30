@@ -40,7 +40,8 @@ pub fn render(
     }
 
     let span = Span::call_site();
-    let name_pc = Ident::new(&p.name.to_sanitized_upper_case(), span);
+    let name_str = p.name.to_sanitized_upper_case();
+    let name_pc = Ident::new(&name_str, span);
     let address = util::hex(p.base_address as u64);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
@@ -75,6 +76,12 @@ pub fn render(
             #[inline(always)]
             fn deref(&self) -> &Self::Target {
                 unsafe { &*Self::PTR }
+            }
+        }
+
+        impl core::fmt::Debug for #name_pc {
+            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                f.debug_struct(#name_str).finish()
             }
         }
     });
