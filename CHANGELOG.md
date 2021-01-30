@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Provide an associated const ptr `PTR` per peripheral RegisterBlock
 
+- Generated peripherals now implement `core::fmt::Debug`.
+
 ### Fixed
 
 - Keyword sanitizing (`async`)
