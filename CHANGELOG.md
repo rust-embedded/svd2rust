@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Keyword sanitizing (`async`)
 
+- Expand derived clusters.
+
+- Ignore default enumeratedValues.
+
 ### Changed
 
 - split out register size type (`RawType`) from `ResetValue` trait
