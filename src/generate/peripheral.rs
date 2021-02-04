@@ -633,7 +633,7 @@ fn expand_cluster(
 
     match cluster {
         Cluster::Single(info) => cluster_expanded.push(RegisterBlockField {
-            field: convert_svd_cluster(cluster)?,
+            field: convert_svd_cluster(cluster, name)?,
             description: info.description.as_ref().unwrap_or(&info.name).into(),
             offset: info.address_offset,
             size: cluster_size,
@@ -653,7 +653,7 @@ fn expand_cluster(
 
             if array_convertible {
                 cluster_expanded.push(RegisterBlockField {
-                    field: convert_svd_cluster(&cluster)?,
+                    field: convert_svd_cluster(&cluster, name)?,
                     description: info.description.as_ref().unwrap_or(&info.name).into(),
                     offset: info.address_offset,
                     size: cluster_size * array_info.dim,
@@ -855,7 +855,7 @@ fn expand_svd_cluster(
     let mut out = vec![];
 
     match &cluster {
-        Cluster::Single(_info) => out.push(convert_svd_cluster(cluster)?),
+        Cluster::Single(_info) => out.push(convert_svd_cluster(cluster, name)?),
         Cluster::Array(info, array_info) => {
             let indices = array_info
                 .dim_index
@@ -884,14 +884,13 @@ fn expand_svd_cluster(
 }
 
 /// Convert a parsed `Cluster` into its `Field` equivalent
-fn convert_svd_cluster(cluster: &Cluster) -> Result<syn::Field, syn::Error> {
+fn convert_svd_cluster(cluster: &Cluster, name: Option<&str>) -> Result<syn::Field, syn::Error> {
     Ok(match cluster {
-        Cluster::Single(info) => new_syn_field(
-            &info.name.to_sanitized_snake_case(),
-            syn::Type::Path(parse_str::<syn::TypePath>(
-                &info.name.to_sanitized_upper_case(),
-            )?),
-        ),
+        Cluster::Single(info) => {
+            let ty_name = util::replace_suffix(&info.name, "");
+            let ty = name_to_ty(&ty_name, name)?;
+            new_syn_field(&info.name.to_sanitized_snake_case(), ty)
+        }
         Cluster::Array(info, array_info) => {
             let name = util::replace_suffix(&info.name, "");
 
