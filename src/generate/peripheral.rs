@@ -892,15 +892,15 @@ fn convert_svd_cluster(cluster: &Cluster, name: Option<&str>) -> Result<syn::Fie
             new_syn_field(&info.name.to_sanitized_snake_case(), ty)
         }
         Cluster::Array(info, array_info) => {
-            let name = util::replace_suffix(&info.name, "");
+            let ty_name = util::replace_suffix(&info.name, "");
 
             let ty = syn::Type::Array(parse_str::<syn::TypeArray>(&format!(
                 "[{};{}]",
-                &name.to_sanitized_upper_case(),
+                name_to_ty_str(&ty_name, name),
                 u64::from(array_info.dim)
             ))?);
 
-            new_syn_field(&name.to_sanitized_snake_case(), ty)
+            new_syn_field(&ty_name.to_sanitized_snake_case(), ty)
         }
     })
 }
@@ -918,8 +918,8 @@ fn new_syn_field(ident: &str, ty: syn::Type) -> syn::Field {
     }
 }
 
-fn name_to_ty(name: &str, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
-    let ident = if let Some(ns) = ns {
+fn name_to_ty_str<'a, 'b>(name: &'a str, ns: Option<&'b str>) -> Cow<'a, str> {
+    if let Some(ns) = ns {
         Cow::Owned(
             String::from("self::")
                 + &ns.to_sanitized_snake_case()
@@ -928,7 +928,11 @@ fn name_to_ty(name: &str, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
         )
     } else {
         name.to_sanitized_upper_case()
-    };
+    }
+}
+
+fn name_to_ty(name: &str, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
+    let ident = name_to_ty_str(&name, ns);
     Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
 }
 
