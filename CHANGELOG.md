@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Generated peripherals now implement `core::fmt::Debug`.
 
+- Support for MIPS MCU cores, in particular for PIC32MX microcontrollers
+
 ### Fixed
 
 - Keyword sanitizing (`async`)

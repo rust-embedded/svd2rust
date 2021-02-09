@@ -19,6 +19,7 @@ pub enum Target {
     Msp430,
     RISCV,
     XtensaLX,
+    Mips,
     None,
 }
 
@@ -29,6 +30,7 @@ impl Target {
             "msp430" => Target::Msp430,
             "riscv" => Target::RISCV,
             "xtensa-lx" => Target::XtensaLX,
+            "mips" => Target::Mips,
             "none" => Target::None,
             _ => bail!("unknown target {}", s),
         })

@@ -14,7 +14,7 @@ jobs:
         rust: [stable]
 
         # All vendor files we want to test on stable
-        VENDOR: [rustfmt, Atmel, Freescale, Fujitsu, Holtek, Nordic, Nuvoton, NXP, RISC-V, SiliconLabs, Spansion, STMicro, Toshiba]
+        VENDOR: [rustfmt, Atmel, Freescale, Fujitsu, Holtek, Microchip, Nordic, Nuvoton, NXP, RISC-V, SiliconLabs, Spansion, STMicro, Toshiba]
 
         # The default target we're compiling on and for
         TARGET: [x86_64-unknown-linux-gnu]

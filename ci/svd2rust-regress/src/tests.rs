@@ -5,6 +5,7 @@ pub enum Architecture {
     // TODO: Coming soon!
     // Avr,
     CortexM,
+    Mips,
     Msp430,
     RiscV,
     XtensaLX,
@@ -16,6 +17,7 @@ pub enum Manufacturer {
     Freescale,
     Fujitsu,
     Holtek,
+    Microchip,
     Nordic,
     Nuvoton,
     NXP,
@@ -4234,6 +4236,26 @@ pub const TESTS: &[&TestCase] = &[
         chip: "esp32",
         svd_url: Some(
             "https://raw.githubusercontent.com/arjanmels/esp32/add-output-svd/svd/esp32.svd",
+        ),
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: Mips,
+        mfgr: Microchip,
+        chip: "pic32mx170f256b",
+        svd_url: Some(
+            "https://raw.githubusercontent.com/kiffie/pic32-pac/master/pic32mx1xxfxxxb/PIC32MX170F256B.svd.patched",
+        ),
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: Mips,
+        mfgr: Microchip,
+        chip: "pic32mx270f256b",
+        svd_url: Some(
+            "https://raw.githubusercontent.com/kiffie/pic32-pac/master/pic32mx2xxfxxxb/PIC32MX270F256B.svd.patched",
         ),
         should_pass: true,
         run_when: Always,

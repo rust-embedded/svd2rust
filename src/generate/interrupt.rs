@@ -150,6 +150,7 @@ pub fn render(
                 ];
             });
         }
+        Target::Mips => {}
         Target::None => {}
     }
 
