@@ -417,6 +417,17 @@ main() {
             test_svd ht32f275x
         ;;
 
+        Microchip)
+            echo '[dependencies.bare-metal]' >> $td/Cargo.toml
+            echo 'version = "0.2.0"' >> $td/Cargo.toml
+
+            echo '[dependencies.mips-mcu]' >> $td/Cargo.toml
+            echo 'version = "0.1.0"' >> $td/Cargo.toml
+
+            test_svd_for_target mips https://raw.githubusercontent.com/kiffie/pic32-pac/master/pic32mx1xxfxxxb/PIC32MX170F256B.svd.patched
+            test_svd_for_target mips https://raw.githubusercontent.com/kiffie/pic32-pac/master/pic32mx2xxfxxxb/PIC32MX270F256B.svd.patched
+        ;;
+
         Nordic)
             # BAD-SVD two enumeratedValues have the same value
             # test_svd nrf52

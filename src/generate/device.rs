@@ -199,6 +199,7 @@ pub fn render(
         Target::Msp430 => Some(Ident::new("msp430", span)),
         Target::RISCV => Some(Ident::new("riscv", span)),
         Target::XtensaLX => Some(Ident::new("xtensa_lx", span)),
+        Target::Mips => Some(Ident::new("mips_mcu", span)),
         Target::None => None,
     }
     .map(|krate| {

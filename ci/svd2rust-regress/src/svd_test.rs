@@ -10,6 +10,7 @@ const CRATES_MSP430: &[&str] = &["msp430 = \"0.2.2\""];
 const CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.7.0\"", "cortex-m-rt = \"0.6.13\""];
 const CRATES_RISCV: &[&str] = &["riscv = \"0.5.0\"", "riscv-rt = \"0.6.0\""];
 const CRATES_XTENSALX6: &[&str] = &["xtensa-lx6-rt = \"0.2.0\"", "xtensa-lx6 = \"0.1.0\""];
+const CRATES_MIPS: &[&str] = &["mips-mcu = \"0.1.0\""];
 const PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
 const FEATURES_ALL: &[&str] = &["[features]"];
 
@@ -129,6 +130,7 @@ pub fn test(
         .chain(match &t.arch {
             CortexM => CRATES_CORTEX_M.iter(),
             RiscV => CRATES_RISCV.iter(),
+            Mips => CRATES_MIPS.iter(),
             Msp430 => CRATES_MSP430.iter(),
             XtensaLX => CRATES_XTENSALX6.iter(),
         })
@@ -158,6 +160,7 @@ pub fn test(
     let target = match t.arch {
         CortexM => "cortex-m",
         Msp430 => "msp430",
+        Mips => "mips",
         RiscV => "riscv",
         XtensaLX => "xtensa-lx",
     };
@@ -183,7 +186,7 @@ pub fn test(
     process_stderr_paths.push(svd2rust_err_file);
 
     match t.arch {
-        CortexM | Msp430 | XtensaLX => {
+        CortexM | Mips | Msp430 | XtensaLX => {
             // TODO: Give error the path to stderr
             fs::rename(path_helper_base(&chip_dir, &["lib.rs"]), &lib_rs_file)
                 .chain_err(|| "While moving lib.rs file")?
