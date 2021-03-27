@@ -145,14 +145,10 @@ pub fn render(
     let open = Punct::new('{', Spacing::Alone);
     let close = Punct::new('}', Spacing::Alone);
 
-    if can_read {
+    if can_read && !r_impl_items.is_empty() {
         mod_items.extend(quote! {
-            impl R #open
+            impl R #open #r_impl_items #close
         });
-
-        mod_items.extend(r_impl_items);
-
-        close.to_tokens(&mut mod_items);
     }
 
     if can_write {
