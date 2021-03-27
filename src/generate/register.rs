@@ -379,7 +379,7 @@ pub fn fields(
                 r_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub unsafe fn #name_sc(&self, n: usize) -> #name_pc_r {
+                    pub unsafe fn #name_sc(&self, n: u8) -> #name_pc_r {
                         #name_pc_r::new ( #value )
                     }
                 });
@@ -675,7 +675,7 @@ pub fn fields(
                     util::replace_suffix(&f.name, suffixes_str),
                     description
                 );
-                offset_entry = quote! {offset: usize,};
+                offset_entry = quote! {offset: u8,};
             } else {
                 doc = format!("Field `{}` writer - {}", f.name, description);
                 offset_entry = quote! {};
@@ -699,7 +699,7 @@ pub fn fields(
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub unsafe fn #name_sc(&mut self, n: usize) -> #name_pc_w {
+                    pub unsafe fn #name_sc(&mut self, n: u8) -> #name_pc_w {
                         #name_pc_w { w: self, offset: #offset_calc }
                     }
                 });

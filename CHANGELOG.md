@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- use `u8` for field array offset
+
 - [breaking-change] remove `Variant<U, ENUM_A>`, use `Option<ENUM_A>` instead
 
 - split out register size type (`RawType`) from `ResetValue` trait
