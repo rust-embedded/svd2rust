@@ -451,7 +451,7 @@ pub fn fields(
                             let pc = &v.pc;
 
                             if has_reserved_variant {
-                                quote! { #i => Val(#name_pc_a::#pc), }
+                                quote! { #i => Some(#name_pc_a::#pc), }
                             } else {
                                 quote! { #i => #name_pc_a::#pc, }
                             }
@@ -461,7 +461,7 @@ pub fn fields(
 
                         if has_reserved_variant {
                             arms.extend(quote! {
-                                i => Res(i),
+                                _ => None,
                             });
                         } else if 1 << width.to_ty_width()? != variants.len() {
                             arms.extend(quote! {
@@ -473,8 +473,7 @@ pub fn fields(
                             enum_items.extend(quote! {
                                 ///Get enumerated values variant
                                 #inline
-                                pub fn variant(&self) -> crate::Variant<#fty, #name_pc_a> {
-                                    use crate::Variant::*;
+                                pub fn variant(&self) -> Option<#name_pc_a> {
                                     match self.bits {
                                         #arms
                                     }

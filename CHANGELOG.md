@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- [breaking-change] remove `Variant<U, ENUM_A>`, use `Option<ENUM_A>` instead
+
 - split out register size type (`RawType`) from `ResetValue` trait
 
 - `anyhow` crate is used for error handling
