@@ -163,11 +163,11 @@ pub fn render(
         mod_items.extend(w_impl_items);
 
         mod_items.extend(quote! {
-                #[doc = "Writes raw bits to the register."]
-                pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
-                    self.0.bits(bits);
-                    self
-                }
+            #[doc = "Writes raw bits to the register."]
+            pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
+                self.0.bits(bits);
+                self
+            }
         });
 
         close.to_tokens(&mut mod_items);
@@ -465,35 +465,34 @@ pub fn fields(
 
                         if has_reserved_variant {
                             arms.extend(quote! {
-                            i => Res(i),
-                                        });
+                                i => Res(i),
+                            });
                         } else if 1 << width.to_ty_width()? != variants.len() {
                             arms.extend(quote! {
-                            _ => unreachable!(),
-                                        });
+                                _ => unreachable!(),
+                            });
                         }
 
                         if has_reserved_variant {
                             enum_items.extend(quote! {
-                            ///Get enumerated values variant
-                            #inline
-                            pub fn variant(&self) -> crate::Variant<#fty, #name_pc_a> {
-                                                use crate::Variant::*;
-                                                match self.bits {
-                                #arms
-                                                }
-                            }
-                                        });
+                                ///Get enumerated values variant
+                                #inline
+                                pub fn variant(&self) -> crate::Variant<#fty, #name_pc_a> {
+                                    use crate::Variant::*;
+                                    match self.bits {
+                                        #arms
+                                    }
+                                }
+                            });
                         } else {
                             enum_items.extend(quote! {
                             ///Get enumerated values variant
                             #inline
                             pub fn variant(&self) -> #name_pc_a {
-                                                match self.bits {
-                                #arms
-                                                }
-                            }
-                                        });
+                                match self.bits {
+                                    #arms
+                                }
+                            }});
                         }
 
                         for v in &variants {
@@ -511,12 +510,12 @@ pub fn fields(
 
                             let doc = format!("Checks if the value of the field is `{}`", pc);
                             enum_items.extend(quote! {
-                            #[doc = #doc]
-                            #inline
-                            pub fn #is_variant(&self) -> bool {
-                                                **self == #name_pc_a::#pc
-                            }
-                                        });
+                                #[doc = #doc]
+                                #inline
+                                pub fn #is_variant(&self) -> bool {
+                                    **self == #name_pc_a::#pc
+                                }
+                            });
                         }
                     }
 
@@ -595,21 +594,19 @@ pub fn fields(
                 if !variants.is_empty() {
                     if unsafety.is_some() {
                         proxy_items.extend(quote! {
-                                        ///Writes `variant` to the field
-                                        #inline
-                                        pub fn variant(self, variant: #name_pc_aw) -> &'a mut W {
-                            unsafe {
-                                                self.#bits(variant.into())
+                            ///Writes `variant` to the field
+                            #inline
+                            pub fn variant(self, variant: #name_pc_aw) -> &'a mut W {
+                                unsafe { self.#bits(variant.into()) }
                             }
-                                        }
                         });
                     } else {
                         proxy_items.extend(quote! {
-                                        ///Writes `variant` to the field
-                                        #inline
-                                        pub fn variant(self, variant: #name_pc_aw) -> &'a mut W {
-                                            self.#bits(variant.into())
-                                        }
+                            ///Writes `variant` to the field
+                            #inline
+                            pub fn variant(self, variant: #name_pc_aw) -> &'a mut W {
+                                self.#bits(variant.into())
+                            }
                         });
                     }
 
@@ -619,11 +616,11 @@ pub fn fields(
 
                         let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
                         proxy_items.extend(quote! {
-                                        #[doc = #doc]
-                                        #inline
-                                        pub fn #sc(self) -> &'a mut W {
-                            self.variant(#name_pc_aw::#pc)
-                                        }
+                            #[doc = #doc]
+                            #inline
+                            pub fn #sc(self) -> &'a mut W {
+                                self.variant(#name_pc_aw::#pc)
+                            }
                         });
                     }
                 }
