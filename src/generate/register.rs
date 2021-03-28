@@ -642,7 +642,7 @@ pub fn fields(
                     ///Writes raw bits to the field
                     #inline
                     pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        self.w.bits = (self.w.bits & !(#hexmask << self.offset)) | (((value as #rty) & #hexmask) << self.offset);
+                        self.w.bits = (self.w.bits & !(#hexmask << self.offset)) | ((value as #rty & #hexmask) << self.offset);
                         self.w
                     }
                 }
@@ -652,7 +652,7 @@ pub fn fields(
                     ///Writes raw bits to the field
                     #inline
                     pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        self.w.bits = (self.w.bits & !(#hexmask << #offset)) | (((value as #rty) & #hexmask) << #offset);
+                        self.w.bits = (self.w.bits & !(#hexmask << #offset)) | ((value as #rty & #hexmask) << #offset);
                         self.w
                     }
                 }
@@ -661,7 +661,7 @@ pub fn fields(
                     ///Writes raw bits to the field
                     #inline
                     pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        self.w.bits = (self.w.bits & !#hexmask) | ((value as #rty) & #hexmask);
+                        self.w.bits = (self.w.bits & !#hexmask) | (value as #rty & #hexmask);
                         self.w
                     }
                 }
