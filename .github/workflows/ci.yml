@@ -9,6 +9,7 @@ jobs:
   ci-linux:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         # All generated code should be running on stable now
         rust: [stable]
