@@ -145,14 +145,10 @@ pub fn render(
     let open = Punct::new('{', Spacing::Alone);
     let close = Punct::new('}', Spacing::Alone);
 
-    if can_read {
+    if can_read && !r_impl_items.is_empty() {
         mod_items.extend(quote! {
-            impl R #open
+            impl R #open #r_impl_items #close
         });
-
-        mod_items.extend(r_impl_items);
-
-        close.to_tokens(&mut mod_items);
     }
 
     if can_write {
@@ -163,11 +159,11 @@ pub fn render(
         mod_items.extend(w_impl_items);
 
         mod_items.extend(quote! {
-                #[doc = "Writes raw bits to the register."]
-                pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
-                    self.0.bits(bits);
-                    self
-                }
+            #[doc = "Writes raw bits to the register."]
+            pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
+                self.0.bits(bits);
+                self
+            }
         });
 
         close.to_tokens(&mut mod_items);
@@ -455,7 +451,7 @@ pub fn fields(
                             let pc = &v.pc;
 
                             if has_reserved_variant {
-                                quote! { #i => Val(#name_pc_a::#pc), }
+                                quote! { #i => Some(#name_pc_a::#pc), }
                             } else {
                                 quote! { #i => #name_pc_a::#pc, }
                             }
@@ -465,35 +461,33 @@ pub fn fields(
 
                         if has_reserved_variant {
                             arms.extend(quote! {
-                            i => Res(i),
-                                        });
+                                _ => None,
+                            });
                         } else if 1 << width.to_ty_width()? != variants.len() {
                             arms.extend(quote! {
-                            _ => unreachable!(),
-                                        });
+                                _ => unreachable!(),
+                            });
                         }
 
                         if has_reserved_variant {
                             enum_items.extend(quote! {
-                            ///Get enumerated values variant
-                            #inline
-                            pub fn variant(&self) -> crate::Variant<#fty, #name_pc_a> {
-                                                use crate::Variant::*;
-                                                match self.bits {
-                                #arms
-                                                }
-                            }
-                                        });
+                                ///Get enumerated values variant
+                                #inline
+                                pub fn variant(&self) -> Option<#name_pc_a> {
+                                    match self.bits {
+                                        #arms
+                                    }
+                                }
+                            });
                         } else {
                             enum_items.extend(quote! {
                             ///Get enumerated values variant
                             #inline
                             pub fn variant(&self) -> #name_pc_a {
-                                                match self.bits {
-                                #arms
-                                                }
-                            }
-                                        });
+                                match self.bits {
+                                    #arms
+                                }
+                            }});
                         }
 
                         for v in &variants {
@@ -511,12 +505,12 @@ pub fn fields(
 
                             let doc = format!("Checks if the value of the field is `{}`", pc);
                             enum_items.extend(quote! {
-                            #[doc = #doc]
-                            #inline
-                            pub fn #is_variant(&self) -> bool {
-                                                **self == #name_pc_a::#pc
-                            }
-                                        });
+                                #[doc = #doc]
+                                #inline
+                                pub fn #is_variant(&self) -> bool {
+                                    **self == #name_pc_a::#pc
+                                }
+                            });
                         }
                     }
 
@@ -595,21 +589,19 @@ pub fn fields(
                 if !variants.is_empty() {
                     if unsafety.is_some() {
                         proxy_items.extend(quote! {
-                                        ///Writes `variant` to the field
-                                        #inline
-                                        pub fn variant(self, variant: #name_pc_aw) -> &'a mut W {
-                            unsafe {
-                                                self.#bits(variant.into())
+                            ///Writes `variant` to the field
+                            #inline
+                            pub fn variant(self, variant: #name_pc_aw) -> &'a mut W {
+                                unsafe { self.#bits(variant.into()) }
                             }
-                                        }
                         });
                     } else {
                         proxy_items.extend(quote! {
-                                        ///Writes `variant` to the field
-                                        #inline
-                                        pub fn variant(self, variant: #name_pc_aw) -> &'a mut W {
-                                            self.#bits(variant.into())
-                                        }
+                            ///Writes `variant` to the field
+                            #inline
+                            pub fn variant(self, variant: #name_pc_aw) -> &'a mut W {
+                                self.#bits(variant.into())
+                            }
                         });
                     }
 
@@ -619,11 +611,11 @@ pub fn fields(
 
                         let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
                         proxy_items.extend(quote! {
-                                        #[doc = #doc]
-                                        #inline
-                                        pub fn #sc(self) -> &'a mut W {
-                            self.variant(#name_pc_aw::#pc)
-                                        }
+                            #[doc = #doc]
+                            #inline
+                            pub fn #sc(self) -> &'a mut W {
+                                self.variant(#name_pc_aw::#pc)
+                            }
                         });
                     }
                 }
@@ -650,7 +642,7 @@ pub fn fields(
                     ///Writes raw bits to the field
                     #inline
                     pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        self.w.bits = (self.w.bits & !(#hexmask << self.offset)) | (((value as #rty) & #hexmask) << self.offset);
+                        self.w.bits = (self.w.bits & !(#hexmask << self.offset)) | ((value as #rty & #hexmask) << self.offset);
                         self.w
                     }
                 }
@@ -660,7 +652,7 @@ pub fn fields(
                     ///Writes raw bits to the field
                     #inline
                     pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        self.w.bits = (self.w.bits & !(#hexmask << #offset)) | (((value as #rty) & #hexmask) << #offset);
+                        self.w.bits = (self.w.bits & !(#hexmask << #offset)) | ((value as #rty & #hexmask) << #offset);
                         self.w
                     }
                 }
@@ -669,7 +661,7 @@ pub fn fields(
                     ///Writes raw bits to the field
                     #inline
                     pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        self.w.bits = (self.w.bits & !#hexmask) | ((value as #rty) & #hexmask);
+                        self.w.bits = (self.w.bits & !#hexmask) | (value as #rty & #hexmask);
                         self.w
                     }
                 }

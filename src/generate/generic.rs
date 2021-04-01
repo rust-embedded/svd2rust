@@ -223,15 +223,6 @@ impl<REG: RegisterSpec> W<REG> {
     }
 }
 
-/// Used if enumerated values cover not the whole range.
-#[derive(Clone, Copy, PartialEq)]
-pub enum Variant<U, T> {
-    /// Expected variant.
-    Val(T),
-    /// Raw bits.
-    Res(U),
-}
-
 /// Field reader.
 ///
 /// Result of the `read` methods of fields.
