@@ -39,8 +39,8 @@ inflections = "1.1"
 log = { version = "~0.4", features = ["std"] }
 quote = "1.0"
 proc-macro2 = "1.0"
-anyhow = "1.0.19"
-thiserror = "1.0.5"
+anyhow = "1.0"
+thiserror = "1.0"
 
 [dependencies.svd-parser]
 version = "0.10"

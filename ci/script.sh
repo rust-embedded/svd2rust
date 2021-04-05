@@ -419,7 +419,7 @@ main() {
 
         Microchip)
             echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+            echo 'version = "1.0.0"' >> $td/Cargo.toml
 
             echo '[dependencies.mips-mcu]' >> $td/Cargo.toml
             echo 'version = "0.1.0"' >> $td/Cargo.toml
@@ -493,13 +493,13 @@ main() {
         # Community-provided RISC-V SVDs
         RISC-V)
             echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+            echo 'version = "1.0.0"' >> $td/Cargo.toml
 
             echo '[dependencies.riscv]' >> $td/Cargo.toml
-            echo 'version = "0.5.0"' >> $td/Cargo.toml
+            echo 'version = "0.6.0"' >> $td/Cargo.toml
 
             echo '[dependencies.riscv-rt]' >> $td/Cargo.toml
-            echo 'version = "0.6.0"' >> $td/Cargo.toml
+            echo 'version = "0.8.0"' >> $td/Cargo.toml
 
             test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
             test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/k210-pac/master/k210.svd
@@ -583,7 +583,7 @@ main() {
 
         Espressif)
             echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+            echo 'version = "1.0.0"' >> $td/Cargo.toml
 
             echo '[dependencies.xtensa-lx]' >> $td/Cargo.toml
             echo 'version = "0.3.0"' >> $td/Cargo.toml
