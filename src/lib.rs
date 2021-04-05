@@ -484,20 +484,16 @@ mod util;
 
 pub use crate::util::Target;
 
+#[non_exhaustive]
 pub struct Generation {
     pub lib_rs: String,
     pub device_specific: Option<DeviceSpecific>,
-
-    // Reserve the right to add more fields to this struct
-    _extensible: (),
 }
 
+#[non_exhaustive]
 pub struct DeviceSpecific {
     pub device_x: String,
     pub build_rs: String,
-
-    // Reserve the right to add more fields to this struct
-    _extensible: (),
 }
 
 use anyhow::Result;
@@ -534,14 +530,12 @@ pub fn generate(xml: &str, target: Target, nightly: bool) -> Result<Generation> 
         Some(DeviceSpecific {
             device_x,
             build_rs: util::build_rs().to_string(),
-            _extensible: (),
         })
     };
 
     Ok(Generation {
         lib_rs,
         device_specific,
-        _extensible: (),
     })
 }
 
