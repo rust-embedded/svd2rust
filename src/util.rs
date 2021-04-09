@@ -13,6 +13,7 @@ pub const BITS_PER_BYTE: u32 = 8;
 /// that are not valid in Rust ident
 const BLACKLIST_CHARS: &[char] = &['(', ')', '[', ']', '/', ' ', '-'];
 
+#[allow(non_camel_case_types)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum Target {
     CortexM,
@@ -166,7 +167,7 @@ pub fn respace(s: &str) -> String {
 pub fn escape_brackets(s: &str) -> String {
     s.split('[')
         .fold("".to_string(), |acc, x| {
-            if acc == "" {
+            if acc.is_empty() {
                 x.to_string()
             } else if acc.ends_with('\\') {
                 acc + "[" + x
@@ -176,7 +177,7 @@ pub fn escape_brackets(s: &str) -> String {
         })
         .split(']')
         .fold("".to_string(), |acc, x| {
-            if acc == "" {
+            if acc.is_empty() {
                 x.to_string()
             } else if acc.ends_with('\\') {
                 acc + "]" + x

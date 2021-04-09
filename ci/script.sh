@@ -419,7 +419,7 @@ main() {
 
         Microchip)
             echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+            echo 'version = "1.0.0"' >> $td/Cargo.toml
 
             echo '[dependencies.mips-mcu]' >> $td/Cargo.toml
             echo 'version = "0.1.0"' >> $td/Cargo.toml
@@ -493,13 +493,13 @@ main() {
         # Community-provided RISC-V SVDs
         RISC-V)
             echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+            echo 'version = "1.0.0"' >> $td/Cargo.toml
 
             echo '[dependencies.riscv]' >> $td/Cargo.toml
-            echo 'version = "0.5.0"' >> $td/Cargo.toml
+            echo 'version = "0.6.0"' >> $td/Cargo.toml
 
             echo '[dependencies.riscv-rt]' >> $td/Cargo.toml
-            echo 'version = "0.6.0"' >> $td/Cargo.toml
+            echo 'version = "0.8.0"' >> $td/Cargo.toml
 
             test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
             test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/k210-pac/master/k210.svd
@@ -524,97 +524,10 @@ main() {
 
         Spansion)
             # OK
-            test_svd MB9AF12xK
-            test_svd MB9AF12xL
-            test_svd MB9AF42xK
-            test_svd MB9AF42xL
-            test_svd MB9BF12xJ
-            test_svd MB9BF12xS
-            test_svd MB9BF12xT
-            test_svd MB9BF16xx
-            test_svd MB9BF32xS
-            test_svd MB9BF32xT
+            # See Fujitsu for other chips
             test_svd MB9BF36xx
-            test_svd MB9BF42xS
-            test_svd MB9BF42xT
             test_svd MB9BF46xx
-            test_svd MB9BF52xS
-            test_svd MB9BF52xT
             test_svd MB9BF56xx
-
-            # #102 regression tests
-            # # NOTE it would take too long to test all these so we only test half
-            # test_svd MB9AF10xN
-            test_svd MB9AF10xR
-            # test_svd MB9AF11xK
-            test_svd MB9AF11xL
-            # test_svd MB9AF11xM
-            test_svd MB9AF11xN
-            # test_svd MB9AF13xK
-            test_svd MB9AF13xL
-            # test_svd MB9AF13xM
-            test_svd MB9AF13xN
-            # test_svd MB9AF14xL
-            test_svd MB9AF14xM
-            # test_svd MB9AF14xN
-            test_svd MB9AF15xM
-            # test_svd MB9AF15xN
-            test_svd MB9AF15xR
-            # test_svd MB9AF31xK
-            test_svd MB9AF31xL
-            # test_svd MB9AF31xM
-            test_svd MB9AF31xN
-            # test_svd MB9AF34xL
-            test_svd MB9AF34xM
-            # test_svd MB9AF34xN
-            test_svd MB9AFA3xL
-            # test_svd MB9AFA3xM
-            test_svd MB9AFA3xN
-            # test_svd MB9AFA4xL
-            test_svd MB9AFA4xM
-            # test_svd MB9AFA4xN
-            test_svd MB9AFB4xL
-            # test_svd MB9AFB4xM
-            test_svd MB9AFB4xN
-            # test_svd MB9BF10xN
-            test_svd MB9BF10xR
-            # test_svd MB9BF11xN
-            test_svd MB9BF11xR
-            # test_svd MB9BF11xS
-            test_svd MB9BF11xT
-            # test_svd MB9BF12xK
-            test_svd MB9BF12xL
-            # test_svd MB9BF12xM
-            test_svd MB9BF21xS
-            # test_svd MB9BF21xT
-            test_svd MB9BF30xN
-            # test_svd MB9BF30xR
-            test_svd MB9BF31xN
-            # test_svd MB9BF31xR
-            test_svd MB9BF31xS
-            # test_svd MB9BF31xT
-            test_svd MB9BF32xK
-            # test_svd MB9BF32xL
-            test_svd MB9BF32xM
-            # test_svd MB9BF40xN
-            test_svd MB9BF40xR
-            # test_svd MB9BF41xN
-            test_svd MB9BF41xR
-            # test_svd MB9BF41xS
-            test_svd MB9BF41xT
-            # test_svd MB9BF50xN
-            test_svd MB9BF50xR
-            # test_svd MB9BF51xN
-            test_svd MB9BF51xR
-            # test_svd MB9BF51xS
-            test_svd MB9BF51xT
-            # test_svd MB9BF52xK
-            test_svd MB9BF52xL
-            # test_svd MB9BF52xM
-            test_svd MB9BF61xS
-            # test_svd MB9BF61xT
-            test_svd MB9BFD1xS
-            # test_svd MB9BFD1xT
         ;;
 
         STMicro)
@@ -670,7 +583,7 @@ main() {
 
         Espressif)
             echo '[dependencies.bare-metal]' >> $td/Cargo.toml
-            echo 'version = "0.2.0"' >> $td/Cargo.toml
+            echo 'version = "1.0.0"' >> $td/Cargo.toml
 
             echo '[dependencies.xtensa-lx]' >> $td/Cargo.toml
             echo 'version = "0.3.0"' >> $td/Cargo.toml

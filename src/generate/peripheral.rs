@@ -426,14 +426,12 @@ impl FieldRegions {
             .filter(|r| {
                 r.fields.len() > 1 && (idents.iter().filter(|ident| **ident == r.ident).count() > 1)
             })
-            .inspect(|r| {
+            .for_each(|r| {
                 warn!(
                     "Found type name conflict with region {:?}, renamed to {:?}",
                     r.ident,
                     r.shortest_ident()
-                )
-            })
-            .for_each(|r| {
+                );
                 r.ident = r.shortest_ident();
             });
         Ok(())

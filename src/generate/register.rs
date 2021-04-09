@@ -3,6 +3,7 @@ use crate::svd::{
     RegisterProperties, Usage, WriteConstraint,
 };
 use cast::u64;
+use core::u64;
 use log::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
@@ -250,6 +251,7 @@ pub fn render(
     Ok(out)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn fields(
     fields: &[Field],
     parent: &Register,
@@ -287,7 +289,7 @@ pub fn fields(
             && (f.access != Some(Access::WriteOnce));
         let can_write = can_write && (f.access != Some(Access::ReadOnly));
 
-        let mask = 1u64.wrapping_neg() >> (64 - width);
+        let mask = u64::MAX >> (64 - width);
         let hexmask = &util::hex(mask);
         let offset = u64::from(offset);
         let rv = reset_value.map(|rv| (rv >> offset) & mask);
@@ -741,8 +743,7 @@ pub fn fields(
 fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Ident> {
     match &write_constraint {
         Some(&WriteConstraint::Range(range))
-            if u64::from(range.min) == 0
-                && u64::from(range.max) == 1u64.wrapping_neg() >> (64 - width) =>
+            if range.min == 0 && range.max == u64::MAX >> (64 - width) =>
         {
             // the SVD has acknowledged that it's safe to write
             // any value that can fit in the field
@@ -1044,8 +1045,7 @@ fn lookup_in_peripheral<'p>(
     if let Some(register) = all_registers.iter().find(|r| r.name == base_register) {
         if let Some(field) = register
             .fields
-            .as_ref()
-            .map(|fs| &**fs)
+            .as_deref()
             .unwrap_or(&[])
             .iter()
             .find(|f| f.name == base_field)
@@ -1074,7 +1074,7 @@ fn lookup_in_field<'f>(
     field: &'f Field,
 ) -> Result<(&'f EnumeratedValues, Option<Base<'f>>)> {
     for evs in &field.enumerated_values {
-        if evs.name.as_ref().map(|s| &**s) == Some(base_evs) {
+        if evs.name.as_deref() == Some(base_evs) {
             return Ok((
                 evs,
                 Some(Base {
@@ -1099,11 +1099,11 @@ fn lookup_in_register<'r>(
 ) -> Result<(&'r EnumeratedValues, Option<Base<'r>>)> {
     let mut matches = vec![];
 
-    for f in register.fields.as_ref().map(|v| &**v).unwrap_or(&[]) {
+    for f in register.fields.as_deref().unwrap_or(&[]) {
         if let Some(evs) = f
             .enumerated_values
             .iter()
-            .find(|evs| evs.name.as_ref().map(|s| &**s) == Some(base_evs))
+            .find(|evs| evs.name.as_deref() == Some(base_evs))
         {
             matches.push((evs, &f.name))
         }
@@ -1160,7 +1160,7 @@ fn lookup_in_peripherals<'p>(
     }
 }
 
-fn periph_all_registers<'a>(p: &'a Peripheral) -> Vec<&'a Register> {
+fn periph_all_registers(p: &Peripheral) -> Vec<&Register> {
     let mut par: Vec<&Register> = Vec::new();
     let mut rem: Vec<&RegisterCluster> = Vec::new();
     if p.registers.is_none() {
