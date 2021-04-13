@@ -23,7 +23,7 @@ keywords = [
 license = "MIT OR Apache-2.0"
 name = "svd2rust"
 repository = "https://github.com/rust-embedded/svd2rust/"
-version = "0.17.0"
+version = "0.18.0"
 readme = "README.md"
 
 [[bin]]
@@ -43,7 +43,7 @@ anyhow = "1.0"
 thiserror = "1.0"
 
 [dependencies.svd-parser]
-version = "0.10"
+version = "0.10.1"
 features = ["derive-from"]
 
 [dependencies.syn]
