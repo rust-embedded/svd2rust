@@ -47,90 +47,47 @@ pub trait ToSanitizedUpperCase {
 }
 
 pub trait ToSanitizedSnakeCase {
-    fn to_sanitized_snake_case(&self) -> Cow<str>;
+    fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str>;
+    fn to_sanitized_snake_case(&self) -> Cow<str> {
+        let s = self.to_sanitized_not_keyword_snake_case();
+        sanitize_keyword(s)
+    }
 }
 
 impl ToSanitizedSnakeCase for str {
-    fn to_sanitized_snake_case(&self) -> Cow<str> {
-        macro_rules! keywords {
-            ($s:expr, $($kw:ident),+,) => {
-                Cow::from(match &$s.to_lowercase()[..] {
-                    $(stringify!($kw) => concat!(stringify!($kw), "_")),+,
-                    _ => return Cow::from($s.to_snake_case())
-                })
-            }
-        }
+    fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str> {
+        const INTERNALS: [&str; 4] = ["set_bit", "clear_bit", "bit", "bits"];
 
         let s = self.replace(BLACKLIST_CHARS, "");
-
         match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_snake_case()))
+                format!("_{}", s.to_snake_case()).into()
             }
             _ => {
-                keywords! {
-                    s,
-                    abstract,
-                    alignof,
-                    as,
-                    async,
-                    await,
-                    become,
-                    box,
-                    break,
-                    const,
-                    continue,
-                    crate,
-                    do,
-                    else,
-                    enum,
-                    extern,
-                    false,
-                    final,
-                    fn,
-                    for,
-                    if,
-                    impl,
-                    in,
-                    let,
-                    loop,
-                    macro,
-                    match,
-                    mod,
-                    move,
-                    mut,
-                    offsetof,
-                    override,
-                    priv,
-                    proc,
-                    pub,
-                    pure,
-                    ref,
-                    return,
-                    self,
-                    sizeof,
-                    static,
-                    struct,
-                    super,
-                    trait,
-                    true,
-                    try,
-                    type,
-                    typeof,
-                    unsafe,
-                    unsized,
-                    use,
-                    virtual,
-                    where,
-                    while,
-                    yield,
-                    set_bit,
-                    clear_bit,
-                    bit,
-                    bits,
+                let s = Cow::from(s.to_snake_case());
+                if INTERNALS.contains(&s.as_ref()) {
+                    s + "_"
+                } else {
+                    s
                 }
             }
         }
+    }
+}
+
+pub fn sanitize_keyword(sc: Cow<str>) -> Cow<str> {
+    const KEYWORDS: [&str; 54] = [
+        "abstract", "alignof", "as", "async", "await", "become", "box", "break", "const",
+        "continue", "crate", "do", "else", "enum", "extern", "false", "final", "fn", "for", "if",
+        "impl", "in", "let", "loop", "macro", "match", "mod", "move", "mut", "offsetof",
+        "override", "priv", "proc", "pub", "pure", "ref", "return", "self", "sizeof", "static",
+        "struct", "super", "trait", "true", "try", "type", "typeof", "unsafe", "unsized", "use",
+        "virtual", "where", "while", "yield",
+    ];
+    if KEYWORDS.contains(&sc.as_ref()) {
+        sc + "_"
+    } else {
+        sc
     }
 }
 

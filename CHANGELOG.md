@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
-- Keyword sanitizing (`async`)
+- Keyword sanitizing (`async` and unneeded underscores)
 
 - Expand derived clusters.
 

@@ -494,7 +494,7 @@ pub fn fields(
 
                         for v in &variants {
                             let pc = &v.pc;
-                            let sc = &v.sc;
+                            let sc = &v.nksc;
 
                             let is_variant = Ident::new(
                                 &if sc.to_string().starts_with('_') {
@@ -762,6 +762,7 @@ fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Id
 struct Variant {
     doc: String,
     pc: Ident,
+    nksc: Ident,
     sc: Ident,
     value: u64,
 }
@@ -779,13 +780,16 @@ impl Variant {
                     anyhow!("EnumeratedValue {} has no `<value>` field", ev.name)
                 })?);
 
+                let nksc = ev.name.to_sanitized_not_keyword_snake_case();
+                let sc = util::sanitize_keyword(nksc.clone());
                 Ok(Variant {
                     doc: ev
                         .description
                         .clone()
                         .unwrap_or_else(|| format!("`{:b}`", value)),
                     pc: Ident::new(&ev.name.to_sanitized_upper_case(), span),
-                    sc: Ident::new(&ev.name.to_sanitized_snake_case(), span),
+                    nksc: Ident::new(&nksc, span),
+                    sc: Ident::new(&sc, span),
                     value,
                 })
             })
