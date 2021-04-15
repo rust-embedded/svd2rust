@@ -26,6 +26,10 @@
 //!
 //! If the `--target` flag is omitted `svd2rust` assumes the target is the Cortex-M architecture.
 //!
+//! If using the `--generic_mod` option, the emitted `generic.rs` needs to be moved to `src`, and
+//! [`form`](https://github.com/djmcgill/form) commit fcb397a or newer is required for splitting
+//! the emitted `lib.rs`.
+//!
 //! ## target = cortex-m
 //!
 //! When targeting the Cortex-M architecture, `svd2rust` will generate three files in the current

@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Ignore default enumeratedValues.
 
+- Bring `generic` module into scope in `lib.rs` when using `-g` option.
+
 ### Changed
 
 - [breaking-change] remove `Variant<U, ENUM_A>`, use `Option<ENUM_A>` instead

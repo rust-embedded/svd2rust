@@ -146,6 +146,13 @@ pub fn render(
     let generic_file = std::str::from_utf8(include_bytes!("generic.rs"))?;
     if generic_mod {
         writeln!(File::create("generic.rs")?, "{}", generic_file)?;
+
+        out.extend(quote! {
+            #[allow(unused_imports)]
+            use generic::*;
+            #[doc="Common register and bit access and modify traits"]
+            pub mod generic;
+        });
     } else {
         let tokens = syn::parse_file(generic_file)?.into_token_stream();
 
