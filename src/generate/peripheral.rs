@@ -10,7 +10,7 @@ use quote::{quote, ToTokens};
 use svd_parser::derive_from::DeriveFrom;
 use syn::{parse_str, Token};
 
-use crate::util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
+use crate::util::{self, FullName, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::generate::register;
@@ -223,17 +223,17 @@ struct RegisterBlockField {
 
 #[derive(Clone, Debug)]
 struct Region {
-    fields: Vec<RegisterBlockField>,
+    rbfs: Vec<RegisterBlockField>,
     offset: u32,
     end: u32,
-    /// This is only used for regions with `fields.len() > 1`
+    /// This is only used for regions with `rbfs.len() > 1`
     pub ident: Option<String>,
 }
 
 impl Region {
     fn shortest_ident(&self) -> Option<String> {
         let mut idents: Vec<_> = self
-            .fields
+            .rbfs
             .iter()
             .filter_map(|f| match &f.field.ident {
                 None => None,
@@ -274,7 +274,7 @@ impl Region {
         }
 
         let idents: Vec<_> = self
-            .fields
+            .rbfs
             .iter()
             .filter_map(|f| match &f.field.ident {
                 None => None,
@@ -304,10 +304,13 @@ impl Region {
         }
         if index <= 1 {
             None
-        } else if first.get(index).is_some() && first[index].chars().all(|c| c.is_numeric()) {
-            Some(first.iter().take(index).cloned().collect())
         } else {
-            Some(first.iter().take(index - 1).cloned().collect())
+            Some(match first.get(index) {
+                Some(elem) if elem.chars().all(|c| c.is_numeric()) => {
+                    first.iter().take(index).cloned().collect()
+                }
+                _ => first.iter().take(index - 1).cloned().collect(),
+            })
         }
     }
 
@@ -320,12 +323,12 @@ impl Region {
     }
 
     fn is_union(&self) -> bool {
-        self.fields.len() > 1
+        self.rbfs.len() > 1
     }
 }
 
 /// FieldRegions keeps track of overlapping field regions,
-/// merging fields into appropriate regions as we process them.
+/// merging rbfs into appropriate regions as we process them.
 /// This allows us to reason about when to create a union
 /// rather than a struct.
 #[derive(Default, Debug)]
@@ -338,19 +341,19 @@ struct FieldRegions {
 impl FieldRegions {
     /// Track a field.  If the field overlaps with 1 or more existing
     /// entries, they will be merged together.
-    fn add(&mut self, field: &RegisterBlockField) -> Result<()> {
+    fn add(&mut self, rbf: &RegisterBlockField) -> Result<()> {
         // When merging, this holds the indices in self.regions
-        // that the input `field` will be merging with.
+        // that the input `rbf` will be merging with.
         let mut indices = Vec::new();
 
-        let field_start = field.offset;
-        let field_end = field_start + (field.size + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
+        let rbf_start = rbf.offset;
+        let rbf_end = rbf_start + (rbf.size + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
 
         // The region that we're going to insert
         let mut new_region = Region {
-            fields: vec![field.clone()],
-            offset: field.offset,
-            end: field_end,
+            rbfs: vec![rbf.clone()],
+            offset: rbf.offset,
+            end: rbf_end,
             ident: None,
         };
 
@@ -363,8 +366,8 @@ impl FieldRegions {
             let f_end = f.end;
 
             // Compute intersection range
-            let begin = f_start.max(field_start);
-            let end = f_end.min(field_end);
+            let begin = f_start.max(rbf_start);
+            let end = f_end.min(rbf_end);
 
             if end > begin {
                 // We're going to remove this element and fold it
@@ -375,8 +378,8 @@ impl FieldRegions {
                 new_region.offset = new_region.offset.min(f_start);
                 new_region.end = new_region.end.max(f_end);
 
-                // And merge in the fields
-                new_region.fields.append(&mut f.fields);
+                // And merge in the rbfs
+                new_region.rbfs.append(&mut f.rbfs);
             }
         }
 
@@ -387,7 +390,7 @@ impl FieldRegions {
             self.regions.remove(*idx);
         }
 
-        new_region.fields.sort_by_key(|f| f.offset);
+        new_region.rbfs.sort_by_key(|f| f.offset);
 
         // maintain the regions ordered by starting offset
         let idx = self
@@ -413,7 +416,7 @@ impl FieldRegions {
         let idents: Vec<_> = {
             self.regions
                 .iter_mut()
-                .filter(|r| r.fields.len() > 1)
+                .filter(|r| r.rbfs.len() > 1)
                 .map(|r| {
                     r.ident = r.compute_ident();
                     r.ident.clone()
@@ -424,15 +427,15 @@ impl FieldRegions {
             .iter_mut()
             .filter(|r| r.ident.is_some())
             .filter(|r| {
-                r.fields.len() > 1 && (idents.iter().filter(|ident| **ident == r.ident).count() > 1)
+                r.rbfs.len() > 1 && (idents.iter().filter(|&ident| ident == &r.ident).count() > 1)
             })
             .for_each(|r| {
+                let new_ident = r.shortest_ident();
                 warn!(
                     "Found type name conflict with region {:?}, renamed to {:?}",
-                    r.ident,
-                    r.shortest_ident()
+                    r.ident, new_ident
                 );
-                r.ident = r.shortest_ident();
+                r.ident = new_ident;
             });
         Ok(())
     }
@@ -444,7 +447,7 @@ fn register_or_cluster_block(
     name: Option<&str>,
     _nightly: bool,
 ) -> Result<TokenStream> {
-    let mut fields = TokenStream::new();
+    let mut rbfs = TokenStream::new();
     let mut accessors = TokenStream::new();
     let mut have_accessors = false;
 
@@ -459,7 +462,7 @@ fn register_or_cluster_block(
 
     // We need to compute the idents of each register/union block first to make sure no conflicts exists.
     regions.resolve_idents()?;
-    // The end of the region for which we previously emitted a field into `fields`
+    // The end of the region for which we previously emitted a rbf into `rbfs`
     let mut last_end = 0;
 
     let span = Span::call_site();
@@ -469,15 +472,15 @@ fn register_or_cluster_block(
         if pad != 0 {
             let name = Ident::new(&format!("_reserved{}", i), span);
             let pad = pad as usize;
-            fields.extend(quote! {
+            rbfs.extend(quote! {
                 #name : [u8; #pad],
             });
         }
 
-        let mut region_fields = TokenStream::new();
+        let mut region_rbfs = TokenStream::new();
         let is_region_a_union = region.is_union();
 
-        for reg_block_field in &region.fields {
+        for reg_block_field in &region.rbfs {
             let comment = &format!(
                 "0x{:02x} - {}",
                 reg_block_field.offset,
@@ -499,20 +502,20 @@ fn register_or_cluster_block(
                     }
                 });
             } else {
-                region_fields.extend(quote! {
+                region_rbfs.extend(quote! {
                     #[doc = #comment]
                 });
 
-                reg_block_field.field.to_tokens(&mut region_fields);
-                Punct::new(',', Spacing::Alone).to_tokens(&mut region_fields);
+                reg_block_field.field.to_tokens(&mut region_rbfs);
+                Punct::new(',', Spacing::Alone).to_tokens(&mut region_rbfs);
             }
         }
 
         if !is_region_a_union {
-            fields.extend(region_fields);
+            rbfs.extend(region_rbfs);
         } else {
             // Emit padding for the items that we're not emitting
-            // as fields so that subsequent fields have the correct
+            // as rbfs so that subsequent rbfs have the correct
             // alignment in the struct.  We could omit this and just
             // not updated `last_end`, so that the padding check in
             // the outer loop kicks in, but it is nice to be able to
@@ -534,7 +537,7 @@ fn register_or_cluster_block(
                 span,
             );
             let pad = (region.end - region.offset) as usize;
-            fields.extend(quote! {
+            rbfs.extend(quote! {
                 #name: [u8; #pad],
             })
         }
@@ -563,7 +566,7 @@ fn register_or_cluster_block(
         ///Register block
         #[repr(C)]
         pub struct #name {
-            #fields
+            #rbfs
         }
 
         #accessors
@@ -809,10 +812,10 @@ fn expand_svd_register(
                     )
                 });
 
-            let ty_name = util::replace_suffix(&info.name, "");
+            let ty_name = util::replace_suffix(&info.fullname(), "");
 
             for (idx, _i) in indices.iter().zip(0..) {
-                let nb_name = util::replace_suffix(&info.name, idx);
+                let nb_name = util::replace_suffix(&info.fullname(), idx);
 
                 let ty = name_to_wrapped_ty(&ty_name, name)?;
 
@@ -826,13 +829,15 @@ fn expand_svd_register(
 /// Convert a parsed `Register` into its `Field` equivalent
 fn convert_svd_register(register: &Register, name: Option<&str>) -> Result<syn::Field, syn::Error> {
     Ok(match register {
-        Register::Single(info) => new_syn_field(
-            &info.name.to_sanitized_snake_case(),
-            name_to_wrapped_ty(&info.name, name)?,
-        ),
+        Register::Single(info) => {
+            let info_name = info.fullname();
+            new_syn_field(
+                &info_name.to_sanitized_snake_case(),
+                name_to_wrapped_ty(&info_name, name)?,
+            )
+        }
         Register::Array(info, array_info) => {
-            let nb_name = util::replace_suffix(&info.name, "");
-
+            let nb_name = util::replace_suffix(&info.fullname(), "");
             let ty = syn::Type::Array(parse_str::<syn::TypeArray>(&format!(
                 "[{};{}]",
                 name_to_wrapped_ty_str(&nb_name, name),

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- Support for registers with alternateGroup
+
 - New `-m` switch generates a `mod.rs` file instead of `lib.rs`, which can
   be used as a module inside a crate without further modification.
 

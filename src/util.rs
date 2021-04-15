@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::svd::{Access, Cluster, Register, RegisterCluster};
+use crate::svd::{Access, Cluster, Register, RegisterCluster, RegisterInfo};
 use inflections::Inflect;
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 use quote::{quote, ToTokens};
@@ -146,8 +146,8 @@ pub fn escape_brackets(s: &str) -> String {
 
 pub fn name_of(register: &Register) -> Cow<str> {
     match register {
-        Register::Single(info) => Cow::from(&info.name),
-        Register::Array(info, _) => replace_suffix(&info.name, "").into(),
+        Register::Single(info) => info.fullname(),
+        Register::Array(info, _) => replace_suffix(&info.fullname(), "").into(),
     }
 }
 
@@ -328,6 +328,20 @@ pub fn build_rs() -> TokenStream {
             }
 
             println!("cargo:rerun-if-changed=build.rs");
+        }
+    }
+}
+
+pub trait FullName {
+    fn fullname(&self) -> Cow<str>;
+}
+
+impl FullName for RegisterInfo {
+    fn fullname(&self) -> Cow<str> {
+        if let Some(group) = &self.alternate_group {
+            format!("{}_{}", group, self.name).into()
+        } else {
+            self.name.as_str().into()
         }
     }
 }
