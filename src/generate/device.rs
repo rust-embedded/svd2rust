@@ -150,7 +150,7 @@ pub fn render(
         out.extend(quote! {
             #[allow(unused_imports)]
             use generic::*;
-            ///Common register and bit access and modify traits
+            #[doc="Common register and bit access and modify traits"]
             pub mod generic;
         });
     } else {
