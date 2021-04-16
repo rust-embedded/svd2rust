@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- [breaking-change] make `write_with_zero` method `unsafe` because the way it is
+
 - [breaking-change] remove `Variant<U, ENUM_A>`, use `Option<ENUM_A>` instead
 
 - split out register size type (`RawType`) from `ResetValue` trait
