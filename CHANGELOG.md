@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- New `-m` switch generates a `mod.rs` file instead of `lib.rs`, which can
+  be used as a module inside a crate without further modification.
+
 - Generated crates now contain the git commit hash and date of svd2rust
   compilation.
 

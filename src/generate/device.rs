@@ -16,6 +16,7 @@ pub fn render(
     target: Target,
     nightly: bool,
     generic_mod: bool,
+    make_mod: bool,
     device_x: &mut String,
 ) -> Result<TokenStream> {
     let mut out = TokenStream::new();
@@ -51,29 +52,31 @@ pub fn render(
         });
     }
 
-    out.extend(quote! {
-        #![doc = #doc]
-        // Deny a subset of warnings
-        #![deny(const_err)]
-        #![deny(dead_code)]
-        #![deny(improper_ctypes)]
-        #![deny(missing_docs)]
-        #![deny(no_mangle_generic_items)]
-        #![deny(non_shorthand_field_patterns)]
-        #![deny(overflowing_literals)]
-        #![deny(path_statements)]
-        #![deny(patterns_in_fns_without_body)]
-        #![deny(private_in_public)]
-        #![deny(unconditional_recursion)]
-        #![deny(unused_allocation)]
-        #![deny(unused_comparisons)]
-        #![deny(unused_parens)]
-        #![deny(while_true)]
-        // Explicitly allow a few warnings that may be verbose
-        #![allow(non_camel_case_types)]
-        #![allow(non_snake_case)]
-        #![no_std]
-    });
+    out.extend(quote! { #![doc = #doc] });
+    if !make_mod {
+        out.extend(quote! {
+            // Deny a subset of warnings
+            #![deny(const_err)]
+            #![deny(dead_code)]
+            #![deny(improper_ctypes)]
+            #![deny(missing_docs)]
+            #![deny(no_mangle_generic_items)]
+            #![deny(non_shorthand_field_patterns)]
+            #![deny(overflowing_literals)]
+            #![deny(path_statements)]
+            #![deny(patterns_in_fns_without_body)]
+            #![deny(private_in_public)]
+            #![deny(unconditional_recursion)]
+            #![deny(unused_allocation)]
+            #![deny(unused_comparisons)]
+            #![deny(unused_parens)]
+            #![deny(while_true)]
+            // Explicitly allow a few warnings that may be verbose
+            #![allow(non_camel_case_types)]
+            #![allow(non_snake_case)]
+            #![no_std]
+        });
+    }
 
     out.extend(quote! {
         use core::ops::Deref;
@@ -145,12 +148,14 @@ pub fn render(
     if generic_mod {
         writeln!(File::create("generic.rs")?, "{}", generic_file)?;
 
-        out.extend(quote! {
-            #[allow(unused_imports)]
-            use generic::*;
-            #[doc="Common register and bit access and modify traits"]
-            pub mod generic;
-        });
+        if !make_mod {
+            out.extend(quote! {
+                #[allow(unused_imports)]
+                use generic::*;
+                #[doc="Common register and bit access and modify traits"]
+                pub mod generic;
+            });
+        }
     } else {
         let tokens = syn::parse_file(generic_file)?.into_token_stream();
 
