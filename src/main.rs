@@ -46,6 +46,12 @@ fn run() -> Result<()> {
                 .help("Push generic mod in separate file"),
         )
         .arg(
+            Arg::with_name("make_mod")
+                .long("make_mod")
+                .short("m")
+                .help("Create mod.rs instead of lib.rs, without inner attributes"),
+        )
+        .arg(
             Arg::with_name("log_level")
                 .long("log")
                 .short("l")
@@ -91,10 +97,19 @@ fn run() -> Result<()> {
     let nightly = matches.is_present("nightly_features");
 
     let generic_mod = matches.is_present("generic_mod");
+    let make_mod = matches.is_present("make_mod");
 
     let mut device_x = String::new();
-    let items = generate::device::render(&device, target, nightly, generic_mod, &mut device_x)?;
-    let mut file = File::create("lib.rs").expect("Couldn't create lib.rs file");
+    let items = generate::device::render(
+        &device,
+        target,
+        nightly,
+        generic_mod,
+        make_mod,
+        &mut device_x,
+    )?;
+    let filename = if make_mod { "mod.rs" } else { "lib.rs" };
+    let mut file = File::create(filename).expect("Couldn't create output file");
 
     let data = items.to_string().replace("] ", "]\n");
     file.write_all(data.as_ref())
