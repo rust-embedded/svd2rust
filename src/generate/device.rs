@@ -94,8 +94,6 @@ pub fn render(
         fpu_present = cpu.fpu_present;
     }
 
-    out.extend(interrupt::render(target, &d.peripherals, device_x)?);
-
     let core_peripherals: &[_] = if fpu_present {
         &[
             "CBP", "CPUID", "DCB", "DWT", "FPB", "FPU", "ITM", "MPU", "NVIC", "SCB", "SYST", "TPIU",
@@ -165,6 +163,8 @@ pub fn render(
             }
         });
     }
+
+    out.extend(interrupt::render(target, &d.peripherals, device_x)?);
 
     for p in &d.peripherals {
         if target == Target::CortexM && core_peripherals.contains(&&*p.name.to_uppercase()) {
