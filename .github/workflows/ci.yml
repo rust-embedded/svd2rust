@@ -23,12 +23,21 @@ jobs:
         # Temporary hack as long as we use the current CI script
         TRAVIS_OS_NAME: [linux]
 
+        FEATURES: [""]
+
         include:
           # Test MSRV
           - rust: 1.40.0
             VENDOR: Nordic
             TARGET: x86_64-unknown-linux-gnu
             TRAVIS_OS_NAME: linux
+
+          # Test features
+          - rust: 1.51.0
+            VENDOR: RISC-V
+            TARGET: x86_64-unknown-linux-gnu
+            TRAVIS_OS_NAME: linux
+            FEATURES: "strict,const-generic"
 
           # Use nightly for architectures which don't support stable
           - rust: nightly
@@ -64,4 +73,4 @@ jobs:
           override: true
           components: rustfmt
       - name: Run CI script for ${{ matrix.VENDOR }} under ${{ matrix.rust }}
-        run: TARGET=${{ matrix.TARGET }} VENDOR=${{ matrix.VENDOR }} TRAVIS_OS_NAME=${{ matrix.TRAVIS_OS_NAME }} bash ci/script.sh
+        run: TARGET=${{ matrix.TARGET }} VENDOR=${{ matrix.VENDOR }} TRAVIS_OS_NAME=${{ matrix.TRAVIS_OS_NAME }} FEATURES=${{ matrix.FEATURES }} bash ci/script.sh

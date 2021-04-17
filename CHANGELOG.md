@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- with feature "const-generic" generate const generic variant of
+  "field array" structure in addition to structure
+  that contain offset (requires rust 1.51) 
+
 - move interrupt generation after generic file
 
 - [breaking-change] make `write_with_zero` method `unsafe` because the way it is

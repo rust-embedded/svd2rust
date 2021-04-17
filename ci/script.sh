@@ -55,7 +55,11 @@ main() {
         return
     fi
 
-    cargo build --target $TARGET --release
+    if [ -z ${FEATURES-} ]; then
+      cargo build --target $TARGET --release
+    else
+      cargo build --target $TARGET --release --features $FEATURES
+    fi
 
     case $TRAVIS_OS_NAME in
         linux)

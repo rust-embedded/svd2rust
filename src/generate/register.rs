@@ -563,6 +563,8 @@ pub fn fields(
         if can_write {
             let new_pc_aw = Ident::new(&(name_pc.clone() + "_AW"), span);
             let name_pc_w = Ident::new(&(name_pc.clone() + "_W"), span);
+            #[cfg(feature = "const-generic")]
+            let name_pc_cgw = Ident::new(&(name_pc.clone() + "_CGW"), span);
 
             let mut proxy_items = TokenStream::new();
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
@@ -639,61 +641,108 @@ pub fn fields(
                 });
             }
 
-            proxy_items.extend(if field_dim.is_some() {
-                quote! {
+            let mut proxy_items_fa = TokenStream::new();
+            #[cfg(feature = "const-generic")]
+            let mut proxy_items_cg = TokenStream::new();
+            if field_dim.is_some() {
+                proxy_items_fa.extend(quote! {
                     ///Writes raw bits to the field
                     #inline
                     pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
                         self.w.bits = (self.w.bits & !(#hexmask << self.offset)) | ((value as #rty & #hexmask) << self.offset);
                         self.w
                     }
-                }
-            } else if offset != 0 {
-                let offset = &util::unsuffixed(offset);
-                quote! {
+                });
+                #[cfg(feature="const-generic")]
+                proxy_items_cg.extend(quote! {
                     ///Writes raw bits to the field
                     #inline
                     pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        self.w.bits = (self.w.bits & !(#hexmask << #offset)) | ((value as #rty & #hexmask) << #offset);
+                        self.w.bits = (self.w.bits & !(#hexmask << O)) | ((value as #rty & #hexmask) << O);
                         self.w
                     }
-                }
+                });
             } else {
-                quote! {
-                    ///Writes raw bits to the field
-                    #inline
-                    pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        self.w.bits = (self.w.bits & !#hexmask) | (value as #rty & #hexmask);
-                        self.w
+                proxy_items.extend(if offset != 0 {
+                    let offset = &util::unsuffixed(offset);
+                    quote! {
+                        ///Writes raw bits to the field
+                        #inline
+                        pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
+                            self.w.bits = (self.w.bits & !(#hexmask << #offset)) | ((value as #rty & #hexmask) << #offset);
+                            self.w
+                        }
                     }
-                }
-            });
+                } else {
+                    quote! {
+                        ///Writes raw bits to the field
+                        #inline
+                        pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
+                            self.w.bits = (self.w.bits & !#hexmask) | (value as #rty & #hexmask);
+                            self.w
+                        }
+                    }
+                });
+            }
 
-            let doc;
-            let offset_entry;
-            if let Some((_, _, _, _, suffixes_str)) = &field_dim {
-                doc = format!(
+            #[cfg(feature = "const-generic")]
+            let mut cgdoc = String::new();
+            let doc = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
+                #[cfg(feature = "const-generic")]
+                {
+                    cgdoc = format!(
+                        "Fields `{}` const generic writer - {}",
+                        util::replace_suffix(&f.name, suffixes_str),
+                        description
+                    );
+                }
+                format!(
                     "Fields `{}` writer - {}",
                     util::replace_suffix(&f.name, suffixes_str),
                     description
-                );
-                offset_entry = quote! {offset: usize,};
+                )
             } else {
-                doc = format!("Field `{}` writer - {}", f.name, description);
-                offset_entry = quote! {};
+                format!("Field `{}` writer - {}", f.name, description)
+            };
+
+            if field_dim.is_some() {
+                mod_items.extend(quote! {
+                    #[doc = #doc]
+                    pub struct #name_pc_w<'a> {
+                        w: &'a mut W,
+                        offset: usize,
+                    }
+
+                    impl<'a> #name_pc_w<'a> {
+                        #proxy_items
+                        #proxy_items_fa
+                    }
+                });
+
+                #[cfg(feature = "const-generic")]
+                mod_items.extend(quote! {
+                    #[doc = #cgdoc]
+                    pub struct #name_pc_cgw<'a, const O: usize> {
+                        w: &'a mut W,
+                    }
+
+                    impl<'a, const O: usize> #name_pc_cgw<'a, O> {
+                        #proxy_items
+                        #proxy_items_cg
+                    }
+                });
+            } else {
+                mod_items.extend(quote! {
+                    #[doc = #doc]
+                    pub struct #name_pc_w<'a> {
+                        w: &'a mut W,
+                    }
+
+                    impl<'a> #name_pc_w<'a> {
+                        #proxy_items
+                    }
+                });
             }
-
-            mod_items.extend(quote! {
-                #[doc = #doc]
-                pub struct #name_pc_w<'a> {
-                    w: &'a mut W,
-                    #offset_entry
-                }
-
-                impl<'a> #name_pc_w<'a> {
-                    #proxy_items
-                }
-            });
 
             if let Some((first, dim, increment, suffixes, suffixes_str)) = &field_dim {
                 let offset_calc = calculate_offset(*first, *increment, offset);
@@ -716,11 +765,20 @@ pub fn fields(
                         &suffix,
                     );
                     let sub_offset = util::unsuffixed(sub_offset as u64);
+                    #[cfg(not(feature = "const-generic"))]
                     w_impl_items.extend(quote! {
                         #[doc = #doc]
                         #inline
                         pub fn #name_sc_n(&mut self) -> #name_pc_w {
                             #name_pc_w { w: self, offset: #sub_offset }
+                        }
+                    });
+                    #[cfg(feature = "const-generic")]
+                    w_impl_items.extend(quote! {
+                        #[doc = #doc]
+                        #inline
+                        pub fn #name_sc_n(&mut self) -> #name_pc_cgw<#sub_offset> {
+                            #name_pc_cgw { w: self }
                         }
                     });
                 }
