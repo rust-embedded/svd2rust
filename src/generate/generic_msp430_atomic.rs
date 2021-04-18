@@ -7,8 +7,8 @@ where
     Self: Readable + Writable,
     REG::Ux: AtomicOperations + Default + Not<Output = REG::Ux>,
 {
-    ///Set high every bit in the register that was set in the write proxy. Leave other bits
-    ///untouched. The write is done in a single atomic instruction.
+    /// Set high every bit in the register that was set in the write proxy. Leave other bits
+    /// untouched. The write is done in a single atomic instruction.
     #[inline(always)]
     pub unsafe fn set_bits<F>(&self, f: F)
     where
@@ -22,8 +22,8 @@ where
         REG::Ux::atomic_or(self.register.as_ptr(), bits);
     }
 
-    ///Clear every bit in the register that was cleared in the write proxy. Leave other bits
-    ///untouched. The write is done in a single atomic instruction.
+    /// Clear every bit in the register that was cleared in the write proxy. Leave other bits
+    /// untouched. The write is done in a single atomic instruction.
     #[inline(always)]
     pub unsafe fn clear_bits<F>(&self, f: F)
     where
@@ -37,8 +37,8 @@ where
         REG::Ux::atomic_and(self.register.as_ptr(), bits);
     }
 
-    ///Toggle every bit in the register that was set in the write proxy. Leave other bits
-    ///untouched. The write is done in a single atomic instruction.
+    /// Toggle every bit in the register that was set in the write proxy. Leave other bits
+    /// untouched. The write is done in a single atomic instruction.
     #[inline(always)]
     pub unsafe fn toggle_bits<F>(&self, f: F)
     where
