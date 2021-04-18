@@ -23,7 +23,7 @@ keywords = [
 license = "MIT OR Apache-2.0"
 name = "svd2rust"
 repository = "https://github.com/rust-embedded/svd2rust/"
-version = "0.17.0"
+version = "0.18.0"
 readme = "README.md"
 
 [[bin]]
@@ -35,16 +35,21 @@ path = "src/main.rs"
 cast = "0.2"
 clap = "2.33"
 env_logger = "~0.7"
-error-chain = "0.12"
 inflections = "1.1"
 log = { version = "~0.4", features = ["std"] }
 quote = "1.0"
 proc-macro2 = "1.0"
+anyhow = "1.0"
+thiserror = "1.0"
 
 [dependencies.svd-parser]
-version = "0.9"
+version = "0.10"
 features = ["derive-from"]
 
 [dependencies.syn]
 version = "1.0"
 features = ["full","extra-traits"]
+
+[features]
+strict = ["svd-parser/strict"]
+const-generic = []

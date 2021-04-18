@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 
-use crate::quote::ToTokens;
-use crate::svd::{Access, Cluster, Register, RegisterCluster};
+use crate::svd::{Access, Cluster, Register, RegisterCluster, RegisterInfo};
 use inflections::Inflect;
 use proc_macro2::{Ident, Literal, Span, TokenStream};
+use quote::{quote, ToTokens};
 
-use crate::errors::*;
+use anyhow::{anyhow, bail, Result};
 
 pub const BITS_PER_BYTE: u32 = 8;
 
@@ -13,11 +13,14 @@ pub const BITS_PER_BYTE: u32 = 8;
 /// that are not valid in Rust ident
 const BLACKLIST_CHARS: &[char] = &['(', ')', '[', ']', '/', ' ', '-'];
 
+#[allow(non_camel_case_types)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum Target {
     CortexM,
     Msp430,
     RISCV,
+    XtensaLX,
+    Mips,
     None,
 }
 
@@ -27,6 +30,8 @@ impl Target {
             "cortex-m" => Target::CortexM,
             "msp430" => Target::Msp430,
             "riscv" => Target::RISCV,
+            "xtensa-lx" => Target::XtensaLX,
+            "mips" => Target::Mips,
             "none" => Target::None,
             _ => bail!("unknown target {}", s),
         })
@@ -42,90 +47,47 @@ pub trait ToSanitizedUpperCase {
 }
 
 pub trait ToSanitizedSnakeCase {
-    fn to_sanitized_snake_case(&self) -> Cow<str>;
+    fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str>;
+    fn to_sanitized_snake_case(&self) -> Cow<str> {
+        let s = self.to_sanitized_not_keyword_snake_case();
+        sanitize_keyword(s)
+    }
 }
 
 impl ToSanitizedSnakeCase for str {
-    fn to_sanitized_snake_case(&self) -> Cow<str> {
-        macro_rules! keywords {
-            ($s:expr, $($kw:ident),+,) => {
-                Cow::from(match &$s.to_lowercase()[..] {
-                    $(stringify!($kw) => concat!(stringify!($kw), "_")),+,
-                    _ => return Cow::from($s.to_snake_case())
-                })
-            }
-        }
+    fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str> {
+        const INTERNALS: [&str; 4] = ["set_bit", "clear_bit", "bit", "bits"];
 
         let s = self.replace(BLACKLIST_CHARS, "");
-
         match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_snake_case()))
+                format!("_{}", s.to_snake_case()).into()
             }
             _ => {
-                keywords! {
-                    s,
-                    abstract,
-                    alignof,
-                    as,
-                    async,
-                    await,
-                    become,
-                    box,
-                    break,
-                    const,
-                    continue,
-                    crate,
-                    do,
-                    else,
-                    enum,
-                    extern,
-                    false,
-                    final,
-                    fn,
-                    for,
-                    if,
-                    impl,
-                    in,
-                    let,
-                    loop,
-                    macro,
-                    match,
-                    mod,
-                    move,
-                    mut,
-                    offsetof,
-                    override,
-                    priv,
-                    proc,
-                    pub,
-                    pure,
-                    ref,
-                    return,
-                    self,
-                    sizeof,
-                    static,
-                    struct,
-                    super,
-                    trait,
-                    true,
-                    try,
-                    type,
-                    typeof,
-                    unsafe,
-                    unsized,
-                    use,
-                    virtual,
-                    where,
-                    while,
-                    yield,
-                    set_bit,
-                    clear_bit,
-                    bit,
-                    bits,
+                let s = Cow::from(s.to_snake_case());
+                if INTERNALS.contains(&s.as_ref()) {
+                    s + "_"
+                } else {
+                    s
                 }
             }
         }
+    }
+}
+
+pub fn sanitize_keyword(sc: Cow<str>) -> Cow<str> {
+    const KEYWORDS: [&str; 54] = [
+        "abstract", "alignof", "as", "async", "await", "become", "box", "break", "const",
+        "continue", "crate", "do", "else", "enum", "extern", "false", "final", "fn", "for", "if",
+        "impl", "in", "let", "loop", "macro", "match", "mod", "move", "mut", "offsetof",
+        "override", "priv", "proc", "pub", "pure", "ref", "return", "self", "sizeof", "static",
+        "struct", "super", "trait", "true", "try", "type", "typeof", "unsafe", "unsized", "use",
+        "virtual", "where", "while", "yield",
+    ];
+    if KEYWORDS.contains(&sc.as_ref()) {
+        sc + "_"
+    } else {
+        sc
     }
 }
 
@@ -162,30 +124,30 @@ pub fn respace(s: &str) -> String {
 pub fn escape_brackets(s: &str) -> String {
     s.split('[')
         .fold("".to_string(), |acc, x| {
-            if acc == "" {
+            if acc.is_empty() {
                 x.to_string()
             } else if acc.ends_with('\\') {
-                acc + "[" + &x.to_string()
+                acc + "[" + x
             } else {
-                acc + "\\[" + &x.to_string()
+                acc + "\\[" + x
             }
         })
         .split(']')
         .fold("".to_string(), |acc, x| {
-            if acc == "" {
+            if acc.is_empty() {
                 x.to_string()
             } else if acc.ends_with('\\') {
-                acc + "]" + &x.to_string()
+                acc + "]" + x
             } else {
-                acc + "\\]" + &x.to_string()
+                acc + "\\]" + x
             }
         })
 }
 
 pub fn name_of(register: &Register) -> Cow<str> {
     match register {
-        Register::Single(info) => Cow::from(&info.name),
-        Register::Array(info, _) => replace_suffix(&info.name, "").into(),
+        Register::Single(info) => info.fullname(),
+        Register::Array(info, _) => replace_suffix(&info.fullname(), "").into(),
     }
 }
 
@@ -278,9 +240,10 @@ impl U32Ext for u32 {
                 17..=32 => "u32",
                 33..=64 => "u64",
                 _ => {
-                    return Err(
-                        format!("can't convert {} bits into a Rust integral type", *self).into(),
-                    )
+                    return Err(anyhow!(
+                        "can't convert {} bits into a Rust integral type",
+                        *self
+                    ))
                 }
             },
             Span::call_site(),
@@ -295,13 +258,28 @@ impl U32Ext for u32 {
             17..=32 => 32,
             33..=64 => 64,
             _ => {
-                return Err(format!(
+                return Err(anyhow!(
                     "can't convert {} bits into a Rust integral type width",
                     *self
-                )
-                .into())
+                ))
             }
         })
+    }
+}
+
+/// Return the name of either register or cluster.
+pub fn erc_name(erc: &RegisterCluster) -> &String {
+    match erc {
+        RegisterCluster::Register(r) => &r.name,
+        RegisterCluster::Cluster(c) => &c.name,
+    }
+}
+
+/// Return the name of either register or cluster from which this register or cluster is derived.
+pub fn erc_derived_from(erc: &RegisterCluster) -> &Option<String> {
+    match erc {
+        RegisterCluster::Register(r) => &r.derived_from,
+        RegisterCluster::Cluster(c) => &c.derived_from,
     }
 }
 
@@ -350,6 +328,20 @@ pub fn build_rs() -> TokenStream {
             }
 
             println!("cargo:rerun-if-changed=build.rs");
+        }
+    }
+}
+
+pub trait FullName {
+    fn fullname(&self) -> Cow<str>;
+}
+
+impl FullName for RegisterInfo {
+    fn fullname(&self) -> Cow<str> {
+        if let Some(group) = &self.alternate_group {
+            format!("{}_{}", group, self.name).into()
+        } else {
+            self.name.as_str().into()
         }
     }
 }

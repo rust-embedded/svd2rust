@@ -7,15 +7,87 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.18.0] - 2021-04-17
+
+### Added
+
+- Support for registers with alternateGroup
+
+- New `-m` switch generates a `mod.rs` file instead of `lib.rs`, which can
+  be used as a module inside a crate without further modification.
+
+- ESP32/XtensaLX6 support.
+
+- Field array support.
+
+- Add repr(transparent) to Reg struct
+
+- Generated crates now contain the git commit hash and date of svd2rust
+  compilation.
+
+- Provide an associated const ptr `PTR` per peripheral RegisterBlock
+
+- Generated peripherals now implement `core::fmt::Debug`.
+
+- Support for MIPS MCU cores, in particular for PIC32MX microcontrollers
+
 ### Fixed
 
-- Keyword sanitizing (`async`)
+- Keyword sanitizing (`async` and unneeded underscores)
+
+- Expand derived clusters.
+
+- Ignore default enumeratedValues.
+
+- Bring `generic` module into scope in `lib.rs` when using `-g` option.
 
 ### Changed
+
+- with feature "const-generic" generate const generic variant of
+  "field array" structure in addition to structure
+  that contain offset (requires rust 1.51) 
+
+- move interrupt generation after generic file
+
+- [breaking-change] make `write_with_zero` method `unsafe` because the way it is
+
+- Use complete path for cluster names
+
+- Rename some generated variables.
+
+- [breaking-change] Publishes the register spec zero-sized type and move all relevant register traits to that struct.
+
+- [breaking-change] Removes the extra type parameter on Reg, making the register spec the sole authority on the shape of the register.
+
+- Wrap register reader/writer and field readers in newtype wrappers, which significantly improves the documentation output.
+
+- Improve documentation on generated registers and fields
+
+- [breaking-change] remove `Variant<U, ENUM_A>`, use `Option<ENUM_A>` instead
+
+- [breaking-change] Update `svd-parser` to `0.11`
+
+- split out register size type (`RawType`) from `ResetValue` trait
+
+- `anyhow` crate is used for error handling
 
 - [breaking-change] Among other cleanups, MSP430 crates are now expected to
   use the `msp430_rt::interrupt` attribute macro and `device.x` for interrupt
   support. The `INTERRUPT` array has been renamed `__INTERRUPT`.
+
+- Documented the nature of the `Interrupt` enum on MSP430 and consequently
+  removed all use of `bare-metal` from that architecture
+
+- Don't generate pre Edition 2018 `extern crate` statements anymore
+
+- [breaking-change] Cortex-M PACs now rely on
+  `cortex_m::interrupt::InterruptNumber` instead of `bare_metal::Nr` for
+  interrupt number handling. The minimum supported `cortex-m` version is now
+  **0.7** and `bare-metal` is not a dependency anymore.
+
+### Removed
+
+- Generated use of the register type aliases in favor of directly referencing `Reg<REGISTER_SPEC>`
 
 ## [v0.17.0] - 2019-12-31
 
@@ -511,7 +583,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.18.0...HEAD
+[v0.18.0]: https://github.com/rust-embedded/svd2rust/compare/v0.17.0...v0.18.0
 [v0.17.0]: https://github.com/rust-embedded/svd2rust/compare/v0.16.1...v0.17.0
 [v0.16.1]: https://github.com/rust-embedded/svd2rust/compare/v0.16.0...v0.16.1
 [v0.16.0]: https://github.com/rust-embedded/svd2rust/compare/v0.15.2...v0.16.0

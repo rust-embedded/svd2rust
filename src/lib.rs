@@ -3,8 +3,8 @@
 //! [CMSIS-SVD]: http://www.keil.com/pack/doc/CMSIS/SVD/html/index.html
 //!
 //! A SVD file is an XML file that describes the hardware features of a
-//! microcontroller. In particular, it list all the peripherals available to the
-//! device, where the registers associated to each device are located in memory
+//! microcontroller. In particular, it lists all the peripherals available to the
+//! device, where the registers associated to each device are located in memory,
 //! and what's the function of each register.
 //!
 //! `svd2rust` is a command line tool that transforms SVD files into crates that
@@ -18,17 +18,21 @@
 //!
 //! # Usage
 //!
-//! `svd2rust` supports Cortex-M, MSP430 and RISCV microcontrollers. The generated crate can be
-//! tailored for either architecture using the `--target` flag. The flag accepts "cortex-m",
-//! "msp430", "riscv" and "none" as values. "none" can be used to generate a crate that's
+//! `svd2rust` supports Cortex-M, MSP430, RISCV and Xtensa LX6 microcontrollers. The generated crate can
+//! be tailored for either architecture using the `--target` flag. The flag accepts "cortex-m",
+//! "msp430", "riscv", "xtensa-lx" and "none" as values. "none" can be used to generate a crate that's
 //! architecture agnostic and that should work for architectures that `svd2rust` doesn't currently
 //! know about like the Cortex-A architecture.
 //!
 //! If the `--target` flag is omitted `svd2rust` assumes the target is the Cortex-M architecture.
 //!
+//! If using the `--generic_mod` option, the emitted `generic.rs` needs to be moved to `src`, and
+//! [`form`](https://github.com/djmcgill/form) commit fcb397a or newer is required for splitting
+//! the emitted `lib.rs`.
+//!
 //! ## target = cortex-m
 //!
-//! When targeting the Cortex-M architecture `svd2rust` will generate three files in the current
+//! When targeting the Cortex-M architecture, `svd2rust` will generate three files in the current
 //! directory:
 //!
 //! - `build.rs`, build script that places `device.x` somewhere the linker can find.
@@ -53,19 +57,18 @@
 //! ```
 //!
 //! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
-//! `bare-metal` v0.2.x, `cortex-m` v0.5.x, `cortex-m-rt` >=v0.6.5 and `vcell` v0.1.x. Furthermore
+//! `cortex-m` v0.7, `cortex-m-rt` >=v0.6.13 and `vcell` >=v0.1.2. Furthermore
 //! the "device" feature of `cortex-m-rt` must be enabled when the "rt" feature is enabled. The
 //! `Cargo.toml` of the device crate will look like this:
 //!
 //! ``` toml
 //! [dependencies]
-//! bare-metal = "0.2.0"
-//! cortex-m = "0.5.8"
-//! vcell = "0.1.0"
+//! cortex-m = "0.7"
+//! vcell = "0.1.2"
 //!
 //! [dependencies.cortex-m-rt]
 //! optional = true
-//! version = "0.6.5"
+//! version = "0.6.13"
 //!
 //! [features]
 //! rt = ["cortex-m-rt/device"]
@@ -106,16 +109,15 @@
 //! ```
 //!
 //! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
-//! `bare-metal` v0.2.x, `msp430` v0.2.x, `msp430-rt` v0.2.x, `msp430-atomic` v0.1.1, and `vcell`
-//! v0.1.x. Furthermore the "device" feature of `msp430-rt` must be enabled when the "rt" feature
-//! is enabled. The `Cargo.toml` of the device crate will look like this:
+//! `msp430` v0.2.x, `msp430-rt` v0.2.x, `vcell` v0.1.x, and `msp430-atomic` v0.1.2. Furthermore
+//! the "device" feature of `msp430-rt` must be enabled when the "rt" feature is enabled. The
+//! `Cargo.toml` of the device crate will look like this:
 //!
 //! ``` toml
 //! [dependencies]
-//! bare-metal = "0.2.0"
 //! msp430 = "0.2.0"
 //! vcell = "0.1.0"
-//! msp430-atomic = "0.1.1"
+//! msp430-atomic = "0.1.2"
 //!
 //! [dependencies.msp430-rt]
 //! optional = true
@@ -175,7 +177,7 @@
 //! ```
 //!
 //! The singleton property can be *unsafely* bypassed using the `ptr` static method which is
-//! available on all the peripheral types. This method is a useful for implementing safe higher
+//! available on all the peripheral types. This method is useful for implementing safe higher
 //! level abstractions.
 //!
 //! ```ignore
@@ -241,15 +243,15 @@
 //! # `read` / `modify` / `write` API
 //!
 //! Each register in the register block, e.g. the `cr1` field in the `I2C` struct, exposes a
-//! combination of the `read`, `modify` and `write` methods. Which methods exposes each register
+//! combination of the `read`, `modify`, and `write` methods. Which method exposes each register
 //! depends on whether the register is read-only, read-write or write-only:
 //!
 //! - read-only registers only expose the `read` method.
 //! - write-only registers only expose the `write` method.
-//! - read-write registers expose all the methods: `read`, `modify` and
+//! - read-write registers expose all the methods: `read`, `modify`, and
 //!   `write`.
 //!
-//! This is signature of each of these methods:
+//! Below shows signatures of each of these methods:
 //!
 //! (using `I2C`'s `CR2` register as an example)
 //!
@@ -452,9 +454,6 @@
 //! used with the `cortex-m` crate `NVIC` API.
 //!
 //! ```ignore
-//! extern crate cortex_m;
-//! extern crate stm32f30x;
-//!
 //! use cortex_m::interrupt;
 //! use cortex_m::peripheral::Peripherals;
 //! use stm32f30x::Interrupt;
@@ -468,7 +467,7 @@
 //!
 //! ## the "rt" feature
 //!
-//! If the "rt" Cargo feature of the svd2rust generated crate is enabled the crate will populate the
+//! If the "rt" Cargo feature of the svd2rust generated crate is enabled, the crate will populate the
 //! part of the vector table that contains the interrupt vectors and provide an
 //! [`interrupt!`](macro.interrupt.html) macro (non Cortex-M/MSP430 targets) or [`interrupt`] attribute
 //! (Cortex-M or [MSP430](https://docs.rs/msp430-rt-macros/0.1/msp430_rt_macros/attr.interrupt.html))
@@ -482,38 +481,32 @@
 //! compiler. Currently there are no nightly features the flag is only kept for compatibility with prior versions.
 #![recursion_limit = "128"]
 
-#[macro_use]
-extern crate error_chain;
-#[macro_use]
-extern crate quote;
+use quote::quote;
 use svd_parser as svd;
 
-mod errors;
 mod generate;
 mod util;
 
 pub use crate::util::Target;
 
+#[non_exhaustive]
 pub struct Generation {
     pub lib_rs: String,
     pub device_specific: Option<DeviceSpecific>,
-
-    // Reserve the right to add more fields to this struct
-    _extensible: (),
 }
 
+#[non_exhaustive]
 pub struct DeviceSpecific {
     pub device_x: String,
     pub build_rs: String,
-
-    // Reserve the right to add more fields to this struct
-    _extensible: (),
 }
 
-type Result<T> = std::result::Result<T, SvdError>;
-#[derive(Debug)]
+use anyhow::Result;
+#[derive(Debug, thiserror::Error)]
 pub enum SvdError {
+    #[error("Cannot format crate")]
     Fmt,
+    #[error("Cannot render SVD device")]
     Render,
 }
 
@@ -521,9 +514,9 @@ pub enum SvdError {
 pub fn generate(xml: &str, target: Target, nightly: bool) -> Result<Generation> {
     use std::fmt::Write;
 
-    let device = svd::parse(xml).unwrap(); //TODO(AJM)
+    let device = svd::parse(xml)?;
     let mut device_x = String::new();
-    let items = generate::device::render(&device, target, nightly, false, &mut device_x)
+    let items = generate::device::render(&device, target, nightly, false, false, &mut device_x)
         .or(Err(SvdError::Render))?;
 
     let mut lib_rs = String::new();
@@ -542,14 +535,12 @@ pub fn generate(xml: &str, target: Target, nightly: bool) -> Result<Generation> 
         Some(DeviceSpecific {
             device_x,
             build_rs: util::build_rs().to_string(),
-            _extensible: (),
         })
     };
 
     Ok(Generation {
         lib_rs,
         device_specific,
-        _extensible: (),
     })
 }
 

@@ -1,14 +1,8 @@
 #![recursion_limit = "128"]
 
-#[macro_use]
-extern crate error_chain;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate quote;
+use log::error;
 use svd_parser as svd;
 
-mod errors;
 mod generate;
 mod util;
 
@@ -16,9 +10,9 @@ use std::fs::File;
 use std::io::Write;
 use std::process;
 
+use anyhow::{Context, Result};
 use clap::{App, Arg};
 
-use crate::errors::*;
 use crate::util::{build_rs, Target};
 
 fn run() -> Result<()> {
@@ -52,6 +46,12 @@ fn run() -> Result<()> {
                 .help("Push generic mod in separate file"),
         )
         .arg(
+            Arg::with_name("make_mod")
+                .long("make_mod")
+                .short("m")
+                .help("Create mod.rs instead of lib.rs, without inner attributes"),
+        )
+        .arg(
             Arg::with_name("log_level")
                 .long("log")
                 .short("l")
@@ -79,36 +79,45 @@ fn run() -> Result<()> {
     match matches.value_of("input") {
         Some(file) => {
             File::open(file)
-                .chain_err(|| "couldn't open the SVD file")?
+                .context("Cannot open the SVD file")?
                 .read_to_string(xml)
-                .chain_err(|| "couldn't read the SVD file")?;
+                .context("Cannot read the SVD file")?;
         }
         None => {
             let stdin = std::io::stdin();
             stdin
                 .lock()
                 .read_to_string(xml)
-                .chain_err(|| "couldn't read from stdin")?;
+                .context("Cannot read from stdin")?;
         }
     }
 
-    let device = svd::parse(xml).unwrap(); //TODO(AJM)
+    let device = svd::parse(xml)?;
 
     let nightly = matches.is_present("nightly_features");
 
     let generic_mod = matches.is_present("generic_mod");
+    let make_mod = matches.is_present("make_mod");
 
     let mut device_x = String::new();
-    let items = generate::device::render(&device, target, nightly, generic_mod, &mut device_x)?;
-    let mut file = File::create("lib.rs").expect("Couldn't create lib.rs file");
+    let items = generate::device::render(
+        &device,
+        target,
+        nightly,
+        generic_mod,
+        make_mod,
+        &mut device_x,
+    )?;
+    let filename = if make_mod { "mod.rs" } else { "lib.rs" };
+    let mut file = File::create(filename).expect("Couldn't create output file");
 
     let data = items.to_string().replace("] ", "]\n");
     file.write_all(data.as_ref())
         .expect("Could not write code to lib.rs");
 
-    if target == Target::CortexM || target == Target::Msp430 {
-        writeln!(File::create("device.x").unwrap(), "{}", device_x).unwrap();
-        writeln!(File::create("build.rs").unwrap(), "{}", build_rs()).unwrap();
+    if target == Target::CortexM || target == Target::Msp430 || target == Target::XtensaLX {
+        writeln!(File::create("device.x")?, "{}", device_x)?;
+        writeln!(File::create("build.rs")?, "{}", build_rs())?;
     }
 
     Ok(())
@@ -142,17 +151,7 @@ fn setup_logging(matches: &clap::ArgMatches) {
 
 fn main() {
     if let Err(ref e) = run() {
-        error!("{}", e);
-
-        for e in e.iter().skip(1) {
-            error!("caused by: {}", e);
-        }
-
-        if let Some(backtrace) = e.backtrace() {
-            error!("backtrace: {:?}", backtrace);
-        } else {
-            error!("note: run with `RUST_BACKTRACE=1` for a backtrace")
-        }
+        error!("{:?}", e);
 
         process::exit(1);
     }

@@ -11,11 +11,11 @@ This project is developed and maintained by the [Tools team][team].
 
 # [API](https://docs.rs/svd2rust)
 
-## Requirements
+## Minimum Supported Rust Version (MSRV)
 
-The **generated code** is intended to compile on all stable versions of Rust greater or equal to **1.37.0**, as well as the latest beta and the latest nightly.
+The **generated code** is guaranteed to compile on stable Rust 1.40.0 and up.
 
-If you encounter compilation errors on any stable version newer than 1.37.0, please open an issue.
+If you encounter compilation errors on any stable version newer than 1.40.0, please open an issue.
 
 # Testing Locally
 

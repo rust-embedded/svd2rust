@@ -1,24 +1,22 @@
 use crate::errors::*;
 use crate::tests::TestCase;
-use reqwest;
 use std::fs::{self, File, OpenOptions};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Output};
 
-static CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.0\""];
-static CRATES_MSP430: &[&str] = &[
-    "msp430 = \"0.2.0\"",
+const CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.2\""];
+const CRATES_MSP430: &[&str] = &[
+    "msp430 = \"0.2.2\"",
     "msp430-rt = \"0.2.0\"",
-    "msp430-atomic = \"0.1.1\"",
+    "msp430-atomic = \"0.1.2\"",
 ];
-static CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.5.0\"", "cortex-m-rt = \"0.5.0\""];
-static CRATES_RISCV: &[&str] = &["riscv = \"0.4.0\"", "riscv-rt = \"0.4.0\""];
-static PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
-static FEATURES_ALL: &[&str] = &["[features]"];
-static FEATURES_CORTEX_M: &[&str] =
-    &["const-fn = [\"bare-metal/const-fn\", \"cortex-m/const-fn\"]"];
-static FEATURES_EMPTY: &[&str] = &[];
+const CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.7.0\"", "cortex-m-rt = \"0.6.13\""];
+const CRATES_RISCV: &[&str] = &["riscv = \"0.5.0\"", "riscv-rt = \"0.6.0\""];
+const CRATES_XTENSALX6: &[&str] = &["xtensa-lx6-rt = \"0.2.0\"", "xtensa-lx6 = \"0.1.0\""];
+const CRATES_MIPS: &[&str] = &["mips-mcu = \"0.1.0\""];
+const PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
+const FEATURES_ALL: &[&str] = &["[features]"];
 
 fn path_helper(input: &[&str]) -> PathBuf {
     input.iter().collect()
@@ -136,14 +134,12 @@ pub fn test(
         .chain(match &t.arch {
             CortexM => CRATES_CORTEX_M.iter(),
             RiscV => CRATES_RISCV.iter(),
+            Mips => CRATES_MIPS.iter(),
             Msp430 => CRATES_MSP430.iter(),
+            XtensaLX => CRATES_XTENSALX6.iter(),
         })
         .chain(PROFILE_ALL.iter())
-        .chain(FEATURES_ALL.iter())
-        .chain(match &t.arch {
-            CortexM => FEATURES_CORTEX_M.iter(),
-            _ => FEATURES_EMPTY.iter(),
-        });
+        .chain(FEATURES_ALL.iter());
 
     for c in crates {
         writeln!(file, "{}", c).chain_err(|| "Failed to append to file!")?;
@@ -151,7 +147,7 @@ pub fn test(
 
     // Download the SVD as specified in the URL
     // TODO: Check for existing svd files? `--no-cache` flag?
-    let svd = reqwest::get(&t.svd_url())
+    let svd = reqwest::blocking::get(&t.svd_url())
         .chain_err(|| "Failed to get svd URL")?
         .text()
         .chain_err(|| "SVD is bad text")?;
@@ -168,7 +164,9 @@ pub fn test(
     let target = match t.arch {
         CortexM => "cortex-m",
         Msp430 => "msp430",
+        Mips => "mips",
         RiscV => "riscv",
+        XtensaLX => "xtensa-lx",
     };
     let mut svd2rust_bin = Command::new(bin_path);
     if nightly {
@@ -184,14 +182,15 @@ pub fn test(
     output.capture_outputs(
         true,
         "svd2rust",
-        Some(&lib_rs_file).filter(|_| (t.arch != CortexM) && (t.arch != Msp430)),
+        Some(&lib_rs_file)
+            .filter(|_| (t.arch != CortexM) && (t.arch != Msp430) && (t.arch != XtensaLX)),
         Some(&svd2rust_err_file),
         &[],
     )?;
     process_stderr_paths.push(svd2rust_err_file);
 
     match t.arch {
-        CortexM | Msp430 => {
+        CortexM | Mips | Msp430 | XtensaLX => {
             // TODO: Give error the path to stderr
             fs::rename(path_helper_base(&chip_dir, &["lib.rs"]), &lib_rs_file)
                 .chain_err(|| "While moving lib.rs file")?

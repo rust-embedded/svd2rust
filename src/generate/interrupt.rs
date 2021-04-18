@@ -4,10 +4,11 @@ use std::fmt::Write;
 use crate::svd::Peripheral;
 use cast::u64;
 use proc_macro2::{Ident, Span, TokenStream};
+use quote::quote;
 
-use crate::errors::*;
 use crate::util::{self, ToSanitizedUpperCase};
 use crate::Target;
+use anyhow::Result;
 
 /// Generates code for `src/interrupt.rs`
 pub fn render(
@@ -72,7 +73,7 @@ pub fn render(
     match target {
         Target::CortexM => {
             for name in &names {
-                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name).unwrap();
+                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name)?;
             }
 
             root.extend(quote! {
@@ -125,51 +126,91 @@ pub fn render(
             });
         }
         Target::RISCV => {}
+        Target::XtensaLX => {
+            for name in &names {
+                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name)?;
+            }
+
+            root.extend(quote! {
+                #[cfg(feature = "rt")]
+                extern "C" {
+                    #(fn #names();)*
+                }
+
+                #[doc(hidden)]
+                pub union Vector {
+                    pub _handler: unsafe extern "C" fn(),
+                    _reserved: u32,
+                }
+
+                #[cfg(feature = "rt")]
+                #[doc(hidden)]
+                pub static __INTERRUPTS: [Vector; #n] = [
+                    #elements
+                ];
+            });
+        }
+        Target::Mips => {}
         Target::None => {}
     }
 
     let self_token = quote!(self);
     let (enum_repr, nr_expr) = if variants.is_empty() {
-        (quote!(), quote!(match *#self_token {}))
+        (quote!(), quote!(match #self_token {}))
     } else {
-        (quote!(#[repr(u8)]), quote!(*#self_token as u8))
+        (quote!(#[repr(u16)]), quote!(#self_token as u16))
     };
 
-    let interrupt_enum = quote! {
-        ///Enumeration of all the interrupts
-        #[derive(Copy, Clone, Debug)]
-        #enum_repr
-        pub enum Interrupt {
-            #variants
-        }
-
-        unsafe impl bare_metal::Nr for Interrupt {
-            #[inline(always)]
-            fn nr(&#self_token) -> u8 {
-                #nr_expr
+    if target == Target::Msp430 {
+        let interrupt_enum = quote! {
+            ///Enumeration of all the interrupts. This enum is seldom used in application or library crates. It is present primarily for documenting the device's implemented interrupts.
+            #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+            #enum_repr
+            pub enum Interrupt {
+                #variants
             }
-        }
-    };
+        };
 
-    if target == Target::CortexM || target == Target::Msp430 {
         root.extend(interrupt_enum);
     } else {
-        mod_items.extend(quote! {
-            #interrupt_enum
+        let interrupt_enum = quote! {
+            ///Enumeration of all the interrupts.
+            #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+            #enum_repr
+            pub enum Interrupt {
+                #variants
+            }
+        };
 
-            #[derive(Debug, Copy, Clone)]
-            pub struct TryFromInterruptError(());
+        if target == Target::CortexM {
+            root.extend(quote! {
+                #interrupt_enum
 
-            impl Interrupt {
-                #[inline]
-                pub fn try_from(value: u8) -> Result<Self, TryFromInterruptError> {
-                    match value {
-                        #from_arms
-                        _ => Err(TryFromInterruptError(())),
+                unsafe impl cortex_m::interrupt::InterruptNumber for Interrupt {
+                    #[inline(always)]
+                    fn number(#self_token) -> u16 {
+                        #nr_expr
                     }
                 }
-            }
-        });
+            });
+        } else {
+            mod_items.extend(quote! {
+                #interrupt_enum
+
+                #[derive(Debug, Copy, Clone)]
+                pub struct TryFromInterruptError(());
+
+                impl Interrupt {
+                    #[inline]
+                    pub fn try_from(value: u8) -> Result<Self, TryFromInterruptError> {
+                        match value {
+                            #from_arms
+                            _ => Err(TryFromInterruptError(())),
+                        }
+                    }
+                }
+            });
+        }
     }
 
     if target != Target::None {
@@ -178,7 +219,7 @@ pub fn render(
             _ => "C",
         };
 
-        if target != Target::CortexM && target != Target::Msp430 {
+        if target != Target::CortexM && target != Target::Msp430 && target != Target::XtensaLX {
             mod_items.extend(quote! {
                 #[cfg(feature = "rt")]
                 #[macro_export]

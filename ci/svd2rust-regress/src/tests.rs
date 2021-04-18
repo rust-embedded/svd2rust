@@ -5,8 +5,10 @@ pub enum Architecture {
     // TODO: Coming soon!
     // Avr,
     CortexM,
+    Mips,
     Msp430,
     RiscV,
+    XtensaLX,
 }
 
 #[derive(Debug)]
@@ -15,6 +17,7 @@ pub enum Manufacturer {
     Freescale,
     Fujitsu,
     Holtek,
+    Microchip,
     Nordic,
     Nuvoton,
     NXP,
@@ -24,6 +27,7 @@ pub enum Manufacturer {
     Toshiba,
     SiFive,
     TexasInstruments,
+    Espressif,
 }
 
 #[derive(Debug)]
@@ -4231,7 +4235,37 @@ pub const TESTS: &[&TestCase] = &[
         mfgr: TexasInstruments,
         chip: "msp430fr2355",
         svd_url: Some(
-            "https://raw.githubusercontent.com/YuhanLiin/msp430fr2355/rt-up/msp430fr2355.svd",
+            "https://raw.githubusercontent.com/YuhanLiin/msp430fr2355/master/msp430fr2355.svd",
+        ),
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: XtensaLX,
+        mfgr: Espressif,
+        chip: "esp32",
+        svd_url: Some(
+            "https://raw.githubusercontent.com/arjanmels/esp32/add-output-svd/svd/esp32.svd",
+        ),
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: Mips,
+        mfgr: Microchip,
+        chip: "pic32mx170f256b",
+        svd_url: Some(
+            "https://raw.githubusercontent.com/kiffie/pic32-pac/master/pic32mx1xxfxxxb/PIC32MX170F256B.svd.patched",
+        ),
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: Mips,
+        mfgr: Microchip,
+        chip: "pic32mx270f256b",
+        svd_url: Some(
+            "https://raw.githubusercontent.com/kiffie/pic32-pac/master/pic32mx2xxfxxxb/PIC32MX270F256B.svd.patched",
         ),
         should_pass: true,
         run_when: Always,
