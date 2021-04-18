@@ -150,9 +150,6 @@ pub fn render(
         let msp430_atomic_file = std::str::from_utf8(include_bytes!("generic_msp430_atomic.rs"))?;
         let generic_msp430_atomic = syn::parse_file(msp430_atomic_file)?.into_token_stream();
         generic_tokens = quote! {
-            extern crate msp430_atomic;
-
-            use self::msp430_atomic::AtomicOperations;
             use core::ops::Not;
 
             #generic_tokens

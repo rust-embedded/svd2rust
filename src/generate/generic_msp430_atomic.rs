@@ -1,3 +1,7 @@
+#[cfg(feature = "msp430-atomic")]
+use msp430_atomic::AtomicOperations;
+
+#[cfg(feature = "msp430-atomic")]
 impl<REG: Writable> Reg<REG>
 where
     Self: Readable + Writable,
