@@ -17,6 +17,8 @@ const CRATES_XTENSALX6: &[&str] = &["xtensa-lx6-rt = \"0.2.0\"", "xtensa-lx6 = \
 const CRATES_MIPS: &[&str] = &["mips-mcu = \"0.1.0\""];
 const PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
 const FEATURES_ALL: &[&str] = &["[features]"];
+const FEATURES_MSP430: &[&str] = &["unstable = [\"msp430-atomic\"]", "default = [\"unstable\"]"];
+const FEATURES_EMPTY: &[&str] = &[""];
 
 fn path_helper(input: &[&str]) -> PathBuf {
     input.iter().collect()
@@ -139,7 +141,11 @@ pub fn test(
             XtensaLX => CRATES_XTENSALX6.iter(),
         })
         .chain(PROFILE_ALL.iter())
-        .chain(FEATURES_ALL.iter());
+        .chain(FEATURES_ALL.iter())
+        .chain(match &t.arch {
+            Msp430 => FEATURES_MSP430.iter(),
+            _ => FEATURES_EMPTY.iter(),
+        });
 
     for c in crates {
         writeln!(file, "{}", c).chain_err(|| "Failed to append to file!")?;
@@ -219,13 +225,12 @@ pub fn test(
     let cargo_check_err_file = path_helper_base(&chip_dir, &["cargo-check.err.log"]);
     let output = Command::new("cargo")
         .arg("check")
-        .arg("--all-features")
         .current_dir(&chip_dir)
         .output()
         .chain_err(|| "failed to check")?;
     output.capture_outputs(
         true,
-        "cargo check --all-features",
+        "cargo check",
         None,
         Some(&cargo_check_err_file),
         &process_stderr_paths,
