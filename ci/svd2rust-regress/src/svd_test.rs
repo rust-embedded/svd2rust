@@ -9,7 +9,7 @@ const CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.2\""];
 const CRATES_MSP430: &[&str] = &[
     "msp430 = \"0.2.2\"",
     "msp430-rt = \"0.2.0\"",
-    "msp430-atomic = \"0.1.2\"",
+    "msp430-atomic = {version = \"0.1.2\", optional = true}",
 ];
 const CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.7.0\"", "cortex-m-rt = \"0.6.13\""];
 const CRATES_RISCV: &[&str] = &["riscv = \"0.5.0\"", "riscv-rt = \"0.6.0\""];
@@ -219,12 +219,13 @@ pub fn test(
     let cargo_check_err_file = path_helper_base(&chip_dir, &["cargo-check.err.log"]);
     let output = Command::new("cargo")
         .arg("check")
+        .arg("--all-features")
         .current_dir(&chip_dir)
         .output()
         .chain_err(|| "failed to check")?;
     output.capture_outputs(
         true,
-        "cargo check",
+        "cargo check --all-features",
         None,
         Some(&cargo_check_err_file),
         &process_stderr_paths,
