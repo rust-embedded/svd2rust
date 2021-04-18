@@ -452,6 +452,24 @@
 //! gpioa.dir.write(|w| w.pin0().bit(true));
 //! ```
 //!
+//! # Atomic Operations (MSP430 only)
+//!
+//! For peripheral crates targeting the MSP430 architecture, the register API is extended with
+//! operations to atomically set, clear, and toggle specific bits. This functionality relies on the
+//! unstable `msp430-atomic` dependency, so it will only be enabled if the crate has the `unstable`
+//! feature enabled. The atomic operations allow limited modification of register bits without
+//! read-modify-write sequences. As such, they can be concurrently called on different bits in the
+//! same register without data races.
+//!
+//! Usage examples:
+//!
+//! ```ignore
+//! // These can be called from different contexts even though they are modifying the same register
+//! P1.p1out.set_bits(|w| unsafe { w.bits(1 << 1) });
+//! P1.p1out.clear(|w| unsafe { w.bits(!(1 << 2)) });
+//! P1.p1out.toggle(|w| unsafe { w.bits(1 << 4) });
+//! ```
+//!
 //! # Interrupt API
 //!
 //! SVD files also describe the device interrupts. svd2rust generated crates expose an enumeration
