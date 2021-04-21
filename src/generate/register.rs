@@ -69,7 +69,7 @@ pub fn render(
                 }
             }
 
-            impl core::convert::From<crate::R<#name_uc_spec>> for R {
+            impl From<crate::R<#name_uc_spec>> for R {
                 fn from(reader: crate::R<#name_uc_spec>) -> Self {
                     R(reader)
                 }
@@ -100,7 +100,7 @@ pub fn render(
                 }
             }
 
-            impl core::convert::From<crate::W<#name_uc_spec>> for W {
+            impl From<crate::W<#name_uc_spec>> for W {
                 fn from(writer: crate::W<#name_uc_spec>) -> Self {
                     W(writer)
                 }
