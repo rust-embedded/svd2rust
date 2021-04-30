@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- Use register iterator from `svd-parser`
 - rm unneeded `core::convert::` prefix on `From`
 
 ## [v0.18.0] - 2021-04-17

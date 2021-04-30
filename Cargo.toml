@@ -43,7 +43,7 @@ anyhow = "1.0"
 thiserror = "1.0"
 
 [dependencies.svd-parser]
-version = "0.10"
+version = "0.10.2"
 features = ["derive-from"]
 
 [dependencies.syn]
