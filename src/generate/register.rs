@@ -1,6 +1,6 @@
 use crate::svd::{
-    Access, BitRange, EnumeratedValues, Field, Peripheral, Register, RegisterCluster,
-    RegisterProperties, Usage, WriteConstraint,
+    Access, BitRange, EnumeratedValues, Field, Peripheral, Register, RegisterProperties, Usage,
+    WriteConstraint,
 };
 use cast::u64;
 use core::u64;
@@ -1208,7 +1208,7 @@ fn lookup_in_peripherals<'p>(
     all_peripherals: &'p [Peripheral],
 ) -> Result<(&'p EnumeratedValues, Option<Base<'p>>)> {
     if let Some(peripheral) = all_peripherals.iter().find(|p| p.name == base_peripheral) {
-        let all_registers = periph_all_registers(peripheral);
+        let all_registers = peripheral.reg_iter().collect::<Vec<_>>();
         lookup_in_peripheral(
             Some(base_peripheral),
             base_register,
@@ -1220,32 +1220,4 @@ fn lookup_in_peripherals<'p>(
     } else {
         Err(anyhow!("No peripheral {}", base_peripheral))
     }
-}
-
-fn periph_all_registers(p: &Peripheral) -> Vec<&Register> {
-    let mut par: Vec<&Register> = Vec::new();
-    let mut rem: Vec<&RegisterCluster> = Vec::new();
-    if p.registers.is_none() {
-        return par;
-    }
-
-    if let Some(regs) = &p.registers {
-        for r in regs.iter() {
-            rem.push(r);
-        }
-    }
-
-    while let Some(b) = rem.pop() {
-        match b {
-            RegisterCluster::Register(reg) => {
-                par.push(reg);
-            }
-            RegisterCluster::Cluster(cluster) => {
-                for c in cluster.children.iter() {
-                    rem.push(c);
-                }
-            }
-        }
-    }
-    par
 }
