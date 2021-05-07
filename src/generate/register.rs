@@ -70,6 +70,7 @@ pub fn render(
             }
 
             impl From<crate::R<#name_uc_spec>> for R {
+                #[inline(always)]
                 fn from(reader: crate::R<#name_uc_spec>) -> Self {
                     R(reader)
                 }
@@ -101,6 +102,7 @@ pub fn render(
             }
 
             impl From<crate::W<#name_uc_spec>> for W {
+                #[inline(always)]
                 fn from(writer: crate::W<#name_uc_spec>) -> Self {
                     W(writer)
                 }
@@ -161,6 +163,7 @@ pub fn render(
 
         mod_items.extend(quote! {
             #[doc = "Writes raw bits to the register."]
+            #[inline(always)]
             pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
                 self.0.bits(bits);
                 self
