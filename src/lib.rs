@@ -486,7 +486,7 @@ use svd_parser as svd;
 mod generate;
 mod util;
 
-pub use crate::util::Target;
+pub use crate::util::{Config, Target};
 
 #[non_exhaustive]
 pub struct Generation {
@@ -515,8 +515,14 @@ pub fn generate(xml: &str, target: Target, nightly: bool) -> Result<Generation> 
 
     let device = svd::parse(xml)?;
     let mut device_x = String::new();
-    let items = generate::device::render(&device, target, nightly, false, false, &mut device_x)
-        .or(Err(SvdError::Render))?;
+    let config = Config {
+        target,
+        nightly,
+        generic_mod: false,
+        make_mod: false,
+    };
+    let items =
+        generate::device::render(&device, &config, &mut device_x).or(Err(SvdError::Render))?;
 
     let mut lib_rs = String::new();
     writeln!(

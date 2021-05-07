@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- use `Config` to pass options over all render levels
 - Use register iterator from `svd-parser`
 - rm unneeded `core::convert::` prefix on `From`
 

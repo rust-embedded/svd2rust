@@ -10,7 +10,9 @@ use quote::{quote, ToTokens};
 use svd_parser::derive_from::DeriveFrom;
 use syn::{parse_str, Token};
 
-use crate::util::{self, FullName, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
+use crate::util::{
+    self, Config, FullName, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE,
+};
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::generate::register;
@@ -19,7 +21,7 @@ pub fn render(
     p_original: &Peripheral,
     all_peripherals: &[Peripheral],
     defaults: &RegisterProperties,
-    nightly: bool,
+    config: &Config,
 ) -> Result<TokenStream> {
     let mut out = TokenStream::new();
 
@@ -177,11 +179,11 @@ pub fn render(
 
     // Push any register or cluster blocks into the output
     let mut mod_items = TokenStream::new();
-    mod_items.extend(register_or_cluster_block(&ercs, &defaults, None, nightly)?);
+    mod_items.extend(register_or_cluster_block(&ercs, &defaults, None, config)?);
 
     // Push all cluster related information into the peripheral module
     for c in &clusters {
-        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
+        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, config)?);
     }
 
     // Push all register related information into the peripheral module
@@ -192,6 +194,7 @@ pub fn render(
             p,
             all_peripherals,
             &defaults,
+            config,
         )?);
     }
 
@@ -235,10 +238,7 @@ impl Region {
         let mut idents: Vec<_> = self
             .rbfs
             .iter()
-            .filter_map(|f| match &f.field.ident {
-                None => None,
-                Some(ident) => Some(ident.to_string()),
-            })
+            .filter_map(|f| f.field.ident.as_ref().map(|ident| ident.to_string()))
             .collect();
         if idents.is_empty() {
             return None;
@@ -276,10 +276,7 @@ impl Region {
         let idents: Vec<_> = self
             .rbfs
             .iter()
-            .filter_map(|f| match &f.field.ident {
-                None => None,
-                Some(ident) => Some(ident.to_string()),
-            })
+            .filter_map(|f| f.field.ident.as_ref().map(|ident| ident.to_string()))
             .collect();
 
         if idents.is_empty() {
@@ -445,7 +442,7 @@ fn register_or_cluster_block(
     ercs: &[RegisterCluster],
     defs: &RegisterProperties,
     name: Option<&str>,
-    _nightly: bool,
+    _config: &Config,
 ) -> Result<TokenStream> {
     let mut rbfs = TokenStream::new();
     let mut accessors = TokenStream::new();
@@ -738,7 +735,7 @@ fn cluster_block(
     defaults: &RegisterProperties,
     p: &Peripheral,
     all_peripherals: &[Peripheral],
-    nightly: bool,
+    config: &Config,
 ) -> Result<TokenStream> {
     let mut mod_items = TokenStream::new();
 
@@ -758,7 +755,7 @@ fn cluster_block(
 
     let defaults = c.default_register_properties.derive_from(defaults);
 
-    let reg_block = register_or_cluster_block(&c.children, &defaults, Some(&mod_name), nightly)?;
+    let reg_block = register_or_cluster_block(&c.children, &defaults, Some(&mod_name), config)?;
 
     // Generate definition for each of the registers.
     let registers = util::only_registers(&c.children);
@@ -769,13 +766,14 @@ fn cluster_block(
             p,
             all_peripherals,
             &defaults,
+            config,
         )?);
     }
 
     // Generate the sub-cluster blocks.
     let clusters = util::only_clusters(&c.children);
     for c in &clusters {
-        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
+        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, config)?);
     }
 
     Ok(quote! {

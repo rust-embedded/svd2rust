@@ -8,7 +8,7 @@ use log::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
 
-use crate::util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
+use crate::util::{self, Config, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
 use anyhow::{anyhow, Result};
 
 pub fn render(
@@ -17,6 +17,7 @@ pub fn render(
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
     defs: &RegisterProperties,
+    config: &Config,
 ) -> Result<TokenStream> {
     let access = util::access_of(register);
     let name = util::name_of(register);
@@ -141,6 +142,7 @@ pub fn render(
                 &mut mod_items,
                 &mut r_impl_items,
                 &mut w_impl_items,
+                config,
             )?;
         }
     }
@@ -267,6 +269,7 @@ pub fn fields(
     mod_items: &mut TokenStream,
     r_impl_items: &mut TokenStream,
     w_impl_items: &mut TokenStream,
+    _config: &Config,
 ) -> Result<()> {
     let span = Span::call_site();
     let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access);

@@ -13,7 +13,7 @@ use std::process;
 use anyhow::{Context, Result};
 use clap::{App, Arg};
 
-use crate::util::{build_rs, Target};
+use crate::util::{build_rs, Config, Target};
 
 fn run() -> Result<()> {
     use std::io::Read;
@@ -99,15 +99,15 @@ fn run() -> Result<()> {
     let generic_mod = matches.is_present("generic_mod");
     let make_mod = matches.is_present("make_mod");
 
-    let mut device_x = String::new();
-    let items = generate::device::render(
-        &device,
+    let config = Config {
         target,
         nightly,
         generic_mod,
         make_mod,
-        &mut device_x,
-    )?;
+    };
+
+    let mut device_x = String::new();
+    let items = generate::device::render(&device, &config, &mut device_x)?;
     let filename = if make_mod { "mod.rs" } else { "lib.rs" };
     let mut file = File::create(filename).expect("Couldn't create output file");
 
