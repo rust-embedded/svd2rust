@@ -19,6 +19,7 @@ pub struct Config {
     pub nightly: bool,
     pub generic_mod: bool,
     pub make_mod: bool,
+    pub const_generic: bool,
 }
 
 #[allow(clippy::upper_case_acronyms)]

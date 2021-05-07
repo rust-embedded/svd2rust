@@ -510,17 +510,11 @@ pub enum SvdError {
 }
 
 /// Generates rust code for the specified svd content.
-pub fn generate(xml: &str, target: Target, nightly: bool) -> Result<Generation> {
+pub fn generate(xml: &str, config: &Config) -> Result<Generation> {
     use std::fmt::Write;
 
     let device = svd::parse(xml)?;
     let mut device_x = String::new();
-    let config = Config {
-        target,
-        nightly,
-        generic_mod: false,
-        make_mod: false,
-    };
     let items =
         generate::device::render(&device, &config, &mut device_x).or(Err(SvdError::Render))?;
 

@@ -52,4 +52,3 @@ features = ["full","extra-traits"]
 
 [features]
 strict = ["svd-parser/strict"]
-const-generic = []

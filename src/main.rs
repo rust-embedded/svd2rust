@@ -18,55 +18,59 @@ use crate::util::{build_rs, Config, Target};
 fn run() -> Result<()> {
     use std::io::Read;
 
-    let matches = App::new("svd2rust")
-        .about("Generate a Rust API from SVD files")
-        .arg(
-            Arg::with_name("input")
-                .help("Input SVD file")
-                .short("i")
-                .takes_value(true)
-                .value_name("FILE"),
-        )
-        .arg(
-            Arg::with_name("target")
-                .long("target")
-                .help("Target architecture")
-                .takes_value(true)
-                .value_name("ARCH"),
-        )
-        .arg(
-            Arg::with_name("nightly_features")
-                .long("nightly")
-                .help("Enable features only available to nightly rustc"),
-        )
-        .arg(
-            Arg::with_name("generic_mod")
-                .long("generic_mod")
-                .short("g")
-                .help("Push generic mod in separate file"),
-        )
-        .arg(
-            Arg::with_name("make_mod")
-                .long("make_mod")
-                .short("m")
-                .help("Create mod.rs instead of lib.rs, without inner attributes"),
-        )
-        .arg(
-            Arg::with_name("log_level")
-                .long("log")
-                .short("l")
-                .help(&format!(
-                    "Choose which messages to log (overrides {})",
-                    env_logger::DEFAULT_FILTER_ENV
-                ))
-                .takes_value(true)
-                .possible_values(&["off", "error", "warn", "info", "debug", "trace"]),
-        )
-        .version(concat!(
-            env!("CARGO_PKG_VERSION"),
-            include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
-        ))
-        .get_matches();
+    let matches =
+        App::new("svd2rust")
+            .about("Generate a Rust API from SVD files")
+            .arg(
+                Arg::with_name("input")
+                    .help("Input SVD file")
+                    .short("i")
+                    .takes_value(true)
+                    .value_name("FILE"),
+            )
+            .arg(
+                Arg::with_name("target")
+                    .long("target")
+                    .help("Target architecture")
+                    .takes_value(true)
+                    .value_name("ARCH"),
+            )
+            .arg(
+                Arg::with_name("nightly_features")
+                    .long("nightly")
+                    .help("Enable features only available to nightly rustc"),
+            )
+            .arg(Arg::with_name("const_generic").long("const_generic").help(
+                "Use const generics to generate writers for same fields with different offsets",
+            ))
+            .arg(
+                Arg::with_name("generic_mod")
+                    .long("generic_mod")
+                    .short("g")
+                    .help("Push generic mod in separate file"),
+            )
+            .arg(
+                Arg::with_name("make_mod")
+                    .long("make_mod")
+                    .short("m")
+                    .help("Create mod.rs instead of lib.rs, without inner attributes"),
+            )
+            .arg(
+                Arg::with_name("log_level")
+                    .long("log")
+                    .short("l")
+                    .help(&format!(
+                        "Choose which messages to log (overrides {})",
+                        env_logger::DEFAULT_FILTER_ENV
+                    ))
+                    .takes_value(true)
+                    .possible_values(&["off", "error", "warn", "info", "debug", "trace"]),
+            )
+            .version(concat!(
+                env!("CARGO_PKG_VERSION"),
+                include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
+            ))
+            .get_matches();
 
     setup_logging(&matches);
 
@@ -94,16 +98,14 @@ fn run() -> Result<()> {
 
     let device = svd::parse(xml)?;
 
-    let nightly = matches.is_present("nightly_features");
-
-    let generic_mod = matches.is_present("generic_mod");
     let make_mod = matches.is_present("make_mod");
 
     let config = Config {
         target,
-        nightly,
-        generic_mod,
+        nightly: matches.is_present("nightly_features"),
+        generic_mod: matches.is_present("generic_mod"),
         make_mod,
+        const_generic: matches.is_present("const_generic"),
     };
 
     let mut device_x = String::new();
