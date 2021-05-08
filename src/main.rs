@@ -102,13 +102,13 @@ fn run() -> Result<()> {
         }
     }
 
-    let device = svd::parse(xml)?;
-
     let config_filename = matches.value_of("config").unwrap_or("");
 
     let cfg = with_toml_env(&matches, &[config_filename, "svd2rust.toml"]);
 
     setup_logging(&cfg);
+
+    let device = svd::parse(xml)?;
 
     let target = cfg
         .grab()
