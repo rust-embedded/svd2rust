@@ -13,7 +13,7 @@ pub const BITS_PER_BYTE: u32 = 8;
 /// that are not valid in Rust ident
 const BLACKLIST_CHARS: &[char] = &['(', ')', '[', ']', '/', ' ', '-'];
 
-#[derive(Clone, Copy, PartialEq, Default)]
+#[derive(Clone, Copy, PartialEq, Default, Debug)]
 pub struct Config {
     pub target: Target,
     pub nightly: bool,
@@ -25,7 +25,7 @@ pub struct Config {
 
 #[allow(clippy::upper_case_acronyms)]
 #[allow(non_camel_case_types)]
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Target {
     CortexM,
     Msp430,

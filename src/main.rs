@@ -16,6 +16,7 @@ use clap::{App, Arg};
 use crate::util::{build_rs, Config, Target};
 
 fn run() -> Result<()> {
+    use clap_conf::prelude::*;
     use std::io::Read;
 
     let matches =
@@ -27,6 +28,13 @@ fn run() -> Result<()> {
                     .short("i")
                     .takes_value(true)
                     .value_name("FILE"),
+            )
+            .arg(
+                Arg::with_name("config")
+                    .help("Config TOML file")
+                    .short("c")
+                    .takes_value(true)
+                    .value_name("TOML_FILE"),
             )
             .arg(
                 Arg::with_name("target")
@@ -79,11 +87,6 @@ fn run() -> Result<()> {
 
     setup_logging(&matches);
 
-    let target = matches
-        .value_of("target")
-        .map(|s| Target::parse(s))
-        .unwrap_or_else(|| Ok(Target::default()))?;
-
     let xml = &mut String::new();
     match matches.value_of("input") {
         Some(file) => {
@@ -103,15 +106,36 @@ fn run() -> Result<()> {
 
     let device = svd::parse(xml)?;
 
-    let make_mod = matches.is_present("make_mod");
+    let config_filename = matches.value_of("config").unwrap_or("");
+
+    let cfg = with_toml_env(&matches, &[config_filename, "svd2rust.toml"]);
+
+    let target = cfg
+        .grab()
+        .arg("target")
+        .conf("target")
+        .done()
+        .map(|s| Target::parse(&s))
+        .unwrap_or_else(|| Ok(Target::default()))?;
+
+    let nightly =
+        cfg.bool_flag("nightly_features", Filter::Arg) || cfg.bool_flag("nightly", Filter::Conf);
+    let generic_mod =
+        cfg.bool_flag("generic_mod", Filter::Arg) || cfg.bool_flag("generic_mod", Filter::Conf);
+    let make_mod =
+        cfg.bool_flag("make_mod", Filter::Arg) || cfg.bool_flag("make_mod", Filter::Conf);
+    let const_generic =
+        cfg.bool_flag("const_generic", Filter::Arg) || cfg.bool_flag("const_generic", Filter::Conf);
+    let ignore_groups =
+        cfg.bool_flag("ignore_groups", Filter::Arg) || cfg.bool_flag("ignore_groups", Filter::Conf);
 
     let config = Config {
         target,
-        nightly: matches.is_present("nightly_features"),
-        generic_mod: matches.is_present("generic_mod"),
+        nightly,
+        generic_mod,
         make_mod,
-        const_generic: matches.is_present("const_generic"),
-        ignore_groups: matches.is_present("ignore_groups"),
+        const_generic,
+        ignore_groups,
     };
 
     let mut device_x = String::new();
