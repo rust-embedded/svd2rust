@@ -8,7 +8,7 @@ use log::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
 
-use crate::util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
+use crate::util::{self, Config, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
 use anyhow::{anyhow, Result};
 
 pub fn render(
@@ -17,9 +17,10 @@ pub fn render(
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
     defs: &RegisterProperties,
+    config: &Config,
 ) -> Result<TokenStream> {
     let access = util::access_of(register);
-    let name = util::name_of(register);
+    let name = util::name_of(register, config.ignore_groups);
     let span = Span::call_site();
     let name_pc = Ident::new(&name.to_sanitized_upper_case(), span);
     let name_uc_spec = Ident::new(&format!("{}_SPEC", &name.to_sanitized_upper_case()), span);
@@ -141,6 +142,7 @@ pub fn render(
                 &mut mod_items,
                 &mut r_impl_items,
                 &mut w_impl_items,
+                config,
             )?;
         }
     }
@@ -267,6 +269,7 @@ pub fn fields(
     mod_items: &mut TokenStream,
     r_impl_items: &mut TokenStream,
     w_impl_items: &mut TokenStream,
+    config: &Config,
 ) -> Result<()> {
     let span = Span::call_site();
     let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access);
@@ -566,7 +569,6 @@ pub fn fields(
         if can_write {
             let new_pc_aw = Ident::new(&(name_pc.clone() + "_AW"), span);
             let name_pc_w = Ident::new(&(name_pc.clone() + "_W"), span);
-            #[cfg(feature = "const-generic")]
             let name_pc_cgw = Ident::new(&(name_pc.clone() + "_CGW"), span);
 
             let mut proxy_items = TokenStream::new();
@@ -645,7 +647,6 @@ pub fn fields(
             }
 
             let mut proxy_items_fa = TokenStream::new();
-            #[cfg(feature = "const-generic")]
             let mut proxy_items_cg = TokenStream::new();
             if field_dim.is_some() {
                 proxy_items_fa.extend(quote! {
@@ -656,15 +657,16 @@ pub fn fields(
                         self.w
                     }
                 });
-                #[cfg(feature="const-generic")]
-                proxy_items_cg.extend(quote! {
-                    ///Writes raw bits to the field
-                    #inline
-                    pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        self.w.bits = (self.w.bits & !(#hexmask << O)) | ((value as #rty & #hexmask) << O);
-                        self.w
-                    }
-                });
+                if config.const_generic {
+                    proxy_items_cg.extend(quote! {
+                        ///Writes raw bits to the field
+                        #inline
+                        pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
+                            self.w.bits = (self.w.bits & !(#hexmask << O)) | ((value as #rty & #hexmask) << O);
+                            self.w
+                        }
+                    });
+                }
             } else {
                 proxy_items.extend(if offset != 0 {
                     let offset = &util::unsuffixed(offset);
@@ -688,11 +690,9 @@ pub fn fields(
                 });
             }
 
-            #[cfg(feature = "const-generic")]
             let mut cgdoc = String::new();
             let doc = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
-                #[cfg(feature = "const-generic")]
-                {
+                if config.const_generic {
                     cgdoc = format!(
                         "Fields `{}` const generic writer - {}",
                         util::replace_suffix(&f.name, suffixes_str),
@@ -722,18 +722,19 @@ pub fn fields(
                     }
                 });
 
-                #[cfg(feature = "const-generic")]
-                mod_items.extend(quote! {
-                    #[doc = #cgdoc]
-                    pub struct #name_pc_cgw<'a, const O: usize> {
-                        w: &'a mut W,
-                    }
+                if config.const_generic {
+                    mod_items.extend(quote! {
+                        #[doc = #cgdoc]
+                        pub struct #name_pc_cgw<'a, const O: usize> {
+                            w: &'a mut W,
+                        }
 
-                    impl<'a, const O: usize> #name_pc_cgw<'a, O> {
-                        #proxy_items
-                        #proxy_items_cg
-                    }
-                });
+                        impl<'a, const O: usize> #name_pc_cgw<'a, O> {
+                            #proxy_items
+                            #proxy_items_cg
+                        }
+                    });
+                }
             } else {
                 mod_items.extend(quote! {
                     #[doc = #doc]
@@ -768,22 +769,23 @@ pub fn fields(
                         &suffix,
                     );
                     let sub_offset = util::unsuffixed(sub_offset as u64);
-                    #[cfg(not(feature = "const-generic"))]
-                    w_impl_items.extend(quote! {
-                        #[doc = #doc]
-                        #inline
-                        pub fn #name_sc_n(&mut self) -> #name_pc_w {
-                            #name_pc_w { w: self, offset: #sub_offset }
-                        }
-                    });
-                    #[cfg(feature = "const-generic")]
-                    w_impl_items.extend(quote! {
-                        #[doc = #doc]
-                        #inline
-                        pub fn #name_sc_n(&mut self) -> #name_pc_cgw<#sub_offset> {
-                            #name_pc_cgw { w: self }
-                        }
-                    });
+                    if !config.const_generic {
+                        w_impl_items.extend(quote! {
+                            #[doc = #doc]
+                            #inline
+                            pub fn #name_sc_n(&mut self) -> #name_pc_w {
+                                #name_pc_w { w: self, offset: #sub_offset }
+                            }
+                        });
+                    } else {
+                        w_impl_items.extend(quote! {
+                            #[doc = #doc]
+                            #inline
+                            pub fn #name_sc_n(&mut self) -> #name_pc_cgw<#sub_offset> {
+                                #name_pc_cgw { w: self }
+                            }
+                        });
+                    }
                 }
             } else {
                 let doc = description_with_bits(&description, offset, width);

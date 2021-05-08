@@ -34,6 +34,7 @@ path = "src/main.rs"
 [dependencies]
 cast = "0.2"
 clap = "2.33"
+clap_conf = "0.1.5"
 env_logger = "~0.7"
 inflections = "1.1"
 log = { version = "~0.4", features = ["std"] }
@@ -52,4 +53,3 @@ features = ["full","extra-traits"]
 
 [features]
 strict = ["svd-parser/strict"]
-const-generic = []

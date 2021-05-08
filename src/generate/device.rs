@@ -4,21 +4,14 @@ use quote::{quote, ToTokens};
 use std::fs::File;
 use std::io::Write;
 
-use crate::util::{self, ToSanitizedUpperCase};
+use crate::util::{self, Config, ToSanitizedUpperCase};
 use crate::Target;
 use anyhow::Result;
 
 use crate::generate::{interrupt, peripheral};
 
 /// Whole device generation
-pub fn render(
-    d: &Device,
-    target: Target,
-    nightly: bool,
-    generic_mod: bool,
-    make_mod: bool,
-    device_x: &mut String,
-) -> Result<TokenStream> {
+pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<TokenStream> {
     let mut out = TokenStream::new();
 
     let commit_info = {
@@ -46,14 +39,14 @@ pub fn render(
         commit_info
     );
 
-    if target == Target::Msp430 {
+    if config.target == Target::Msp430 {
         out.extend(quote! {
             #![feature(abi_msp430_interrupt)]
         });
     }
 
     out.extend(quote! { #![doc = #doc] });
-    if !make_mod {
+    if !config.make_mod {
         out.extend(quote! {
             // Deny a subset of warnings
             #![deny(const_err)]
@@ -109,7 +102,7 @@ pub fn render(
 
     let mut fields = TokenStream::new();
     let mut exprs = TokenStream::new();
-    if target == Target::CortexM {
+    if config.target == Target::CortexM {
         out.extend(quote! {
             pub use cortex_m::peripheral::Peripherals as CorePeripherals;
             #[cfg(feature = "rt")]
@@ -133,7 +126,7 @@ pub fn render(
         }
     }
 
-    if target == Target::Msp430 {
+    if config.target == Target::Msp430 {
         out.extend(quote! {
             // XXX: Are there any core peripherals, really? Requires bump of msp430 crate.
             // pub use msp430::peripheral::Peripherals as CorePeripherals;
@@ -145,10 +138,10 @@ pub fn render(
     }
 
     let generic_file = std::str::from_utf8(include_bytes!("generic.rs"))?;
-    if generic_mod {
+    if config.generic_mod {
         writeln!(File::create("generic.rs")?, "{}", generic_file)?;
 
-        if !make_mod {
+        if !config.make_mod {
             out.extend(quote! {
                 #[allow(unused_imports)]
                 use generic::*;
@@ -169,10 +162,10 @@ pub fn render(
         });
     }
 
-    out.extend(interrupt::render(target, &d.peripherals, device_x)?);
+    out.extend(interrupt::render(config.target, &d.peripherals, device_x)?);
 
     for p in &d.peripherals {
-        if target == Target::CortexM && core_peripherals.contains(&&*p.name.to_uppercase()) {
+        if config.target == Target::CortexM && core_peripherals.contains(&&*p.name.to_uppercase()) {
             // Core peripherals are handled above
             continue;
         }
@@ -181,7 +174,7 @@ pub fn render(
             p,
             &d.peripherals,
             &d.default_register_properties,
-            nightly,
+            config,
         )?);
 
         if p.registers
@@ -206,7 +199,7 @@ pub fn render(
     }
 
     let span = Span::call_site();
-    let take = match target {
+    let take = match config.target {
         Target::CortexM => Some(Ident::new("cortex_m", span)),
         Target::Msp430 => Some(Ident::new("msp430", span)),
         Target::RISCV => Some(Ident::new("riscv", span)),

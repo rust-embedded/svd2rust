@@ -10,7 +10,9 @@ use quote::{quote, ToTokens};
 use svd_parser::derive_from::DeriveFrom;
 use syn::{parse_str, Token};
 
-use crate::util::{self, FullName, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE};
+use crate::util::{
+    self, Config, FullName, ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE,
+};
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::generate::register;
@@ -19,7 +21,7 @@ pub fn render(
     p_original: &Peripheral,
     all_peripherals: &[Peripheral],
     defaults: &RegisterProperties,
-    nightly: bool,
+    config: &Config,
 ) -> Result<TokenStream> {
     let mut out = TokenStream::new();
 
@@ -177,11 +179,11 @@ pub fn render(
 
     // Push any register or cluster blocks into the output
     let mut mod_items = TokenStream::new();
-    mod_items.extend(register_or_cluster_block(&ercs, &defaults, None, nightly)?);
+    mod_items.extend(register_or_cluster_block(&ercs, &defaults, None, config)?);
 
     // Push all cluster related information into the peripheral module
     for c in &clusters {
-        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
+        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, config)?);
     }
 
     // Push all register related information into the peripheral module
@@ -192,6 +194,7 @@ pub fn render(
             p,
             all_peripherals,
             &defaults,
+            config,
         )?);
     }
 
@@ -235,10 +238,7 @@ impl Region {
         let mut idents: Vec<_> = self
             .rbfs
             .iter()
-            .filter_map(|f| match &f.field.ident {
-                None => None,
-                Some(ident) => Some(ident.to_string()),
-            })
+            .filter_map(|f| f.field.ident.as_ref().map(|ident| ident.to_string()))
             .collect();
         if idents.is_empty() {
             return None;
@@ -276,10 +276,7 @@ impl Region {
         let idents: Vec<_> = self
             .rbfs
             .iter()
-            .filter_map(|f| match &f.field.ident {
-                None => None,
-                Some(ident) => Some(ident.to_string()),
-            })
+            .filter_map(|f| f.field.ident.as_ref().map(|ident| ident.to_string()))
             .collect();
 
         if idents.is_empty() {
@@ -445,13 +442,13 @@ fn register_or_cluster_block(
     ercs: &[RegisterCluster],
     defs: &RegisterProperties,
     name: Option<&str>,
-    _nightly: bool,
+    config: &Config,
 ) -> Result<TokenStream> {
     let mut rbfs = TokenStream::new();
     let mut accessors = TokenStream::new();
     let mut have_accessors = false;
 
-    let ercs_expanded = expand(ercs, defs, name)?;
+    let ercs_expanded = expand(ercs, defs, name, config)?;
 
     // Locate conflicting regions; we'll need to use unions to represent them.
     let mut regions = FieldRegions::default();
@@ -579,13 +576,14 @@ fn expand(
     ercs: &[RegisterCluster],
     defs: &RegisterProperties,
     name: Option<&str>,
+    config: &Config,
 ) -> Result<Vec<RegisterBlockField>> {
     let mut ercs_expanded = vec![];
 
     for erc in ercs {
         ercs_expanded.extend(match &erc {
-            RegisterCluster::Register(register) => expand_register(register, defs, name)?,
-            RegisterCluster::Cluster(cluster) => expand_cluster(cluster, defs, name)?,
+            RegisterCluster::Register(register) => expand_register(register, defs, name, config)?,
+            RegisterCluster::Cluster(cluster) => expand_cluster(cluster, defs, name, config)?,
         });
     }
 
@@ -596,13 +594,17 @@ fn expand(
 
 /// Recursively calculate the size of a cluster. A cluster's size is the maximum
 /// end position of its recursive children.
-fn cluster_size_in_bits(info: &ClusterInfo, defs: &RegisterProperties) -> Result<u32> {
+fn cluster_size_in_bits(
+    info: &ClusterInfo,
+    defs: &RegisterProperties,
+    config: &Config,
+) -> Result<u32> {
     let mut size = 0;
 
     for c in &info.children {
         let end = match c {
             RegisterCluster::Register(reg) => {
-                let reg_size: u32 = expand_register(reg, defs, None)?
+                let reg_size: u32 = expand_register(reg, defs, None, config)?
                     .iter()
                     .map(|rbf| rbf.size)
                     .sum();
@@ -610,7 +612,7 @@ fn cluster_size_in_bits(info: &ClusterInfo, defs: &RegisterProperties) -> Result
                 (reg.address_offset * BITS_PER_BYTE) + reg_size
             }
             RegisterCluster::Cluster(clust) => {
-                (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, defs)?
+                (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, defs, config)?
             }
         };
 
@@ -624,12 +626,13 @@ fn expand_cluster(
     cluster: &Cluster,
     defs: &RegisterProperties,
     name: Option<&str>,
+    config: &Config,
 ) -> Result<Vec<RegisterBlockField>> {
     let mut cluster_expanded = vec![];
 
     let defs = cluster.default_register_properties.derive_from(defs);
 
-    let cluster_size = cluster_size_in_bits(cluster, &defs)
+    let cluster_size = cluster_size_in_bits(cluster, &defs, config)
         .with_context(|| format!("Cluster {} has no determinable `size` field", cluster.name))?;
 
     match cluster {
@@ -681,6 +684,7 @@ fn expand_register(
     register: &Register,
     defs: &RegisterProperties,
     name: Option<&str>,
+    config: &Config,
 ) -> Result<Vec<RegisterBlockField>> {
     let mut register_expanded = vec![];
 
@@ -691,7 +695,7 @@ fn expand_register(
 
     match register {
         Register::Single(info) => register_expanded.push(RegisterBlockField {
-            field: convert_svd_register(register, name)?,
+            field: convert_svd_register(register, name, config.ignore_groups)?,
             description: info.description.clone().unwrap_or_default(),
             offset: info.address_offset,
             size: register_size,
@@ -711,13 +715,16 @@ fn expand_register(
 
             if array_convertible {
                 register_expanded.push(RegisterBlockField {
-                    field: convert_svd_register(&register, name)?,
+                    field: convert_svd_register(&register, name, config.ignore_groups)?,
                     description: info.description.clone().unwrap_or_default(),
                     offset: info.address_offset,
                     size: register_size * array_info.dim,
                 });
             } else {
-                for (field_num, field) in expand_svd_register(register, name)?.iter().enumerate() {
+                for (field_num, field) in expand_svd_register(register, name, config.ignore_groups)?
+                    .iter()
+                    .enumerate()
+                {
                     register_expanded.push(RegisterBlockField {
                         field: field.clone(),
                         description: info.description.clone().unwrap_or_default(),
@@ -738,7 +745,7 @@ fn cluster_block(
     defaults: &RegisterProperties,
     p: &Peripheral,
     all_peripherals: &[Peripheral],
-    nightly: bool,
+    config: &Config,
 ) -> Result<TokenStream> {
     let mut mod_items = TokenStream::new();
 
@@ -758,7 +765,7 @@ fn cluster_block(
 
     let defaults = c.default_register_properties.derive_from(defaults);
 
-    let reg_block = register_or_cluster_block(&c.children, &defaults, Some(&mod_name), nightly)?;
+    let reg_block = register_or_cluster_block(&c.children, &defaults, Some(&mod_name), config)?;
 
     // Generate definition for each of the registers.
     let registers = util::only_registers(&c.children);
@@ -769,13 +776,14 @@ fn cluster_block(
             p,
             all_peripherals,
             &defaults,
+            config,
         )?);
     }
 
     // Generate the sub-cluster blocks.
     let clusters = util::only_clusters(&c.children);
     for c in &clusters {
-        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, nightly)?);
+        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, config)?);
     }
 
     Ok(quote! {
@@ -794,11 +802,12 @@ fn cluster_block(
 fn expand_svd_register(
     register: &Register,
     name: Option<&str>,
+    ignore_group: bool,
 ) -> Result<Vec<syn::Field>, syn::Error> {
     let mut out = vec![];
 
     match register {
-        Register::Single(_info) => out.push(convert_svd_register(register, name)?),
+        Register::Single(_info) => out.push(convert_svd_register(register, name, ignore_group)?),
         Register::Array(info, array_info) => {
             let indices = array_info
                 .dim_index
@@ -812,10 +821,10 @@ fn expand_svd_register(
                     )
                 });
 
-            let ty_name = util::replace_suffix(&info.fullname(), "");
+            let ty_name = util::replace_suffix(&info.fullname(ignore_group), "");
 
             for (idx, _i) in indices.iter().zip(0..) {
-                let nb_name = util::replace_suffix(&info.fullname(), idx);
+                let nb_name = util::replace_suffix(&info.fullname(ignore_group), idx);
 
                 let ty = name_to_wrapped_ty(&ty_name, name)?;
 
@@ -827,17 +836,21 @@ fn expand_svd_register(
 }
 
 /// Convert a parsed `Register` into its `Field` equivalent
-fn convert_svd_register(register: &Register, name: Option<&str>) -> Result<syn::Field, syn::Error> {
+fn convert_svd_register(
+    register: &Register,
+    name: Option<&str>,
+    ignore_group: bool,
+) -> Result<syn::Field, syn::Error> {
     Ok(match register {
         Register::Single(info) => {
-            let info_name = info.fullname();
+            let info_name = info.fullname(ignore_group);
             new_syn_field(
                 &info_name.to_sanitized_snake_case(),
                 name_to_wrapped_ty(&info_name, name)?,
             )
         }
         Register::Array(info, array_info) => {
-            let nb_name = util::replace_suffix(&info.fullname(), "");
+            let nb_name = util::replace_suffix(&info.fullname(ignore_group), "");
             let ty = syn::Type::Array(parse_str::<syn::TypeArray>(&format!(
                 "[{};{}]",
                 name_to_wrapped_ty_str(&nb_name, name),
