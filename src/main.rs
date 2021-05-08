@@ -44,6 +44,11 @@ fn run() -> Result<()> {
                 "Use const generics to generate writers for same fields with different offsets",
             ))
             .arg(
+                Arg::with_name("ignore_groups")
+                    .long("ignore_groups")
+                    .help("Don't add alternateGroup name as prefix to register name"),
+            )
+            .arg(
                 Arg::with_name("generic_mod")
                     .long("generic_mod")
                     .short("g")
@@ -106,6 +111,7 @@ fn run() -> Result<()> {
         generic_mod: matches.is_present("generic_mod"),
         make_mod,
         const_generic: matches.is_present("const_generic"),
+        ignore_groups: matches.is_present("ignore_groups"),
     };
 
     let mut device_x = String::new();

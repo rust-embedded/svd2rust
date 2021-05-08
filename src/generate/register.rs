@@ -20,7 +20,7 @@ pub fn render(
     config: &Config,
 ) -> Result<TokenStream> {
     let access = util::access_of(register);
-    let name = util::name_of(register);
+    let name = util::name_of(register, config.ignore_groups);
     let span = Span::call_site();
     let name_pc = Ident::new(&name.to_sanitized_upper_case(), span);
     let name_uc_spec = Ident::new(&format!("{}_SPEC", &name.to_sanitized_upper_case()), span);

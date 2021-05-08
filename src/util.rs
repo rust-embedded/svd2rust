@@ -20,6 +20,7 @@ pub struct Config {
     pub generic_mod: bool,
     pub make_mod: bool,
     pub const_generic: bool,
+    pub ignore_groups: bool,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -154,10 +155,10 @@ pub fn escape_brackets(s: &str) -> String {
         })
 }
 
-pub fn name_of(register: &Register) -> Cow<str> {
+pub fn name_of(register: &Register, ignore_group: bool) -> Cow<str> {
     match register {
-        Register::Single(info) => info.fullname(),
-        Register::Array(info, _) => replace_suffix(&info.fullname(), "").into(),
+        Register::Single(info) => info.fullname(ignore_group),
+        Register::Array(info, _) => replace_suffix(&info.fullname(ignore_group), "").into(),
     }
 }
 
@@ -343,15 +344,14 @@ pub fn build_rs() -> TokenStream {
 }
 
 pub trait FullName {
-    fn fullname(&self) -> Cow<str>;
+    fn fullname(&self, ignore_group: bool) -> Cow<str>;
 }
 
 impl FullName for RegisterInfo {
-    fn fullname(&self) -> Cow<str> {
-        if let Some(group) = &self.alternate_group {
-            format!("{}_{}", group, self.name).into()
-        } else {
-            self.name.as_str().into()
+    fn fullname(&self, ignore_group: bool) -> Cow<str> {
+        match &self.alternate_group {
+            Some(group) if !ignore_group => format!("{}_{}", group, self.name).into(),
+            _ => self.name.as_str().into(),
         }
     }
 }
