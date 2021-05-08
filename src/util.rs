@@ -13,7 +13,7 @@ pub const BITS_PER_BYTE: u32 = 8;
 /// that are not valid in Rust ident
 const BLACKLIST_CHARS: &[char] = &['(', ')', '[', ']', '/', ' ', '-'];
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Default)]
 pub struct Config {
     pub target: Target,
     pub nightly: bool,
@@ -46,6 +46,12 @@ impl Target {
             "none" => Target::None,
             _ => bail!("unknown target {}", s),
         })
+    }
+}
+
+impl Default for Target {
+    fn default() -> Self {
+        Self::CortexM
     }
 }
 

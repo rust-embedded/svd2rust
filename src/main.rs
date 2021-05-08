@@ -82,7 +82,7 @@ fn run() -> Result<()> {
     let target = matches
         .value_of("target")
         .map(|s| Target::parse(s))
-        .unwrap_or(Ok(Target::CortexM))?;
+        .unwrap_or_else(|| Ok(Target::default()))?;
 
     let xml = &mut String::new();
     match matches.value_of("input") {
