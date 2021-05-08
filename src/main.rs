@@ -85,8 +85,6 @@ fn run() -> Result<()> {
             ))
             .get_matches();
 
-    setup_logging(&matches);
-
     let xml = &mut String::new();
     match matches.value_of("input") {
         Some(file) => {
@@ -109,6 +107,8 @@ fn run() -> Result<()> {
     let config_filename = matches.value_of("config").unwrap_or("");
 
     let cfg = with_toml_env(&matches, &[config_filename, "svd2rust.toml"]);
+
+    setup_logging(&cfg);
 
     let target = cfg
         .grab()
@@ -155,7 +155,7 @@ fn run() -> Result<()> {
     Ok(())
 }
 
-fn setup_logging(matches: &clap::ArgMatches) {
+fn setup_logging<'a>(getter: &'a impl clap_conf::Getter<'a, String>) {
     // * Log at info by default.
     // * Allow users the option of setting complex logging filters using
     //   env_logger's `RUST_LOG` environment variable.
@@ -170,7 +170,7 @@ fn setup_logging(matches: &clap::ArgMatches) {
     if log_lvl_from_env {
         log::set_max_level(log::LevelFilter::Trace);
     } else {
-        let level = match matches.value_of("log_level") {
+        let level = match getter.grab().arg("log_level").conf("log_level").done() {
             Some(lvl) => lvl.parse().unwrap(),
             None => log::LevelFilter::Info,
         };
