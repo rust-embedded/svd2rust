@@ -148,20 +148,21 @@ fn run() -> Result<()> {
         make_mod,
         const_generic,
         ignore_groups,
+        output_dir: path.clone(),
     };
 
     let mut device_x = String::new();
-    let items = generate::device::render(&device, &config, &mut device_x, &path)?;
+    let items = generate::device::render(&device, &config, &mut device_x)?;
     let filename = if make_mod { "mod.rs" } else { "lib.rs" };
-    let mut file = File::create(&path.join(filename)).expect("Couldn't create output file");
+    let mut file = File::create(path.join(filename)).expect("Couldn't create output file");
 
     let data = items.to_string().replace("] ", "]\n");
     file.write_all(data.as_ref())
         .expect("Could not write code to lib.rs");
 
     if target == Target::CortexM || target == Target::Msp430 || target == Target::XtensaLX {
-        writeln!(File::create(&path.join("device.x"))?, "{}", device_x)?;
-        writeln!(File::create(&path.join("build.rs"))?, "{}", build_rs())?;
+        writeln!(File::create(path.join("device.x"))?, "{}", device_x)?;
+        writeln!(File::create(path.join("build.rs"))?, "{}", build_rs())?;
     }
 
     Ok(())

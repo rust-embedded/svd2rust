@@ -10,11 +10,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - Option `-o`(`--output-path`) let you specify output directory path
-- Option `ignore_groups` for optional disabling #506
 
 ### Changed
 
 - options can be set now with `svd2rust.toml` config
+- option `ignore_groups` for optional disabling #506
 - [breaking-change] move `const_generic` from features to options
 - use `Config` to pass options over all render levels
 - Use register iterator from `svd-parser`
