@@ -11,7 +11,7 @@ pub trait RegisterSpec {
 /// Registers marked with `Writable` can be also `modify`'ed.
 pub trait Readable: RegisterSpec {
     /// Result from a call to `read` and argument to `modify`.
-    type Reader: core::convert::From<R<Self>> + core::ops::Deref<Target = R<Self>>;
+    type Reader: From<R<Self>> + core::ops::Deref<Target = R<Self>>;
 }
 
 /// Trait implemented by writeable registers.
@@ -21,7 +21,7 @@ pub trait Readable: RegisterSpec {
 /// Registers marked with `Readable` can be also `modify`'ed.
 pub trait Writable: RegisterSpec {
     /// Writer type argument to `write`, et al.
-    type Writer: core::convert::From<W<Self>> + core::ops::DerefMut<Target = W<Self>>;
+    type Writer: From<W<Self>> + core::ops::DerefMut<Target = W<Self>>;
 }
 
 /// Reset value of the register.

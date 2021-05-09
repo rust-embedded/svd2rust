@@ -510,7 +510,7 @@ use svd_parser as svd;
 mod generate;
 mod util;
 
-pub use crate::util::Target;
+pub use crate::util::{Config, Target};
 
 #[non_exhaustive]
 pub struct Generation {
@@ -534,13 +534,13 @@ pub enum SvdError {
 }
 
 /// Generates rust code for the specified svd content.
-pub fn generate(xml: &str, target: Target, nightly: bool) -> Result<Generation> {
+pub fn generate(xml: &str, config: &Config) -> Result<Generation> {
     use std::fmt::Write;
 
     let device = svd::parse(xml)?;
     let mut device_x = String::new();
-    let items = generate::device::render(&device, target, nightly, false, false, &mut device_x)
-        .or(Err(SvdError::Render))?;
+    let items =
+        generate::device::render(&device, &config, &mut device_x).or(Err(SvdError::Render))?;
 
     let mut lib_rs = String::new();
     writeln!(
