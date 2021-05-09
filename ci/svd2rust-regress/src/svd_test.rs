@@ -6,19 +6,14 @@ use std::path::PathBuf;
 use std::process::{Command, Output};
 
 const CRATES_ALL: &[&str] = &["bare-metal = \"0.2.0\"", "vcell = \"0.1.2\""];
-const CRATES_MSP430: &[&str] = &[
-    "msp430 = \"0.2.2\"",
-    "msp430-rt = \"0.2.0\"",
-    "msp430-atomic = {version = \"0.1.2\", optional = true}",
-];
+const CRATES_MSP430: &[&str] = &["msp430 = \"0.2.2\"", "msp430-rt = \"0.2.0\""];
+const CRATES_MSP430_NIGHTLY: &[&str] = &["msp430-atomic = \"0.1.2\""];
 const CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.7.0\"", "cortex-m-rt = \"0.6.13\""];
 const CRATES_RISCV: &[&str] = &["riscv = \"0.5.0\"", "riscv-rt = \"0.6.0\""];
 const CRATES_XTENSALX6: &[&str] = &["xtensa-lx6-rt = \"0.2.0\"", "xtensa-lx6 = \"0.1.0\""];
 const CRATES_MIPS: &[&str] = &["mips-mcu = \"0.1.0\""];
 const PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
 const FEATURES_ALL: &[&str] = &["[features]"];
-const FEATURES_MSP430: &[&str] = &["unstable = [\"msp430-atomic\"]", "default = [\"unstable\"]"];
-const FEATURES_EMPTY: &[&str] = &[""];
 
 fn path_helper(input: &[&str]) -> PathBuf {
     input.iter().collect()
@@ -140,12 +135,16 @@ pub fn test(
             Msp430 => CRATES_MSP430.iter(),
             XtensaLX => CRATES_XTENSALX6.iter(),
         })
+        .chain(if nightly {
+            match &t.arch {
+                Msp430 => CRATES_MSP430_NIGHTLY.iter(),
+                _ => [].iter(),
+            }
+        } else {
+            [].iter()
+        })
         .chain(PROFILE_ALL.iter())
-        .chain(FEATURES_ALL.iter())
-        .chain(match &t.arch {
-            Msp430 => FEATURES_MSP430.iter(),
-            _ => FEATURES_EMPTY.iter(),
-        });
+        .chain(FEATURES_ALL.iter());
 
     for c in crates {
         writeln!(file, "{}", c).chain_err(|| "Failed to append to file!")?;
