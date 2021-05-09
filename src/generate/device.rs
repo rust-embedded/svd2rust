@@ -147,8 +147,14 @@ pub fn render(
     let generic_file = std::str::from_utf8(include_bytes!("generic.rs"))?;
     let mut generic_tokens = syn::parse_file(generic_file)?.into_token_stream();
     if target == Target::Msp430 {
-        let msp430_atomic_file = std::str::from_utf8(include_bytes!("generic_msp430_atomic.rs"))?;
-        let generic_msp430_atomic = syn::parse_file(msp430_atomic_file)?.into_token_stream();
+        let generic_msp430_atomic = if nightly {
+            let msp430_atomic_file =
+                std::str::from_utf8(include_bytes!("generic_msp430_atomic.rs"))?;
+            syn::parse_file(msp430_atomic_file)?.into_token_stream()
+        } else {
+            quote! {}
+        };
+
         generic_tokens = quote! {
             use core::ops::Not;
 
