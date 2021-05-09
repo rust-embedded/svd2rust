@@ -139,7 +139,11 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
 
     let generic_file = std::str::from_utf8(include_bytes!("generic.rs"))?;
     if config.generic_mod {
-        writeln!(File::create("generic.rs")?, "{}", generic_file)?;
+        writeln!(
+            File::create(config.output_dir.join("generic.rs"))?,
+            "{}",
+            generic_file
+        )?;
 
         if !config.make_mod {
             out.extend(quote! {

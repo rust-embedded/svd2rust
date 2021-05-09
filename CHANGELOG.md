@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Option `-o`(`--output-path`) let you specify output directory path
+
 ### Changed
 
 - options can be set now with `svd2rust.toml` config
