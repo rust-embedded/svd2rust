@@ -3,6 +3,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use std::fs::File;
 use std::io::Write;
+use std::path::Path;
 
 use crate::util::{self, Config, ToSanitizedUpperCase};
 use crate::Target;
@@ -11,7 +12,12 @@ use anyhow::Result;
 use crate::generate::{interrupt, peripheral};
 
 /// Whole device generation
-pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<TokenStream> {
+pub fn render(
+    d: &Device,
+    config: &Config,
+    device_x: &mut String,
+    path: impl AsRef<Path>,
+) -> Result<TokenStream> {
     let mut out = TokenStream::new();
 
     let commit_info = {
@@ -139,7 +145,11 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
 
     let generic_file = std::str::from_utf8(include_bytes!("generic.rs"))?;
     if config.generic_mod {
-        writeln!(File::create("generic.rs")?, "{}", generic_file)?;
+        writeln!(
+            File::create(&path.as_ref().join("generic.rs"))?,
+            "{}",
+            generic_file
+        )?;
 
         if !config.make_mod {
             out.extend(quote! {

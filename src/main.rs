@@ -1,6 +1,7 @@
 #![recursion_limit = "128"]
 
 use log::error;
+use std::path::PathBuf;
 use svd_parser as svd;
 
 mod generate;
@@ -30,7 +31,16 @@ fn run() -> Result<()> {
                     .value_name("FILE"),
             )
             .arg(
+                Arg::with_name("output")
+                    .long("output-dir")
+                    .help("Directory to place generated files")
+                    .short("o")
+                    .takes_value(true)
+                    .value_name("PATH"),
+            )
+            .arg(
                 Arg::with_name("config")
+                    .long("config")
                     .help("Config TOML file")
                     .short("c")
                     .takes_value(true)
@@ -102,6 +112,8 @@ fn run() -> Result<()> {
         }
     }
 
+    let path = PathBuf::from(matches.value_of("output").unwrap_or("."));
+
     let config_filename = matches.value_of("config").unwrap_or("");
 
     let cfg = with_toml_env(&matches, &[config_filename, "svd2rust.toml"]);
@@ -139,17 +151,17 @@ fn run() -> Result<()> {
     };
 
     let mut device_x = String::new();
-    let items = generate::device::render(&device, &config, &mut device_x)?;
+    let items = generate::device::render(&device, &config, &mut device_x, &path)?;
     let filename = if make_mod { "mod.rs" } else { "lib.rs" };
-    let mut file = File::create(filename).expect("Couldn't create output file");
+    let mut file = File::create(&path.join(filename)).expect("Couldn't create output file");
 
     let data = items.to_string().replace("] ", "]\n");
     file.write_all(data.as_ref())
         .expect("Could not write code to lib.rs");
 
     if target == Target::CortexM || target == Target::Msp430 || target == Target::XtensaLX {
-        writeln!(File::create("device.x")?, "{}", device_x)?;
-        writeln!(File::create("build.rs")?, "{}", build_rs())?;
+        writeln!(File::create(&path.join("device.x"))?, "{}", device_x)?;
+        writeln!(File::create(&path.join("build.rs"))?, "{}", build_rs())?;
     }
 
     Ok(())
