@@ -611,7 +611,18 @@ fn cluster_size_in_bits(
 ) -> Result<u32> {
     match cluster {
         Cluster::Single(info) => cluster_info_size_in_bits(info, defs, config),
-        Cluster::Array(_info, dim) => Ok(dim.dim * dim.dim_increment * BITS_PER_BYTE),
+        // If the contained array cluster has a mismatch between the
+        // dimIncrement and the size of the array items, then the array
+        // will get expanded in expand_cluster below.  The overall size
+        // then ends at the last array entry.
+        Cluster::Array(info, dim) => {
+            if dim.dim == 0 {
+                return Ok(0); // Special case!
+            }
+            let last_offset = (dim.dim - 1) * dim.dim_increment * BITS_PER_BYTE;
+            let last_size = cluster_info_size_in_bits(info, defs, config);
+            Ok(last_offset + last_size?)
+        }
     }
 }
 
