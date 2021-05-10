@@ -601,9 +601,23 @@ fn expand(
     Ok(ercs_expanded)
 }
 
-/// Recursively calculate the size of a cluster. A cluster's size is the maximum
-/// end position of its recursive children.
+/// Calculate the size of a Cluster.  If it is an array, then the dimensions
+/// tell us the size of the array.  Otherwise, inspect the contents using
+/// [cluster_info_size_in_bits].
 fn cluster_size_in_bits(
+    cluster: &Cluster,
+    defs: &RegisterProperties,
+    config: &Config,
+) -> Result<u32> {
+    match cluster {
+        Cluster::Single(info) => cluster_info_size_in_bits(info, defs, config),
+        Cluster::Array(_info, dim) => Ok(dim.dim * dim.dim_increment * BITS_PER_BYTE),
+    }
+}
+
+/// Recursively calculate the size of a ClusterInfo. A cluster's size is the
+/// maximum end position of its recursive children.
+fn cluster_info_size_in_bits(
     info: &ClusterInfo,
     defs: &RegisterProperties,
     config: &Config,
@@ -641,7 +655,7 @@ fn expand_cluster(
 
     let defs = cluster.default_register_properties.derive_from(defs);
 
-    let cluster_size = cluster_size_in_bits(cluster, &defs, config)
+    let cluster_size = cluster_info_size_in_bits(cluster, &defs, config)
         .with_context(|| format!("Cluster {} has no determinable `size` field", cluster.name))?;
 
     match cluster {

@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Use register iterator from `svd-parser`
 - rm unneeded `core::convert::` prefix on `From`
 
+### Fixed
+
+- Padding has been corrected for SVD files containing nested array clusters.
+
+  This showed up on Cypress PSOC and Traveo II CPUs.
+
 ## [v0.18.0] - 2021-04-17
 
 ### Added
