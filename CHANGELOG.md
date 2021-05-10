@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- MSP430 API for atomically changing register bits, gated behind the `--nightly` flag
+- New SVD test for `msp430fr2355`
+
+### Added
+
 - Option `-o`(`--output-path`) let you specify output directory path
 
 ### Changed

@@ -108,15 +108,17 @@
 //! $ cargo fmt
 //! ```
 //!
-//! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
-//! `msp430` v0.2.x, `msp430-rt` v0.2.x and `vcell` v0.1.x. Furthermore
-//! the "device" feature of `msp430-rt` must be enabled when the "rt" feature is enabled. The
-//! `Cargo.toml` of the device crate will look like this:
+//! The resulting crate must provide opt-in "rt" feature and depend on these crates: `msp430`
+//! v0.2.x, `msp430-rt` v0.2.x, and `vcell` v0.1.x. If the `--nightly` flag is provided to
+//! `svd2rust`, then `msp430-atomic` v0.1.2 is also needed. Furthermore the "device" feature of
+//! `msp430-rt` must be enabled when the "rt" feature is enabled. The `Cargo.toml` of the device
+//! crate will look like this:
 //!
 //! ``` toml
 //! [dependencies]
 //! msp430 = "0.2.0"
 //! vcell = "0.1.0"
+//! msp430-atomic = "0.1.2" # Only when using the --nightly flag
 //!
 //! [dependencies.msp430-rt]
 //! optional = true
@@ -124,6 +126,7 @@
 //!
 //! [features]
 //! rt = ["msp430-rt/device"]
+//! unstable = ["msp430-atomic"]
 //! ```
 //!
 //! ## Other targets
@@ -477,7 +480,23 @@
 //! ## the `--nightly` flag
 //!
 //! The `--nightly` flag can be passed to `svd2rust` to enable features in the generated api that are only available to a nightly
-//! compiler. Currently there are no nightly features the flag is only kept for compatibility with prior versions.
+//! compiler. The following features are gated by the `--nightly` flag:
+//!
+//! ### MSP430
+//!
+//! Extends the register API with operations to atomically set, clear, and toggle specific bits.
+//! The atomic operations allow limited modification of register bits without read-modify-write
+//! sequences. As such, they can be concurrently called on different bits in the same register
+//! without data races.
+//!
+//! Usage examples:
+//!
+//! ```ignore
+//! // These can be called from different contexts even though they are modifying the same register
+//! P1.p1out.set_bits(|w| unsafe { w.bits(1 << 1) });
+//! P1.p1out.clear(|w| unsafe { w.bits(!(1 << 2)) });
+//! P1.p1out.toggle(|w| unsafe { w.bits(1 << 4) });
+//! ```
 #![recursion_limit = "128"]
 
 use quote::quote;
