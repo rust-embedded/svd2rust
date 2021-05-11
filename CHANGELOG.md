@@ -11,13 +11,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - MSP430 API for atomically changing register bits, gated behind the `--nightly` flag
 - New SVD test for `msp430fr2355`
-
-### Added
-
 - Option `-o`(`--output-path`) let you specify output directory path
 
 ### Changed
 
+- `_rererved` fields in `RegisterBlock` now hexidemical usize
 - options can be set now with `svd2rust.toml` config
 - option `ignore_groups` for optional disabling #506
 - [breaking-change] move `const_generic` from features to options
