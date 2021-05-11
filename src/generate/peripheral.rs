@@ -468,7 +468,7 @@ fn register_or_cluster_block(
         let pad = region.offset - last_end;
         if pad != 0 {
             let name = Ident::new(&format!("_reserved{}", i), span);
-            let pad = pad as usize;
+            let pad = util::hex(pad as u64);
             rbfs.extend(quote! {
                 #name : [u8; #pad],
             });
@@ -478,11 +478,20 @@ fn register_or_cluster_block(
         let is_region_a_union = region.is_union();
 
         for reg_block_field in &region.rbfs {
-            let comment = &format!(
-                "0x{:02x} - {}",
-                reg_block_field.offset,
-                util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
-            )[..];
+            let comment = if reg_block_field.size > 32 {
+                format!(
+                    "0x{:02x}..0x{:02x} - {}",
+                    reg_block_field.offset,
+                    reg_block_field.offset + reg_block_field.size / 8,
+                    util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
+                )
+            } else {
+                format!(
+                    "0x{:02x} - {}",
+                    reg_block_field.offset,
+                    util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
+                )
+            };
 
             if is_region_a_union {
                 let name = &reg_block_field.field.ident;
@@ -533,7 +542,7 @@ fn register_or_cluster_block(
                 ),
                 span,
             );
-            let pad = (region.end - region.offset) as usize;
+            let pad = util::hex((region.end - region.offset) as u64);
             rbfs.extend(quote! {
                 #name: [u8; #pad],
             })
@@ -592,9 +601,34 @@ fn expand(
     Ok(ercs_expanded)
 }
 
-/// Recursively calculate the size of a cluster. A cluster's size is the maximum
-/// end position of its recursive children.
+/// Calculate the size of a Cluster.  If it is an array, then the dimensions
+/// tell us the size of the array.  Otherwise, inspect the contents using
+/// [cluster_info_size_in_bits].
 fn cluster_size_in_bits(
+    cluster: &Cluster,
+    defs: &RegisterProperties,
+    config: &Config,
+) -> Result<u32> {
+    match cluster {
+        Cluster::Single(info) => cluster_info_size_in_bits(info, defs, config),
+        // If the contained array cluster has a mismatch between the
+        // dimIncrement and the size of the array items, then the array
+        // will get expanded in expand_cluster below.  The overall size
+        // then ends at the last array entry.
+        Cluster::Array(info, dim) => {
+            if dim.dim == 0 {
+                return Ok(0); // Special case!
+            }
+            let last_offset = (dim.dim - 1) * dim.dim_increment * BITS_PER_BYTE;
+            let last_size = cluster_info_size_in_bits(info, defs, config);
+            Ok(last_offset + last_size?)
+        }
+    }
+}
+
+/// Recursively calculate the size of a ClusterInfo. A cluster's size is the
+/// maximum end position of its recursive children.
+fn cluster_info_size_in_bits(
     info: &ClusterInfo,
     defs: &RegisterProperties,
     config: &Config,
@@ -632,7 +666,7 @@ fn expand_cluster(
 
     let defs = cluster.default_register_properties.derive_from(defs);
 
-    let cluster_size = cluster_size_in_bits(cluster, &defs, config)
+    let cluster_size = cluster_info_size_in_bits(cluster, &defs, config)
         .with_context(|| format!("Cluster {} has no determinable `size` field", cluster.name))?;
 
     match cluster {

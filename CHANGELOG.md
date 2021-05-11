@@ -11,19 +11,23 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - MSP430 API for atomically changing register bits, gated behind the `--nightly` flag
 - New SVD test for `msp430fr2355`
-
-### Added
-
 - Option `-o`(`--output-path`) let you specify output directory path
 
 ### Changed
 
+- `_rererved` fields in `RegisterBlock` now hexidemical usize
 - options can be set now with `svd2rust.toml` config
 - option `ignore_groups` for optional disabling #506
 - [breaking-change] move `const_generic` from features to options
 - use `Config` to pass options over all render levels
 - Use register iterator from `svd-parser`
 - rm unneeded `core::convert::` prefix on `From`
+
+### Fixed
+
+- Padding has been corrected for SVD files containing nested array clusters.
+
+  This showed up on Cypress PSOC and Traveo II CPUs.
 
 ## [v0.18.0] - 2021-04-17
 
