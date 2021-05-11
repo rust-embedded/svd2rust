@@ -468,7 +468,7 @@ fn register_or_cluster_block(
         let pad = region.offset - last_end;
         if pad != 0 {
             let name = Ident::new(&format!("_reserved{}", i), span);
-            let pad = pad as usize;
+            let pad = util::hex(pad as u64);
             rbfs.extend(quote! {
                 #name : [u8; #pad],
             });
@@ -533,7 +533,7 @@ fn register_or_cluster_block(
                 ),
                 span,
             );
-            let pad = (region.end - region.offset) as usize;
+            let pad = util::hex((region.end - region.offset) as u64);
             rbfs.extend(quote! {
                 #name: [u8; #pad],
             })
