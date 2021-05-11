@@ -478,11 +478,20 @@ fn register_or_cluster_block(
         let is_region_a_union = region.is_union();
 
         for reg_block_field in &region.rbfs {
-            let comment = &format!(
-                "0x{:02x} - {}",
-                reg_block_field.offset,
-                util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
-            )[..];
+            let comment = if reg_block_field.size > 32 {
+                format!(
+                    "0x{:02x}..0x{:02x} - {}",
+                    reg_block_field.offset,
+                    reg_block_field.offset + reg_block_field.size / 8,
+                    util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
+                )
+            } else {
+                format!(
+                    "0x{:02x} - {}",
+                    reg_block_field.offset,
+                    util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
+                )
+            };
 
             if is_region_a_union {
                 let name = &reg_block_field.field.ident;
