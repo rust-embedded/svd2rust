@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Support for device.x generation for riscv targets and `__EXTERNAL_INTERRUPTS` vector table
 - Re-export base's module for derived peripherals
+- More SVD arrays are now converted to rust arrays, instead of as a list of numbered fields
 
 ## [v0.19.0] - 2021-05-26
 

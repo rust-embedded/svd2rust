@@ -2,7 +2,9 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
-use crate::svd::{Cluster, ClusterInfo, Peripheral, Register, RegisterCluster, RegisterProperties};
+use crate::svd::{
+    Cluster, ClusterInfo, DimElement, Peripheral, Register, RegisterCluster, RegisterProperties,
+};
 use log::warn;
 use proc_macro2::TokenStream;
 use proc_macro2::{Ident, Punct, Spacing, Span};
@@ -184,7 +186,9 @@ pub fn render(
 
     // Push any register or cluster blocks into the output
     let mut mod_items = TokenStream::new();
-    mod_items.extend(register_or_cluster_block(&ercs, &defaults, None, config)?);
+    mod_items.extend(register_or_cluster_block(
+        &ercs, None, &defaults, None, config,
+    )?);
 
     // Push all cluster related information into the peripheral module
     for c in &clusters {
@@ -445,6 +449,7 @@ impl FieldRegions {
 
 fn register_or_cluster_block(
     ercs: &[RegisterCluster],
+    dim: Option<&DimElement>,
     defs: &RegisterProperties,
     name: Option<&str>,
     config: &Config,
@@ -555,6 +560,18 @@ fn register_or_cluster_block(
         last_end = region.end;
     }
 
+    // If we are part of an array, then expand the size to the dim_increment
+    // of the array.  This allows the array to be emitted as a rust array.
+    if let Some(dim) = dim {
+        if last_end < dim.dim_increment {
+            let pad = (dim.dim_increment - last_end) as usize;
+            let pad = util::hex(pad as u64);
+            rbfs.extend(quote! {
+                _reserved_end: [u8; #pad],
+            })
+        }
+    }
+
     let name = Ident::new(
         &match name {
             Some(name) => name.to_sanitized_upper_case(),
@@ -620,14 +637,7 @@ fn cluster_size_in_bits(
         // dimIncrement and the size of the array items, then the array
         // will get expanded in expand_cluster below.  The overall size
         // then ends at the last array entry.
-        Cluster::Array(info, dim) => {
-            if dim.dim == 0 {
-                return Ok(0); // Special case!
-            }
-            let last_offset = (dim.dim - 1) * dim.dim_increment * BITS_PER_BYTE;
-            let last_size = cluster_info_size_in_bits(info, defs, config);
-            Ok(last_offset + last_size?)
-        }
+        Cluster::Array(_info, dim) => Ok(dim.dim_increment * dim.dim * BITS_PER_BYTE),
     }
 }
 
@@ -671,19 +681,20 @@ fn expand_cluster(
 
     let defs = cluster.default_register_properties.derive_from(defs);
 
-    let cluster_size = cluster_info_size_in_bits(cluster, &defs, config)
-        .with_context(|| format!("Cluster {} has no determinable `size` field", cluster.name))?;
-
     match cluster {
-        Cluster::Single(info) => cluster_expanded.push(RegisterBlockField {
-            field: convert_svd_cluster(cluster, name)?,
-            description: info.description.as_ref().unwrap_or(&info.name).into(),
-            offset: info.address_offset,
-            size: cluster_size,
-        }),
+        Cluster::Single(info) => {
+            let cluster_size =
+                cluster_info_size_in_bits(info, &defs, config).with_context(|| {
+                    format!("Cluster {} has no determinable `size` field", info.name)
+                })?;
+            cluster_expanded.push(RegisterBlockField {
+                field: convert_svd_cluster(cluster, name)?,
+                description: info.description.as_ref().unwrap_or(&info.name).into(),
+                offset: info.address_offset,
+                size: cluster_size,
+            })
+        }
         Cluster::Array(info, array_info) => {
-            let sequential_addresses = cluster_size == array_info.dim_increment * BITS_PER_BYTE;
-
             // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
             let sequential_indexes = array_info.dim_index.as_ref().map_or(true, |dim_index| {
                 dim_index
@@ -692,14 +703,12 @@ fn expand_cluster(
                     .eq((0..array_info.dim).map(Ok))
             });
 
-            let array_convertible = sequential_indexes && sequential_addresses;
-
-            if array_convertible {
+            if sequential_indexes {
                 cluster_expanded.push(RegisterBlockField {
                     field: convert_svd_cluster(&cluster, name)?,
                     description: info.description.as_ref().unwrap_or(&info.name).into(),
                     offset: info.address_offset,
-                    size: cluster_size * array_info.dim,
+                    size: array_info.dim_increment * array_info.dim * BITS_PER_BYTE,
                 });
             } else {
                 for (field_num, field) in expand_svd_cluster(cluster, name)?.iter().enumerate() {
@@ -707,7 +716,7 @@ fn expand_cluster(
                         field: field.clone(),
                         description: info.description.as_ref().unwrap_or(&info.name).into(),
                         offset: info.address_offset + field_num as u32 * array_info.dim_increment,
-                        size: cluster_size,
+                        size: array_info.dim_increment * BITS_PER_BYTE,
                     });
                 }
             }
@@ -804,7 +813,13 @@ fn cluster_block(
 
     let defaults = c.default_register_properties.derive_from(defaults);
 
-    let reg_block = register_or_cluster_block(&c.children, &defaults, Some(&mod_name), config)?;
+    let (info, dim) = match c {
+        Cluster::Single(info) => (info, None),
+        Cluster::Array(info, dim) => (info, Some(dim)),
+    };
+
+    let reg_block =
+        register_or_cluster_block(&info.children, dim, &defaults, Some(&mod_name), config)?;
 
     // Generate definition for each of the registers.
     let registers = util::only_registers(&c.children);
