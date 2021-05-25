@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.19.0] - 2021-05-26
+
 ### Added
 
 - MSP430 API for atomically changing register bits, gated behind the `--nightly` flag
@@ -16,7 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - `\n` in descriptions for multiline 
-- `_rererved` fields in `RegisterBlock` now hexidemical usize
+- `_reserved` fields in `RegisterBlock` now hexidemical usize
 - options can be set now with `svd2rust.toml` config
 - option `ignore_groups` for optional disabling #506
 - [breaking-change] move `const_generic` from features to options
@@ -606,7 +608,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.19.0...HEAD
+[v0.19.0]: https://github.com/rust-embedded/svd2rust/compare/v0.18.0...v0.19.0
 [v0.18.0]: https://github.com/rust-embedded/svd2rust/compare/v0.17.0...v0.18.0
 [v0.17.0]: https://github.com/rust-embedded/svd2rust/compare/v0.16.1...v0.17.0
 [v0.16.1]: https://github.com/rust-embedded/svd2rust/compare/v0.16.0...v0.16.1
