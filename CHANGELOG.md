@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- `\n` in descriptions for multiline 
 - `_rererved` fields in `RegisterBlock` now hexidemical usize
 - options can be set now with `svd2rust.toml` config
 - option `ignore_groups` for optional disabling #506
