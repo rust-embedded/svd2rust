@@ -151,7 +151,10 @@ impl ToSanitizedPascalCase for str {
 }
 
 pub fn respace(s: &str) -> String {
-    s.split_whitespace().collect::<Vec<_>>().join(" ")
+    s.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .replace(r"\n", "\n")
 }
 
 pub fn escape_brackets(s: &str) -> String {
