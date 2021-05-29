@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - MSP430 API for atomically changing register bits, gated behind the `--nightly` flag
 - New SVD test for `msp430fr2355`
 - Option `-o`(`--output-path`) let you specify output directory path
+- Support for device.x generation for riscv targets and `__EXTERNAL_INTERRUPTS` vector table
 
 ### Changed
 
