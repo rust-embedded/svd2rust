@@ -125,7 +125,35 @@ pub fn render(
                     ];
             });
         }
-        Target::RISCV => {}
+        Target::RISCV => {
+            for name in &names {
+                writeln!(
+                    device_x,
+                    "PROVIDE({} = DefaultExternalInterruptHandler);",
+                    name
+                )?;
+            }
+
+            root.extend(quote! {
+                #[cfg(feature = "rt")]
+                extern "C" {
+                    #(fn #names();)*
+                }
+
+                #[doc(hidden)]
+                pub union Vector {
+                    pub _handler: unsafe extern "C" fn(),
+                    pub _reserved: usize,
+                }
+
+                #[cfg(feature = "rt")]
+                #[doc(hidden)]
+                #[no_mangle]
+                pub static __EXTERNAL_INTERRUPTS: [Vector; #n] = [
+                    #elements
+                ];
+            });
+        }
         Target::XtensaLX => {
             for name in &names {
                 writeln!(device_x, "PROVIDE({} = DefaultHandler);", name)?;
