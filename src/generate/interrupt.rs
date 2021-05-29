@@ -127,11 +127,7 @@ pub fn render(
         }
         Target::RISCV => {
             for name in &names {
-                writeln!(
-                    device_x,
-                    "PROVIDE({} = DefaultExternalInterruptHandler);",
-                    name
-                )?;
+                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name)?;
             }
 
             root.extend(quote! {
