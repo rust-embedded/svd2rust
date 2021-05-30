@@ -500,7 +500,7 @@
 #![recursion_limit = "128"]
 
 use quote::quote;
-use svd_parser as svd;
+use svd_parser::svd;
 
 mod generate;
 mod util;
@@ -532,7 +532,7 @@ pub enum SvdError {
 pub fn generate(xml: &str, config: &Config) -> Result<Generation> {
     use std::fmt::Write;
 
-    let device = svd::parse(xml)?;
+    let device = svd_parser::parse(xml)?;
     let mut device_x = String::new();
     let items =
         generate::device::render(&device, config, &mut device_x).or(Err(SvdError::Render))?;

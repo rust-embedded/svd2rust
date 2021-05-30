@@ -26,6 +26,7 @@ pub fn render(
     let name_uc_spec = Ident::new(&format!("{}_SPEC", &name.to_sanitized_upper_case()), span);
     let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
     let rsize = register
+        .properties
         .size
         .or(defs.size)
         .ok_or_else(|| anyhow!("Register {} has no `size` field", register.name))?;
@@ -44,7 +45,11 @@ pub fn render(
         }))
         .as_ref(),
     );
-    let res_val = register.reset_value.or(defs.reset_value).map(|v| v as u64);
+    let res_val = register
+        .properties
+        .reset_value
+        .or(defs.reset_value)
+        .map(|v| v as u64);
 
     let mut mod_items = TokenStream::new();
     let mut r_impl_items = TokenStream::new();
@@ -302,7 +307,7 @@ pub fn fields(
         let fty = width.to_ty()?;
         let evs = &f.enumerated_values;
 
-        let use_mask = if let Some(size) = parent.size {
+        let use_mask = if let Some(size) = parent.properties.size {
             size != width
         } else {
             false

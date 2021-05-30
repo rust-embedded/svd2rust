@@ -22,6 +22,7 @@ pub struct Config {
     pub make_mod: bool,
     pub const_generic: bool,
     pub ignore_groups: bool,
+    pub strict: bool,
     pub output_dir: PathBuf,
 }
 
@@ -34,6 +35,7 @@ impl Default for Config {
             make_mod: false,
             const_generic: false,
             ignore_groups: false,
+            strict: false,
             output_dir: PathBuf::from("."),
         }
     }
@@ -196,7 +198,7 @@ pub fn replace_suffix(name: &str, suffix: &str) -> String {
 }
 
 pub fn access_of(register: &Register) -> Access {
-    register.access.unwrap_or_else(|| {
+    register.properties.access.unwrap_or_else(|| {
         if let Some(fields) = &register.fields {
             if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
                 Access::ReadOnly

@@ -2,7 +2,7 @@
 
 use log::error;
 use std::path::PathBuf;
-use svd_parser as svd;
+use svd_parser::svd;
 
 mod generate;
 mod util;
@@ -79,6 +79,12 @@ fn run() -> Result<()> {
                     .help("Create mod.rs instead of lib.rs, without inner attributes"),
             )
             .arg(
+                Arg::with_name("strict")
+                    .long("strict")
+                    .short("s")
+                    .help("Make advanced checks due to parsing SVD"),
+            )
+            .arg(
                 Arg::with_name("log_level")
                     .long("log")
                     .short("l")
@@ -120,8 +126,6 @@ fn run() -> Result<()> {
 
     setup_logging(&cfg);
 
-    let device = svd::parse(xml)?;
-
     let target = cfg
         .grab()
         .arg("target")
@@ -140,6 +144,7 @@ fn run() -> Result<()> {
         cfg.bool_flag("const_generic", Filter::Arg) || cfg.bool_flag("const_generic", Filter::Conf);
     let ignore_groups =
         cfg.bool_flag("ignore_groups", Filter::Arg) || cfg.bool_flag("ignore_groups", Filter::Conf);
+    let strict = cfg.bool_flag("strict", Filter::Arg) || cfg.bool_flag("strict", Filter::Conf);
 
     let config = Config {
         target,
@@ -148,8 +153,18 @@ fn run() -> Result<()> {
         make_mod,
         const_generic,
         ignore_groups,
+        strict,
         output_dir: path.clone(),
     };
+
+    let mut parser_config = svd_parser::Config::default();
+    parser_config.validate_level = if strict {
+        svd::ValidateLevel::Strict
+    } else {
+        svd::ValidateLevel::Weak
+    };
+
+    let device = svd_parser::parse_with_config(xml, &parser_config)?;
 
     let mut device_x = String::new();
     let items = generate::device::render(&device, &config, &mut device_x)?;

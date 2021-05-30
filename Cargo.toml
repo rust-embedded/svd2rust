@@ -26,16 +26,19 @@ repository = "https://github.com/rust-embedded/svd2rust/"
 version = "0.19.0"
 readme = "README.md"
 
+[package.metadata.deb]
+section = "rust"
+
 [[bin]]
 doc = false
 name = "svd2rust"
 path = "src/main.rs"
 
 [dependencies]
-cast = "0.2"
+cast = "0.3"
 clap = "2.33"
 clap_conf = "0.1.5"
-env_logger = "~0.7"
+env_logger = "0.9"
 inflections = "1.1"
 log = { version = "~0.4", features = ["std"] }
 quote = "1.0"
@@ -44,12 +47,9 @@ anyhow = "1.0"
 thiserror = "1.0"
 
 [dependencies.svd-parser]
-version = "0.10.2"
 features = ["derive-from"]
+version = "0.11"
 
 [dependencies.syn]
 version = "1.0"
 features = ["full","extra-traits"]
-
-[features]
-strict = ["svd-parser/strict"]
