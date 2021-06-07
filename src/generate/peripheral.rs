@@ -91,6 +91,11 @@ pub fn render(
     // Derived peripherals may not require re-implementation, and will instead
     // use a single definition of the non-derived version.
     if derive_regs {
+        // re-export the base module to allow deriveFrom this one
+        out.extend(quote! {
+            #[doc = #description]
+            pub use #base as #name_sc;
+        });
         return Ok(out);
     }
 
