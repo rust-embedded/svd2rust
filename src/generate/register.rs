@@ -404,12 +404,12 @@ pub fn fields(
                         }
                     };
                     let name_sc_n = Ident::new(
-                        &util::replace_suffix(&f.name.to_sanitized_snake_case(), &suffix),
+                        &util::replace_suffix(&f.name.to_sanitized_snake_case(), suffix),
                         Span::call_site(),
                     );
                     let doc = util::replace_suffix(
                         &description_with_bits(&description, sub_offset, width),
-                        &suffix,
+                        suffix,
                     );
                     r_impl_items.extend(quote! {
                         #[doc = #doc]
@@ -587,7 +587,7 @@ pub fn fields(
                         let pc = util::replace_suffix(base.field, "");
                         let pc = pc.to_sanitized_upper_case();
                         let base_pc_w = Ident::new(&(pc + "_AW"), span);
-                        derive_from_base(mod_items, &base, &name_pc_aw, &base_pc_w, &description)
+                        derive_from_base(mod_items, &base, name_pc_aw, &base_pc_w, &description)
                     } else if variants.is_empty() {
                         add_with_no_variants(mod_items, name_pc_aw, &fty, &description, rv);
                     } else {
@@ -761,12 +761,12 @@ pub fn fields(
                 for (i, suffix) in (0..*dim).zip(suffixes.iter()) {
                     let sub_offset = offset + (i as u64) * (*increment as u64);
                     let name_sc_n = Ident::new(
-                        &util::replace_suffix(&f.name.to_sanitized_snake_case(), &suffix),
+                        &util::replace_suffix(&f.name.to_sanitized_snake_case(), suffix),
                         Span::call_site(),
                     );
                     let doc = util::replace_suffix(
                         &description_with_bits(&description, sub_offset, width),
-                        &suffix,
+                        suffix,
                     );
                     let sub_offset = util::unsuffixed(sub_offset as u64);
                     if !config.const_generic {
