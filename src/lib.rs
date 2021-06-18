@@ -535,7 +535,7 @@ pub fn generate(xml: &str, config: &Config) -> Result<Generation> {
     let device = svd::parse(xml)?;
     let mut device_x = String::new();
     let items =
-        generate::device::render(&device, &config, &mut device_x).or(Err(SvdError::Render))?;
+        generate::device::render(&device, config, &mut device_x).or(Err(SvdError::Render))?;
 
     let mut lib_rs = String::new();
     writeln!(

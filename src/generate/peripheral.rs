@@ -696,7 +696,7 @@ fn expand_cluster(
 
             if array_convertible {
                 cluster_expanded.push(RegisterBlockField {
-                    field: convert_svd_cluster(&cluster, name)?,
+                    field: convert_svd_cluster(cluster, name)?,
                     description: info.description.as_ref().unwrap_or(&info.name).into(),
                     offset: info.address_offset,
                     size: cluster_size * array_info.dim,
@@ -754,7 +754,7 @@ fn expand_register(
 
             if array_convertible {
                 register_expanded.push(RegisterBlockField {
-                    field: convert_svd_register(&register, name, config.ignore_groups)?,
+                    field: convert_svd_register(register, name, config.ignore_groups)?,
                     description: info.description.clone().unwrap_or_default(),
                     offset: info.address_offset,
                     size: register_size * array_info.dim,
@@ -987,7 +987,7 @@ fn name_to_ty_str<'a, 'b>(name: &'a str, ns: Option<&'b str>) -> Cow<'a, str> {
 }
 
 fn name_to_ty(name: &str, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
-    let ident = name_to_ty_str(&name, ns);
+    let ident = name_to_ty_str(name, ns);
     Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
 }
 
