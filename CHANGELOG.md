@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Re-export base's module for derived peripherals
 - More Cluster arrays are now emitted as an array rather than a list of
   elements.  An `ArrayProxy` wrapper is used when a Rust built-in array does not
-  match the cluster layout.
+  match the cluster layout.  Requires the `--const_generic` command line option.
 
 ## [v0.19.0] - 2021-05-26
 

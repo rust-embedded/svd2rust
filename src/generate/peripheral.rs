@@ -703,7 +703,7 @@ fn expand_cluster(
                     offset: info.address_offset,
                     size: cluster_size * array_info.dim,
                 });
-            } else if sequential_indexes {
+            } else if sequential_indexes && config.const_generic {
                 // Include a ZST ArrayProxy giving indexed access to the
                 // elements.
                 cluster_expanded.push(array_proxy(info, array_info, name)?);
