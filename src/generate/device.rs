@@ -146,6 +146,10 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 std::str::from_utf8(include_bytes!("generic_msp430_atomic.rs"))?;
             writeln!(file, "\n{}", msp430_atomic_file)?;
         }
+        if config.const_generic {
+            let array_proxy = std::str::from_utf8(include_bytes!("array_proxy.rs"))?;
+            writeln!(file, "{}", array_proxy)?;
+        }
 
         if !config.make_mod {
             out.extend(quote! {
@@ -156,32 +160,27 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             });
         }
     } else {
-        let tokens = syn::parse_file(generic_file)?.into_token_stream();
-
+        let mut tokens = syn::parse_file(generic_file)?.into_token_stream();
         if config.target == Target::Msp430 && config.nightly {
             let msp430_atomic_file =
                 std::str::from_utf8(include_bytes!("generic_msp430_atomic.rs"))?;
             let generic_msp430_atomic = syn::parse_file(msp430_atomic_file)?.into_token_stream();
-            out.extend(quote! {
-                #[allow(unused_imports)]
-                use generic::*;
-                ///Common register and bit access and modify traits
-                pub mod generic {
-                    #tokens
-
-                    #generic_msp430_atomic
-                }
-            });
-        } else {
-            out.extend(quote! {
-                #[allow(unused_imports)]
-                use generic::*;
-                ///Common register and bit access and modify traits
-                pub mod generic {
-                    #tokens
-                }
-            });
+            tokens.extend(generic_msp430_atomic);
         }
+        if config.const_generic {
+            let array_proxy = std::str::from_utf8(include_bytes!("array_proxy.rs"))?;
+            let generic_array_proxy = syn::parse_file(array_proxy)?.into_token_stream();
+            tokens.extend(generic_array_proxy);
+        }
+
+        out.extend(quote! {
+            #[allow(unused_imports)]
+            use generic::*;
+            ///Common register and bit access and modify traits
+            pub mod generic {
+                #tokens
+            }
+        });
     }
 
     out.extend(interrupt::render(config.target, &d.peripherals, device_x)?);
