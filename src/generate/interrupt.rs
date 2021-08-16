@@ -206,34 +206,68 @@ pub fn render(
             }
         };
 
-        if target == Target::CortexM {
-            root.extend(quote! {
-                #interrupt_enum
+        match target {
+            Target::CortexM => {
+                root.extend(quote! {
+                    #interrupt_enum
 
-                unsafe impl cortex_m::interrupt::InterruptNumber for Interrupt {
-                    #[inline(always)]
-                    fn number(#self_token) -> u16 {
-                        #nr_expr
-                    }
-                }
-            });
-        } else {
-            mod_items.extend(quote! {
-                #interrupt_enum
-
-                #[derive(Debug, Copy, Clone)]
-                pub struct TryFromInterruptError(());
-
-                impl Interrupt {
-                    #[inline]
-                    pub fn try_from(value: u8) -> Result<Self, TryFromInterruptError> {
-                        match value {
-                            #from_arms
-                            _ => Err(TryFromInterruptError(())),
+                    unsafe impl cortex_m::interrupt::InterruptNumber for Interrupt {
+                        #[inline(always)]
+                        fn number(#self_token) -> u16 {
+                            #nr_expr
                         }
                     }
-                }
-            });
+                });
+            }
+            Target::XtensaLX => {
+                root.extend(quote! {
+                    #interrupt_enum
+
+                    unsafe impl xtensa_lx::interrupt::InterruptNumber for Interrupt {
+                        #[inline(always)]
+                        fn number(#self_token) -> u16 {
+                            #nr_expr
+                        }
+                    }
+
+                    /// TryFromInterruptError
+                    #[derive(Debug, Copy, Clone)]
+                    pub struct TryFromInterruptError(());
+
+                    impl Interrupt {
+
+                        /// Attempt to convert a given value into an `Interrupt`
+                        #[inline]
+                        pub fn try_from(value: u16) -> Result<Self, TryFromInterruptError> {
+                            match value {
+                                #from_arms
+                                _ => Err(TryFromInterruptError(())),
+                            }
+                        }
+                    }
+                });
+            }
+            _ => {
+                mod_items.extend(quote! {
+                    #interrupt_enum
+
+                    /// TryFromInterruptError
+                    #[derive(Debug, Copy, Clone)]
+                    pub struct TryFromInterruptError(());
+
+                    impl Interrupt {
+
+                        /// Attempt to convert a given value into an `Interrupt`
+                        #[inline]
+                        pub fn try_from(value: u8) -> Result<Self, TryFromInterruptError> {
+                            match value {
+                                #from_arms
+                                _ => Err(TryFromInterruptError(())),
+                            }
+                        }
+                    }
+                });
+            }
         }
     }
 
@@ -330,7 +364,11 @@ pub fn render(
         }
     }
 
-    if !interrupts.is_empty() && target != Target::CortexM && target != Target::Msp430 {
+    if !interrupts.is_empty()
+        && target != Target::CortexM
+        && target != Target::XtensaLX
+        && target != Target::Msp430
+    {
         root.extend(quote! {
             #[doc(hidden)]
             pub mod interrupt {
