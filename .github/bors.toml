@@ -15,7 +15,7 @@ status = [
   "ci-linux (stable, Spansion, x86_64-unknown-linux-gnu, linux)",
   "ci-linux (stable, STMicro, x86_64-unknown-linux-gnu, linux)",
   "ci-linux (stable, Toshiba, x86_64-unknown-linux-gnu, linux)",
-  "ci-linux (1.40.0, Nordic, x86_64-unknown-linux-gnu, linux)",
+  "ci-linux (1.46.0, Nordic, x86_64-unknown-linux-gnu, linux)",
   "ci-linux (stable, x86_64-apple-darwin, osx)",
   "ci-linux (stable, x86_64-pc-windows-msvc, windows)",
 ]

@@ -29,7 +29,7 @@ jobs:
 
         include:
           # Test MSRV
-          - rust: 1.40.0
+          - rust: 1.46.0
             VENDOR: Nordic
             TARGET: x86_64-unknown-linux-gnu
             TRAVIS_OS_NAME: linux
