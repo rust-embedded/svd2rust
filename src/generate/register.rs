@@ -302,6 +302,12 @@ pub fn fields(
         let fty = width.to_ty()?;
         let evs = &f.enumerated_values;
 
+        let use_mask = if let Some(size) = parent.size {
+            size != width
+        } else {
+            false
+        };
+
         let lookup_results = lookup(
             evs,
             fields,
@@ -374,9 +380,13 @@ pub fn fields(
                 quote! {
                     ((self.bits >> #offset) & #hexmask) #cast
                 }
-            } else {
+            } else if use_mask {
                 quote! {
                     (self.bits & #hexmask) #cast
+                }
+            } else {
+                quote! {
+                    self.bits #cast
                 }
             };
 
@@ -398,9 +408,13 @@ pub fn fields(
                         quote! {
                             ((self.bits >> #sub_offset) & #hexmask) #cast
                         }
-                    } else {
+                    } else if use_mask {
                         quote! {
                             (self.bits & #hexmask) #cast
+                        }
+                    } else {
+                        quote! {
+                            self.bits #cast
                         }
                     };
                     let name_sc_n = Ident::new(
@@ -679,11 +693,17 @@ pub fn fields(
                         }
                     }
                 } else {
+                    let op = if use_mask {
+                        quote!{ self.w.bits = (self.w.bits & !#hexmask) | (value as #rty & #hexmask); }
+                    } else {
+                        quote!{ self.w.bits = value as #rty; }
+                    };
+
                     quote! {
                         ///Writes raw bits to the field
                         #inline
                         pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                            self.w.bits = (self.w.bits & !#hexmask) | (value as #rty & #hexmask);
+                            #op
                             self.w
                         }
                     }
