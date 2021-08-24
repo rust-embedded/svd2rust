@@ -41,7 +41,7 @@
 //! - `lib.rs`, the generated code.
 //!
 //! All these files must be included in the same device crate. The `lib.rs` file contains several
-//! inlined modules and its not formatted. It's recommend to split it out using the [`form`] tool
+//! inlined modules and its not formatted. It's recommended to split it out using the [`form`] tool
 //! and then format the output using `rustfmt` / `cargo fmt`:
 //!
 //! [`form`]: https://crates.io/crates/form
