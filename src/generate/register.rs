@@ -541,6 +541,7 @@ pub fn fields(
                         pub struct #name_pc_r(crate::FieldReader<#fty, #name_pc_a>);
 
                         impl #name_pc_r {
+                            #[inline(always)]
                             pub(crate) fn new(bits: #fty) -> Self {
                                 #name_pc_r(crate::FieldReader::new(bits))
                             }
@@ -563,6 +564,7 @@ pub fn fields(
                     pub struct #name_pc_r(crate::FieldReader<#fty, #fty>);
 
                     impl #name_pc_r {
+                        #[inline(always)]
                         pub(crate) fn new(bits: #fty) -> Self {
                             #name_pc_r(crate::FieldReader::new(bits))
                         }
