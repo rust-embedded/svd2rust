@@ -39,8 +39,7 @@ jobs:
             VENDOR: RISC-V
             TARGET: x86_64-unknown-linux-gnu
             TRAVIS_OS_NAME: linux
-            FEATURES: "strict"
-            OPTIONS: "--const_generic"
+            OPTIONS: "--const_generic --strict"
 
           # Use nightly for architectures which don't support stable
           - rust: nightly

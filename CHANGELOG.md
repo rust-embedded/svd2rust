@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- `strict` option
 - Missing `inline` on field reader constructors
 - Support for device.x generation for riscv targets and `__EXTERNAL_INTERRUPTS` vector table
 - Re-export base's module for derived peripherals
