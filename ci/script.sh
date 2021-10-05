@@ -10,7 +10,7 @@ test_svd() {
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
     local cwd=$(pwd)
     pushd $td
-    RUST_BACKTRACE=1 $cwd/target/$TARGET/release/svd2rust -i $OPTIONS ${1}.svd
+    RUST_BACKTRACE=1 $cwd/target/$TARGET/release/svd2rust $strict $const_generic -i ${1}.svd
 
     mv lib.rs src/lib.rs
 
@@ -67,6 +67,25 @@ main() {
             ;;
         osx)
             td=$(mktemp -d -t tmp)
+            ;;
+    esac
+
+    case $OPTIONS in
+        all)
+            const_generic="--const_generic"
+            strict="--strict"
+            ;;
+        strict)
+            const_generic=""
+            strict="--strict"
+            ;;
+        const)
+            const_generic="--const_generic"
+            strict=""
+            ;;
+        *)
+            const_generic=""
+            strict=""
             ;;
     esac
 
