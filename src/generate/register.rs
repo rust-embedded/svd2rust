@@ -673,10 +673,6 @@ pub fn fields(
             }
 
             if width == 1 {
-                if mwv != ModifiedWriteValues::Modify {
-                    unsafety = Some(Ident::new("unsafe", Span::call_site()));
-                }
-
                 match mwv {
                     ModifiedWriteValues::Modify => {
                         proxy_items.extend(quote! {
@@ -697,7 +693,7 @@ pub fn fields(
                             ///Sets the field bit
                             #inline
                             pub fn set_bit(self) -> &'a mut W {
-                                unsafe { self.bit(true) }
+                                self.bit(true)
                             }
                         });
                     }
@@ -706,7 +702,7 @@ pub fn fields(
                             ///Clears the field bit
                             #inline
                             pub fn clear_bit(self) -> &'a mut W {
-                                unsafe { self.bit(false) }
+                                self.bit(false)
                             }
                         });
                     }
@@ -715,7 +711,7 @@ pub fn fields(
                             ///Clears the field bit by passing one
                             #inline
                             pub fn clear_bit_by_one(self) -> &'a mut W {
-                                unsafe { self.bit(true) }
+                                self.bit(true)
                             }
                         });
                     }
@@ -724,7 +720,7 @@ pub fn fields(
                             ///Sets the field bit by passing zero
                             #inline
                             pub fn set_bit_by_zero(self) -> &'a mut W {
-                                unsafe { self.bit(false) }
+                                self.bit(false)
                             }
                         });
                     }
@@ -733,7 +729,7 @@ pub fn fields(
                             ///Toggle the field bit by passing one
                             #inline
                             pub fn toggle_bit(self) -> &'a mut W {
-                                unsafe { self.bit(true) }
+                                self.bit(true)
                             }
                         });
                     }
@@ -742,7 +738,7 @@ pub fn fields(
                             ///Toggle the field bit by passing zero
                             #inline
                             pub fn toggle_bit(self) -> &'a mut W {
-                                unsafe { self.bit(false) }
+                                self.bit(false)
                             }
                         });
                     }
