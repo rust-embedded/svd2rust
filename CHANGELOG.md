@@ -9,12 +9,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- `strict` option
 - Missing `inline` on field reader constructors
 - Support for device.x generation for riscv targets and `__EXTERNAL_INTERRUPTS` vector table
 - Re-export base's module for derived peripherals
 
 ### Changed
 
+- Use `svd-parser` v0.11
 - More Cluster arrays are now emitted as an array rather than a list of
   elements.  An `ArrayProxy` wrapper is used when a Rust built-in array does not
   match the cluster layout.  Requires the `--const_generic` command line option.

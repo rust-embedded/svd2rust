@@ -3,13 +3,12 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use crate::svd::{
-    Cluster, ClusterInfo, DimElement, Peripheral, Register, RegisterCluster, RegisterProperties,
+    Cluster, ClusterInfo, DeriveFrom, DimElement, Peripheral, Register, RegisterCluster,
+    RegisterProperties,
 };
 use log::warn;
-use proc_macro2::TokenStream;
-use proc_macro2::{Ident, Punct, Spacing, Span};
+use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
-use svd_parser::derive_from::DeriveFrom;
 use syn::{parse_str, Token};
 
 use crate::util::{
@@ -734,6 +733,7 @@ fn expand_register(
     let mut register_expanded = vec![];
 
     let register_size = register
+        .properties
         .size
         .or(defs.size)
         .ok_or_else(|| anyhow!("Register {} has no `size` field", register.name))?;
