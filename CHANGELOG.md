@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Bumped `xtensa-lx` and add `xtensa_lx::interrupt::InterruptNumber` implementation.
 - Don't use a mask when the width of the mask is the same as the width of the parent register.
 
+### Fixed
+
+- When expanding register arrays which were derived from a single
+  register, a single register was returned even though the derived type
+  was an array. This has been fixed by checking the derived and ancestor
+  type now
+
 ## [v0.19.0] - 2021-05-26
 
 ### Added
