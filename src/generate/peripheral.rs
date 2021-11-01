@@ -133,17 +133,47 @@ pub fn render(
                 };
 
                 match (erc, ancestor) {
-                    (RegisterCluster::Register(reg), RegisterCluster::Register(other_reg)) => {
-                        match other_reg {
-                            Register::Array(ref info, ref array_info) => {
-                                Some(RegisterCluster::Register(Register::Array(
-                                    reg.derive_from(info),
-                                    array_info.clone(),
+                    (
+                        RegisterCluster::Register(reg),
+                        RegisterCluster::Register(other_reg)
+                    ) => {
+                        // Check all possible combinations for derived and own type
+                        match (reg, other_reg) {
+                            (
+                                Register::Single(_),
+                                Register::Single(ref other_info)
+                            ) => {
+                                Some(RegisterCluster::Register(Register::Single(
+                                    reg.derive_from(other_info)
                                 )))
                             }
-                            Register::Single(ref info) => Some(RegisterCluster::Register(
-                                Register::Single(reg.derive_from(info)),
-                            )),
+                            (
+                                Register::Single(_),
+                                Register::Array(ref other_info, ref other_dim)
+                            ) => {
+                                Some(RegisterCluster::Register(Register::Array(
+                                    reg.derive_from(other_info),
+                                    other_dim.clone()
+                                )))
+                            }
+                            (
+                                Register::Array(_, ref dim),
+                                Register::Single(ref other_info)
+                            ) => {
+                                Some(RegisterCluster::Register(Register::Array(
+                                    reg.derive_from(other_info),
+                                    dim.clone()
+                                )))
+                            }
+                            (
+                                Register::Array(_, _),
+                                Register::Array(ref other_info, ref other_dim)
+                            ) => {
+                                Some(RegisterCluster::Register(Register::Array(
+                                    reg.derive_from(other_info),
+                                    other_dim.clone()
+                                )))
+                            }
                         }
                     }
                     (
