@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   match the cluster layout.  Requires the `--const_generic` command line option.
 - Bumped `xtensa-lx` and add `xtensa_lx::interrupt::InterruptNumber` implementation.
 - Don't use a mask when the width of the mask is the same as the width of the parent register.
+- Improved error handling
 
 ## [v0.19.0] - 2021-05-26
 
