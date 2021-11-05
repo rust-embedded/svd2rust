@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Correct derive for register (cluster) array (needs `svd-rs` 0.11.2) 
+
 ### Added
 
 - `strict` option

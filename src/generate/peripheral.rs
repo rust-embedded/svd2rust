@@ -135,29 +135,12 @@ pub fn render(
 
                 match (erc, ancestor) {
                     (RegisterCluster::Register(reg), RegisterCluster::Register(other_reg)) => {
-                        match other_reg {
-                            Register::Array(ref info, ref array_info) => {
-                                Some(RegisterCluster::Register(Register::Array(
-                                    reg.derive_from(info),
-                                    array_info.clone(),
-                                )))
-                            }
-                            Register::Single(ref info) => Some(RegisterCluster::Register(
-                                Register::Single(reg.derive_from(info)),
-                            )),
-                        }
+                        Some(RegisterCluster::Register(reg.derive_from(other_reg)))
                     }
                     (
                         RegisterCluster::Cluster(cluster),
                         RegisterCluster::Cluster(other_cluster),
-                    ) => match other_cluster {
-                        Cluster::Array(ref info, ref array_info) => Some(RegisterCluster::Cluster(
-                            Cluster::Array(cluster.derive_from(info), array_info.clone()),
-                        )),
-                        Cluster::Single(ref info) => Some(RegisterCluster::Cluster(
-                            Cluster::Single(cluster.derive_from(info)),
-                        )),
-                    },
+                    ) => Some(RegisterCluster::Cluster(cluster.derive_from(other_cluster))),
                     _ => {
                         eprintln!(
                             "{} can't derive from {}",
