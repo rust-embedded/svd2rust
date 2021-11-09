@@ -310,7 +310,7 @@ pub fn fields(
         let use_mask = if let Some(size) = parent.properties.size {
             size != width
         } else {
-            false
+            true
         };
 
         let lookup_results = lookup(
