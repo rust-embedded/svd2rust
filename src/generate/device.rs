@@ -2,7 +2,7 @@ use crate::svd::Device;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 
-use log::debug;
+use tracing::debug;
 use std::fs::File;
 use std::io::Write;
 

@@ -4,7 +4,7 @@ use crate::svd::{
 };
 use cast::u64;
 use core::u64;
-use log::warn;
+use tracing::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
 

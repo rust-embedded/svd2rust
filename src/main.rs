@@ -1,8 +1,8 @@
 #![recursion_limit = "128"]
 
-use log::{error, info};
 use std::path::PathBuf;
 use svd_parser::svd;
+use tracing::{error, info};
 
 mod generate;
 mod util;
@@ -90,10 +90,9 @@ fn run() -> Result<()> {
                     .short("l")
                     .help(&format!(
                         "Choose which messages to log (overrides {})",
-                        env_logger::DEFAULT_FILTER_ENV
+                        tracing_subscriber::EnvFilter::DEFAULT_ENV
                     ))
                     .takes_value(true)
-                    .possible_values(&["off", "error", "warn", "info", "debug", "trace"]),
             )
             .version(concat!(
                 env!("CARGO_PKG_VERSION"),
@@ -193,29 +192,24 @@ fn run() -> Result<()> {
 }
 
 fn setup_logging<'a>(getter: &'a impl clap_conf::Getter<'a, String>) {
-    // * Log at info by default.
+    // * Log at `info` by default.
     // * Allow users the option of setting complex logging filters using
-    //   env_logger's `RUST_LOG` environment variable.
-    // * Override both of those if the logging level is set via the `--log`
-    //   command line argument.
-    let env = env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info");
-    let mut builder = env_logger::Builder::from_env(env);
-    builder.format_timestamp(None);
+    //   the `RUST_LOG` environment variable.
+    // * Override both of those if the logging level is set via
+    //   the `log_level` config setting.
 
-    let log_lvl_from_env = std::env::var_os(env_logger::DEFAULT_FILTER_ENV).is_some();
+    let filter = match getter.grab().arg("log_level").conf("log_level").done() {
+        Some(lvl) => tracing_subscriber::EnvFilter::from(lvl),
+        None => tracing_subscriber::EnvFilter::from_default_env()
+            .add_directive(tracing::Level::INFO.into()),
+    };
 
-    if log_lvl_from_env {
-        log::set_max_level(log::LevelFilter::Trace);
-    } else {
-        let level = match getter.grab().arg("log_level").conf("log_level").done() {
-            Some(lvl) => lvl.parse().unwrap(),
-            None => log::LevelFilter::Info,
-        };
-        log::set_max_level(level);
-        builder.filter_level(level);
-    }
-
-    builder.init();
+    tracing_subscriber::fmt()
+        .without_time()
+        .with_target(true)
+        .with_env_filter(filter)
+        .with_ansi(true)
+        .init();
 }
 
 fn main() {

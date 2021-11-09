@@ -6,7 +6,8 @@ use crate::svd::{
     Cluster, ClusterInfo, DeriveFrom, DimElement, Peripheral, Register, RegisterCluster,
     RegisterProperties,
 };
-use log::{debug, trace, warn};
+
+use tracing::{debug, trace, warn};
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parse_str, Token};
