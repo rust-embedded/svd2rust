@@ -11,6 +11,7 @@ use quote::{quote, ToTokens};
 use crate::util::{self, Config, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
 use anyhow::{anyhow, Result};
 
+#[tracing::instrument(skip_all, fields(register.name = %register.name))]
 pub fn render(
     register: &Register,
     all_registers: &[&Register],

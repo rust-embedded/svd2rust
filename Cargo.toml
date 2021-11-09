@@ -39,7 +39,7 @@ cast = "0.3"
 clap = "2.33"
 clap_conf = "0.1.5"
 inflections = "1.1"
-tracing = { version = "0.1", default-features = false, features = ["std"] }
+tracing = { version = "0.1", default-features = false, features = ["std", "attributes"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "ansi", "fmt", "env-filter", "tracing-log"] }
 
 quote = "1.0"

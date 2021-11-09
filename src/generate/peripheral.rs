@@ -20,6 +20,7 @@ use anyhow::{anyhow, bail, Context, Result};
 
 use crate::generate::register;
 
+#[tracing::instrument(skip_all,fields(peripheral.name = %p_original.name))]
 pub fn render(
     p_original: &Peripheral,
     all_peripherals: &[Peripheral],
@@ -179,14 +180,14 @@ pub fn render(
     debug!("Pushing cluster information into output");
     // Push all cluster related information into the peripheral module
     for c in &clusters {
-        trace!("Cluster: {}", c.name);
-        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, config)?);
+        trace!("Pushing cluster: {}", c.name);
+        mod_items.extend(render_cluster_block(c, &defaults, p, all_peripherals, config)?);
     }
 
     debug!("Pushing register information into output");
     // Push all register related information into the peripheral module
     for reg in registers {
-        trace!("Register: {}", reg.name);
+        trace!("Pushing register: {}", reg.name);
         match register::render(reg, registers, p, all_peripherals, &defaults, config) {
             Ok(rendered_reg) => mod_items.extend(rendered_reg),
             Err(e) => {
@@ -580,6 +581,7 @@ fn register_or_cluster_block(
 
 /// Expand a list of parsed `Register`s or `Cluster`s, and render them to
 /// `RegisterBlockField`s containing `Field`s.
+#[tracing::instrument(skip_all, fields(module = name))]
 fn expand(
     ercs: &[RegisterCluster],
     defs: &RegisterProperties,
@@ -594,7 +596,7 @@ fn expand(
             RegisterCluster::Register(register) => {
                 match expand_register(register, defs, name, config) {
                     Ok(expanded_reg) => {
-                        trace!("Register: {}", register.name);
+                        trace!("Expanding register: {}", register.name);
                         ercs_expanded.extend(expanded_reg);
                     }
                     Err(e) => {
@@ -606,7 +608,7 @@ fn expand(
             RegisterCluster::Cluster(cluster) => {
                 match expand_cluster(cluster, defs, name, config) {
                     Ok(expanded_cluster) => {
-                        trace!("Cluster: {}", cluster.name);
+                        trace!("Expanding cluster: {}", cluster.name);
                         ercs_expanded.extend(expanded_cluster);
                     }
                     Err(e) => {
@@ -682,6 +684,7 @@ fn cluster_info_size_in_bits(
 }
 
 /// Render a given cluster (and any children) into `RegisterBlockField`s
+#[tracing::instrument(skip_all, fields(cluster.name = cluster.name(), module = name))]
 fn expand_cluster(
     cluster: &Cluster,
     defs: &RegisterProperties,
@@ -744,6 +747,7 @@ fn expand_cluster(
 
 /// If svd register arrays can't be converted to rust arrays (non sequential addresses, non
 /// numeral indexes, or not containing all elements from 0 to size) they will be expanded
+#[tracing::instrument(skip_all, fields(register.name = %register.name, module = name))]
 fn expand_register(
     register: &Register,
     defs: &RegisterProperties,
@@ -806,7 +810,8 @@ fn expand_register(
 }
 
 /// Render a Cluster Block into `TokenStream`
-fn cluster_block(
+#[tracing::instrument(skip_all, fields(peripheral.name = %p.name, cluster.name = %c.name()))]
+fn render_cluster_block(
     c: &Cluster,
     defaults: &RegisterProperties,
     p: &Peripheral,
@@ -852,7 +857,7 @@ fn cluster_block(
     // Generate the sub-cluster blocks.
     let clusters = util::only_clusters(&c.children);
     for c in &clusters {
-        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, config)?);
+        mod_items.extend(render_cluster_block(c, &defaults, p, all_peripherals, config)?);
     }
 
     Ok(quote! {
