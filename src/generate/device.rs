@@ -2,6 +2,7 @@ use crate::svd::Device;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 
+use log::debug;
 use std::fs::File;
 use std::io::Write;
 
@@ -184,6 +185,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         });
     }
 
+    debug!("Rendering interrupts");
     out.extend(interrupt::render(config.target, &d.peripherals, device_x)?);
 
     for p in &d.peripherals {
@@ -192,6 +194,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             continue;
         }
 
+        debug!("Rendering peripheral {}", p.name);
         match peripheral::render(p, &d.peripherals, &d.default_register_properties, config) {
             Ok(periph) => out.extend(periph),
             Err(e) => {
