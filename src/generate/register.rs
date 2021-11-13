@@ -4,9 +4,9 @@ use crate::svd::{
 };
 use cast::u64;
 use core::u64;
-use tracing::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
+use tracing::{debug, warn};
 
 use crate::util::{self, Config, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
 use anyhow::{anyhow, Result};
@@ -20,6 +20,7 @@ pub fn render(
     defs: &RegisterProperties,
     config: &Config,
 ) -> Result<TokenStream> {
+    debug!("Rendering register: {}", register.name);
     let access = util::access_of(register);
     let name = util::name_of(register, config.ignore_groups);
     let span = Span::call_site();

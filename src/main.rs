@@ -92,7 +92,7 @@ fn run() -> Result<()> {
                         "Choose which messages to log (overrides {})",
                         tracing_subscriber::EnvFilter::DEFAULT_ENV
                     ))
-                    .takes_value(true)
+                    .takes_value(true),
             )
             .version(concat!(
                 env!("CARGO_PKG_VERSION"),
@@ -206,8 +206,9 @@ fn setup_logging<'a>(getter: &'a impl clap_conf::Getter<'a, String>) {
 
     tracing_subscriber::fmt()
         .without_time()
-        .with_target(true)
+        .with_target(false)
         .with_env_filter(filter)
+        .compact()
         .with_ansi(true)
         .init();
 }

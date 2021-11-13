@@ -2,9 +2,9 @@ use crate::svd::Device;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 
-use tracing::debug;
 use std::fs::File;
 use std::io::Write;
+use tracing::debug;
 
 use crate::util::{self, Config, ToSanitizedUpperCase};
 use crate::Target;
@@ -194,7 +194,6 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             continue;
         }
 
-        debug!("Rendering peripheral {}", p.name);
         match peripheral::render(p, &d.peripherals, &d.default_register_properties, config) {
             Ok(periph) => out.extend(periph),
             Err(e) => {
