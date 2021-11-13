@@ -5,13 +5,15 @@ use crate::svd::Peripheral;
 use cast::u64;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
+use tracing::debug;
 
 use crate::util::{self, ToSanitizedUpperCase};
 use crate::Target;
 use anyhow::Result;
 
 /// Generates code for `src/interrupt.rs`
-pub fn render(
+#[tracing::instrument(skip_all)]
+pub fn render_interrupts(
     target: Target,
     peripherals: &[Peripheral],
     device_x: &mut String,
@@ -35,6 +37,7 @@ pub fn render(
     let mut pos = 0;
     let mut mod_items = TokenStream::new();
     for interrupt in &interrupts {
+        debug!("Rendering interrupt {}", interrupt.name);
         while pos < interrupt.value {
             elements.extend(quote!(Vector { _reserved: 0 },));
             pos += 1;

@@ -12,7 +12,7 @@ use crate::util::{self, Config, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32E
 use anyhow::{anyhow, Result};
 
 #[tracing::instrument(skip_all, fields(register.name = %register.name))]
-pub fn render(
+pub fn render_register(
     register: &Register,
     all_registers: &[&Register],
     peripheral: &Peripheral,

@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 use svd_parser::svd;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 mod generate;
 mod util;
@@ -173,6 +173,7 @@ fn run() -> Result<()> {
         .with_context(|| "Error rendering device")?;
 
     let filename = if make_mod { "mod.rs" } else { "lib.rs" };
+    debug!("Writing files");
     let mut file = File::create(path.join(filename)).expect("Couldn't create output file");
 
     let data = items.to_string().replace("] ", "]\n");
@@ -187,7 +188,7 @@ fn run() -> Result<()> {
         writeln!(File::create(path.join("device.x"))?, "{}", device_x)?;
         writeln!(File::create(path.join("build.rs"))?, "{}", build_rs())?;
     }
-
+    info!("Code generation completed. Output written to `{}`", path.display());
     Ok(())
 }
 

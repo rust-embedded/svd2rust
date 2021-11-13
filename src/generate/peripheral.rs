@@ -21,7 +21,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use crate::generate::register;
 
 #[tracing::instrument(skip_all,fields(peripheral.name = %p_original.name))]
-pub fn render(
+pub fn render_peripheral(
     p_original: &Peripheral,
     all_peripherals: &[Peripheral],
     defaults: &RegisterProperties,
@@ -197,7 +197,7 @@ pub fn render(
     }
     // Push all register related information into the peripheral module
     for reg in registers {
-        match register::render(reg, registers, p, all_peripherals, &defaults, config) {
+        match register::render_register(reg, registers, p, all_peripherals, &defaults, config) {
             Ok(rendered_reg) => mod_items.extend(rendered_reg),
             Err(e) => {
                 let res: Result<TokenStream> = Err(e);
@@ -852,7 +852,7 @@ fn render_cluster_block(
     // Generate definition for each of the registers.
     let registers = util::only_registers(&c.children);
     for reg in &registers {
-        match register::render(reg, &registers, p, all_peripherals, &defaults, config) {
+        match register::render_register(reg, &registers, p, all_peripherals, &defaults, config) {
             Ok(rendered_reg) => mod_items.extend(rendered_reg),
             Err(e) => {
                 let res: Result<TokenStream> = Err(e);
