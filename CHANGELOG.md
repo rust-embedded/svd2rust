@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Bug with `use_mask`
 - Correct derive for register (cluster) array (needs `svd-rs` 0.11.2) 
+- New line separators are now rendered in enumerated values
+- Multi line field descriptions are now rendered correctly in write and read registers
 
 ### Added
 
