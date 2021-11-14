@@ -289,11 +289,8 @@ pub fn fields(
         let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
         let name_pc = name.to_sanitized_upper_case();
         let bits = Ident::new(if width == 1 { "bit" } else { "bits" }, span);
-        let description = if let Some(d) = &f.description {
-            util::respace(&util::escape_brackets(d))
-        } else {
-            "".to_owned()
-        };
+        let description_raw = f.description.as_ref().map(|s| s.as_str()).unwrap_or(""); // raw description, if absent using empty string
+        let description = util::respace(&util::escape_brackets(description_raw));
 
         let can_read = can_read
             && (f.access != Some(Access::WriteOnly))
@@ -427,7 +424,7 @@ pub fn fields(
                         Span::call_site(),
                     );
                     let doc = util::replace_suffix(
-                        &description_with_bits(&description, sub_offset, width),
+                        &description_with_bits(&description_raw, sub_offset, width),
                         suffix,
                     );
                     r_impl_items.extend(quote! {
@@ -439,7 +436,7 @@ pub fn fields(
                     });
                 }
             } else {
-                let doc = description_with_bits(&description, offset, width);
+                let doc = description_with_bits(&description_raw, offset, width);
                 r_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
@@ -792,7 +789,7 @@ pub fn fields(
                         Span::call_site(),
                     );
                     let doc = util::replace_suffix(
-                        &description_with_bits(&description, sub_offset, width),
+                        &description_with_bits(&description_raw, sub_offset, width),
                         suffix,
                     );
                     let sub_offset = util::unsuffixed(sub_offset as u64);
@@ -815,7 +812,7 @@ pub fn fields(
                     }
                 }
             } else {
-                let doc = description_with_bits(&description, offset, width);
+                let doc = description_with_bits(&description_raw, offset, width);
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
@@ -935,7 +932,7 @@ fn add_from_variants(
 
     let mut vars = TokenStream::new();
     for v in variants.iter().map(|v| {
-        let desc = util::escape_brackets(&format!("{}: {}", v.value, v.doc));
+        let desc = util::escape_brackets(&util::respace(&format!("{}: {}", v.value, v.doc)));
         let pcv = &v.pc;
         let pcval = &util::unsuffixed(v.value);
         quote! {
