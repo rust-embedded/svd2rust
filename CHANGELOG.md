@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Bumped `xtensa-lx` and add `xtensa_lx::interrupt::InterruptNumber` implementation.
 - Don't use a mask when the width of the mask is the same as the width of the parent register.
 - Improved error handling
+- Registers with single fields that span the entire register now generate safe `bits` writers.
 
 ## [v0.19.0] - 2021-05-26
 
