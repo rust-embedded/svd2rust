@@ -168,14 +168,40 @@ pub fn render(
 
         mod_items.extend(w_impl_items);
 
-        mod_items.extend(quote! {
-            #[doc = "Writes raw bits to the register."]
-            #[inline(always)]
-            pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
-                self.0.bits(bits);
-                self
+        // the writer can be safe if:
+        // * there is a single field that covers the entire register
+        // * that field can represent all values
+        let can_write_safe = match register
+            .fields
+            .as_ref()
+            .and_then(|fields| fields.iter().next())
+            .and_then(|field| field.write_constraint)
+        {
+            Some(WriteConstraint::Range(range)) => {
+                range.min == 0 && range.max == u64::MAX >> (64 - rsize)
             }
-        });
+            _ => false,
+        };
+
+        if can_write_safe {
+            mod_items.extend(quote! {
+                #[doc = "Writes raw bits to the register."]
+                #[inline(always)]
+                pub fn bits(&mut self, bits: #rty) -> &mut Self {
+                    unsafe { self.0.bits(bits) };
+                    self
+                }
+            });
+        } else {
+            mod_items.extend(quote! {
+                #[doc = "Writes raw bits to the register."]
+                #[inline(always)]
+                pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
+                    self.0.bits(bits);
+                    self
+                }
+            });
+        }
 
         close.to_tokens(&mut mod_items);
     }
