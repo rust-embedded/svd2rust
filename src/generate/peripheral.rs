@@ -6,10 +6,11 @@ use crate::svd::{
     Cluster, ClusterInfo, DeriveFrom, DimElement, Peripheral, Register, RegisterCluster,
     RegisterProperties,
 };
-use log::{debug, trace, warn};
+
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parse_str, Token};
+use tracing::{debug, trace, warn};
 
 use crate::util::{
     self, handle_cluster_error, handle_reg_error, Config, FullName, ToSanitizedSnakeCase,
@@ -19,12 +20,15 @@ use anyhow::{anyhow, bail, Context, Result};
 
 use crate::generate::register;
 
-pub fn render(
+#[tracing::instrument(skip_all,fields(peripheral.name = %p_original.name))]
+pub fn render_peripheral(
     p_original: &Peripheral,
     all_peripherals: &[Peripheral],
     defaults: &RegisterProperties,
     config: &Config,
 ) -> Result<TokenStream> {
+    debug!("Rendering peripheral {}", p_original.name);
+
     let mut out = TokenStream::new();
 
     let p_derivedfrom = p_original
@@ -175,18 +179,25 @@ pub fn render(
     let mut mod_items = TokenStream::new();
     mod_items.extend(register_or_cluster_block(&ercs, &defaults, None, config)?);
 
-    debug!("Pushing cluster information into output");
+    if !clusters.is_empty() {
+        debug!("Pushing cluster information into output");
+    }
     // Push all cluster related information into the peripheral module
     for c in &clusters {
-        trace!("Cluster: {}", c.name);
-        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, config)?);
+        mod_items.extend(render_cluster_block(
+            c,
+            &defaults,
+            p,
+            all_peripherals,
+            config,
+        )?);
     }
-
-    debug!("Pushing register information into output");
+    if !registers.is_empty() {
+        debug!("Pushing register information into output");
+    }
     // Push all register related information into the peripheral module
     for reg in registers {
-        trace!("Register: {}", reg.name);
-        match register::render(reg, registers, p, all_peripherals, &defaults, config) {
+        match register::render_register(reg, registers, p, all_peripherals, &defaults, config) {
             Ok(rendered_reg) => mod_items.extend(rendered_reg),
             Err(e) => {
                 let res: Result<TokenStream> = Err(e);
@@ -593,7 +604,6 @@ fn expand(
             RegisterCluster::Register(register) => {
                 match expand_register(register, defs, name, config) {
                     Ok(expanded_reg) => {
-                        trace!("Register: {}", register.name);
                         ercs_expanded.extend(expanded_reg);
                     }
                     Err(e) => {
@@ -605,7 +615,6 @@ fn expand(
             RegisterCluster::Cluster(cluster) => {
                 match expand_cluster(cluster, defs, name, config) {
                     Ok(expanded_cluster) => {
-                        trace!("Cluster: {}", cluster.name);
                         ercs_expanded.extend(expanded_cluster);
                     }
                     Err(e) => {
@@ -681,12 +690,15 @@ fn cluster_info_size_in_bits(
 }
 
 /// Render a given cluster (and any children) into `RegisterBlockField`s
+#[tracing::instrument(skip_all, fields(cluster.name = %cluster.name, module = name))]
 fn expand_cluster(
     cluster: &Cluster,
     defs: &RegisterProperties,
     name: Option<&str>,
     config: &Config,
 ) -> Result<Vec<RegisterBlockField>> {
+    trace!("Expanding cluster: {}", cluster.name);
+
     let mut cluster_expanded = vec![];
 
     let defs = cluster.default_register_properties.derive_from(defs);
@@ -743,12 +755,14 @@ fn expand_cluster(
 
 /// If svd register arrays can't be converted to rust arrays (non sequential addresses, non
 /// numeral indexes, or not containing all elements from 0 to size) they will be expanded
+#[tracing::instrument(skip_all, fields(register.name = %register.name))]
 fn expand_register(
     register: &Register,
     defs: &RegisterProperties,
     name: Option<&str>,
     config: &Config,
 ) -> Result<Vec<RegisterBlockField>> {
+    trace!("Expanding register: {}", register.name);
     let mut register_expanded = vec![];
 
     let register_size = register
@@ -805,13 +819,16 @@ fn expand_register(
 }
 
 /// Render a Cluster Block into `TokenStream`
-fn cluster_block(
+#[tracing::instrument(skip_all, fields(peripheral.name = %p.name, cluster.name = %c.name))]
+fn render_cluster_block(
     c: &Cluster,
     defaults: &RegisterProperties,
     p: &Peripheral,
     all_peripherals: &[Peripheral],
     config: &Config,
 ) -> Result<TokenStream> {
+    debug!("Rendering cluster: {}", c.name);
+
     let mut mod_items = TokenStream::new();
 
     // name_sc needs to take into account array type.
@@ -835,7 +852,7 @@ fn cluster_block(
     // Generate definition for each of the registers.
     let registers = util::only_registers(&c.children);
     for reg in &registers {
-        match register::render(reg, &registers, p, all_peripherals, &defaults, config) {
+        match register::render_register(reg, &registers, p, all_peripherals, &defaults, config) {
             Ok(rendered_reg) => mod_items.extend(rendered_reg),
             Err(e) => {
                 let res: Result<TokenStream> = Err(e);
@@ -851,7 +868,13 @@ fn cluster_block(
     // Generate the sub-cluster blocks.
     let clusters = util::only_clusters(&c.children);
     for c in &clusters {
-        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, config)?);
+        mod_items.extend(render_cluster_block(
+            c,
+            &defaults,
+            p,
+            all_peripherals,
+            config,
+        )?);
     }
 
     Ok(quote! {

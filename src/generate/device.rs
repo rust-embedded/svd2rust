@@ -2,9 +2,9 @@ use crate::svd::Device;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 
-use log::debug;
 use std::fs::File;
 use std::io::Write;
+use tracing::debug;
 
 use crate::util::{self, Config, ToSanitizedUpperCase};
 use crate::Target;
@@ -186,7 +186,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     }
 
     debug!("Rendering interrupts");
-    out.extend(interrupt::render(config.target, &d.peripherals, device_x)?);
+    out.extend(interrupt::render_interrupts(config.target, &d.peripherals, device_x)?);
 
     for p in &d.peripherals {
         if config.target == Target::CortexM && core_peripherals.contains(&&*p.name.to_uppercase()) {
@@ -194,8 +194,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             continue;
         }
 
-        debug!("Rendering peripheral {}", p.name);
-        match peripheral::render(p, &d.peripherals, &d.default_register_properties, config) {
+        match peripheral::render_peripheral(p, &d.peripherals, &d.default_register_properties, config) {
             Ok(periph) => out.extend(periph),
             Err(e) => {
                 let descrip = p.description.as_deref().unwrap_or("No description");
