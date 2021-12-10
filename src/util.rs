@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 
-use crate::svd::{Access, Cluster, Register, RegisterCluster, RegisterInfo};
+use crate::svd::{
+    Access, Cluster, Field, Register, RegisterCluster, RegisterInfo, RegisterProperties,
+};
 use inflections::Inflect;
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 use quote::{quote, ToTokens};
@@ -197,9 +199,9 @@ pub fn replace_suffix(name: &str, suffix: &str) -> String {
     }
 }
 
-pub fn access_of(register: &Register) -> Access {
-    register.properties.access.unwrap_or_else(|| {
-        if let Some(fields) = &register.fields {
+pub fn access_of(properties: &RegisterProperties, fields: Option<&[Field]>) -> Access {
+    properties.access.unwrap_or_else(|| {
+        if let Some(fields) = fields {
             if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
                 Access::ReadOnly
             } else if fields.iter().all(|f| f.access == Some(Access::WriteOnce)) {
