@@ -7,19 +7,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Support of reading SVD from YAML or JSON files instead of XML
+
 ### Changed
 
 - Use `svd-parser` v0.13.1
 - Replace suffix in fields' name before converting to snake case when generating methods #563
+- MIPS API now re-exports `mips_rt::interrupt` when the `rt` feature is enabled
 
 ### Fixed
 
 - Fix ValidateLevel usage in lib.rs
 - Parenthesizing `#offset_calc` to avoid clippy's warning of operator precedence
-
-### Changed
-
-- MIPS API now re-exports `mips_rt::interrupt` when the `rt` feature is enabled
 
 ## [v0.20.0] - 2021-12-07
 

@@ -1,11 +1,7 @@
 #![recursion_limit = "128"]
 
 use log::{error, info};
-use std::path::PathBuf;
-use svd_parser::svd;
-
-mod generate;
-mod util;
+use std::path::{Path, PathBuf};
 
 use std::fs::File;
 use std::io::Write;
@@ -14,7 +10,10 @@ use std::process;
 use anyhow::{Context, Result};
 use clap::{App, Arg};
 
-use crate::util::{build_rs, Config, Target};
+use svd2rust::{
+    generate, load_from,
+    util::{build_rs, Config, SourceType, Target},
+};
 
 fn run() -> Result<()> {
     use clap_conf::prelude::*;
@@ -85,6 +84,11 @@ fn run() -> Result<()> {
                     .help("Make advanced checks due to parsing SVD"),
             )
             .arg(
+                Arg::with_name("source_type")
+                    .long("source_type")
+                    .help("Specify file/stream format"),
+            )
+            .arg(
                 Arg::with_name("log_level")
                     .long("log")
                     .short("l")
@@ -101,19 +105,19 @@ fn run() -> Result<()> {
             ))
             .get_matches();
 
-    let xml = &mut String::new();
+    let input = &mut String::new();
     match matches.value_of("input") {
         Some(file) => {
             File::open(file)
                 .context("Cannot open the SVD file")?
-                .read_to_string(xml)
+                .read_to_string(input)
                 .context("Cannot read the SVD file")?;
         }
         None => {
             let stdin = std::io::stdin();
             stdin
                 .lock()
-                .read_to_string(xml)
+                .read_to_string(input)
                 .context("Cannot read from stdin")?;
         }
     }
@@ -146,6 +150,18 @@ fn run() -> Result<()> {
         cfg.bool_flag("ignore_groups", Filter::Arg) || cfg.bool_flag("ignore_groups", Filter::Conf);
     let strict = cfg.bool_flag("strict", Filter::Arg) || cfg.bool_flag("strict", Filter::Conf);
 
+    let mut source_type = cfg
+        .grab()
+        .arg("source_type")
+        .conf("source_type")
+        .done()
+        .and_then(|s| SourceType::from_extension(&s))
+        .unwrap_or_default();
+
+    if let Some(file) = matches.value_of("input") {
+        source_type = SourceType::from_path(Path::new(file))
+    }
+
     let config = Config {
         target,
         nightly,
@@ -155,18 +171,11 @@ fn run() -> Result<()> {
         ignore_groups,
         strict,
         output_dir: path.clone(),
-    };
-
-    let mut parser_config = svd_parser::Config::default();
-    parser_config.validate_level = if strict {
-        svd::ValidateLevel::Strict
-    } else {
-        svd::ValidateLevel::Weak
+        source_type,
     };
 
     info!("Parsing device from SVD file");
-    let device = svd_parser::parse_with_config(xml, &parser_config)
-        .with_context(|| "Error parsing SVD file".to_string())?;
+    let device = load_from(input, &config)?;
 
     let mut device_x = String::new();
     info!("Rendering device");

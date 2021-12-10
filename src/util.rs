@@ -6,7 +6,7 @@ use crate::svd::{
 use inflections::Inflect;
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 use quote::{quote, ToTokens};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -26,6 +26,7 @@ pub struct Config {
     pub ignore_groups: bool,
     pub strict: bool,
     pub output_dir: PathBuf,
+    pub source_type: SourceType,
 }
 
 impl Default for Config {
@@ -39,6 +40,7 @@ impl Default for Config {
             ignore_groups: false,
             strict: false,
             output_dir: PathBuf::from("."),
+            source_type: SourceType::default(),
         }
     }
 }
@@ -72,6 +74,37 @@ impl Target {
 impl Default for Target {
     fn default() -> Self {
         Self::CortexM
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum SourceType {
+    Xml,
+    Yaml,
+    Json,
+}
+
+impl Default for SourceType {
+    fn default() -> Self {
+        Self::Xml
+    }
+}
+
+impl SourceType {
+    /// Make a new [`Source`] from a given extension.
+    pub fn from_extension(s: &str) -> Option<Self> {
+        match s {
+            "yml" | "yaml" => Some(Self::Yaml),
+            "json" => Some(Self::Json),
+            "svd" | "xml" => Some(Self::Xml),
+            _ => None,
+        }
+    }
+    pub fn from_path(path: &Path) -> Self {
+        path.extension()
+            .and_then(|e| e.to_str())
+            .and_then(Self::from_extension)
+            .unwrap_or_default()
     }
 }
 
