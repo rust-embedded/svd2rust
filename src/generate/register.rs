@@ -309,7 +309,7 @@ pub fn fields(
         let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
         let name_pc = name.to_sanitized_upper_case();
         let bits = Ident::new(if width == 1 { "bit" } else { "bits" }, span);
-        let description_raw = f.description.as_ref().map(|s| s.as_str()).unwrap_or(""); // raw description, if absent using empty string
+        let description_raw = f.description.as_deref().unwrap_or(""); // raw description, if absent using empty string
         let description = util::respace(&util::escape_brackets(description_raw));
 
         let can_read = can_read
@@ -444,7 +444,7 @@ pub fn fields(
                         Span::call_site(),
                     );
                     let doc = util::replace_suffix(
-                        &description_with_bits(&description_raw, sub_offset, width),
+                        &description_with_bits(description_raw, sub_offset, width),
                         suffix,
                     );
                     r_impl_items.extend(quote! {
@@ -456,7 +456,7 @@ pub fn fields(
                     });
                 }
             } else {
-                let doc = description_with_bits(&description_raw, offset, width);
+                let doc = description_with_bits(description_raw, offset, width);
                 r_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
@@ -809,7 +809,7 @@ pub fn fields(
                         Span::call_site(),
                     );
                     let doc = util::replace_suffix(
-                        &description_with_bits(&description_raw, sub_offset, width),
+                        &description_with_bits(description_raw, sub_offset, width),
                         suffix,
                     );
                     let sub_offset = util::unsuffixed(sub_offset as u64);
@@ -832,7 +832,7 @@ pub fn fields(
                     }
                 }
             } else {
-                let doc = description_with_bits(&description_raw, offset, width);
+                let doc = description_with_bits(description_raw, offset, width);
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
