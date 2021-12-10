@@ -1,6 +1,6 @@
 use crate::svd::{
-    Access, BitRange, EnumeratedValues, Field, Peripheral, Register, RegisterProperties, Usage,
-    WriteConstraint,
+    Access, BitRange, DeriveFrom, EnumeratedValues, Field, Peripheral, Register,
+    RegisterProperties, Usage, WriteConstraint,
 };
 use cast::u64;
 use core::u64;
@@ -19,16 +19,15 @@ pub fn render(
     defs: &RegisterProperties,
     config: &Config,
 ) -> Result<TokenStream> {
-    let access = util::access_of(register);
+    let properties = register.properties.derive_from(defs);
+    let access = util::access_of(&properties, register.fields.as_deref());
     let name = util::name_of(register, config.ignore_groups);
     let span = Span::call_site();
     let name_pc = Ident::new(&name.to_sanitized_upper_case(), span);
     let name_uc_spec = Ident::new(&format!("{}_SPEC", &name.to_sanitized_upper_case()), span);
     let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
-    let rsize = register
-        .properties
+    let rsize = properties
         .size
-        .or(defs.size)
         .ok_or_else(|| anyhow!("Register {} has no `size` field", register.name))?;
     let rsize = if rsize < 8 {
         8
@@ -45,11 +44,6 @@ pub fn render(
         }))
         .as_ref(),
     );
-    let res_val = register
-        .properties
-        .reset_value
-        .or(defs.reset_value)
-        .map(|v| v as u64);
 
     let mut mod_items = TokenStream::new();
     let mut r_impl_items = TokenStream::new();
@@ -58,7 +52,7 @@ pub fn render(
 
     let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access);
     let can_write = access != Access::ReadOnly;
-    let can_reset = res_val.is_some();
+    let can_reset = properties.reset_value.is_some();
 
     if can_read {
         let desc = format!("Register `{}` reader", register.name);
@@ -142,8 +136,8 @@ pub fn render(
                 peripheral,
                 all_peripherals,
                 &rty,
-                res_val,
                 access,
+                &properties,
                 &mut mod_items,
                 &mut r_impl_items,
                 &mut w_impl_items,
@@ -262,7 +256,7 @@ pub fn render(
             }
         });
     }
-    if let Some(rv) = res_val.map(util::hex) {
+    if let Some(rv) = properties.reset_value.map(util::hex) {
         let doc = format!("`reset()` method sets {} to value {}", register.name, &rv);
         mod_items.extend(quote! {
             #[doc = #doc]
@@ -295,8 +289,8 @@ pub fn fields(
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
     rty: &Ident,
-    reset_value: Option<u64>,
     access: Access,
+    properties: &RegisterProperties,
     mod_items: &mut TokenStream,
     r_impl_items: &mut TokenStream,
     w_impl_items: &mut TokenStream,
@@ -326,11 +320,11 @@ pub fn fields(
         let mask = u64::MAX >> (64 - width);
         let hexmask = &util::hex(mask);
         let offset = u64::from(offset);
-        let rv = reset_value.map(|rv| (rv >> offset) & mask);
+        let rv = properties.reset_value.map(|rv| (rv >> offset) & mask);
         let fty = width.to_ty()?;
         let evs = &f.enumerated_values;
 
-        let use_mask = if let Some(size) = parent.properties.size {
+        let use_mask = if let Some(size) = properties.size {
             size != width
         } else {
             true
