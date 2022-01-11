@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Fix ValidateLevel usage in lib.rs
 - Parenthesizing `#offset_calc` to avoid clippy's warning of operator precedence
 
+### Added
+
+- `keep_list` option
+
 ## [v0.20.0] - 2021-12-07
 
 ### Fixed
