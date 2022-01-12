@@ -440,7 +440,7 @@ pub fn fields(
                         }
                     };
                     let name_sc_n = Ident::new(
-                        &util::replace_suffix(&f.name.to_sanitized_snake_case(), suffix),
+                        &util::replace_suffix(&f.name, suffix).to_sanitized_snake_case(),
                         Span::call_site(),
                     );
                     let doc = util::replace_suffix(
@@ -805,7 +805,7 @@ pub fn fields(
                 for (i, suffix) in (0..*dim).zip(suffixes.iter()) {
                     let sub_offset = offset + (i as u64) * (*increment as u64);
                     let name_sc_n = Ident::new(
-                        &util::replace_suffix(&f.name.to_sanitized_snake_case(), suffix),
+                        &util::replace_suffix(&f.name, suffix).to_sanitized_snake_case(),
                         Span::call_site(),
                     );
                     let doc = util::replace_suffix(

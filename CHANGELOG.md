@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Replace suffix in fields' name before converting to snake case when generating methods #563
+
 ## [v0.20.0] - 2021-12-07
 
 ### Fixed
