@@ -57,12 +57,14 @@ jobs:
             TARGET: x86_64-unknown-linux-gnu
             TRAVIS_OS_NAME: linux
 
-            # Use nightly for architectures which don't support stable
-          - rust: nightly
-            experimental: true
-            vendor: Espressif
-            TARGET: x86_64-unknown-linux-gnu
-            TRAVIS_OS_NAME: linux
+# Espressif testing disabled as xensa-lx 0.4.0 is now broken on nightly,
+# see https://github.com/esp-rs/xtensa-lx/issues/14
+#           # Use nightly for architectures which don't support stable
+#         - rust: nightly
+#           experimental: true
+#           vendor: Espressif
+#           TARGET: x86_64-unknown-linux-gnu
+#           TRAVIS_OS_NAME: linux
 
           # OSX
           - rust: stable
