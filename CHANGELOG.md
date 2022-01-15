@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Don't cast if field same type as register
 - Parenthesizing `#offset_calc` to avoid clippy's warning of operator precedence
 - Replace suffix in fields' name before converting to snake case when generating methods #563
 
