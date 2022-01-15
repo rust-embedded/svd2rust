@@ -1007,17 +1007,14 @@ fn calculate_offset(
     }
     if offset != 0 {
         let offset = &util::unsuffixed(offset);
-        if with_parentheses {
-            res = quote! { (#res + #offset) };
-        } else {
-            res = quote! { #res + #offset };
-        }
-    } else {
-        if with_parentheses {
-            res = quote! { (#res) };
-        }
+        res = quote! { #res + #offset };
     }
-    res
+    let single_ident = (first == 0) && (increment == 1) && (offset == 0);
+    if with_parentheses && !single_ident {
+        quote! { (#res) }
+    } else {
+        res
+    }
 }
 
 fn description_with_bits(description: &str, offset: u64, width: u32) -> String {
