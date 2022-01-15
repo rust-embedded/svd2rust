@@ -408,7 +408,7 @@ pub fn fields(
                 }
             } else {
                 quote! {
-                    self.bits #cast
+                    self.bits
                 }
             };
 
@@ -436,7 +436,7 @@ pub fn fields(
                         }
                     } else {
                         quote! {
-                            self.bits #cast
+                            self.bits
                         }
                     };
                     let name_sc_n = Ident::new(
@@ -720,7 +720,7 @@ pub fn fields(
                     let op = if use_mask {
                         quote!{ self.w.bits = (self.w.bits & !#hexmask) | (value as #rty & #hexmask); }
                     } else {
-                        quote!{ self.w.bits = value as #rty; }
+                        quote!{ self.w.bits = value; }
                     };
 
                     quote! {
