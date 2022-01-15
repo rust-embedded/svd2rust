@@ -413,7 +413,7 @@ pub fn fields(
             };
 
             if let Some((first, dim, increment, suffixes, suffixes_str)) = &field_dim {
-                let offset_calc = calculate_offset(*first, *increment, offset);
+                let offset_calc = calculate_offset(*first, *increment, offset, true);
                 let value = quote! { ((self.bits >> #offset_calc) & #hexmask) #cast };
                 let doc = &util::replace_suffix(&description, suffixes_str);
                 r_impl_items.extend(quote! {
@@ -793,7 +793,7 @@ pub fn fields(
             }
 
             if let Some((first, dim, increment, suffixes, suffixes_str)) = &field_dim {
-                let offset_calc = calculate_offset(*first, *increment, offset);
+                let offset_calc = calculate_offset(*first, *increment, offset, false);
                 let doc = &util::replace_suffix(&description, suffixes_str);
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
@@ -985,7 +985,12 @@ fn add_from_variants(
     });
 }
 
-fn calculate_offset(first: u32, increment: u32, offset: u64) -> TokenStream {
+fn calculate_offset(
+    first: u32,
+    increment: u32,
+    offset: u64,
+    with_parentheses: bool,
+) -> TokenStream {
     let mut res = if first != 0 {
         let first = util::unsuffixed(first as u64);
         quote! { n - #first }
@@ -1002,7 +1007,15 @@ fn calculate_offset(first: u32, increment: u32, offset: u64) -> TokenStream {
     }
     if offset != 0 {
         let offset = &util::unsuffixed(offset);
-        res = quote! { #res + #offset };
+        if with_parentheses {
+            res = quote! { (#res + #offset) };
+        } else {
+            res = quote! { #res + #offset };
+        }
+    } else {
+        if with_parentheses {
+            res = quote! { (#res) };
+        }
     }
     res
 }
