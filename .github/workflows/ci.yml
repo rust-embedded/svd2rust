@@ -91,3 +91,24 @@ jobs:
           OPTIONS: ${{ matrix.options }} 
           TRAVIS_OS_NAME: ${{ matrix.TRAVIS_OS_NAME }}
         run: bash ci/script.sh
+  ci-serde:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt
+      - name: Install svdtools
+        uses: actions-rs/install@v0.1
+        with:
+          crate: svdtools
+          version: 0.2.0
+          use-tool-cache: true
+      - name: Run CI script
+        run: |
+          wget https://stm32-rs.github.io/stm32-rs/stm32f411.svd.patched
+          svdtools convert --input-format xml stm32f411.svd.patched stm32f411.yaml
+          cargo run --release -- -i stm32f411.yaml
