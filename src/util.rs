@@ -26,6 +26,7 @@ pub struct Config {
     pub ignore_groups: bool,
     pub strict: bool,
     pub output_dir: PathBuf,
+    pub struct_enums: bool,
 }
 
 impl Default for Config {
@@ -39,6 +40,7 @@ impl Default for Config {
             ignore_groups: false,
             strict: false,
             output_dir: PathBuf::from("."),
+            struct_enums: false,
         }
     }
 }

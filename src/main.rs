@@ -84,6 +84,9 @@ fn run() -> Result<()> {
                     .short("s")
                     .help("Make advanced checks due to parsing SVD"),
             )
+            .arg(Arg::with_name("struct_enums").long("struct_enums").help(
+                "Generate structs with associated constants instead of enums for enumertedValues",
+            ))
             .arg(
                 Arg::with_name("log_level")
                     .long("log")
@@ -145,6 +148,8 @@ fn run() -> Result<()> {
     let ignore_groups =
         cfg.bool_flag("ignore_groups", Filter::Arg) || cfg.bool_flag("ignore_groups", Filter::Conf);
     let strict = cfg.bool_flag("strict", Filter::Arg) || cfg.bool_flag("strict", Filter::Conf);
+    let struct_enums =
+        cfg.bool_flag("struct_enums", Filter::Arg) || cfg.bool_flag("struct_enums", Filter::Conf);
 
     let config = Config {
         target,
@@ -155,6 +160,7 @@ fn run() -> Result<()> {
         ignore_groups,
         strict,
         output_dir: path.clone(),
+        struct_enums,
     };
 
     let mut parser_config = svd_parser::Config::default();

@@ -487,7 +487,16 @@ pub fn fields(
                     if variants.is_empty() {
                         add_with_no_variants(mod_items, &name_pc_a, &fty, &description, rv);
                     } else {
-                        add_from_variants(mod_items, &variants, &name_pc_a, &fty, &description, rv);
+                        add_from_variants(
+                            mod_items,
+                            &variants,
+                            &name_pc_a,
+                            &fty,
+                            &description,
+                            rv,
+                            can_write,
+                            config,
+                        );
 
                         let mut arms = TokenStream::new();
                         for v in variants.iter().map(|v| {
@@ -629,7 +638,16 @@ pub fn fields(
                     } else if variants.is_empty() {
                         add_with_no_variants(mod_items, name_pc_aw, &fty, &description, rv);
                     } else {
-                        add_from_variants(mod_items, &variants, name_pc_aw, &fty, &description, rv);
+                        add_from_variants(
+                            mod_items,
+                            &variants,
+                            name_pc_aw,
+                            &fty,
+                            &description,
+                            rv,
+                            can_write,
+                            config,
+                        );
                     }
                 }
 
@@ -943,46 +961,99 @@ fn add_from_variants(
     fty: &Ident,
     desc: &str,
     reset_value: Option<u64>,
+    can_write: bool,
+    config: &Config,
 ) {
-    let (repr, cast) = if fty == "bool" {
-        (quote! {}, quote! { variant as u8 != 0 })
-    } else {
-        (quote! { #[repr(#fty)] }, quote! { variant as _ })
-    };
-
-    let mut vars = TokenStream::new();
-    for v in variants.iter().map(|v| {
-        let desc = util::escape_brackets(&util::respace(&format!("{}: {}", v.value, v.doc)));
-        let pcv = &v.pc;
-        let pcval = &util::unsuffixed(v.value);
-        quote! {
-            #[doc = #desc]
-            #pcv = #pcval,
-        }
-    }) {
-        vars.extend(v);
-    }
-
     let desc = if let Some(rv) = reset_value {
         format!("{}\n\nValue on reset: {}", desc, rv)
     } else {
         desc.to_owned()
     };
 
-    mod_items.extend(quote! {
-        #[doc = #desc]
-        #[derive(Clone, Copy, Debug, PartialEq)]
-        #repr
-        pub enum #pc {
-            #vars
-        }
-        impl From<#pc> for #fty {
-            #[inline(always)]
-            fn from(variant: #pc) -> Self {
-                #cast
+    if config.struct_enums {
+        let mut items = TokenStream::new();
+        for v in variants.iter().map(|v| {
+            let desc = util::escape_brackets(&util::respace(&format!("{}: {}", v.value, v.doc)));
+            let pcv = &v.pc;
+            let pcval = if fty == "bool" {
+                let val = v.value != 0;
+                quote! { #val }
+            } else {
+                util::unsuffixed(v.value)
+            };
+            quote! {
+                #[doc = #desc]
+                pub const #pcv: #pc = #pc(#pcval);
             }
+        }) {
+            items.extend(v);
         }
-    });
+
+        if can_write {
+            let enum_unsafety = if fty == "bool" && variants.len() == 2 {
+                None
+            } else {
+                Some(Ident::new("unsafe", Span::call_site()))
+            };
+
+            items.extend(quote! {
+                #[doc = "Create custom value"]
+                pub const #enum_unsafety fn new(val: #fty) -> Self {
+                    Self(val)
+                }
+            });
+        }
+
+        mod_items.extend(quote! {
+            #[doc = #desc]
+            #[derive(Clone, Copy, Debug, PartialEq)]
+            #[repr(transparent)]
+            pub struct #pc(#fty);
+            impl #pc {
+                #items
+            }
+            impl From<#pc> for #fty {
+                #[inline(always)]
+                fn from(variant: #pc) -> Self {
+                    variant.0
+                }
+            }
+        });
+    } else {
+        let (repr, cast) = if fty == "bool" {
+            (quote! {}, quote! { variant as u8 != 0 })
+        } else {
+            (quote! { #[repr(#fty)] }, quote! { variant as _ })
+        };
+
+        let mut vars = TokenStream::new();
+        for v in variants.iter().map(|v| {
+            let desc = util::escape_brackets(&util::respace(&format!("{}: {}", v.value, v.doc)));
+            let pcv = &v.pc;
+            let pcval = &util::unsuffixed(v.value);
+            quote! {
+                #[doc = #desc]
+                #pcv = #pcval,
+            }
+        }) {
+            vars.extend(v);
+        }
+
+        mod_items.extend(quote! {
+            #[doc = #desc]
+            #[derive(Clone, Copy, Debug, PartialEq)]
+            #repr
+            pub enum #pc {
+                #vars
+            }
+            impl From<#pc> for #fty {
+                #[inline(always)]
+                fn from(variant: #pc) -> Self {
+                    #cast
+                }
+            }
+        });
+    }
 }
 
 fn calculate_offset(

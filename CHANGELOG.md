@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `struct_enums` option for generating structs instead of enums for enumeratedValues
+
 ### Changed
 
 - Use `svd-parser` v0.13.1
