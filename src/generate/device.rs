@@ -139,6 +139,13 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         });
     }
 
+    if config.target == Target::Mips {
+        out.extend(quote! {
+            #[cfg(feature = "rt")]
+            pub use mips_rt::interrupt;
+        });
+    }
+
     let generic_file = std::str::from_utf8(include_bytes!("generic.rs"))?;
     if config.generic_mod {
         let mut file = File::create(config.output_dir.join("generic.rs"))?;

@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Parenthesizing `#offset_calc` to avoid clippy's warning of operator precedence
 - Replace suffix in fields' name before converting to snake case when generating methods #563
 
+### Changed
+
+- MIPS API now re-exports `mips_rt::interrupt` when the `rt` feature is enabled
+
 ## [v0.20.0] - 2021-12-07
 
 ### Fixed
