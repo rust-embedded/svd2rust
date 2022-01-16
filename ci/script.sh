@@ -609,12 +609,12 @@ main() {
             echo 'version = "1.0.0"' >> $td/Cargo.toml
 
             echo '[dependencies.xtensa-lx]' >> $td/Cargo.toml
-            echo 'version = "0.4.0"' >> $td/Cargo.toml
-            echo 'features = ["lx6"]' >> $td/Cargo.toml
+            echo 'version = "0.6.0"' >> $td/Cargo.toml
+            echo 'features = ["esp32"]' >> $td/Cargo.toml
 
             echo '[dependencies.xtensa-lx-rt]' >> $td/Cargo.toml
-            echo 'version = "0.7.0"' >> $td/Cargo.toml
-            echo 'features = ["lx6"]' >> $td/Cargo.toml
+            echo 'version = "0.8.0"' >> $td/Cargo.toml
+            echo 'features = ["esp32"]' >> $td/Cargo.toml
 
             test_svd_for_target xtensa-lx https://raw.githubusercontent.com/esp-rs/esp32/master/svd/esp32.svd
         ;;
