@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Use `svd-parser` v0.13.1
+- Replace suffix in fields' name before converting to snake case when generating methods #563
+
 ### Fixed
 
-- Don't cast if field same type as register
+- Fix ValidateLevel usage in lib.rs
 - Parenthesizing `#offset_calc` to avoid clippy's warning of operator precedence
-- Replace suffix in fields' name before converting to snake case when generating methods #563
 
 ## [v0.20.0] - 2021-12-07
 

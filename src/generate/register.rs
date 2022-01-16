@@ -50,8 +50,8 @@ pub fn render(
     let mut w_impl_items = TokenStream::new();
     let mut methods = vec![];
 
-    let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access);
-    let can_write = access != Access::ReadOnly;
+    let can_read = access.can_read();
+    let can_write = access.can_write();
     let can_reset = properties.reset_value.is_some();
 
     if can_read {
@@ -297,8 +297,8 @@ pub fn fields(
     config: &Config,
 ) -> Result<()> {
     let span = Span::call_site();
-    let can_read = [Access::ReadOnly, Access::ReadWriteOnce, Access::ReadWrite].contains(&access);
-    let can_write = access != Access::ReadOnly;
+    let can_read = access.can_read();
+    let can_write = access.can_write();
 
     // TODO enumeratedValues
     let inline = quote! { #[inline(always)] };
@@ -1267,7 +1267,7 @@ fn lookup_in_peripherals<'p>(
     all_peripherals: &'p [Peripheral],
 ) -> Result<(&'p EnumeratedValues, Option<Base<'p>>)> {
     if let Some(peripheral) = all_peripherals.iter().find(|p| p.name == base_peripheral) {
-        let all_registers = peripheral.reg_iter().collect::<Vec<_>>();
+        let all_registers = peripheral.all_registers().collect::<Vec<_>>();
         lookup_in_peripheral(
             Some(base_peripheral),
             base_register,
