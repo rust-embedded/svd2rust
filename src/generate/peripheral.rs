@@ -712,7 +712,15 @@ fn expand_cluster(
                     .eq((0..array_info.dim).map(Ok))
             });
 
-            let array_convertible = sequential_indexes && sequential_addresses;
+            let convert_list = match config.keep_list {
+                true => match &array_info.dim_name {
+                    Some(dim_name) => dim_name.contains("[%s]"),
+                    None => info.name.contains("[%s]"),
+                },
+                false => true,
+            };
+
+            let array_convertible = sequential_indexes && sequential_addresses && convert_list;
 
             if array_convertible {
                 cluster_expanded.push(RegisterBlockField {
@@ -776,7 +784,15 @@ fn expand_register(
                     .eq((0..array_info.dim).map(Ok))
             });
 
-            let array_convertible = sequential_indexes && sequential_addresses;
+            let convert_list = match config.keep_list {
+                true => match &array_info.dim_name {
+                    Some(dim_name) => dim_name.contains("[%s]"),
+                    None => info.name.contains("[%s]"),
+                },
+                false => true,
+            };
+
+            let array_convertible = sequential_indexes && sequential_addresses && convert_list;
 
             if array_convertible {
                 register_expanded.push(RegisterBlockField {

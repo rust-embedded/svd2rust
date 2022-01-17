@@ -19,91 +19,95 @@ fn run() -> Result<()> {
     use clap_conf::prelude::*;
     use std::io::Read;
 
-    let matches =
-        App::new("svd2rust")
-            .about("Generate a Rust API from SVD files")
-            .arg(
-                Arg::with_name("input")
-                    .help("Input SVD file")
-                    .short("i")
-                    .takes_value(true)
-                    .value_name("FILE"),
-            )
-            .arg(
-                Arg::with_name("output")
-                    .long("output-dir")
-                    .help("Directory to place generated files")
-                    .short("o")
-                    .takes_value(true)
-                    .value_name("PATH"),
-            )
-            .arg(
-                Arg::with_name("config")
-                    .long("config")
-                    .help("Config TOML file")
-                    .short("c")
-                    .takes_value(true)
-                    .value_name("TOML_FILE"),
-            )
-            .arg(
-                Arg::with_name("target")
-                    .long("target")
-                    .help("Target architecture")
-                    .takes_value(true)
-                    .value_name("ARCH"),
-            )
-            .arg(
-                Arg::with_name("nightly_features")
-                    .long("nightly")
-                    .help("Enable features only available to nightly rustc"),
-            )
-            .arg(Arg::with_name("const_generic").long("const_generic").help(
+    let matches = App::new("svd2rust")
+        .about("Generate a Rust API from SVD files")
+        .arg(
+            Arg::with_name("input")
+                .help("Input SVD file")
+                .short("i")
+                .takes_value(true)
+                .value_name("FILE"),
+        )
+        .arg(
+            Arg::with_name("output")
+                .long("output-dir")
+                .help("Directory to place generated files")
+                .short("o")
+                .takes_value(true)
+                .value_name("PATH"),
+        )
+        .arg(
+            Arg::with_name("config")
+                .long("config")
+                .help("Config TOML file")
+                .short("c")
+                .takes_value(true)
+                .value_name("TOML_FILE"),
+        )
+        .arg(
+            Arg::with_name("target")
+                .long("target")
+                .help("Target architecture")
+                .takes_value(true)
+                .value_name("ARCH"),
+        )
+        .arg(
+            Arg::with_name("nightly_features")
+                .long("nightly")
+                .help("Enable features only available to nightly rustc"),
+        )
+        .arg(
+            Arg::with_name("const_generic").long("const_generic").help(
                 "Use const generics to generate writers for same fields with different offsets",
-            ))
-            .arg(
-                Arg::with_name("ignore_groups")
-                    .long("ignore_groups")
-                    .help("Don't add alternateGroup name as prefix to register name"),
-            )
-            .arg(
-                Arg::with_name("generic_mod")
-                    .long("generic_mod")
-                    .short("g")
-                    .help("Push generic mod in separate file"),
-            )
-            .arg(
-                Arg::with_name("make_mod")
-                    .long("make_mod")
-                    .short("m")
-                    .help("Create mod.rs instead of lib.rs, without inner attributes"),
-            )
-            .arg(
-                Arg::with_name("strict")
-                    .long("strict")
-                    .short("s")
-                    .help("Make advanced checks due to parsing SVD"),
-            )
-            .arg(
-                Arg::with_name("source_type")
-                    .long("source_type")
-                    .help("Specify file/stream format"),
-            )
-            .arg(
-                Arg::with_name("log_level")
-                    .long("log")
-                    .short("l")
-                    .help(&format!(
-                        "Choose which messages to log (overrides {})",
-                        env_logger::DEFAULT_FILTER_ENV
-                    ))
-                    .takes_value(true)
-                    .possible_values(&["off", "error", "warn", "info", "debug", "trace"]),
-            )
-            .version(concat!(
-                env!("CARGO_PKG_VERSION"),
-                include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
-            ))
-            .get_matches();
+            ),
+        )
+        .arg(
+            Arg::with_name("ignore_groups")
+                .long("ignore_groups")
+                .help("Don't add alternateGroup name as prefix to register name"),
+        )
+        .arg(Arg::with_name("keep_list").long("keep_list").help(
+            "Keep lists when generating code of dimElement, instead of trying to generate arrays",
+        ))
+        .arg(
+            Arg::with_name("generic_mod")
+                .long("generic_mod")
+                .short("g")
+                .help("Push generic mod in separate file"),
+        )
+        .arg(
+            Arg::with_name("make_mod")
+                .long("make_mod")
+                .short("m")
+                .help("Create mod.rs instead of lib.rs, without inner attributes"),
+        )
+        .arg(
+            Arg::with_name("strict")
+                .long("strict")
+                .short("s")
+                .help("Make advanced checks due to parsing SVD"),
+        )
+        .arg(
+            Arg::with_name("source_type")
+                .long("source_type")
+                .help("Specify file/stream format"),
+        )
+        .arg(
+            Arg::with_name("log_level")
+                .long("log")
+                .short("l")
+                .help(&format!(
+                    "Choose which messages to log (overrides {})",
+                    env_logger::DEFAULT_FILTER_ENV
+                ))
+                .takes_value(true)
+                .possible_values(&["off", "error", "warn", "info", "debug", "trace"]),
+        )
+        .version(concat!(
+            env!("CARGO_PKG_VERSION"),
+            include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
+        ))
+        .get_matches();
 
     let input = &mut String::new();
     match matches.value_of("input") {
@@ -148,6 +152,8 @@ fn run() -> Result<()> {
         cfg.bool_flag("const_generic", Filter::Arg) || cfg.bool_flag("const_generic", Filter::Conf);
     let ignore_groups =
         cfg.bool_flag("ignore_groups", Filter::Arg) || cfg.bool_flag("ignore_groups", Filter::Conf);
+    let keep_list =
+        cfg.bool_flag("keep_list", Filter::Arg) || cfg.bool_flag("keep_list", Filter::Conf);
     let strict = cfg.bool_flag("strict", Filter::Arg) || cfg.bool_flag("strict", Filter::Conf);
 
     let mut source_type = cfg
@@ -169,6 +175,7 @@ fn run() -> Result<()> {
         make_mod,
         const_generic,
         ignore_groups,
+        keep_list,
         strict,
         output_dir: path.clone(),
         source_type,
