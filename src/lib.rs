@@ -502,8 +502,8 @@
 use quote::quote;
 use svd_parser::svd;
 
-mod generate;
-mod util;
+pub mod generate;
+pub mod util;
 
 pub use crate::util::{Config, Target};
 
@@ -519,7 +519,8 @@ pub struct DeviceSpecific {
     pub build_rs: String,
 }
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+
 #[derive(Debug, thiserror::Error)]
 pub enum SvdError {
     #[error("Cannot format crate")]
@@ -529,10 +530,10 @@ pub enum SvdError {
 }
 
 /// Generates rust code for the specified svd content.
-pub fn generate(xml: &str, config: &Config) -> Result<Generation> {
+pub fn generate(input: &str, config: &Config) -> Result<Generation> {
     use std::fmt::Write;
 
-    let device = svd_parser::parse(xml)?;
+    let device = load_from(input, config)?;
     let mut device_x = String::new();
     let items =
         generate::device::render(&device, config, &mut device_x).or(Err(SvdError::Render))?;
@@ -559,6 +560,30 @@ pub fn generate(xml: &str, config: &Config) -> Result<Generation> {
     Ok(Generation {
         lib_rs,
         device_specific,
+    })
+}
+
+/// Load a [Device] from a string slice with given [config](crate::util::Config).
+pub fn load_from(input: &str, config: &crate::util::Config) -> Result<svd::Device> {
+    use self::util::SourceType;
+    use svd_parser::ValidateLevel;
+
+    Ok(match config.source_type {
+        SourceType::Xml => {
+            let mut parser_config = svd_parser::Config::default();
+            parser_config.validate_level = if config.strict {
+                ValidateLevel::Strict
+            } else {
+                ValidateLevel::Weak
+            };
+
+            svd_parser::parse_with_config(input, &parser_config)
+                .with_context(|| "Error parsing SVD XML file".to_string())?
+        }
+        SourceType::Yaml => serde_yaml::from_str(input)
+            .with_context(|| "Error parsing SVD YAML file".to_string())?,
+        SourceType::Json => serde_json::from_str(input)
+            .with_context(|| "Error parsing SVD JSON file".to_string())?,
     })
 }
 
