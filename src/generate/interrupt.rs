@@ -277,7 +277,11 @@ pub fn render(
             _ => "C",
         };
 
-        if target != Target::CortexM && target != Target::Msp430 && target != Target::XtensaLX {
+        if target != Target::CortexM
+            && target != Target::Msp430
+            && target != Target::XtensaLX
+            && target != Target::Mips
+        {
             mod_items.extend(quote! {
                 #[cfg(feature = "rt")]
                 #[macro_export]
