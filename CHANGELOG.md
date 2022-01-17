@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Use `svd-parser` v0.13.1
 - Replace suffix in fields' name before converting to snake case when generating methods #563
 - MIPS API now re-exports `mips_rt::interrupt` when the `rt` feature is enabled
+  but does not generate the `interrupt` macro anymore
 
 ### Fixed
 
