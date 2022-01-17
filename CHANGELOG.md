@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.21.0] - 2022-01-17
+
 ### Added
 
 - Support of reading SVD from YAML or JSON files instead of XML
@@ -656,7 +658,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.21.0...HEAD
+[v0.21.0]: https://github.com/rust-embedded/svd2rust/compare/v0.20.0...v0.21.0
 [v0.20.0]: https://github.com/rust-embedded/svd2rust/compare/v0.19.0...v0.20.0
 [v0.19.0]: https://github.com/rust-embedded/svd2rust/compare/v0.18.0...v0.19.0
 [v0.18.0]: https://github.com/rust-embedded/svd2rust/compare/v0.17.0...v0.18.0
