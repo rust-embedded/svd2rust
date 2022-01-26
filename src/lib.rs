@@ -99,30 +99,32 @@
 //!
 //! $ xmllint -format out.svd > msp430g2553.svd
 //!
-//! $ svd2rust --target=msp430 -i msp430g2553.svd
+//! $ svd2rust -g --target=msp430 -i msp430g2553.svd
 //!
 //! $ rm -rf src
 //!
 //! $ form -i lib.rs -o src/ && rm lib.rs
 //!
+//! $ mv generic.rs src/
+//!
 //! $ cargo fmt
 //! ```
 //!
 //! The resulting crate must provide opt-in "rt" feature and depend on these crates: `msp430`
-//! v0.2.x, `msp430-rt` v0.2.x, and `vcell` v0.1.x. If the `--nightly` flag is provided to
-//! `svd2rust`, then `msp430-atomic` v0.1.2 is also needed. Furthermore the "device" feature of
+//! v0.3.x, `msp430-rt` v0.3.x, and `vcell` v0.1.x. If the `--nightly` flag is provided to
+//! `svd2rust`, then `msp430-atomic` v0.1.4 is also needed. Furthermore the "device" feature of
 //! `msp430-rt` must be enabled when the "rt" feature is enabled. The `Cargo.toml` of the device
 //! crate will look like this:
 //!
 //! ``` toml
 //! [dependencies]
-//! msp430 = "0.2.0"
+//! msp430 = "0.3.0"
 //! vcell = "0.1.0"
-//! msp430-atomic = "0.1.2" # Only when using the --nightly flag
+//! msp430-atomic = "0.1.4" # Only when using the --nightly flag
 //!
 //! [dependencies.msp430-rt]
 //! optional = true
-//! version = "0.2.0"
+//! version = "0.3.0"
 //!
 //! [features]
 //! rt = ["msp430-rt/device"]
