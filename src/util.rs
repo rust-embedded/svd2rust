@@ -447,9 +447,10 @@ impl FullName for RegisterInfo {
 }
 
 pub fn parse_address(addr: &str) -> Result<u64, ParseIntError> {
-    if addr.starts_with("0x") {
-        u64::from_str_radix(&addr[2..], 16)
+    if let Some(addr) = addr.strip_prefix("0x") {
+        u64::from_str_radix(addr, 16)
     } else {
+        #[allow(clippy::from_str_radix_10)] // Be explicit of the radix
         u64::from_str_radix(addr, 10)
     }
 }
