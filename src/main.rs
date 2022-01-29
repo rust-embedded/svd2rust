@@ -110,10 +110,10 @@ fn run() -> Result<()> {
                 .number_of_values(3)
                 .help("Mark registers in given range with a marker trait")
                 .long_help(
-                    "Mark registers in given range with a marker trait.
-The first argument after the flag sets the name for the marker trait.
-The second and third argument are the start and end addresses of registers
-which this trait is applied for.",
+"Mark registers in given range with a marker trait. For example to mark registers
+in the second 1MB block of RAM, use
+    --mark_range SecondMbMarker 0x100000 0x200000
+The ranges are given as half-open intervals.",
                 )
                 .value_names(&["trait", "range start", "range end"]),
         )
