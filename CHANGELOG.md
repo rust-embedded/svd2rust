@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Bring documentation on how to generate MSP430 PACs up to date (in line with
+  [msp430_svd](https://github.com/pftbest/msp430_svd)).
+
 ## [v0.21.0] - 2022-01-17
 
 ### Added
@@ -34,7 +39,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Bug with `use_mask`
-- Correct derive for register (cluster) array (needs `svd-rs` 0.11.2) 
+- Correct derive for register (cluster) array (needs `svd-rs` 0.11.2)
 - New line separators are now rendered in enumerated values
 - Multi line field descriptions are now rendered correctly in write and read registers
 
@@ -67,7 +72,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
-- `\n` in descriptions for multiline 
+- `\n` in descriptions for multiline
 - `_reserved` fields in `RegisterBlock` now hexidemical usize
 - options can be set now with `svd2rust.toml` config
 - option `ignore_groups` for optional disabling #506
@@ -120,7 +125,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - with feature "const-generic" generate const generic variant of
   "field array" structure in addition to structure
-  that contain offset (requires rust 1.51) 
+  that contain offset (requires rust 1.51)
 
 - move interrupt generation after generic file
 
