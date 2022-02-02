@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- Generate Rust arrays for all register & cluster arrays with sequential_addresses.
+  If their indices don't start from 0 add accessors with right names.
 - Bring documentation on how to generate MSP430 PACs up to date (in line with
   [msp430_svd](https://github.com/pftbest/msp430_svd)).
 

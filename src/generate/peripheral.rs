@@ -12,8 +12,8 @@ use quote::{quote, ToTokens};
 use syn::{parse_str, Token};
 
 use crate::util::{
-    self, handle_cluster_error, handle_reg_error, Config, FullName, ToSanitizedSnakeCase,
-    ToSanitizedUpperCase, BITS_PER_BYTE,
+    self, handle_cluster_error, handle_reg_error, unsuffixed, Config, FullName,
+    ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE,
 };
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -219,6 +219,7 @@ struct RegisterBlockField {
     description: String,
     offset: u32,
     size: u32,
+    accessors: Option<TokenStream>,
 }
 
 #[derive(Clone, Debug)]
@@ -435,6 +436,23 @@ impl FieldRegions {
     }
 }
 
+fn make_comment(size: u32, offset: u32, description: &str) -> String {
+    if size > 32 {
+        format!(
+            "0x{:02x}..0x{:02x} - {}",
+            offset,
+            offset + size / 8,
+            util::escape_brackets(&util::respace(description)),
+        )
+    } else {
+        format!(
+            "0x{:02x} - {}",
+            offset,
+            util::escape_brackets(&util::respace(description)),
+        )
+    }
+}
+
 fn register_or_cluster_block(
     ercs: &[RegisterCluster],
     defs: &RegisterProperties,
@@ -443,7 +461,6 @@ fn register_or_cluster_block(
 ) -> Result<TokenStream> {
     let mut rbfs = TokenStream::new();
     let mut accessors = TokenStream::new();
-    let mut have_accessors = false;
 
     let ercs_expanded = expand(ercs, defs, name, config)
         .with_context(|| "Could not expand register or cluster block")?;
@@ -453,6 +470,9 @@ fn register_or_cluster_block(
 
     for reg_block_field in &ercs_expanded {
         regions.add(reg_block_field)?;
+        if let Some(ts) = &reg_block_field.accessors {
+            accessors.extend(ts.clone());
+        }
     }
 
     // We need to compute the idents of each register/union block first to make sure no conflicts exists.
@@ -476,26 +496,16 @@ fn register_or_cluster_block(
         let is_region_a_union = region.is_union();
 
         for reg_block_field in &region.rbfs {
-            let comment = if reg_block_field.size > 32 {
-                format!(
-                    "0x{:02x}..0x{:02x} - {}",
-                    reg_block_field.offset,
-                    reg_block_field.offset + reg_block_field.size / 8,
-                    util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
-                )
-            } else {
-                format!(
-                    "0x{:02x} - {}",
-                    reg_block_field.offset,
-                    util::escape_brackets(util::respace(&reg_block_field.description).as_ref()),
-                )
-            };
+            let comment = make_comment(
+                reg_block_field.size,
+                reg_block_field.offset,
+                &reg_block_field.description,
+            );
 
             if is_region_a_union {
                 let name = &reg_block_field.field.ident;
                 let ty = &reg_block_field.field.ty;
                 let offset = reg_block_field.offset as usize;
-                have_accessors = true;
                 accessors.extend(quote! {
                     #[doc = #comment]
                     #[inline(always)]
@@ -556,7 +566,7 @@ fn register_or_cluster_block(
         span,
     );
 
-    let accessors = if have_accessors {
+    let accessors = if !accessors.is_empty() {
         quote! {
             impl #name {
                 #accessors
@@ -700,6 +710,7 @@ fn expand_cluster(
             description: info.description.as_ref().unwrap_or(&info.name).into(),
             offset: info.address_offset,
             size: cluster_size,
+            accessors: None,
         }),
         Cluster::Array(info, array_info) => {
             let sequential_addresses = cluster_size == array_info.dim_increment * BITS_PER_BYTE;
@@ -720,15 +731,51 @@ fn expand_cluster(
                 false => true,
             };
 
-            let array_convertible = sequential_indexes && sequential_addresses && convert_list;
+            let array_convertible = sequential_addresses && convert_list;
 
             if array_convertible {
-                cluster_expanded.push(RegisterBlockField {
-                    field: convert_svd_cluster(cluster, name)?,
-                    description: info.description.as_ref().unwrap_or(&info.name).into(),
-                    offset: info.address_offset,
-                    size: cluster_size * array_info.dim,
-                });
+                if sequential_indexes {
+                    cluster_expanded.push(RegisterBlockField {
+                        field: convert_svd_cluster(cluster, name)?,
+                        description: info.description.as_ref().unwrap_or(&info.name).into(),
+                        offset: info.address_offset,
+                        size: cluster_size * array_info.dim,
+                        accessors: None,
+                    });
+                } else {
+                    let mut accessors = TokenStream::new();
+                    let nb_name = util::replace_suffix(&info.name, "");
+                    let ty = name_to_wrapped_ty(&nb_name, name)?;
+                    let nb_name_cs =
+                        Ident::new(&nb_name.to_sanitized_snake_case(), Span::call_site());
+                    let description = info.description.as_ref().unwrap_or(&info.name);
+                    for (i, idx) in array_info.indexes().enumerate() {
+                        let idx_name = Ident::new(
+                            &util::replace_suffix(&info.name, &idx).to_sanitized_snake_case(),
+                            Span::call_site(),
+                        );
+                        let comment = make_comment(
+                            cluster_size,
+                            info.address_offset + (i as u32) * cluster_size / 8,
+                            description,
+                        );
+                        let i = unsuffixed(i as _);
+                        accessors.extend(quote! {
+                            #[doc = #comment]
+                            #[inline(always)]
+                            pub fn #idx_name(&self) -> &#ty {
+                                &self.#nb_name_cs[#i]
+                            }
+                        });
+                    }
+                    cluster_expanded.push(RegisterBlockField {
+                        field: convert_svd_cluster(cluster, name)?,
+                        description: description.into(),
+                        offset: info.address_offset,
+                        size: cluster_size * array_info.dim,
+                        accessors: Some(accessors),
+                    });
+                }
             } else if sequential_indexes && config.const_generic {
                 // Include a ZST ArrayProxy giving indexed access to the
                 // elements.
@@ -740,6 +787,7 @@ fn expand_cluster(
                         description: info.description.as_ref().unwrap_or(&info.name).into(),
                         offset: info.address_offset + field_num as u32 * array_info.dim_increment,
                         size: cluster_size,
+                        accessors: None,
                     });
                 }
             }
@@ -772,6 +820,7 @@ fn expand_register(
             description: info.description.clone().unwrap_or_default(),
             offset: info.address_offset,
             size: register_size,
+            accessors: None,
         }),
         Register::Array(info, array_info) => {
             let sequential_addresses = register_size == array_info.dim_increment * BITS_PER_BYTE;
@@ -792,15 +841,52 @@ fn expand_register(
                 false => true,
             };
 
-            let array_convertible = sequential_indexes && sequential_addresses && convert_list;
+            let array_convertible = sequential_addresses && convert_list;
 
             if array_convertible {
-                register_expanded.push(RegisterBlockField {
-                    field: convert_svd_register(register, name, config.ignore_groups)?,
-                    description: info.description.clone().unwrap_or_default(),
-                    offset: info.address_offset,
-                    size: register_size * array_info.dim,
-                });
+                if sequential_indexes {
+                    register_expanded.push(RegisterBlockField {
+                        field: convert_svd_register(register, name, config.ignore_groups)?,
+                        description: info.description.clone().unwrap_or_default(),
+                        offset: info.address_offset,
+                        size: register_size * array_info.dim,
+                        accessors: None,
+                    });
+                } else {
+                    let mut accessors = TokenStream::new();
+                    let nb_name = util::replace_suffix(&info.fullname(config.ignore_groups), "");
+                    let ty = name_to_wrapped_ty(&nb_name, name)?;
+                    let nb_name_cs =
+                        Ident::new(&nb_name.to_sanitized_snake_case(), Span::call_site());
+                    let description = info.description.clone().unwrap_or_default();
+                    for (i, idx) in array_info.indexes().enumerate() {
+                        let idx_name = Ident::new(
+                            &util::replace_suffix(&info.fullname(config.ignore_groups), &idx)
+                                .to_sanitized_snake_case(),
+                            Span::call_site(),
+                        );
+                        let comment = make_comment(
+                            register_size,
+                            info.address_offset + (i as u32) * register_size / 8,
+                            &description,
+                        );
+                        let i = unsuffixed(i as _);
+                        accessors.extend(quote! {
+                            #[doc = #comment]
+                            #[inline(always)]
+                            pub fn #idx_name(&self) -> &#ty {
+                                &self.#nb_name_cs[#i]
+                            }
+                        });
+                    }
+                    register_expanded.push(RegisterBlockField {
+                        field: convert_svd_register(register, name, config.ignore_groups)?,
+                        description,
+                        offset: info.address_offset,
+                        size: register_size * array_info.dim,
+                        accessors: Some(accessors),
+                    });
+                }
             } else {
                 for (field_num, field) in expand_svd_register(register, name, config.ignore_groups)?
                     .iter()
@@ -811,6 +897,7 @@ fn expand_register(
                         description: info.description.clone().unwrap_or_default(),
                         offset: info.address_offset + field_num as u32 * array_info.dim_increment,
                         size: register_size,
+                        accessors: None,
                     });
                 }
             }
@@ -893,22 +980,10 @@ fn expand_svd_register(
     match register {
         Register::Single(_info) => out.push(convert_svd_register(register, name, ignore_group)?),
         Register::Array(info, array_info) => {
-            let indices = array_info
-                .dim_index
-                .as_ref()
-                .map(|v| Cow::from(&**v))
-                .unwrap_or_else(|| {
-                    Cow::from(
-                        (0..array_info.dim)
-                            .map(|i| i.to_string())
-                            .collect::<Vec<_>>(),
-                    )
-                });
-
             let ty_name = util::replace_suffix(&info.fullname(ignore_group), "");
 
-            for (idx, _i) in indices.iter().zip(0..) {
-                let nb_name = util::replace_suffix(&info.fullname(ignore_group), idx);
+            for idx in array_info.indexes() {
+                let nb_name = util::replace_suffix(&info.fullname(ignore_group), &idx);
 
                 let ty = name_to_wrapped_ty(&ty_name, name)?;
 
@@ -968,6 +1043,7 @@ fn array_proxy(
         description: info.description.as_ref().unwrap_or(&info.name).into(),
         offset: info.address_offset,
         size: 0,
+        accessors: None,
     })
 }
 
@@ -982,22 +1058,10 @@ fn expand_svd_cluster(
     match &cluster {
         Cluster::Single(_info) => out.push(convert_svd_cluster(cluster, name)?),
         Cluster::Array(info, array_info) => {
-            let indices = array_info
-                .dim_index
-                .as_ref()
-                .map(|v| Cow::from(&**v))
-                .unwrap_or_else(|| {
-                    Cow::from(
-                        (0..array_info.dim)
-                            .map(|i| i.to_string())
-                            .collect::<Vec<_>>(),
-                    )
-                });
-
             let ty_name = util::replace_suffix(&info.name, "");
 
-            for (idx, _i) in indices.iter().zip(0..) {
-                let nb_name = util::replace_suffix(&info.name, idx);
+            for idx in array_info.indexes() {
+                let nb_name = util::replace_suffix(&info.name, &idx);
 
                 let ty = name_to_ty(&ty_name, name)?;
 
