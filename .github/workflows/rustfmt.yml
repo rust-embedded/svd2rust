@@ -1,8 +1,13 @@
-on: [push, pull_request]
+on:
+  push:
+    branches: [ staging, trying, master ]
+  pull_request:
 
-name: Clippy check
+name: Code formatting check
+
 jobs:
-  clippy_check:
+  fmt:
+    name: Rustfmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -12,11 +17,12 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-          components: clippy
+          components: rustfmt
 
       - name: Cache Dependencies
         uses: Swatinem/rust-cache@v1
 
-      - uses: actions-rs/clippy-check@v1
+      - uses: actions-rs/cargo@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          command: fmt
+          args: --all -- --check
