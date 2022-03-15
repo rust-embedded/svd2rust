@@ -43,6 +43,10 @@ jobs:
             options: all
           - vendor: Nuvoton
             options: all
+          - vendor: Microchip
+            options: all
+          - vendor: RISC-V
+            options: all
         include:
           # Test MSRV
           - rust: 1.46.0
