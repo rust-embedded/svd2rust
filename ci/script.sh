@@ -25,7 +25,7 @@ test_svd_for_target() {
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
     local cwd=$(pwd)
     pushd $td
-    RUST_BACKTRACE=1 $cwd/target/$TARGET/release/svd2rust --target $1 -i input.svd
+    RUST_BACKTRACE=1 $cwd/target/$TARGET/release/svd2rust $strict $const_generic --target $1 -i input.svd
 
     mv lib.rs src/lib.rs
 
@@ -531,15 +531,15 @@ main() {
 
         SiliconLabs)
             # #99 regression tests
-            test_svd SIM3C1x4_SVD
-            test_svd SIM3C1x6_SVD
-            test_svd SIM3C1x7_SVD
-            test_svd SIM3L1x4_SVD
-            test_svd SIM3L1x6_SVD
-            test_svd SIM3L1x7_SVD
-            test_svd SIM3U1x4_SVD
-            test_svd SIM3U1x6_SVD
-            test_svd SIM3U1x7_SVD
+            test_svd_for_target cortex-m https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/SiliconLabs/SiM3_NRND/SIM3C1x4.svd
+            test_svd_for_target cortex-m https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/SiliconLabs/SiM3_NRND/SIM3C1x6.svd
+            test_svd_for_target cortex-m https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/SiliconLabs/SiM3_NRND/SIM3C1x7.svd
+            test_svd_for_target cortex-m https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/SiliconLabs/SiM3_NRND/SIM3L1x4.svd
+            test_svd_for_target cortex-m https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/SiliconLabs/SiM3_NRND/SIM3L1x6.svd
+            test_svd_for_target cortex-m https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/SiliconLabs/SiM3_NRND/SIM3L1x7.svd
+            test_svd_for_target cortex-m https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/SiliconLabs/SiM3_NRND/SIM3U1x4.svd
+            test_svd_for_target cortex-m https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/SiliconLabs/SiM3_NRND/SIM3U1x6.svd
+            test_svd_for_target cortex-m https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/SiliconLabs/SiM3_NRND/SIM3U1x7.svd
 
             # FIXME(???) panicked at "c.text.clone()"
             # test_svd SIM3L1x8_SVD
