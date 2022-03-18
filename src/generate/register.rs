@@ -347,8 +347,8 @@ pub fn fields(
         let mut evs_r = None;
 
         let field_dim = match f {
-            Field::Array(_, de) => {
-                let (first, index) = if let Some(dim_index) = &de.dim_index {
+            Field::Array(info, de) => {
+                let first = if let Some(dim_index) = &de.dim_index {
                     if let Ok(first) = dim_index[0].parse::<u32>() {
                         let sequential_indexes = dim_index
                             .iter()
@@ -357,24 +357,42 @@ pub fn fields(
                         if !sequential_indexes {
                             return Err(anyhow!("unsupported array indexes in {}", f.name));
                         }
-                        (first, None)
+                        first
                     } else {
-                        (0, de.dim_index.clone())
+                        0
                     }
                 } else {
-                    (0, None)
+                    0
                 };
-                let suffixes: Vec<_> = match index {
-                    Some(ix) => ix,
-                    None => (0..de.dim).map(|i| (first + i).to_string()).collect(),
-                };
+                let suffixes: Vec<_> = de.indexes().collect();
                 let suffixes_str = format!("({}-{})", first, first + de.dim - 1);
+                for (name, offset) in
+                    crate::svd::array::names(info, de).zip(svd_rs::field::bit_offsets(info, de))
+                {
+                    let offset_name = Ident::new(
+                        &(name.clone() + "_OFFSET").to_sanitized_upper_case(),
+                        Span::call_site(),
+                    );
+                    let doc = format!("`{}` field offset", name);
+                    let offset = &util::unsuffixed(offset as _);
+                    mod_items.extend(quote! {
+                        #[doc = #doc]
+                        pub const #offset_name: u8 = #offset;
+                    });
+                }
                 Some((first, de.dim, de.dim_increment, suffixes, suffixes_str))
             }
             Field::Single(_) => {
                 if f.name.contains("%s") {
                     return Err(anyhow!("incorrect field {}", f.name));
                 }
+                let doc = format!("`{}` field offset", f.name);
+                let offset_name = Ident::new(&(name_pc.clone() + "_OFFSET"), span);
+                let offset = &util::unsuffixed(offset);
+                mod_items.extend(quote! {
+                    #[doc = #doc]
+                    pub const #offset_name: u8 = #offset;
+                });
                 None
             }
         };
@@ -558,11 +576,14 @@ pub fn fields(
                         }
                     }
 
+                    let unwidth = crate::util::unsuffixed(width as _);
                     mod_items.extend(quote! {
                         #[doc = #readerdoc]
                         pub struct #name_pc_r(crate::FieldReader<#fty, #name_pc_a>);
 
                         impl #name_pc_r {
+                            #[doc = "Field width"]
+                            pub const WIDTH: u8 = #unwidth;
                             #[inline(always)]
                             pub(crate) fn new(bits: #fty) -> Self {
                                 #name_pc_r(crate::FieldReader::new(bits))
@@ -581,11 +602,14 @@ pub fn fields(
                     });
                 }
             } else {
+                let unwidth = crate::util::unsuffixed(width as _);
                 mod_items.extend(quote! {
                     #[doc = #readerdoc]
                     pub struct #name_pc_r(crate::FieldReader<#fty, #fty>);
 
                     impl #name_pc_r {
+                        #[doc = "Field width"]
+                        pub const WIDTH: u8 = #unwidth;
                         #[inline(always)]
                         pub(crate) fn new(bits: #fty) -> Self {
                             #name_pc_r(crate::FieldReader::new(bits))
@@ -610,6 +634,13 @@ pub fn fields(
             let name_pc_cgw = Ident::new(&(name_pc.clone() + "_CGW"), span);
 
             let mut proxy_items = TokenStream::new();
+
+            let unwidth = crate::util::unsuffixed(width as _);
+            proxy_items.extend(quote! {
+                #[doc = "Field width"]
+                pub const WIDTH: u8 = #unwidth;
+            });
+
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
 
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Write) {

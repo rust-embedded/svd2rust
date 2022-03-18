@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- Constant values of field offsets and width
 - added `dyn` keyword to sanatizer.
+
 ### Changed
 
 - Generate Rust arrays for all register & cluster arrays with sequential_addresses.
