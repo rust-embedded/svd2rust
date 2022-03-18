@@ -318,7 +318,7 @@ pub fn fields(
         let can_write = can_write && (f.access != Some(Access::ReadOnly));
 
         let mask = u64::MAX >> (64 - width);
-        let hexmask = &util::hex(mask);
+        let hexmask = &util::digit_or_hex(mask);
         let offset = u64::from(offset);
         let rv = properties.reset_value.map(|rv| (rv >> offset) & mask);
         let fty = width.to_ty()?;
