@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- added `dyn` keyword to sanatizer.
 ### Changed
 
 - Generate Rust arrays for all register & cluster arrays with sequential_addresses.
