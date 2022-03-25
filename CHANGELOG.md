@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   If their indices don't start from 0 add accessors with right names.
 - Bring documentation on how to generate MSP430 PACs up to date (in line with
   [msp430_svd](https://github.com/pftbest/msp430_svd)).
+- Use the official SVDs from Espressif for CI and `rust-regress` tests, and
+  additionally test the ESP32-C3, ESP32-S2, and ESP32-S3.
 
 ## [v0.21.0] - 2022-01-17
 
