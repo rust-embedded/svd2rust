@@ -4245,7 +4245,37 @@ pub const TESTS: &[&TestCase] = &[
         mfgr: Espressif,
         chip: "esp32",
         svd_url: Some(
-            "https://raw.githubusercontent.com/arjanmels/esp32/add-output-svd/svd/esp32.svd",
+            "https://raw.githubusercontent.com/espressif/svd/main/svd/esp32.svd",
+        ),
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: XtensaLX,
+        mfgr: Espressif,
+        chip: "esp32s2",
+        svd_url: Some(
+            "https://raw.githubusercontent.com/espressif/svd/main/svd/esp32s2.svd",
+        ),
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: XtensaLX,
+        mfgr: Espressif,
+        chip: "esp32s3",
+        svd_url: Some(
+            "https://raw.githubusercontent.com/espressif/svd/main/svd/esp32s3.svd",
+        ),
+        should_pass: true,
+        run_when: Always,
+    },
+    &TestCase {
+        arch: RiscV,
+        mfgr: Espressif,
+        chip: "esp32c3",
+        svd_url: Some(
+            "https://raw.githubusercontent.com/espressif/svd/main/svd/esp32c3.svd",
         ),
         should_pass: true,
         run_when: Always,

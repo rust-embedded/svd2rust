@@ -608,15 +608,25 @@ main() {
             echo '[dependencies.bare-metal]' >> $td/Cargo.toml
             echo 'version = "1.0.0"' >> $td/Cargo.toml
 
+            echo '[dependencies.riscv]' >> $td/Cargo.toml
+            echo 'version = "0.6.0"' >> $td/Cargo.toml
+
+            echo '[dependencies.riscv-rt]' >> $td/Cargo.toml
+            echo 'version = "0.8.0"' >> $td/Cargo.toml
+
             echo '[dependencies.xtensa-lx]' >> $td/Cargo.toml
             echo 'version = "0.6.0"' >> $td/Cargo.toml
             echo 'features = ["esp32"]' >> $td/Cargo.toml
 
             echo '[dependencies.xtensa-lx-rt]' >> $td/Cargo.toml
-            echo 'version = "0.8.0"' >> $td/Cargo.toml
+            echo 'version = "0.9.0"' >> $td/Cargo.toml
             echo 'features = ["esp32"]' >> $td/Cargo.toml
 
-            test_svd_for_target xtensa-lx https://raw.githubusercontent.com/esp-rs/esp32/master/svd/esp32.svd
+            test_svd_for_target riscv https://raw.githubusercontent.com/espressif/svd/main/svd/esp32c3.svd
+
+            test_svd_for_target xtensa-lx https://raw.githubusercontent.com/espressif/svd/main/svd/esp32.svd
+            test_svd_for_target xtensa-lx https://raw.githubusercontent.com/espressif/svd/main/svd/esp32s2.svd
+            test_svd_for_target xtensa-lx https://raw.githubusercontent.com/espressif/svd/main/svd/esp32s3.svd
         ;;
 
     esac
