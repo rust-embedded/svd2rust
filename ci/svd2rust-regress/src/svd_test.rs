@@ -10,10 +10,11 @@ const CRATES_MSP430: &[&str] = &["msp430 = \"0.2.2\"", "msp430-rt = \"0.2.0\""];
 const CRATES_MSP430_NIGHTLY: &[&str] = &["msp430-atomic = \"0.1.2\""];
 const CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.7.0\"", "cortex-m-rt = \"0.6.13\""];
 const CRATES_RISCV: &[&str] = &["riscv = \"0.5.0\"", "riscv-rt = \"0.6.0\""];
-const CRATES_XTENSALX6: &[&str] = &["xtensa-lx6-rt = \"0.2.0\"", "xtensa-lx6 = \"0.1.0\""];
+const CRATES_XTENSALX: &[&str] = &["xtensa-lx-rt = \"0.9.0\"", "xtensa-lx = \"0.6.0\""];
 const CRATES_MIPS: &[&str] = &["mips-mcu = \"0.1.0\""];
 const PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
 const FEATURES_ALL: &[&str] = &["[features]"];
+const FEATURES_XTENSALX: &[&str] = &["default = [\"xtensa-lx/esp32\", \"xtensa-lx-rt/esp32\"]"];
 
 fn path_helper(input: &[&str]) -> PathBuf {
     input.iter().collect()
@@ -133,7 +134,7 @@ pub fn test(
             RiscV => CRATES_RISCV.iter(),
             Mips => CRATES_MIPS.iter(),
             Msp430 => CRATES_MSP430.iter(),
-            XtensaLX => CRATES_XTENSALX6.iter(),
+            XtensaLX => CRATES_XTENSALX.iter(),
         })
         .chain(if nightly {
             match &t.arch {
@@ -144,7 +145,11 @@ pub fn test(
             [].iter()
         })
         .chain(PROFILE_ALL.iter())
-        .chain(FEATURES_ALL.iter());
+        .chain(FEATURES_ALL.iter())
+        .chain(match &t.arch {
+            XtensaLX => FEATURES_XTENSALX.iter(),
+            _ => [].iter(),
+        });
 
     for c in crates {
         writeln!(file, "{}", c).chain_err(|| "Failed to append to file!")?;
