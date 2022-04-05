@@ -23,7 +23,7 @@ keywords = [
 license = "MIT OR Apache-2.0"
 name = "svd2rust"
 repository = "https://github.com/rust-embedded/svd2rust/"
-version = "0.21.0"
+version = "0.22.0"
 readme = "README.md"
 
 [package.metadata.deb]
@@ -54,7 +54,7 @@ version = "0.13.1"
 
 [dependencies.svd-rs]
 features = ["serde"]
-version = "0.13.0"
+version = "0.13.1"
 
 [dependencies.syn]
 version = "1.0"

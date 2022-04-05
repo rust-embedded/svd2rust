@@ -260,6 +260,14 @@ pub fn access_of(properties: &RegisterProperties, fields: Option<&[Field]>) -> A
     })
 }
 
+pub fn digit_or_hex(n: u64) -> TokenStream {
+    if n < 10 {
+        unsuffixed(n)
+    } else {
+        hex(n)
+    }
+}
+
 /// Turns `n` into an unsuffixed separated hex token
 pub fn hex(n: u64) -> TokenStream {
     let (h4, h3, h2, h1) = (
