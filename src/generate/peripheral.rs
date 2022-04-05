@@ -745,7 +745,7 @@ fn expand_cluster(
                 } else {
                     let mut accessors = TokenStream::new();
                     let nb_name = util::replace_suffix(&info.name, "");
-                    let ty = name_to_wrapped_ty(&nb_name, name)?;
+                    let ty = name_to_ty(&nb_name, name)?;
                     let nb_name_cs =
                         Ident::new(&nb_name.to_sanitized_snake_case(), Span::call_site());
                     let description = info.description.as_ref().unwrap_or(&info.name);
