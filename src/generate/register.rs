@@ -318,7 +318,7 @@ pub fn fields(
         let can_write = can_write && (f.access != Some(Access::ReadOnly));
 
         let mask = u64::MAX >> (64 - width);
-        let hexmask = &util::hex(mask);
+        let hexmask = &util::digit_or_hex(mask);
         let offset = u64::from(offset);
         let rv = properties.reset_value.map(|rv| (rv >> offset) & mask);
         let fty = width.to_ty()?;
@@ -348,7 +348,7 @@ pub fn fields(
 
         let field_dim = match f {
             Field::Array(_, de) => {
-                let (first, index) = if let Some(dim_index) = &de.dim_index {
+                let first = if let Some(dim_index) = &de.dim_index {
                     if let Ok(first) = dim_index[0].parse::<u32>() {
                         let sequential_indexes = dim_index
                             .iter()
@@ -357,17 +357,14 @@ pub fn fields(
                         if !sequential_indexes {
                             return Err(anyhow!("unsupported array indexes in {}", f.name));
                         }
-                        (first, None)
+                        first
                     } else {
-                        (0, de.dim_index.clone())
+                        0
                     }
                 } else {
-                    (0, None)
+                    0
                 };
-                let suffixes: Vec<_> = match index {
-                    Some(ix) => ix,
-                    None => (0..de.dim).map(|i| (first + i).to_string()).collect(),
-                };
+                let suffixes: Vec<_> = de.indexes().collect();
                 let suffixes_str = format!("({}-{})", first, first + de.dim - 1);
                 Some((first, de.dim, de.dim_increment, suffixes, suffixes_str))
             }

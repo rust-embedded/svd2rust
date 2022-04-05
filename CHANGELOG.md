@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.22.0] - 2022-04-05
+
 ### Added
 
 - added `dyn` keyword to sanatizer.
+
 ### Changed
 
 - Generate Rust arrays for all register & cluster arrays with sequential_addresses.
@@ -670,7 +673,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.22.0...HEAD
+[v0.22.0]: https://github.com/rust-embedded/svd2rust/compare/v0.21.0...v0.22.0
 [v0.21.0]: https://github.com/rust-embedded/svd2rust/compare/v0.20.0...v0.21.0
 [v0.20.0]: https://github.com/rust-embedded/svd2rust/compare/v0.19.0...v0.20.0
 [v0.19.0]: https://github.com/rust-embedded/svd2rust/compare/v0.18.0...v0.19.0
