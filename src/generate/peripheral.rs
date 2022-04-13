@@ -713,7 +713,8 @@ fn expand_cluster(
             accessors: None,
         }),
         Cluster::Array(info, array_info) => {
-            let sequential_addresses = cluster_size == array_info.dim_increment * BITS_PER_BYTE;
+            let sequential_addresses =
+                (array_info.dim == 1) || (cluster_size == array_info.dim_increment * BITS_PER_BYTE);
 
             // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
             let sequential_indexes = array_info.dim_index.as_ref().map_or(true, |dim_index| {
@@ -823,7 +824,8 @@ fn expand_register(
             accessors: None,
         }),
         Register::Array(info, array_info) => {
-            let sequential_addresses = register_size == array_info.dim_increment * BITS_PER_BYTE;
+            let sequential_addresses = (array_info.dim == 1)
+                || (register_size == array_info.dim_increment * BITS_PER_BYTE);
 
             // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
             let sequential_indexes = array_info.dim_index.as_ref().map_or(true, |dim_index| {
