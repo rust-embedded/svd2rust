@@ -88,6 +88,11 @@ fn run() -> Result<()> {
                 .help("Make advanced checks due to parsing SVD"),
         )
         .arg(
+            Arg::with_name("pascal_enum_values")
+                .long("pascal_enum_values")
+                .help("Use PascalCase in stead of UPPER_CASE for enumerated values"),
+        )
+        .arg(
             Arg::with_name("source_type")
                 .long("source_type")
                 .help("Specify file/stream format"),
@@ -155,6 +160,8 @@ fn run() -> Result<()> {
     let keep_list =
         cfg.bool_flag("keep_list", Filter::Arg) || cfg.bool_flag("keep_list", Filter::Conf);
     let strict = cfg.bool_flag("strict", Filter::Arg) || cfg.bool_flag("strict", Filter::Conf);
+    let pascal_enum_values = cfg.bool_flag("pascal_enum_values", Filter::Arg)
+        || cfg.bool_flag("pascal_enum_values", Filter::Conf);
 
     let mut source_type = cfg
         .grab()
@@ -177,6 +184,7 @@ fn run() -> Result<()> {
         ignore_groups,
         keep_list,
         strict,
+        pascal_enum_values,
         output_dir: path.clone(),
         source_type,
     };
