@@ -3,8 +3,8 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use crate::svd::{
-    Cluster, ClusterInfo, DeriveFrom, DimElement, Peripheral, Register, RegisterCluster,
-    RegisterProperties,
+    array::names, Cluster, ClusterInfo, DeriveFrom, DimElement, Peripheral, Register,
+    RegisterCluster, RegisterProperties,
 };
 use log::{debug, trace, warn};
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
@@ -43,52 +43,100 @@ pub fn render(
         return Ok(out);
     }
 
+    let name = util::name_of(p, config.ignore_groups);
     let span = Span::call_site();
-    let name_str = p.name.to_sanitized_upper_case();
+    let name_str = name.to_sanitized_upper_case();
     let name_pc = Ident::new(&name_str, span);
     let address = util::hex(p.base_address as u64);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
-    let name_sc = Ident::new(&p.name.to_sanitized_snake_case(), span);
+    let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
     let (derive_regs, base) = if let (Some(df), None) = (p_derivedfrom, &p_original.registers) {
         (true, Ident::new(&df.name.to_sanitized_snake_case(), span))
     } else {
         (false, name_sc.clone())
     };
 
-    // Insert the peripheral structure
-    out.extend(quote! {
-        #[doc = #description]
-        pub struct #name_pc { _marker: PhantomData<*const ()> }
+    match p_original {
+        p @ Peripheral::Array(_, dim) if !config.const_generic => {
+            let names: Vec<Cow<str>> = names(p, dim).map(|n| n.into()).collect();
+            let names_str = names.iter().map(|n| n.to_sanitized_upper_case());
+            let names_pc = names_str.clone().map(|n| Ident::new(&n, span));
+            let addresses =
+                (0..=dim.dim).map(|i| util::hex(p.base_address + (i * dim.dim_increment) as u64));
 
-        unsafe impl Send for #name_pc {}
+            // Insert the peripherals structure
+            out.extend(quote! {
+                #(
+                    #[doc = #description]
+                    pub struct #names_pc { _marker: PhantomData<*const ()> }
 
-        impl #name_pc {
-            ///Pointer to the register block
-            pub const PTR: *const #base::RegisterBlock = #address as *const _;
+                    unsafe impl Send for #names_pc {}
 
-            ///Return the pointer to the register block
-            #[inline(always)]
-            pub const fn ptr() -> *const #base::RegisterBlock {
-                Self::PTR
-            }
+                    impl #names_pc {
+                        ///Pointer to the register block
+                        pub const PTR: *const #base::RegisterBlock = #addresses as *const _;
+
+                        ///Return the pointer to the register block
+                        #[inline(always)]
+                        pub const fn ptr() -> *const #base::RegisterBlock {
+                            Self::PTR
+                        }
+                    }
+
+                    impl Deref for #names_pc {
+                        type Target = #base::RegisterBlock;
+
+                        #[inline(always)]
+                        fn deref(&self) -> &Self::Target {
+                            unsafe { &*Self::PTR }
+                        }
+                    }
+
+                    impl core::fmt::Debug for #names_pc {
+                        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                            f.debug_struct(#names_str).finish()
+                        }
+                    }
+                )*
+            });
         }
+        _ => {
+            // Insert the peripheral structure
+            out.extend(quote! {
+                #[doc = #description]
+                pub struct #name_pc { _marker: PhantomData<*const ()> }
 
-        impl Deref for #name_pc {
-            type Target = #base::RegisterBlock;
+                unsafe impl Send for #name_pc {}
 
-            #[inline(always)]
-            fn deref(&self) -> &Self::Target {
-                unsafe { &*Self::PTR }
-            }
+                impl #name_pc {
+                    ///Pointer to the register block
+                    pub const PTR: *const #base::RegisterBlock = #address as *const _;
+
+                    ///Return the pointer to the register block
+                    #[inline(always)]
+                    pub const fn ptr() -> *const #base::RegisterBlock {
+                        Self::PTR
+                    }
+                }
+
+                impl Deref for #name_pc {
+                    type Target = #base::RegisterBlock;
+
+                    #[inline(always)]
+                    fn deref(&self) -> &Self::Target {
+                        unsafe { &*Self::PTR }
+                    }
+                }
+
+                impl core::fmt::Debug for #name_pc {
+                    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                        f.debug_struct(#name_str).finish()
+                    }
+                }
+            });
         }
-
-        impl core::fmt::Debug for #name_pc {
-            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-                f.debug_struct(#name_str).finish()
-            }
-        }
-    });
+    }
 
     // Derived peripherals may not require re-implementation, and will instead
     // use a single definition of the non-derived version.
@@ -195,8 +243,9 @@ pub fn render(
         };
     }
 
-    let description =
-        util::escape_brackets(util::respace(p.description.as_ref().unwrap_or(&p.name)).as_ref());
+    let description = util::escape_brackets(
+        util::respace(p.description.as_ref().unwrap_or(&name.as_ref().to_owned())).as_ref(),
+    );
 
     let open = Punct::new('{', Spacing::Alone);
     let close = Punct::new('}', Spacing::Alone);

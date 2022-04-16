@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 
 - Optional PascalCase for Enum values instead of UPPER_CASE
+- Add code generation support of peripheral arrays.
 
 ## [v0.22.2] - 2022-04-13
 

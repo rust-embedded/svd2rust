@@ -7,6 +7,7 @@ use inflections::Inflect;
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 use quote::{quote, ToTokens};
 use std::path::{Path, PathBuf};
+use svd_rs::{MaybeArray, PeripheralInfo};
 
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -221,10 +222,10 @@ pub fn escape_brackets(s: &str) -> String {
         })
 }
 
-pub fn name_of(register: &Register, ignore_group: bool) -> Cow<str> {
-    match register {
-        Register::Single(info) => info.fullname(ignore_group),
-        Register::Array(info, _) => replace_suffix(&info.fullname(ignore_group), "").into(),
+pub fn name_of<T: FullName>(maybe_array: &MaybeArray<T>, ignore_group: bool) -> Cow<str> {
+    match maybe_array {
+        MaybeArray::Single(info) => info.fullname(ignore_group),
+        MaybeArray::Array(info, _) => replace_suffix(&info.fullname(ignore_group), "").into(),
     }
 }
 
@@ -443,5 +444,11 @@ impl FullName for RegisterInfo {
             Some(group) if !ignore_group => format!("{}_{}", group, self.name).into(),
             _ => self.name.as_str().into(),
         }
+    }
+}
+
+impl FullName for PeripheralInfo {
+    fn fullname(&self, _ignore_group: bool) -> Cow<str> {
+        self.name.as_str().into()
     }
 }
