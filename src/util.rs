@@ -26,6 +26,7 @@ pub struct Config {
     pub ignore_groups: bool,
     pub keep_list: bool,
     pub strict: bool,
+    pub pascal_enum_values: bool,
     pub output_dir: PathBuf,
     pub source_type: SourceType,
 }
@@ -41,6 +42,7 @@ impl Default for Config {
             ignore_groups: false,
             keep_list: false,
             strict: false,
+            pascal_enum_values: false,
             output_dir: PathBuf::from("."),
             source_type: SourceType::default(),
         }

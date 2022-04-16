@@ -8,7 +8,9 @@ use log::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
 
-use crate::util::{self, Config, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext};
+use crate::util::{
+    self, Config, ToSanitizedPascalCase, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext,
+};
 use anyhow::{anyhow, Result};
 
 pub fn render(
@@ -478,7 +480,7 @@ pub fn fields(
                     derive_from_base(mod_items, &base, &name_pc_r, &base_pc_r, &readerdoc);
                 } else {
                     let has_reserved_variant = evs.values.len() != (1 << width);
-                    let variants = Variant::from_enumerated_values(evs)?;
+                    let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
                     let mut enum_items = TokenStream::new();
 
                     if variants.is_empty() {
@@ -610,7 +612,7 @@ pub fn fields(
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
 
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Write) {
-                let variants = Variant::from_enumerated_values(evs)?;
+                let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
 
                 if variants.len() == 1 << width {
                     unsafety = None;
@@ -872,7 +874,7 @@ struct Variant {
 }
 
 impl Variant {
-    fn from_enumerated_values(evs: &EnumeratedValues) -> Result<Vec<Self>> {
+    fn from_enumerated_values(evs: &EnumeratedValues, pc: bool) -> Result<Vec<Self>> {
         let span = Span::call_site();
         evs.values
             .iter()
@@ -891,7 +893,14 @@ impl Variant {
                         .description
                         .clone()
                         .unwrap_or_else(|| format!("`{:b}`", value)),
-                    pc: Ident::new(&ev.name.to_sanitized_upper_case(), span),
+                    pc: Ident::new(
+                        &(if pc {
+                            ev.name.to_sanitized_pascal_case()
+                        } else {
+                            ev.name.to_sanitized_upper_case()
+                        }),
+                        span,
+                    ),
                     nksc: Ident::new(&nksc, span),
                     sc: Ident::new(&sc, span),
                     value,

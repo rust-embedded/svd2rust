@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Optional PascalCase for Enum values instead of UPPER_CASE
+
 ## [v0.22.2] - 2022-04-13
 
 - Fix #579 2: support 1-element arrays
