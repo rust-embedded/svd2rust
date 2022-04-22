@@ -58,7 +58,7 @@ pub fn render(
     };
 
     match p_original {
-        p @ Peripheral::Array(_, dim) if !config.const_generic => {
+        Peripheral::Array(p, dim) if !config.const_generic => {
             let names: Vec<Cow<str>> = names(p, dim).map(|n| n.into()).collect();
             let names_str = names.iter().map(|n| n.to_sanitized_upper_case());
             let names_pc = names_str.clone().map(|n| Ident::new(&n, span));
