@@ -17,6 +17,7 @@ pub struct ArrayProxy<T, const COUNT: usize, const STRIDE: usize> {
 impl<T, const C: usize, const S: usize> ArrayProxy<T, C, S> {
     /// Create a new ArrayProxy.
     #[inline(always)]
+    #[allow(unused)]
     pub(crate) fn new() -> Self {
         Self {
             _array: marker::PhantomData,
