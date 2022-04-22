@@ -12,7 +12,7 @@ use clap::{App, Arg};
 
 use svd2rust::{
     generate, load_from,
-    util::{build_rs, Config, SourceType, Target},
+    util::{build_rs, parse_address, Config, MarkRange, SourceType, Target},
 };
 
 fn run() -> Result<()> {
@@ -108,6 +108,20 @@ fn run() -> Result<()> {
                 .takes_value(true)
                 .possible_values(&["off", "error", "warn", "info", "debug", "trace"]),
         )
+        .arg(
+            Arg::with_name("mark_range")
+                .long("mark_range")
+                .multiple(true)
+                .number_of_values(3)
+                .help("Mark registers in given range with a marker trait")
+                .long_help(
+"Mark registers in given range with a marker trait. For example to mark registers
+in the second 1MB block of RAM, use
+    --mark_range SecondMbMarker 0x100000 0x200000
+The ranges are given as half-open intervals.",
+                )
+                .value_names(&["trait", "range start", "range end"]),
+        )
         .version(concat!(
             env!("CARGO_PKG_VERSION"),
             include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
@@ -175,6 +189,18 @@ fn run() -> Result<()> {
         source_type = SourceType::from_path(Path::new(file))
     }
 
+    let mut mark_range_iter = cfg.values("mark_range", Filter::Arg).into_iter().flatten();
+    let mut mark_ranges = Vec::new();
+    while let (Some(name), Some(start), Some(end)) = (
+        mark_range_iter.next(),
+        mark_range_iter.next(),
+        mark_range_iter.next(),
+    ) {
+        let start = parse_address(&start).context("Invalid range start")?;
+        let end = parse_address(&end).context("Invalid range end")?;
+        mark_ranges.push(MarkRange { name, start, end });
+    }
+
     let config = Config {
         target,
         nightly,
@@ -187,6 +213,7 @@ fn run() -> Result<()> {
         pascal_enum_values,
         output_dir: path.clone(),
         source_type,
+        mark_ranges,
     };
 
     info!("Parsing device from SVD file");

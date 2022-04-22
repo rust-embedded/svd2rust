@@ -7,6 +7,7 @@ use core::u64;
 use log::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
+use std::collections::HashSet;
 
 use crate::util::{
     self, Config, ToSanitizedPascalCase, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext,
@@ -50,6 +51,7 @@ pub fn render(
     let mut mod_items = TokenStream::new();
     let mut r_impl_items = TokenStream::new();
     let mut w_impl_items = TokenStream::new();
+    let mut marker_impl_items = TokenStream::new();
     let mut methods = vec![];
 
     let can_read = access.can_read();
@@ -268,6 +270,22 @@ pub fn render(
             }
         });
     }
+
+    let address = peripheral.base_address + register.address_offset as u64;
+    let markers: HashSet<_> = config
+        .mark_ranges
+        .iter()
+        .filter(|m| m.start <= address && address < m.end)
+        .map(|m| m.name.as_str())
+        .collect();
+    for marker in markers {
+        let name = Ident::new(marker, span);
+        marker_impl_items.extend(quote! {
+            impl crate::markers::#name for #name_uc_spec {}
+        });
+    }
+
+    mod_items.extend(marker_impl_items);
 
     out.extend(quote! {
         #[doc = #description]

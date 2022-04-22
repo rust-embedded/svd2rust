@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, num::ParseIntError};
 
 use crate::svd::{
     Access, Cluster, Field, Register, RegisterCluster, RegisterInfo, RegisterProperties,
@@ -29,6 +29,7 @@ pub struct Config {
     pub pascal_enum_values: bool,
     pub output_dir: PathBuf,
     pub source_type: SourceType,
+    pub mark_ranges: Vec<MarkRange>,
 }
 
 impl Default for Config {
@@ -45,8 +46,17 @@ impl Default for Config {
             pascal_enum_values: false,
             output_dir: PathBuf::from("."),
             source_type: SourceType::default(),
+            mark_ranges: Vec::new(),
         }
     }
+}
+
+#[derive(Clone, PartialEq, Debug)]
+
+pub struct MarkRange {
+    pub name: String,
+    pub start: u64,
+    pub end: u64,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -443,5 +453,14 @@ impl FullName for RegisterInfo {
             Some(group) if !ignore_group => format!("{}_{}", group, self.name).into(),
             _ => self.name.as_str().into(),
         }
+    }
+}
+
+pub fn parse_address(addr: &str) -> Result<u64, ParseIntError> {
+    if let Some(addr) = addr.strip_prefix("0x") {
+        u64::from_str_radix(addr, 16)
+    } else {
+        #[allow(clippy::from_str_radix_10)] // Be explicit of the radix
+        u64::from_str_radix(addr, 10)
     }
 }

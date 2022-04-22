@@ -3,6 +3,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 
 use log::debug;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::Write;
 
@@ -244,6 +245,24 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         });
         exprs.extend(quote!(#id: #id { _marker: PhantomData },));
     }
+
+    debug!("Rendering markers");
+    let mut markers = TokenStream::new();
+    let unique_markers: HashSet<_> = config.mark_ranges.iter().map(|m| m.name.as_str()).collect();
+    for marker in unique_markers {
+        let marker = Ident::new(marker, Span::call_site());
+        markers.extend(quote! {
+            #[doc = "Marker trait"]
+            pub trait #marker {}
+        });
+    }
+
+    out.extend(quote! {
+        #[doc(hidden)]
+        pub mod markers {
+            #markers
+        }
+    });
 
     let span = Span::call_site();
     let take = match config.target {
