@@ -15,14 +15,6 @@ pub struct ArrayProxy<T, const COUNT: usize, const STRIDE: usize> {
 }
 
 impl<T, const C: usize, const S: usize> ArrayProxy<T, C, S> {
-    /// Create a new ArrayProxy.
-    #[inline(always)]
-    #[allow(unused)]
-    pub(crate) fn new() -> Self {
-        Self {
-            _array: marker::PhantomData,
-        }
-    }
     /// Get a reference from an [ArrayProxy] with no bounds checking.
     pub unsafe fn get_ref(&self, index: usize) -> &T {
         let base = self as *const Self as usize;

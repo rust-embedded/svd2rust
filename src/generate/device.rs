@@ -249,30 +249,17 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 exprs.extend(quote!(#id: #id { _marker: PhantomData },));
             }
             Peripheral::Array(_p, dim_element) => {
-                if config.const_generic {
-                    let p_name = util::name_of(p, config.ignore_groups);
-                    let p = p_name.to_sanitized_upper_case();
-                    let id = Ident::new(&p, Span::call_site());
-                    let dim = dim_element.dim as usize;
-                    let dim_increment = util::hex(dim_element.dim_increment as u64);
-                    fields.extend(quote! {
+                let p_names: Vec<Cow<str>> = names(p, dim_element).map(|n| n.into()).collect();
+                let p = p_names.iter().map(|p| p.to_sanitized_upper_case());
+                let ids_f = p.clone().map(|p| Ident::new(&p, Span::call_site()));
+                let ids_e = ids_f.clone();
+                fields.extend(quote! {
+                    #(
                         #[doc = #p]
-                        pub #id: crate::ArrayProxy<#id, #dim, #dim_increment>,
-                    });
-                    exprs.extend(quote!(#id: crate::ArrayProxy::new(),));
-                } else {
-                    let p_names: Vec<Cow<str>> = names(p, dim_element).map(|n| n.into()).collect();
-                    let p = p_names.iter().map(|p| p.to_sanitized_upper_case());
-                    let ids_f = p.clone().map(|p| Ident::new(&p, Span::call_site()));
-                    let ids_e = ids_f.clone();
-                    fields.extend(quote! {
-                        #(
-                            #[doc = #p]
-                            pub #ids_f: #ids_f,
-                        )*
-                    });
-                    exprs.extend(quote!(#(#ids_e: #ids_e { _marker: PhantomData },)*));
-                }
+                        pub #ids_f: #ids_f,
+                    )*
+                });
+                exprs.extend(quote!(#(#ids_e: #ids_e { _marker: PhantomData },)*));
             }
         }
     }
