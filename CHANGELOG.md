@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Clean `FieldReader`
 - Optional PascalCase for Enum values instead of UPPER_CASE
 
 ## [v0.22.2] - 2022-04-13
