@@ -559,7 +559,7 @@ pub fn fields(
 
                     mod_items.extend(quote! {
                         #[doc = #readerdoc]
-                        pub struct #name_pc_r(crate::FieldReader<#fty, #name_pc_a>);
+                        pub struct #name_pc_r(crate::FieldReader<#fty>);
 
                         impl #name_pc_r {
                             #[inline(always)]
@@ -570,7 +570,7 @@ pub fn fields(
                         }
 
                         impl core::ops::Deref for #name_pc_r {
-                            type Target = crate::FieldReader<#fty, #name_pc_a>;
+                            type Target = crate::FieldReader<#fty>;
 
                             #[inline(always)]
                             fn deref(&self) -> &Self::Target {
@@ -582,7 +582,7 @@ pub fn fields(
             } else {
                 mod_items.extend(quote! {
                     #[doc = #readerdoc]
-                    pub struct #name_pc_r(crate::FieldReader<#fty, #fty>);
+                    pub struct #name_pc_r(crate::FieldReader<#fty>);
 
                     impl #name_pc_r {
                         #[inline(always)]
@@ -592,7 +592,7 @@ pub fn fields(
                     }
 
                     impl core::ops::Deref for #name_pc_r {
-                        type Target = crate::FieldReader<#fty, #fty>;
+                        type Target = crate::FieldReader<#fty>;
 
                         #[inline(always)]
                         fn deref(&self) -> &Self::Target {
