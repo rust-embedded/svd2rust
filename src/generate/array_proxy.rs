@@ -1,4 +1,3 @@
-
 /// Access an array of `COUNT` items of type `T` with the items `STRIDE` bytes
 /// apart.  This is a zero-sized-type.  No objects of this type are ever
 /// actually created, it is only a convenience for wrapping pointer arithmetic.
@@ -12,7 +11,7 @@ pub struct ArrayProxy<T, const COUNT: usize, const STRIDE: usize> {
     /// As well as providing a PhantomData, this field is non-public, and
     /// therefore ensures that code outside of this module can never create
     /// an ArrayProxy.
-    _array: marker::PhantomData<T>
+    _array: marker::PhantomData<T>,
 }
 
 impl<T, const C: usize, const S: usize> ArrayProxy<T, C, S> {
@@ -27,13 +26,14 @@ impl<T, const C: usize, const S: usize> ArrayProxy<T, C, S> {
     pub fn get(&self, index: usize) -> Option<&T> {
         if index < C {
             Some(unsafe { self.get_ref(index) })
-        }
-        else {
+        } else {
             None
         }
     }
     /// Return the number of items.
-    pub fn len(&self) -> usize { C }
+    pub fn len(&self) -> usize {
+        C
+    }
 }
 
 impl<T, const C: usize, const S: usize> core::ops::Index<usize> for ArrayProxy<T, C, S> {
