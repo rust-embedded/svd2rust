@@ -606,7 +606,6 @@ pub fn fields(
         if can_write {
             let new_pc_aw = Ident::new(&(name_pc.clone() + "_AW"), span);
             let name_pc_w = Ident::new(&(name_pc.clone() + "_W"), span);
-            let name_pc_cgw = Ident::new(&(name_pc.clone() + "_CGW"), span);
 
             let mut proxy_items = TokenStream::new();
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
@@ -752,27 +751,27 @@ pub fn fields(
             };
 
             if field_dim.is_some() {
-                mod_items.extend(quote! {
-                    #[doc = #doc]
-                    pub struct #name_pc_w<'a> {
-                        w: &'a mut W,
-                        offset: usize,
-                    }
+                if !config.const_generic {
+                    mod_items.extend(quote! {
+                        #[doc = #doc]
+                        pub struct #name_pc_w<'a> {
+                            w: &'a mut W,
+                            offset: usize,
+                        }
 
-                    impl<'a> #name_pc_w<'a> {
-                        #proxy_items
-                        #proxy_items_fa
-                    }
-                });
-
-                if config.const_generic {
+                        impl<'a> #name_pc_w<'a> {
+                            #proxy_items
+                            #proxy_items_fa
+                        }
+                    });
+                } else {
                     mod_items.extend(quote! {
                         #[doc = #cgdoc]
-                        pub struct #name_pc_cgw<'a, const O: usize> {
+                        pub struct #name_pc_w<'a, const O: usize> {
                             w: &'a mut W,
                         }
 
-                        impl<'a, const O: usize> #name_pc_cgw<'a, O> {
+                        impl<'a, const O: usize> #name_pc_w<'a, O> {
                             #proxy_items
                             #proxy_items_cg
                         }
@@ -792,15 +791,25 @@ pub fn fields(
             }
 
             if let Some((first, dim, increment, suffixes, suffixes_str)) = &field_dim {
-                let offset_calc = calculate_offset(*first, *increment, offset, false);
                 let doc = &util::replace_suffix(&description, suffixes_str);
-                w_impl_items.extend(quote! {
-                    #[doc = #doc]
-                    #inline
-                    pub unsafe fn #name_sc(&mut self, n: usize) -> #name_pc_w {
-                        #name_pc_w { w: self, offset: #offset_calc }
-                    }
-                });
+                if !config.const_generic {
+                    let offset_calc = calculate_offset(*first, *increment, offset, false);
+                    w_impl_items.extend(quote! {
+                        #[doc = #doc]
+                        #inline
+                        pub unsafe fn #name_sc(&mut self, n: usize) -> #name_pc_w {
+                            #name_pc_w { w: self, offset: #offset_calc }
+                        }
+                    });
+                } else {
+                    w_impl_items.extend(quote! {
+                        #[doc = #doc]
+                        #inline
+                        pub unsafe fn #name_sc<const O: usize>(&mut self) -> #name_pc_w<O> {
+                            #name_pc_w { w: self }
+                        }
+                    });
+                }
                 for (i, suffix) in (0..*dim).zip(suffixes.iter()) {
                     let sub_offset = offset + (i as u64) * (*increment as u64);
                     let name_sc_n = Ident::new(
@@ -824,8 +833,8 @@ pub fn fields(
                         w_impl_items.extend(quote! {
                             #[doc = #doc]
                             #inline
-                            pub fn #name_sc_n(&mut self) -> #name_pc_cgw<#sub_offset> {
-                                #name_pc_cgw { w: self }
+                            pub fn #name_sc_n(&mut self) -> #name_pc_w<#sub_offset> {
+                                #name_pc_w { w: self }
                             }
                         });
                     }
