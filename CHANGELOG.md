@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Generate const generic version of field array only if `const_generic` enabled
 - Clean `FieldReader`
 - Optional PascalCase for Enum values instead of UPPER_CASE
 
