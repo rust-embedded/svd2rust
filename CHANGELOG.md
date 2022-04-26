@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.23.0] - 2022-04-26
+
 - Generate const generic version of field array only if `const_generic` enabled
 - Clean `FieldReader`
 - Optional PascalCase for Enum values instead of UPPER_CASE
@@ -686,7 +688,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.22.2...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.23.0...HEAD
+[v0.23.0]: https://github.com/rust-embedded/svd2rust/compare/v0.22.2...v0.23.0
 [v0.22.2]: https://github.com/rust-embedded/svd2rust/compare/v0.22.1...v0.22.2
 [v0.22.1]: https://github.com/rust-embedded/svd2rust/compare/v0.22.0...v0.22.1
 [v0.22.0]: https://github.com/rust-embedded/svd2rust/compare/v0.21.0...v0.22.0
