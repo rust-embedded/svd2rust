@@ -1053,32 +1053,25 @@ fn derive_from_base(
     desc: &str,
 ) {
     let span = Span::call_site();
-    if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
+    let path = if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
         let pmod_ = peripheral.to_sanitized_snake_case();
         let rmod_ = register.to_sanitized_snake_case();
         let pmod_ = Ident::new(&pmod_, span);
         let rmod_ = Ident::new(&rmod_, span);
 
-        mod_items.extend(quote! {
-            #[doc = #desc]
-            pub type #pc =
-                crate::#pmod_::#rmod_::#base_pc;
-        });
+        quote! { crate::#pmod_::#rmod_::#base_pc }
     } else if let Some(register) = &base.register {
         let mod_ = register.to_sanitized_snake_case();
         let mod_ = Ident::new(&mod_, span);
 
-        mod_items.extend(quote! {
-            #[doc = #desc]
-            pub type #pc =
-                super::#mod_::#base_pc;
-        });
+        quote! { super::#mod_::#base_pc }
     } else {
-        mod_items.extend(quote! {
-            #[doc = #desc]
-            pub type #pc = #base_pc;
-        });
-    }
+        quote! { #base_pc }
+    };
+    mod_items.extend(quote! {
+        #[doc = #desc]
+        pub use #path as #pc;
+    });
 }
 
 #[derive(Clone, Debug)]

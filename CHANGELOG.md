@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Use reexport instead of type aliases in `derive_from_base`
+
 ## [v0.23.0] - 2022-04-26
 
 - Generate const generic version of field array only if `const_generic` enabled
