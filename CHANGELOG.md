@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- remove unnedded fields clone
 - Use reexport instead of type aliases in `derive_from_base`
 
 ## [v0.23.0] - 2022-04-26
