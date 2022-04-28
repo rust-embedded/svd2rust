@@ -58,58 +58,78 @@ pub fn render(
 
     if can_read {
         let desc = format!("Register `{}` reader", register.name);
+        let derive = if config.derive_more {
+            Some(quote! { #[derive(derive_more::Deref, derive_more::From)] })
+        } else {
+            None
+        };
         mod_items.extend(quote! {
             #[doc = #desc]
+            #derive
             pub struct R(crate::R<#name_uc_spec>);
-
-            impl core::ops::Deref for R {
-                type Target = crate::R<#name_uc_spec>;
-
-                #[inline(always)]
-                fn deref(&self) -> &Self::Target {
-                    &self.0
-                }
-            }
-
-            impl From<crate::R<#name_uc_spec>> for R {
-                #[inline(always)]
-                fn from(reader: crate::R<#name_uc_spec>) -> Self {
-                    R(reader)
-                }
-            }
         });
+
+        if !config.derive_more {
+            mod_items.extend(quote! {
+                impl core::ops::Deref for R {
+                    type Target = crate::R<#name_uc_spec>;
+
+                    #[inline(always)]
+                    fn deref(&self) -> &Self::Target {
+                        &self.0
+                    }
+                }
+
+                impl From<crate::R<#name_uc_spec>> for R {
+                    #[inline(always)]
+                    fn from(reader: crate::R<#name_uc_spec>) -> Self {
+                        R(reader)
+                    }
+                }
+            });
+        }
         methods.push("read");
     }
 
     if can_write {
         let desc = format!("Register `{}` writer", register.name);
+        let derive = if config.derive_more {
+            Some(quote! { #[derive(derive_more::Deref, derive_more::DerefMut, derive_more::From)] })
+        } else {
+            None
+        };
         mod_items.extend(quote! {
             #[doc = #desc]
+            #derive
             pub struct W(crate::W<#name_uc_spec>);
-
-            impl core::ops::Deref for W {
-                type Target = crate::W<#name_uc_spec>;
-
-                #[inline(always)]
-                fn deref(&self) -> &Self::Target {
-                    &self.0
-                }
-            }
-
-            impl core::ops::DerefMut for W {
-                #[inline(always)]
-                fn deref_mut(&mut self) -> &mut Self::Target {
-                    &mut self.0
-                }
-            }
-
-            impl From<crate::W<#name_uc_spec>> for W {
-                #[inline(always)]
-                fn from(writer: crate::W<#name_uc_spec>) -> Self {
-                    W(writer)
-                }
-            }
         });
+
+        if !config.derive_more {
+            mod_items.extend(quote! {
+                impl core::ops::Deref for W {
+                    type Target = crate::W<#name_uc_spec>;
+
+                    #[inline(always)]
+                    fn deref(&self) -> &Self::Target {
+                        &self.0
+                    }
+                }
+
+                impl core::ops::DerefMut for W {
+                    #[inline(always)]
+                    fn deref_mut(&mut self) -> &mut Self::Target {
+                        &mut self.0
+                    }
+                }
+
+                impl From<crate::W<#name_uc_spec>> for W {
+                    #[inline(always)]
+                    fn from(writer: crate::W<#name_uc_spec>) -> Self {
+                        W(writer)
+                    }
+                }
+            });
+        }
         methods.push("write_with_zero");
         if can_reset {
             methods.push("reset");

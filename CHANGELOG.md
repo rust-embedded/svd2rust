@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Disable two clippy warnings in `array_proxy.rs`
 - Add comments in docs about `readAction`
 - Add CI to build and release binaries
+- Use `derive_more::{Deref,From}` for register reader & writer
 
 ## [v0.23.1] - 2022-04-29
 
