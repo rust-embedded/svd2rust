@@ -124,9 +124,8 @@ pub fn render(
     if let Some(cur_fields) = register.fields.as_ref() {
         // filter out all reserved fields, as we should not generate code for
         // them
-        let cur_fields: Vec<Field> = cur_fields
-            .clone()
-            .into_iter()
+        let cur_fields: Vec<&Field> = cur_fields
+            .iter()
             .filter(|field| field.name.to_lowercase() != "reserved")
             .collect();
 
@@ -285,8 +284,8 @@ pub fn render(
 
 #[allow(clippy::too_many_arguments)]
 pub fn fields(
-    fields: &[Field],
-    parent: &Register,
+    fields: &[&Field],
+    register: &Register,
     all_registers: &[&Register],
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
@@ -335,7 +334,7 @@ pub fn fields(
         let lookup_results = lookup(
             evs,
             fields,
-            parent,
+            register,
             all_registers,
             peripheral,
             all_peripherals,
@@ -1083,7 +1082,7 @@ pub struct Base<'a> {
 
 fn lookup<'a>(
     evs: &'a [EnumeratedValues],
-    fields: &'a [Field],
+    fields: &'a [&'a Field],
     register: &'a Register,
     all_registers: &'a [&'a Register],
     peripheral: &'a Peripheral,
@@ -1149,7 +1148,7 @@ fn lookup_filter<'a>(
 fn lookup_in_fields<'f>(
     base_evs: &str,
     base_field: &str,
-    fields: &'f [Field],
+    fields: &'f [&'f Field],
     register: &Register,
 ) -> Result<(&'f EnumeratedValues, Option<Base<'f>>)> {
     if let Some(base_field) = fields.iter().find(|f| f.name == base_field) {
@@ -1172,13 +1171,7 @@ fn lookup_in_peripheral<'p>(
     peripheral: &'p Peripheral,
 ) -> Result<(&'p EnumeratedValues, Option<Base<'p>>)> {
     if let Some(register) = all_registers.iter().find(|r| r.name == base_register) {
-        if let Some(field) = register
-            .fields
-            .as_deref()
-            .unwrap_or(&[])
-            .iter()
-            .find(|f| f.name == base_field)
-        {
+        if let Some(field) = register.get_field(base_field) {
             lookup_in_field(base_evs, Some(base_register), base_peripheral, field)
         } else {
             Err(anyhow!(
@@ -1228,7 +1221,7 @@ fn lookup_in_register<'r>(
 ) -> Result<(&'r EnumeratedValues, Option<Base<'r>>)> {
     let mut matches = vec![];
 
-    for f in register.fields.as_deref().unwrap_or(&[]) {
+    for f in register.fields() {
         if let Some(evs) = f
             .enumerated_values
             .iter()
@@ -1238,31 +1231,27 @@ fn lookup_in_register<'r>(
         }
     }
 
-    match matches.first() {
-        None => Err(anyhow!(
+    match &matches[..] {
+        [] => Err(anyhow!(
             "EnumeratedValues {} not found in register {}",
             base_evs,
             register.name
         )),
-        Some(&(evs, field)) => {
-            if matches.len() == 1 {
-                Ok((
-                    evs,
-                    Some(Base {
-                        field,
-                        register: None,
-                        peripheral: None,
-                    }),
-                ))
-            } else {
-                let fields = matches.iter().map(|(f, _)| &f.name).collect::<Vec<_>>();
-                Err(anyhow!(
-                    "Fields {:?} have an \
-                     enumeratedValues named {}",
-                    fields,
-                    base_evs
-                ))
-            }
+        [(evs, field)] => Ok((
+            evs,
+            Some(Base {
+                field,
+                register: None,
+                peripheral: None,
+            }),
+        )),
+        matches => {
+            let fields = matches.iter().map(|(f, _)| &f.name).collect::<Vec<_>>();
+            Err(anyhow!(
+                "Fields {:?} have an enumeratedValues named {}",
+                fields,
+                base_evs
+            ))
         }
     }
 }
