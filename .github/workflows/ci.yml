@@ -75,12 +75,14 @@ jobs:
         rust: [stable]
 
         # All vendor files we want to test on stable
-        vendor: [Atmel, Freescale, Fujitsu, Holtek, Microchip, Nordic, Nuvoton, NXP, RISC-V, SiliconLabs, Spansion, STMicro, Toshiba]
+        vendor: [Atmel, Freescale_1, Freescale_2, Fujitsu_1, Fujitsu_2, Holtek, Microchip, Nordic, Nuvoton, NXP, RISC-V, SiliconLabs, Spansion, STMicro, Toshiba]
 
         # Options are all, none, strict and const
         options: [all, none]
         exclude:
-          - vendor: Fujitsu
+          - vendor: Fujitsu_1
+            options: all
+          - vendor: Fujitsu_2
             options: all
           - vendor: Spansion
             options: all

@@ -4,7 +4,7 @@ test_svd() {
     (
         cd $td &&
             curl -LO \
-                 https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/$VENDOR/${1}.svd
+                 https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/$vendor_name/${1}.svd
     )
 
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
@@ -35,6 +35,12 @@ test_svd_for_target() {
 main() {
     if [ -z ${VENDOR-} ]; then
         return
+    fi
+
+    vendor_name=${VENDOR}
+    readarray -d _ -t strarr <<< "$VENDOR"
+    if [ ${#strarr[*]} -gt 1 ]; then
+      vendor_name="${strarr[0]}"
     fi
 
     td=$(mktemp -d)
@@ -150,7 +156,7 @@ main() {
             # test_svd ATSAMR21G18A
         ;;
 
-        Freescale)
+        Freescale_1)
             # BAD-SVD bad enumeratedValue value
             # test_svd MKV56F20
             # test_svd MKV56F22
@@ -225,6 +231,9 @@ main() {
             test_svd MK82F25615
             # test_svd MKE14F16
             # test_svd MKE14Z7
+        ;;
+
+        Freescale_2)
             test_svd MKE15Z7
             # test_svd MKE16F16
             # test_svd MKE18F16
@@ -298,7 +307,7 @@ main() {
             # test_svd SKEAZN84
         ;;
 
-        Fujitsu)
+        Fujitsu_1)
             # OK
             test_svd MB9AF10xN
             test_svd MB9AF10xR
@@ -342,6 +351,12 @@ main() {
             test_svd MB9AFB4xL
             test_svd MB9AFB4xM
             test_svd MB9AFB4xN
+            test_svd S6E1A1
+            test_svd S6E2CC
+        ;;
+
+        Fujitsu_2)
+            # OK
             test_svd MB9B160L
             test_svd MB9B160R
             test_svd MB9B360L
@@ -398,8 +413,6 @@ main() {
             test_svd MB9BF61xT
             test_svd MB9BFD1xS
             test_svd MB9BFD1xT
-            test_svd S6E1A1
-            test_svd S6E2CC
         ;;
 
         Holtek)
