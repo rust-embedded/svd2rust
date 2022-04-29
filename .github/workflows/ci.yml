@@ -60,7 +60,7 @@ jobs:
       - name: Cache
         uses: Swatinem/rust-cache@v1
         with:
-          sharedKey: prebuilded-v0.22
+          sharedKey: prebuilded-v0.22-${{ matrix.rust }}
 
       - name: Self install
         run: |
@@ -117,7 +117,7 @@ jobs:
       - name: Cache
         uses: Swatinem/rust-cache@v1
         with:
-          sharedKey: prebuilded-v0.22
+          sharedKey: prebuilded-v0.22-${{ matrix.rust }}
 
       - name: Run CI script for `${{ matrix.vendor }}` under rust `${{ matrix.rust }}` with options=`${{ matrix.options }}`
         env:
@@ -141,7 +141,7 @@ jobs:
       - name: Cache
         uses: Swatinem/rust-cache@v1
         with:
-          sharedKey: prebuilded-v0.22
+          sharedKey: prebuilded-v0.22-stable
 
       - name: Run CI script
         env:
