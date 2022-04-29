@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Use modifiedWriteValues for 1-bitwise fields if present
 - Use generic `FieldWriter`, `FieldReader`, `BitWriter`, `BitReader`
 - Disable two clippy warnings in `array_proxy.rs`
 - Add comments in docs about `readAction`
