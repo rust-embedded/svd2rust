@@ -175,3 +175,24 @@ jobs:
           wget https://stm32-rs.github.io/stm32-rs/stm32f411.svd.patched
           svdtools convert --input-format xml stm32f411.svd.patched stm32f411.yaml
           cargo run --release -- -i stm32f411.yaml
+
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt
+
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v1
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
