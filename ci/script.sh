@@ -8,67 +8,36 @@ test_svd() {
     )
 
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
-    local cwd=$(pwd)
     pushd $td
-    RUST_BACKTRACE=1 $cwd/target/$TARGET/release/svd2rust $strict $const_generic -i ${1}.svd
+    RUST_BACKTRACE=1 svd2rust $strict $const_generic -i ${1}.svd
 
     mv lib.rs src/lib.rs
 
     popd
 
-    cargo check --manifest-path $td/Cargo.toml
+    cargo $COMMAND --manifest-path $td/Cargo.toml
 }
 
 test_svd_for_target() {
     curl -L --output $td/input.svd $2
 
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
-    local cwd=$(pwd)
     pushd $td
-    RUST_BACKTRACE=1 $cwd/target/$TARGET/release/svd2rust $strict $const_generic --target $1 -i input.svd
+    RUST_BACKTRACE=1 svd2rust --target $1 -i input.svd
 
     mv lib.rs src/lib.rs
 
     popd
 
-    cargo check --manifest-path $td/Cargo.toml
+    cargo $COMMAND --manifest-path $td/Cargo.toml
 }
 
 main() {
-    # Ensure that `cargo test` works to avoid surprising people, though it
-    # doesn't help with our actual coverage.
-    cargo test
-
-    if [ $TRAVIS_OS_NAME = windows ]; then
-        cargo check --target $TARGET
-        return
-    fi
-
-    cargo check --target $TARGET
-
     if [ -z ${VENDOR-} ]; then
         return
     fi
 
-    if [ $VENDOR = rustfmt ]; then
-        cargo fmt --all -- --check
-        return
-    fi
-
-    if [ -z ${FEATURES-} ]; then
-      cargo build --target $TARGET --release
-    else
-      cargo build --target $TARGET --release --features $FEATURES
-    fi
-
-    case $TRAVIS_OS_NAME in
-        linux)
-            td=$(mktemp -d)
-            ;;
-        osx)
-            td=$(mktemp -d -t tmp)
-            ;;
-    esac
+    td=$(mktemp -d)
 
     case $OPTIONS in
         all)
@@ -91,9 +60,9 @@ main() {
 
     # test crate
     cargo init --name foo $td
-    echo 'cortex-m = "0.7.0"' >> $td/Cargo.toml
-    echo 'cortex-m-rt = "0.6.13"' >> $td/Cargo.toml
-    echo 'vcell = "0.1.2"' >> $td/Cargo.toml
+    echo 'cortex-m = "0.7.4"' >> $td/Cargo.toml
+    echo 'cortex-m-rt = "0.7.1"' >> $td/Cargo.toml
+    echo 'vcell = "0.1.3"' >> $td/Cargo.toml
     echo '[profile.dev]' >> $td/Cargo.toml
     echo 'incremental = false' >> $td/Cargo.toml
 

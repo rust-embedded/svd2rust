@@ -9,28 +9,73 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
-    needs: [ci-linux]
-    steps: 
+    needs: [check, ci-linux, ci-clippy, ci-serde]
+    steps:
       - name: Done
         run: exit 0
-  ci-linux:
+
+  check:
+    name: Cargo check
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      matrix:
+        TARGET: [x86_64-unknown-linux-gnu, x86_64-apple-darwin, x86_64-pc-windows-msvc]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          target: ${{ matrix.TARGET }}
+
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: ${{ matrix.TARGET }}
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --target ${{ matrix.TARGET }}
+
+  prebuild:
+    name: Prebuild
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, nightly, 1.46.0]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v1
+        with:
+          sharedKey: prebuilded-${{ matrix.rust }}
+
+      - name: Self install
+        run: |
+          cargo install svd2rust --path .
+
+  ci-linux:
+    runs-on: ubuntu-latest
+    needs: [check, prebuild]
+    strategy:
       matrix:
         # All generated code should be running on stable now
         rust: [stable]
 
         # All vendor files we want to test on stable
-        vendor: [rustfmt, Atmel, Freescale, Fujitsu, Holtek, Microchip, Nordic, Nuvoton, NXP, RISC-V, SiliconLabs, Spansion, STMicro, Toshiba]
-
-        # The default target we're compiling on and for
-        TARGET: [x86_64-unknown-linux-gnu]
-
-        # Temporary hack as long as we use the current CI script
-        TRAVIS_OS_NAME: [linux]
-
-        FEATURES: [""]
+        vendor: [Atmel, Freescale, Fujitsu, Holtek, Microchip, Nordic, Nuvoton, NXP, RISC-V, SiliconLabs, Spansion, STMicro, Toshiba]
 
         # Options are all, none, strict and const
         options: [all, none]
@@ -51,68 +96,103 @@ jobs:
           # Test MSRV
           - rust: 1.46.0
             vendor: Nordic
-            TARGET: x86_64-unknown-linux-gnu
-            TRAVIS_OS_NAME: linux
 
           # Use nightly for architectures which don't support stable
           - rust: nightly
-            experimental: true
             vendor: OTHER
-            TARGET: x86_64-unknown-linux-gnu
-            TRAVIS_OS_NAME: linux
 
-            # Use nightly for architectures which don't support stable
+          # Use nightly for architectures which don't support stable
           - rust: nightly
-            experimental: true
             vendor: Espressif
-            TARGET: x86_64-unknown-linux-gnu
-            TRAVIS_OS_NAME: linux
-
-          # OSX
-          - rust: stable
-            TARGET: x86_64-apple-darwin
-            TRAVIS_OS_NAME: osx
-
-          # Windows
-          - rust: stable
-            TARGET: x86_64-pc-windows-msvc
-            TRAVIS_OS_NAME: windows
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
-          target: ${{ matrix.TARGET }}
           override: true
-          components: rustfmt
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v1
+        with:
+          sharedKey: prebuilded-${{ matrix.rust }}
+
       - name: Run CI script for `${{ matrix.vendor }}` under rust `${{ matrix.rust }}` with options=`${{ matrix.options }}`
         env:
-          TARGET: ${{ matrix.TARGET }}
           VENDOR: ${{ matrix.vendor }}
-          FEATURES: ${{ matrix.FEATURES }}
-          OPTIONS: ${{ matrix.options }} 
-          TRAVIS_OS_NAME: ${{ matrix.TRAVIS_OS_NAME }}
+          OPTIONS: ${{ matrix.options }}
+          COMMAND: check
         run: bash ci/script.sh
+
+  ci-clippy:
+    runs-on: ubuntu-latest
+    needs: [check, prebuild]
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v1
+        with:
+          sharedKey: prebuilded-stable
+
+      - name: Run CI script
+        env:
+          VENDOR: RISC-V
+          OPTIONS: all
+          COMMAND: clippy
+        run: bash ci/script.sh
+
   ci-serde:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v1
+        with:
+          key: svdtools-0.2.1
+
+      - name: Install svdtools
+        run: |
+          cargo install svdtools --version 0.2.1 --target-dir target
+
+      - name: Run CI script
+        run: |
+          wget https://stm32-rs.github.io/stm32-rs/stm32f411.svd.patched
+          svdtools convert --input-format xml stm32f411.svd.patched stm32f411.yaml
+          cargo run --release -- -i stm32f411.yaml
+
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
           components: rustfmt
-      - name: Install svdtools
-        uses: actions-rs/install@v0.1
+
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v1
+
+      - uses: actions-rs/cargo@v1
         with:
-          crate: svdtools
-          version: 0.2.0
-          use-tool-cache: true
-      - name: Run CI script
-        run: |
-          wget https://stm32-rs.github.io/stm32-rs/stm32f411.svd.patched
-          svdtools convert --input-format xml stm32f411.svd.patched stm32f411.yaml
-          cargo run --release -- -i stm32f411.yaml
+          command: fmt
+          args: --all -- --check

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- GHA: rust dependency caching
 - remove unnedded fields clone
 - Use reexport instead of type aliases in `derive_from_base`
 
