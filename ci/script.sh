@@ -15,7 +15,7 @@ test_svd() {
 
     popd
 
-    cargo check --manifest-path $td/Cargo.toml
+    cargo $COMMAND --manifest-path $td/Cargo.toml
 }
 
 test_svd_for_target() {
@@ -29,7 +29,7 @@ test_svd_for_target() {
 
     popd
 
-    cargo check --manifest-path $td/Cargo.toml
+    cargo $COMMAND --manifest-path $td/Cargo.toml
 }
 
 main() {
