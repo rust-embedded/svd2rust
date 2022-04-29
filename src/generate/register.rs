@@ -659,21 +659,34 @@ pub fn fields(
                     Ident::new("FieldWriterSafe", span)
                 };
 
+                let (offset, gen_offset) = if field_dim.is_some() {
+                    (quote! { O }, quote! {, const O: u8 })
+                } else {
+                    (util::unsuffixed(offset as u64), quote! {})
+                };
                 let proxy = if width == 1 {
-                    quote! { crate::BitWriter<'a, #rty, #name_uc_spec, #name_pc_aw, O> }
+                    quote! { crate::BitWriter<'a, #rty, #name_uc_spec, #name_pc_aw, #offset> }
                 } else {
                     let width = &util::unsuffixed(width as _);
-                    quote! { crate::#wproxy<'a, #rty, #name_uc_spec, #fty, #name_pc_aw, #width, O> }
+                    quote! { crate::#wproxy<'a, #rty, #name_uc_spec, #fty, #name_pc_aw, #width, #offset> }
                 };
                 mod_items.extend(quote! {
                     #[doc = #writerdoc]
-                    pub type #name_pc_w<'a, const O: u8> = #proxy;
+                    pub type #name_pc_w<'a #gen_offset> = #proxy;
                 });
             }
             if !proxy_items.is_empty() {
-                mod_items.extend(quote! {
-                    impl<'a, const O: u8> #name_pc_w<'a, O> {
-                        #proxy_items
+                mod_items.extend(if field_dim.is_some() {
+                    quote! {
+                        impl<'a, const O: u8> #name_pc_w<'a, O> {
+                            #proxy_items
+                        }
+                    }
+                } else {
+                    quote! {
+                        impl<'a> #name_pc_w<'a> {
+                            #proxy_items
+                        }
                     }
                 });
             }
@@ -710,11 +723,10 @@ pub fn fields(
                 }
             } else {
                 let doc = description_with_bits(description_raw, offset, width);
-                let offset = util::unsuffixed(offset as u64);
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub fn #name_sc(&mut self) -> #name_pc_w<#offset> {
+                    pub fn #name_sc(&mut self) -> #name_pc_w {
                         #name_pc_w::new(self)
                     }
                 });
