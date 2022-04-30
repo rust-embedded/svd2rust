@@ -313,11 +313,26 @@ pub fn unsuffixed_or_bool(n: u64, width: u32) -> TokenStream {
 }
 
 pub trait U32Ext {
+    fn size_to_str(&self) -> Result<&str>;
     fn to_ty(&self) -> Result<Ident>;
     fn to_ty_width(&self) -> Result<u32>;
 }
 
 impl U32Ext for u32 {
+    fn size_to_str(&self) -> Result<&str> {
+        Ok(match *self {
+            8 => "u8",
+            16 => "u16",
+            32 => "u32",
+            64 => "u64",
+            _ => {
+                return Err(anyhow!(
+                    "can't convert {} bits into register size type",
+                    *self
+                ))
+            }
+        })
+    }
     fn to_ty(&self) -> Result<Ident> {
         Ok(Ident::new(
             match *self {

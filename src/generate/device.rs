@@ -155,7 +155,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         let mut file = File::create(config.output_dir.join("generic.rs"))?;
         writeln!(file, "{}", generic_file)?;
         for ty in reg_sizes {
-            writeln!(file, "impl_proxy!({});", ty.to_ty()?)?;
+            writeln!(file, "impl_proxy!({});", ty.size_to_str()?)?;
         }
         if config.target == Target::Msp430 && config.nightly {
             let msp430_atomic_file =
@@ -178,7 +178,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     } else {
         let mut tokens = syn::parse_file(generic_file)?.into_token_stream();
         for ty in reg_sizes {
-            let ty = ty.to_ty()?;
+            let ty = Ident::new(ty.size_to_str()?, Span::call_site());
             tokens.extend(quote! { impl_proxy!(#ty); });
         }
         if config.target == Target::Msp430 && config.nightly {
