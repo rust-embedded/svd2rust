@@ -13,7 +13,7 @@ pub struct ArrayProxy<T, const COUNT: usize, const STRIDE: usize> {
     /// an ArrayProxy.
     _array: marker::PhantomData<T>,
 }
-
+#[allow(clippy::len_without_is_empty)]
 impl<T, const C: usize, const S: usize> ArrayProxy<T, C, S> {
     /// Get a reference from an [ArrayProxy] with no bounds checking.
     pub unsafe fn get_ref(&self, index: usize) -> &T {
@@ -40,6 +40,7 @@ impl<T, const C: usize, const S: usize> core::ops::Index<usize> for ArrayProxy<T
     type Output = T;
     fn index(&self, index: usize) -> &T {
         // Do a real array dereference for the bounds check.
+        #[allow(clippy::no_effect)]
         [(); C][index];
         unsafe { self.get_ref(index) }
     }
