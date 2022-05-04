@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Disable two clippy warnings in `array_proxy.rs`
+
 ## [v0.23.1] - 2022-04-29
 
 - GHA: rust dependency caching
