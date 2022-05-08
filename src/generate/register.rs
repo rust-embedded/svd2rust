@@ -133,6 +133,7 @@ pub fn render(
             fields(
                 &cur_fields,
                 register,
+                &name_uc_spec,
                 all_registers,
                 peripheral,
                 all_peripherals,
@@ -286,6 +287,7 @@ pub fn render(
 pub fn fields(
     fields: &[&Field],
     register: &Register,
+    name_uc_spec: &Ident,
     all_registers: &[&Register],
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
@@ -309,7 +311,6 @@ pub fn fields(
         let name = util::replace_suffix(&f.name, "");
         let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
         let name_pc = name.to_sanitized_upper_case();
-        let bits = Ident::new(if width == 1 { "bit" } else { "bits" }, span);
         let description_raw = f.description.as_deref().unwrap_or(""); // raw description, if absent using empty string
         let description = util::respace(&util::escape_brackets(description_raw));
 
@@ -417,7 +418,7 @@ pub fn fields(
                 r_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub unsafe fn #name_sc(&self, n: usize) -> #name_pc_r {
+                    pub unsafe fn #name_sc(&self, n: u8) -> #name_pc_r {
                         #name_pc_r::new ( #value )
                     }
                 });
@@ -464,6 +465,9 @@ pub fn fields(
                 });
             }
 
+            let mut enum_items = TokenStream::new();
+            let mut derived = false;
+            let mut ftype = fty.clone();
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
                 evs_r = Some(evs.clone());
 
@@ -477,10 +481,10 @@ pub fn fields(
                     let pc = pc_orig.to_sanitized_upper_case();
                     let base_pc_r = Ident::new(&(pc + "_R"), span);
                     derive_from_base(mod_items, &base, &name_pc_r, &base_pc_r, &readerdoc);
+                    derived = true;
                 } else {
                     let has_reserved_variant = evs.values.len() != (1 << width);
                     let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
-                    let mut enum_items = TokenStream::new();
 
                     if variants.is_empty() {
                         add_with_no_variants(mod_items, &name_pc_a, &fty, &description, rv);
@@ -513,7 +517,7 @@ pub fn fields(
 
                         if has_reserved_variant {
                             enum_items.extend(quote! {
-                                ///Get enumerated values variant
+                                #[doc = "Get enumerated values variant"]
                                 #inline
                                 pub fn variant(&self) -> Option<#name_pc_a> {
                                     match self.bits {
@@ -523,7 +527,7 @@ pub fn fields(
                             });
                         } else {
                             enum_items.extend(quote! {
-                            ///Get enumerated values variant
+                            #[doc = "Get enumerated values variant"]
                             #inline
                             pub fn variant(&self) -> #name_pc_a {
                                 match self.bits {
@@ -550,79 +554,67 @@ pub fn fields(
                                 #[doc = #doc]
                                 #inline
                                 pub fn #is_variant(&self) -> bool {
-                                    **self == #name_pc_a::#pc
+                                    *self == #name_pc_a::#pc
                                 }
                             });
                         }
                     }
 
-                    mod_items.extend(quote! {
-                        #[doc = #readerdoc]
-                        pub struct #name_pc_r(crate::FieldReader<#fty>);
-
-                        impl #name_pc_r {
-                            #[inline(always)]
-                            pub(crate) fn new(bits: #fty) -> Self {
-                                #name_pc_r(crate::FieldReader::new(bits))
-                            }
-                            #enum_items
-                        }
-
-                        impl core::ops::Deref for #name_pc_r {
-                            type Target = crate::FieldReader<#fty>;
-
-                            #[inline(always)]
-                            fn deref(&self) -> &Self::Target {
-                                &self.0
-                            }
-                        }
-                    });
+                    ftype = name_pc_a.clone();
                 }
-            } else {
+            }
+            if !derived {
+                let reader = if width == 1 {
+                    quote! { crate::BitReader<#ftype> }
+                } else {
+                    quote! { crate::FieldReader<#fty, #ftype> }
+                };
                 mod_items.extend(quote! {
                     #[doc = #readerdoc]
-                    pub struct #name_pc_r(crate::FieldReader<#fty>);
-
+                    pub type #name_pc_r = #reader;
+                });
+            }
+            if !enum_items.is_empty() {
+                mod_items.extend(quote! {
                     impl #name_pc_r {
-                        #[inline(always)]
-                        pub(crate) fn new(bits: #fty) -> Self {
-                            #name_pc_r(crate::FieldReader::new(bits))
-                        }
+                        #enum_items
                     }
-
-                    impl core::ops::Deref for #name_pc_r {
-                        type Target = crate::FieldReader<#fty>;
-
-                        #[inline(always)]
-                        fn deref(&self) -> &Self::Target {
-                            &self.0
-                        }
-                    }
-                })
+                });
             }
         }
 
         if can_write {
+            let writerdoc = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
+                format!(
+                    "Fields `{}` writer - {}",
+                    util::replace_suffix(&f.name, suffixes_str),
+                    description,
+                )
+            } else {
+                format!("Field `{}` writer - {}", f.name, description)
+            };
+
             let new_pc_aw = Ident::new(&(name_pc.clone() + "_AW"), span);
             let name_pc_w = Ident::new(&(name_pc.clone() + "_W"), span);
 
             let mut proxy_items = TokenStream::new();
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
 
+            let mut derived = false;
             if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Write) {
                 let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
 
                 if variants.len() == 1 << width {
-                    unsafety = None;
+                    unsafety = false;
                 }
 
                 if Some(evs) != evs_r.as_ref() {
                     name_pc_aw = &new_pc_aw;
-                    if let Some(base) = base {
+                    if let Some(base) = base.as_ref() {
                         let pc = util::replace_suffix(base.field, "");
                         let pc = pc.to_sanitized_upper_case();
                         let base_pc_w = Ident::new(&(pc + "_AW"), span);
-                        derive_from_base(mod_items, &base, name_pc_aw, &base_pc_w, &description)
+                        derive_from_base(mod_items, base, name_pc_aw, &base_pc_w, &description);
                     } else if variants.is_empty() {
                         add_with_no_variants(mod_items, name_pc_aw, &fty, &description, rv);
                     } else {
@@ -630,185 +622,85 @@ pub fn fields(
                     }
                 }
 
-                if !variants.is_empty() {
-                    if unsafety.is_some() {
-                        proxy_items.extend(quote! {
-                            ///Writes `variant` to the field
-                            #inline
-                            pub fn variant(self, variant: #name_pc_aw) -> &'a mut W {
-                                unsafe { self.#bits(variant.into()) }
+                match base {
+                    Some(base) if base.peripheral.is_none() && base.register.is_none() => {
+                        let pc = util::replace_suffix(base.field, "");
+                        let pc = pc.to_sanitized_upper_case();
+                        let base_pc_w = Ident::new(&(pc + "_W"), span);
+                        derive_from_base(mod_items, &base, &name_pc_w, &base_pc_w, &writerdoc);
+                        derived = true;
+                    }
+                    _ => {
+                        if !variants.is_empty() {
+                            for v in &variants {
+                                let pc = &v.pc;
+                                let sc = &v.sc;
+
+                                let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
+                                proxy_items.extend(quote! {
+                                    #[doc = #doc]
+                                    #inline
+                                    pub fn #sc(self) -> &'a mut W {
+                                        self.variant(#name_pc_aw::#pc)
+                                    }
+                                });
                             }
-                        });
-                    } else {
-                        proxy_items.extend(quote! {
-                            ///Writes `variant` to the field
-                            #inline
-                            pub fn variant(self, variant: #name_pc_aw) -> &'a mut W {
-                                self.#bits(variant.into())
-                            }
-                        });
-                    }
-
-                    for v in &variants {
-                        let pc = &v.pc;
-                        let sc = &v.sc;
-
-                        let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
-                        proxy_items.extend(quote! {
-                            #[doc = #doc]
-                            #inline
-                            pub fn #sc(self) -> &'a mut W {
-                                self.variant(#name_pc_aw::#pc)
-                            }
-                        });
-                    }
-                }
-            }
-
-            if width == 1 {
-                proxy_items.extend(quote! {
-                    ///Sets the field bit
-                    #inline
-                    pub #unsafety fn set_bit(self) -> &'a mut W {
-                        self.bit(true)
-                    }
-
-                    ///Clears the field bit
-                    #inline
-                    pub #unsafety fn clear_bit(self) -> &'a mut W {
-                        self.bit(false)
-                    }
-                });
-            }
-
-            let mut proxy_items_fa = TokenStream::new();
-            let mut proxy_items_cg = TokenStream::new();
-            if field_dim.is_some() {
-                proxy_items_fa.extend(quote! {
-                    ///Writes raw bits to the field
-                    #inline
-                    pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                        self.w.bits = (self.w.bits & !(#hexmask << self.offset)) | ((value as #rty & #hexmask) << self.offset);
-                        self.w
-                    }
-                });
-                if config.const_generic {
-                    proxy_items_cg.extend(quote! {
-                        ///Writes raw bits to the field
-                        #inline
-                        pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                            self.w.bits = (self.w.bits & !(#hexmask << O)) | ((value as #rty & #hexmask) << O);
-                            self.w
                         }
-                    });
+                    }
                 }
             } else {
-                proxy_items.extend(if offset != 0 {
-                    let offset = &util::unsuffixed(offset);
+                name_pc_aw = &fty;
+            }
+
+            if !derived {
+                let wproxy = if unsafety {
+                    Ident::new("FieldWriter", span)
+                } else {
+                    Ident::new("FieldWriterSafe", span)
+                };
+
+                let (offset, gen_offset) = if field_dim.is_some() {
+                    (quote! { O }, quote! {, const O: u8 })
+                } else {
+                    (util::unsuffixed(offset as u64), quote! {})
+                };
+                let proxy = if width == 1 {
+                    quote! { crate::BitWriter<'a, #rty, #name_uc_spec, #name_pc_aw, #offset> }
+                } else {
+                    let width = &util::unsuffixed(width as _);
+                    quote! { crate::#wproxy<'a, #rty, #name_uc_spec, #fty, #name_pc_aw, #width, #offset> }
+                };
+                mod_items.extend(quote! {
+                    #[doc = #writerdoc]
+                    pub type #name_pc_w<'a #gen_offset> = #proxy;
+                });
+            }
+            if !proxy_items.is_empty() {
+                mod_items.extend(if field_dim.is_some() {
                     quote! {
-                        ///Writes raw bits to the field
-                        #inline
-                        pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                            self.w.bits = (self.w.bits & !(#hexmask << #offset)) | ((value as #rty & #hexmask) << #offset);
-                            self.w
+                        impl<'a, const O: u8> #name_pc_w<'a, O> {
+                            #proxy_items
                         }
                     }
                 } else {
-                    let op = if use_mask {
-                        quote!{ self.w.bits = (self.w.bits & !#hexmask) | (value as #rty & #hexmask); }
-                    } else {
-                        quote!{ self.w.bits = value; }
-                    };
-
                     quote! {
-                        ///Writes raw bits to the field
-                        #inline
-                        pub #unsafety fn #bits(self, value: #fty) -> &'a mut W {
-                            #op
-                            self.w
-                        }
-                    }
-                });
-            }
-
-            let mut cgdoc = String::new();
-            let doc = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
-                if config.const_generic {
-                    cgdoc = format!(
-                        "Fields `{}` const generic writer - {}",
-                        util::replace_suffix(&f.name, suffixes_str),
-                        description
-                    );
-                }
-                format!(
-                    "Fields `{}` writer - {}",
-                    util::replace_suffix(&f.name, suffixes_str),
-                    description
-                )
-            } else {
-                format!("Field `{}` writer - {}", f.name, description)
-            };
-
-            if field_dim.is_some() {
-                if !config.const_generic {
-                    mod_items.extend(quote! {
-                        #[doc = #doc]
-                        pub struct #name_pc_w<'a> {
-                            w: &'a mut W,
-                            offset: usize,
-                        }
-
                         impl<'a> #name_pc_w<'a> {
                             #proxy_items
-                            #proxy_items_fa
                         }
-                    });
-                } else {
-                    mod_items.extend(quote! {
-                        #[doc = #cgdoc]
-                        pub struct #name_pc_w<'a, const O: usize> {
-                            w: &'a mut W,
-                        }
-
-                        impl<'a, const O: usize> #name_pc_w<'a, O> {
-                            #proxy_items
-                            #proxy_items_cg
-                        }
-                    });
-                }
-            } else {
-                mod_items.extend(quote! {
-                    #[doc = #doc]
-                    pub struct #name_pc_w<'a> {
-                        w: &'a mut W,
-                    }
-
-                    impl<'a> #name_pc_w<'a> {
-                        #proxy_items
                     }
                 });
             }
 
-            if let Some((first, dim, increment, suffixes, suffixes_str)) = &field_dim {
+            if let Some((_, dim, increment, suffixes, suffixes_str)) = &field_dim {
                 let doc = &util::replace_suffix(&description, suffixes_str);
-                if !config.const_generic {
-                    let offset_calc = calculate_offset(*first, *increment, offset, false);
-                    w_impl_items.extend(quote! {
-                        #[doc = #doc]
-                        #inline
-                        pub unsafe fn #name_sc(&mut self, n: usize) -> #name_pc_w {
-                            #name_pc_w { w: self, offset: #offset_calc }
-                        }
-                    });
-                } else {
-                    w_impl_items.extend(quote! {
-                        #[doc = #doc]
-                        #inline
-                        pub unsafe fn #name_sc<const O: usize>(&mut self) -> #name_pc_w<O> {
-                            #name_pc_w { w: self }
-                        }
-                    });
-                }
+                w_impl_items.extend(quote! {
+                    #[doc = #doc]
+                    #inline
+                    pub unsafe fn #name_sc<const O: u8>(&mut self) -> #name_pc_w<O> {
+                        #name_pc_w::new(self)
+                    }
+                });
+
                 for (i, suffix) in (0..*dim).zip(suffixes.iter()) {
                     let sub_offset = offset + (i as u64) * (*increment as u64);
                     let name_sc_n = Ident::new(
@@ -820,23 +712,14 @@ pub fn fields(
                         suffix,
                     );
                     let sub_offset = util::unsuffixed(sub_offset as u64);
-                    if !config.const_generic {
-                        w_impl_items.extend(quote! {
-                            #[doc = #doc]
-                            #inline
-                            pub fn #name_sc_n(&mut self) -> #name_pc_w {
-                                #name_pc_w { w: self, offset: #sub_offset }
-                            }
-                        });
-                    } else {
-                        w_impl_items.extend(quote! {
-                            #[doc = #doc]
-                            #inline
-                            pub fn #name_sc_n(&mut self) -> #name_pc_w<#sub_offset> {
-                                #name_pc_w { w: self }
-                            }
-                        });
-                    }
+
+                    w_impl_items.extend(quote! {
+                        #[doc = #doc]
+                        #inline
+                        pub fn #name_sc_n(&mut self) -> #name_pc_w<#sub_offset> {
+                            #name_pc_w::new(self)
+                        }
+                    });
                 }
             } else {
                 let doc = description_with_bits(description_raw, offset, width);
@@ -844,7 +727,7 @@ pub fn fields(
                     #[doc = #doc]
                     #inline
                     pub fn #name_sc(&mut self) -> #name_pc_w {
-                        #name_pc_w { w: self }
+                        #name_pc_w::new(self)
                     }
                 });
             }
@@ -854,22 +737,22 @@ pub fn fields(
     Ok(())
 }
 
-fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> Option<Ident> {
+fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> bool {
     match &write_constraint {
         Some(&WriteConstraint::Range(range))
             if range.min == 0 && range.max == u64::MAX >> (64 - width) =>
         {
             // the SVD has acknowledged that it's safe to write
             // any value that can fit in the field
-            None
+            false
         }
         None if width == 1 => {
             // the field is one bit wide, so we assume it's legal to write
             // either value into it or it wouldn't exist; despite that
             // if a writeConstraint exists then respect it
-            None
+            false
         }
-        _ => Some(Ident::new("unsafe", Span::call_site())),
+        _ => true,
     }
 }
 

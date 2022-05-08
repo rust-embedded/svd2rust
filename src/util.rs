@@ -1,11 +1,12 @@
 use std::borrow::Cow;
 
 use crate::svd::{
-    Access, Cluster, Field, Register, RegisterCluster, RegisterInfo, RegisterProperties,
+    Access, Cluster, Device, Field, Register, RegisterCluster, RegisterInfo, RegisterProperties,
 };
 use inflections::Inflect;
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 use quote::{quote, ToTokens};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use svd_rs::{MaybeArray, PeripheralInfo};
 
@@ -312,11 +313,26 @@ pub fn unsuffixed_or_bool(n: u64, width: u32) -> TokenStream {
 }
 
 pub trait U32Ext {
+    fn size_to_str(&self) -> Result<&str>;
     fn to_ty(&self) -> Result<Ident>;
     fn to_ty_width(&self) -> Result<u32>;
 }
 
 impl U32Ext for u32 {
+    fn size_to_str(&self) -> Result<&str> {
+        Ok(match *self {
+            8 => "u8",
+            16 => "u16",
+            32 => "u32",
+            64 => "u64",
+            _ => {
+                return Err(anyhow!(
+                    "can't convert {} bits into register size type",
+                    *self
+                ))
+            }
+        })
+    }
     fn to_ty(&self) -> Result<Ident> {
         Ok(Ident::new(
             match *self {
@@ -432,6 +448,42 @@ pub fn handle_cluster_error<T>(msg: &str, cluster: &Cluster, res: Result<T>) -> 
 
 fn handle_erc_error<T>(msg: &str, name: &str, descrip: &str, res: Result<T>) -> Result<T> {
     res.with_context(|| format!("{}\nName: {}\nDescription: {}", msg, name, descrip))
+}
+
+pub fn get_register_sizes(d: &Device) -> HashSet<u32> {
+    let mut reg_sizes = HashSet::new();
+    if let Some(size) = d.default_register_properties.size {
+        reg_sizes.insert(size);
+    }
+    for p in &d.peripherals {
+        if let Some(size) = p.default_register_properties.size {
+            reg_sizes.insert(size);
+        }
+        if let Some(chilren) = &p.registers {
+            for rc in chilren {
+                get_register_sizes_in_register_cluster(&mut reg_sizes, rc);
+            }
+        }
+    }
+    reg_sizes
+}
+
+fn get_register_sizes_in_register_cluster(reg_sizes: &mut HashSet<u32>, rc: &RegisterCluster) {
+    match rc {
+        RegisterCluster::Cluster(c) => {
+            if let Some(size) = c.default_register_properties.size {
+                reg_sizes.insert(size);
+                for rc in &c.children {
+                    get_register_sizes_in_register_cluster(reg_sizes, rc);
+                }
+            }
+        }
+        RegisterCluster::Register(r) => {
+            if let Some(size) = r.properties.size {
+                reg_sizes.insert(size);
+            }
+        }
+    }
 }
 
 pub trait FullName {

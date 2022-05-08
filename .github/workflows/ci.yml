@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: [stable, nightly, 1.46.0]
+        rust: [stable, nightly, 1.51.0]
 
     steps:
       - uses: actions/checkout@v3
@@ -94,7 +94,7 @@ jobs:
             options: all
         include:
           # Test MSRV
-          - rust: 1.46.0
+          - rust: 1.51.0
             vendor: Nordic
 
           # Use nightly for architectures which don't support stable

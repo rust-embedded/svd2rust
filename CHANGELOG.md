@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Use generic `FieldWriter`, `FieldReader`, `BitWriter`, `BitReader`
 - Disable two clippy warnings in `array_proxy.rs`
 
 ## [v0.23.1] - 2022-04-29
