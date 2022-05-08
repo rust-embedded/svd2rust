@@ -1,5 +1,5 @@
 use crate::svd::{
-    Access, BitRange, DeriveFrom, EnumeratedValues, Field, Peripheral, Register,
+    Access, BitRange, DeriveFrom, EnumeratedValues, Field, Peripheral, ReadAction, Register,
     RegisterProperties, Usage, WriteConstraint,
 };
 use cast::u64;
@@ -217,6 +217,18 @@ pub fn render(
         )
         .as_str();
     }
+
+    if can_read {
+        if let Some(action) = register.read_action {
+            doc += match action {
+                ReadAction::Clear => "\n\nThe register is **cleared** (set to zero) following a read operation.",
+                ReadAction::Set => "\n\nThe register is **set** (set to ones) following a read operation.",
+                ReadAction::Modify => "\n\nThe register is **modified** in some way after a read operation.",
+                ReadAction::ModifyExternal => "\n\nOne or more dependent resources other than the current register are immediately affected by a read operation.",
+            };
+        }
+    }
+
     let alias_doc = format!(
         "{} register accessor: an alias for `Reg<{}>`",
         name, name_uc_spec,
@@ -379,7 +391,7 @@ pub fn fields(
         };
 
         if can_read {
-            let readerdoc = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
+            let mut readerdoc = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
                 format!(
                     "Fields `{}` reader - {}",
                     util::replace_suffix(&f.name, suffixes_str),
@@ -388,6 +400,14 @@ pub fn fields(
             } else {
                 format!("Field `{}` reader - {}", f.name, description)
             };
+            if let Some(action) = f.read_action {
+                readerdoc += match action {
+                    ReadAction::Clear => "\n\nThe field is **cleared** (set to zero) following a read operation.",
+                    ReadAction::Set => "\n\nThe field is **set** (set to ones) following a read operation.",
+                    ReadAction::Modify => "\n\nThe field is **modified** in some way after a read operation.",
+                    ReadAction::ModifyExternal => "\n\nOne or more dependent resources other than the current field are immediately affected by a read operation.",
+                };
+            }
 
             let name_pc_r = Ident::new(&(name_pc.clone() + "_R"), span);
 
