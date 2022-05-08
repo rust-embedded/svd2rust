@@ -1,6 +1,6 @@
 use crate::svd::{
-    Access, BitRange, DeriveFrom, EnumeratedValues, Field, Peripheral, ReadAction, Register,
-    RegisterProperties, Usage, WriteConstraint,
+    Access, BitRange, DeriveFrom, EnumeratedValues, Field, ModifiedWriteValues, Peripheral,
+    ReadAction, Register, RegisterProperties, Usage, WriteConstraint,
 };
 use cast::u64;
 use core::u64;
@@ -604,6 +604,10 @@ pub fn fields(
         }
 
         if can_write {
+            let mwv = f
+                .modified_write_values
+                .or(register.modified_write_values)
+                .unwrap_or_default();
             let writerdoc = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
                 format!(
                     "Fields `{}` writer - {}",
@@ -673,20 +677,38 @@ pub fn fields(
             }
 
             if !derived {
-                let wproxy = if unsafety {
-                    Ident::new("FieldWriter", span)
-                } else {
-                    Ident::new("FieldWriterSafe", span)
-                };
-
                 let (offset, gen_offset) = if field_dim.is_some() {
                     (quote! { O }, quote! {, const O: u8 })
                 } else {
                     (util::unsuffixed(offset as u64), quote! {})
                 };
                 let proxy = if width == 1 {
-                    quote! { crate::BitWriter<'a, #rty, #name_uc_spec, #name_pc_aw, #offset> }
+                    let wproxy = Ident::new(
+                        match mwv {
+                            ModifiedWriteValues::Modify => "BitWriter",
+                            ModifiedWriteValues::OneToSet | ModifiedWriteValues::Set => {
+                                "BitWriter1S"
+                            }
+                            ModifiedWriteValues::ZeroToClear | ModifiedWriteValues::Clear => {
+                                "BitWriter0C"
+                            }
+                            ModifiedWriteValues::OneToClear => "BitWriter1C",
+                            ModifiedWriteValues::ZeroToSet => "BitWriter0C",
+                            ModifiedWriteValues::OneToToggle => "BitWriter1T",
+                            ModifiedWriteValues::ZeroToToggle => "BitWriter0T",
+                        },
+                        span,
+                    );
+                    quote! { crate::#wproxy<'a, #rty, #name_uc_spec, #name_pc_aw, #offset> }
                 } else {
+                    let wproxy = Ident::new(
+                        if unsafety {
+                            "FieldWriter"
+                        } else {
+                            "FieldWriterSafe"
+                        },
+                        span,
+                    );
                     let width = &util::unsuffixed(width as _);
                     quote! { crate::#wproxy<'a, #rty, #name_uc_spec, #fty, #name_pc_aw, #width, #offset> }
                 };
