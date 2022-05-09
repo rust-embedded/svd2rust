@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Use generic `FieldWriter`, `FieldReader`, `BitWriter`, `BitReader`
 - Disable two clippy warnings in `array_proxy.rs`
 - Add comments in docs about `readAction`
-- Add CI to build and release binaries
+- Add CI to build and release binaries, use `CHANGELOG.md` as the description
 - Optional use `derive_more::{Deref,From}` for register reader & writer
 - Don't use prebuilt strategy in CI
 
