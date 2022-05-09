@@ -55,6 +55,11 @@ main() {
             strict=""
             derive_more=""
             ;;
+        derive_more)
+            const_generic=""
+            strict=""
+            derive_more="--derive_more"
+            ;;
         *)
             const_generic=""
             strict=""
