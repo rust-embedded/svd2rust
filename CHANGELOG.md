@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Inside peripheral now supported multi-level `deriveFrom` for registers
 - Use `expand_properties` from `svd-parser`
 - Use modifiedWriteValues for 1-bitwise fields if present
 - Use generic `FieldWriter`, `FieldReader`, `BitWriter`, `BitReader`
