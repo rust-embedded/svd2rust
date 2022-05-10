@@ -41,34 +41,9 @@ jobs:
           command: check
           args: --target ${{ matrix.TARGET }}
 
-  prebuild:
-    name: Prebuild
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust: [stable, nightly, 1.51.0]
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-
-      - name: Cache
-        uses: Swatinem/rust-cache@v1
-        with:
-          sharedKey: prebuilded-${{ matrix.rust }}
-
-      - name: Self install
-        run: |
-          cargo install svd2rust --path .
-
   ci-linux:
     runs-on: ubuntu-latest
-    needs: [check, prebuild]
+    needs: [check]
     strategy:
       matrix:
         # All generated code should be running on stable now
@@ -116,8 +91,10 @@ jobs:
 
       - name: Cache
         uses: Swatinem/rust-cache@v1
-        with:
-          sharedKey: prebuilded-${{ matrix.rust }}
+
+      - name: Self install
+        run: |
+          cargo install svd2rust --path .
 
       - name: Run CI script for `${{ matrix.vendor }}` under rust `${{ matrix.rust }}` with options=`${{ matrix.options }}`
         env:
@@ -128,7 +105,7 @@ jobs:
 
   ci-clippy:
     runs-on: ubuntu-latest
-    needs: [check, prebuild]
+    needs: [check]
     steps:
       - uses: actions/checkout@v3
 
@@ -140,8 +117,10 @@ jobs:
 
       - name: Cache
         uses: Swatinem/rust-cache@v1
-        with:
-          sharedKey: prebuilded-stable
+
+      - name: Self install
+        run: |
+          cargo install svd2rust --path .
 
       - name: Run CI script
         env:

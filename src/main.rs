@@ -93,6 +93,11 @@ fn run() -> Result<()> {
                 .help("Use PascalCase in stead of UPPER_CASE for enumerated values"),
         )
         .arg(
+            Arg::with_name("derive_more")
+                .long("derive_more")
+                .help("Use derive_more procedural macros to implement Deref and From"),
+        )
+        .arg(
             Arg::with_name("source_type")
                 .long("source_type")
                 .help("Specify file/stream format"),
@@ -162,6 +167,8 @@ fn run() -> Result<()> {
     let strict = cfg.bool_flag("strict", Filter::Arg) || cfg.bool_flag("strict", Filter::Conf);
     let pascal_enum_values = cfg.bool_flag("pascal_enum_values", Filter::Arg)
         || cfg.bool_flag("pascal_enum_values", Filter::Conf);
+    let derive_more =
+        cfg.bool_flag("derive_more", Filter::Arg) || cfg.bool_flag("derive_more", Filter::Conf);
 
     let mut source_type = cfg
         .grab()
@@ -185,6 +192,7 @@ fn run() -> Result<()> {
         keep_list,
         strict,
         pascal_enum_values,
+        derive_more,
         output_dir: path.clone(),
         source_type,
     };
