@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::svd::{
     array::names, Cluster, ClusterInfo, DeriveFrom, DimElement, Peripheral, Register,
-    RegisterCluster, RegisterProperties,
+    RegisterCluster,
 };
 use log::{debug, trace, warn};
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
@@ -22,7 +22,6 @@ use crate::generate::register;
 pub fn render(
     p_original: &Peripheral,
     all_peripherals: &[Peripheral],
-    defaults: &RegisterProperties,
     config: &Config,
 ) -> Result<TokenStream> {
     let mut out = TokenStream::new();
@@ -213,28 +212,26 @@ pub fn render(
         return Ok(TokenStream::new());
     }
 
-    let defaults = p.default_register_properties.derive_from(defaults);
-
     // Push any register or cluster blocks into the output
     debug!(
         "Pushing {} register or cluster blocks into output",
         ercs.len()
     );
     let mut mod_items = TokenStream::new();
-    mod_items.extend(register_or_cluster_block(&ercs, &defaults, None, config)?);
+    mod_items.extend(register_or_cluster_block(&ercs, None, config)?);
 
     debug!("Pushing cluster information into output");
     // Push all cluster related information into the peripheral module
     for c in &clusters {
         trace!("Cluster: {}", c.name);
-        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, config)?);
+        mod_items.extend(cluster_block(c, p, all_peripherals, config)?);
     }
 
     debug!("Pushing register information into output");
     // Push all register related information into the peripheral module
     for reg in registers {
         trace!("Register: {}", reg.name);
-        match register::render(reg, registers, p, all_peripherals, &defaults, config) {
+        match register::render(reg, registers, p, all_peripherals, config) {
             Ok(rendered_reg) => mod_items.extend(rendered_reg),
             Err(e) => {
                 let res: Result<TokenStream> = Err(e);
@@ -504,15 +501,14 @@ fn make_comment(size: u32, offset: u32, description: &str) -> String {
 
 fn register_or_cluster_block(
     ercs: &[RegisterCluster],
-    defs: &RegisterProperties,
     name: Option<&str>,
     config: &Config,
 ) -> Result<TokenStream> {
     let mut rbfs = TokenStream::new();
     let mut accessors = TokenStream::new();
 
-    let ercs_expanded = expand(ercs, defs, name, config)
-        .with_context(|| "Could not expand register or cluster block")?;
+    let ercs_expanded =
+        expand(ercs, name, config).with_context(|| "Could not expand register or cluster block")?;
 
     // Locate conflicting regions; we'll need to use unions to represent them.
     let mut regions = FieldRegions::default();
@@ -640,7 +636,6 @@ fn register_or_cluster_block(
 /// `RegisterBlockField`s containing `Field`s.
 fn expand(
     ercs: &[RegisterCluster],
-    defs: &RegisterProperties,
     name: Option<&str>,
     config: &Config,
 ) -> Result<Vec<RegisterBlockField>> {
@@ -649,34 +644,26 @@ fn expand(
     debug!("Expanding registers or clusters into Register Block Fields");
     for erc in ercs {
         match &erc {
-            RegisterCluster::Register(register) => {
-                match expand_register(register, defs, name, config) {
-                    Ok(expanded_reg) => {
-                        trace!("Register: {}", register.name);
-                        ercs_expanded.extend(expanded_reg);
-                    }
-                    Err(e) => {
-                        let res = Err(e);
-                        return handle_reg_error("Error expanding register", register, res);
-                    }
+            RegisterCluster::Register(register) => match expand_register(register, name, config) {
+                Ok(expanded_reg) => {
+                    trace!("Register: {}", register.name);
+                    ercs_expanded.extend(expanded_reg);
                 }
-            }
-            RegisterCluster::Cluster(cluster) => {
-                match expand_cluster(cluster, defs, name, config) {
-                    Ok(expanded_cluster) => {
-                        trace!("Cluster: {}", cluster.name);
-                        ercs_expanded.extend(expanded_cluster);
-                    }
-                    Err(e) => {
-                        let res = Err(e);
-                        return handle_cluster_error(
-                            "Error expanding register cluster",
-                            cluster,
-                            res,
-                        );
-                    }
+                Err(e) => {
+                    let res = Err(e);
+                    return handle_reg_error("Error expanding register", register, res);
                 }
-            }
+            },
+            RegisterCluster::Cluster(cluster) => match expand_cluster(cluster, name, config) {
+                Ok(expanded_cluster) => {
+                    trace!("Cluster: {}", cluster.name);
+                    ercs_expanded.extend(expanded_cluster);
+                }
+                Err(e) => {
+                    let res = Err(e);
+                    return handle_cluster_error("Error expanding register cluster", cluster, res);
+                }
+            },
         };
     }
 
@@ -688,13 +675,9 @@ fn expand(
 /// Calculate the size of a Cluster.  If it is an array, then the dimensions
 /// tell us the size of the array.  Otherwise, inspect the contents using
 /// [cluster_info_size_in_bits].
-fn cluster_size_in_bits(
-    cluster: &Cluster,
-    defs: &RegisterProperties,
-    config: &Config,
-) -> Result<u32> {
+fn cluster_size_in_bits(cluster: &Cluster, config: &Config) -> Result<u32> {
     match cluster {
-        Cluster::Single(info) => cluster_info_size_in_bits(info, defs, config),
+        Cluster::Single(info) => cluster_info_size_in_bits(info, config),
         // If the contained array cluster has a mismatch between the
         // dimIncrement and the size of the array items, then the array
         // will get expanded in expand_cluster below.  The overall size
@@ -704,7 +687,7 @@ fn cluster_size_in_bits(
                 return Ok(0); // Special case!
             }
             let last_offset = (dim.dim - 1) * dim.dim_increment * BITS_PER_BYTE;
-            let last_size = cluster_info_size_in_bits(info, defs, config);
+            let last_size = cluster_info_size_in_bits(info, config);
             Ok(last_offset + last_size?)
         }
     }
@@ -712,17 +695,13 @@ fn cluster_size_in_bits(
 
 /// Recursively calculate the size of a ClusterInfo. A cluster's size is the
 /// maximum end position of its recursive children.
-fn cluster_info_size_in_bits(
-    info: &ClusterInfo,
-    defs: &RegisterProperties,
-    config: &Config,
-) -> Result<u32> {
+fn cluster_info_size_in_bits(info: &ClusterInfo, config: &Config) -> Result<u32> {
     let mut size = 0;
 
     for c in &info.children {
         let end = match c {
             RegisterCluster::Register(reg) => {
-                let reg_size: u32 = expand_register(reg, defs, None, config)?
+                let reg_size: u32 = expand_register(reg, None, config)?
                     .iter()
                     .map(|rbf| rbf.size)
                     .sum();
@@ -730,7 +709,7 @@ fn cluster_info_size_in_bits(
                 (reg.address_offset * BITS_PER_BYTE) + reg_size
             }
             RegisterCluster::Cluster(clust) => {
-                (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, defs, config)?
+                (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, config)?
             }
         };
 
@@ -742,15 +721,12 @@ fn cluster_info_size_in_bits(
 /// Render a given cluster (and any children) into `RegisterBlockField`s
 fn expand_cluster(
     cluster: &Cluster,
-    defs: &RegisterProperties,
     name: Option<&str>,
     config: &Config,
 ) -> Result<Vec<RegisterBlockField>> {
     let mut cluster_expanded = vec![];
 
-    let defs = cluster.default_register_properties.derive_from(defs);
-
-    let cluster_size = cluster_info_size_in_bits(cluster, &defs, config)
+    let cluster_size = cluster_info_size_in_bits(cluster, config)
         .with_context(|| format!("Cluster {} has no determinable `size` field", cluster.name))?;
 
     match cluster {
@@ -851,7 +827,6 @@ fn expand_cluster(
 /// numeral indexes, or not containing all elements from 0 to size) they will be expanded
 fn expand_register(
     register: &Register,
-    defs: &RegisterProperties,
     name: Option<&str>,
     config: &Config,
 ) -> Result<Vec<RegisterBlockField>> {
@@ -860,7 +835,6 @@ fn expand_register(
     let register_size = register
         .properties
         .size
-        .or(defs.size)
         .ok_or_else(|| anyhow!("Register {} has no `size` field", register.name))?;
 
     match register {
@@ -961,7 +935,6 @@ fn expand_register(
 /// Render a Cluster Block into `TokenStream`
 fn cluster_block(
     c: &Cluster,
-    defaults: &RegisterProperties,
     p: &Peripheral,
     all_peripherals: &[Peripheral],
     config: &Config,
@@ -982,14 +955,12 @@ fn cluster_block(
     );
     let name_sc = Ident::new(&mod_name.to_sanitized_snake_case(), Span::call_site());
 
-    let defaults = c.default_register_properties.derive_from(defaults);
-
-    let reg_block = register_or_cluster_block(&c.children, &defaults, Some(&mod_name), config)?;
+    let reg_block = register_or_cluster_block(&c.children, Some(&mod_name), config)?;
 
     // Generate definition for each of the registers.
     let registers = util::only_registers(&c.children);
     for reg in &registers {
-        match register::render(reg, &registers, p, all_peripherals, &defaults, config) {
+        match register::render(reg, &registers, p, all_peripherals, config) {
             Ok(rendered_reg) => mod_items.extend(rendered_reg),
             Err(e) => {
                 let res: Result<TokenStream> = Err(e);
@@ -1005,7 +976,7 @@ fn cluster_block(
     // Generate the sub-cluster blocks.
     let clusters = util::only_clusters(&c.children);
     for c in &clusters {
-        mod_items.extend(cluster_block(c, &defaults, p, all_peripherals, config)?);
+        mod_items.extend(cluster_block(c, p, all_peripherals, config)?);
     }
 
     Ok(quote! {

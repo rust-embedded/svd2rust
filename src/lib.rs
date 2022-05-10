@@ -570,7 +570,7 @@ pub fn load_from(input: &str, config: &crate::util::Config) -> Result<svd::Devic
     use self::util::SourceType;
     use svd_parser::ValidateLevel;
 
-    Ok(match config.source_type {
+    let mut device = match config.source_type {
         SourceType::Xml => {
             let mut parser_config = svd_parser::Config::default();
             parser_config.validate_level = if config.strict {
@@ -586,7 +586,9 @@ pub fn load_from(input: &str, config: &crate::util::Config) -> Result<svd::Devic
             .with_context(|| "Error parsing SVD YAML file".to_string())?,
         SourceType::Json => serde_json::from_str(input)
             .with_context(|| "Error parsing SVD JSON file".to_string())?,
-    })
+    };
+    svd_parser::expand_properties(&mut device);
+    Ok(device)
 }
 
 /// Assigns a handler to an interrupt

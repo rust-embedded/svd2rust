@@ -454,38 +454,14 @@ fn handle_erc_error<T>(msg: &str, name: &str, descrip: &str, res: Result<T>) -> 
 
 pub fn get_register_sizes(d: &Device) -> HashSet<u32> {
     let mut reg_sizes = HashSet::new();
-    if let Some(size) = d.default_register_properties.size {
-        reg_sizes.insert(size);
-    }
     for p in &d.peripherals {
-        if let Some(size) = p.default_register_properties.size {
-            reg_sizes.insert(size);
-        }
-        if let Some(chilren) = &p.registers {
-            for rc in chilren {
-                get_register_sizes_in_register_cluster(&mut reg_sizes, rc);
-            }
-        }
-    }
-    reg_sizes
-}
-
-fn get_register_sizes_in_register_cluster(reg_sizes: &mut HashSet<u32>, rc: &RegisterCluster) {
-    match rc {
-        RegisterCluster::Cluster(c) => {
-            if let Some(size) = c.default_register_properties.size {
-                reg_sizes.insert(size);
-                for rc in &c.children {
-                    get_register_sizes_in_register_cluster(reg_sizes, rc);
-                }
-            }
-        }
-        RegisterCluster::Register(r) => {
+        for r in p.all_registers() {
             if let Some(size) = r.properties.size {
                 reg_sizes.insert(size);
             }
         }
     }
+    reg_sizes
 }
 
 pub trait FullName {
