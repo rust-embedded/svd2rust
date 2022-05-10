@@ -389,26 +389,22 @@ pub fn erc_derived_from(erc: &RegisterCluster) -> &Option<String> {
 
 /// Return only the clusters from the slice of either register or clusters.
 pub fn only_clusters(ercs: &[RegisterCluster]) -> Vec<&Cluster> {
-    let clusters: Vec<&Cluster> = ercs
-        .iter()
+    ercs.iter()
         .filter_map(|x| match x {
             RegisterCluster::Cluster(x) => Some(x),
             _ => None,
         })
-        .collect();
-    clusters
+        .collect()
 }
 
 /// Return only the registers the given slice of either register or clusters.
 pub fn only_registers(ercs: &[RegisterCluster]) -> Vec<&Register> {
-    let registers: Vec<&Register> = ercs
-        .iter()
+    ercs.iter()
         .filter_map(|x| match x {
             RegisterCluster::Register(x) => Some(x),
             _ => None,
         })
-        .collect();
-    registers
+        .collect()
 }
 
 pub fn build_rs() -> TokenStream {

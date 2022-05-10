@@ -35,11 +35,11 @@ pub fn render(
     let p = p_merged.as_ref().unwrap_or(p_original);
 
     if let (Some(df), None) = (p_original.derived_from.as_ref(), &p_derivedfrom) {
-        eprintln!(
+        return Err(anyhow!(
             "Couldn't find derivedFrom original: {} for {}, skipping",
-            df, p_original.name
-        );
-        return Ok(out);
+            df,
+            p_original.name
+        ));
     }
 
     let name = util::name_of(p, config.ignore_groups);
@@ -149,7 +149,7 @@ pub fn render(
     }
 
     // erc: *E*ither *R*egister or *C*luster
-    let ercs = p.registers.as_ref().map(|x| x.as_ref()).unwrap_or(&[][..]);
+    let ercs_in = p.registers.as_ref().map(|x| x.as_ref()).unwrap_or(&[][..]);
 
     // make a pass to expand derived registers and clusters.  Ideally, for the most minimal
     // code size, we'd do some analysis to figure out if we can 100% reuse the
@@ -159,48 +159,15 @@ pub fn render(
 
     // Build a map so that we can look up registers within this peripheral
     let mut erc_map = HashMap::new();
-    for erc in ercs {
-        erc_map.insert(util::erc_name(erc), erc.clone());
+    for erc in ercs_in {
+        erc_map.insert(util::erc_name(erc), erc);
     }
 
     // Build up an alternate erc list by expanding any derived registers/clusters
-    let ercs: Vec<RegisterCluster> = ercs
-        .iter()
-        .filter_map(|erc| match util::erc_derived_from(erc) {
-            Some(ref derived) => {
-                let ancestor = match erc_map.get(derived) {
-                    Some(erc) => erc,
-                    None => {
-                        eprintln!(
-                            "register/cluster {} derivedFrom missing register/cluster {}",
-                            util::erc_name(erc),
-                            derived
-                        );
-                        return None;
-                    }
-                };
-
-                match (erc, ancestor) {
-                    (RegisterCluster::Register(reg), RegisterCluster::Register(other_reg)) => {
-                        Some(RegisterCluster::Register(reg.derive_from(other_reg)))
-                    }
-                    (
-                        RegisterCluster::Cluster(cluster),
-                        RegisterCluster::Cluster(other_cluster),
-                    ) => Some(RegisterCluster::Cluster(cluster.derive_from(other_cluster))),
-                    _ => {
-                        eprintln!(
-                            "{} can't derive from {}",
-                            util::erc_name(erc),
-                            util::erc_name(ancestor)
-                        );
-                        None
-                    }
-                }
-            }
-            None => Some(erc.clone()),
-        })
-        .collect();
+    let mut ercs = Vec::with_capacity(ercs_in.len());
+    for erc in ercs_in {
+        ercs.push(derive_register_cluster(erc, &erc_map)?.into_owned());
+    }
 
     // And revise registers, clusters and ercs to refer to our expanded versions
     let registers: &[&Register] = &util::only_registers(&ercs)[..];
@@ -257,6 +224,42 @@ pub fn render(
     close.to_tokens(&mut out);
 
     Ok(out)
+}
+
+fn derive_register_cluster<'a>(
+    erc: &'a RegisterCluster,
+    erc_map: &'a HashMap<&'a String, &'a RegisterCluster>,
+) -> Result<Cow<'a, RegisterCluster>> {
+    Ok(if let Some(derived) = util::erc_derived_from(erc) {
+        let ancestor = erc_map.get(derived).ok_or_else(|| {
+            anyhow!(
+                "register/cluster {} derivedFrom missing register/cluster {}",
+                util::erc_name(erc),
+                derived
+            )
+        })?;
+
+        let ancestor = derive_register_cluster(ancestor, erc_map)?;
+
+        use RegisterCluster::*;
+        match (erc, ancestor.as_ref()) {
+            (Register(reg), Register(other_reg)) => {
+                Cow::Owned(Register(reg.derive_from(other_reg)))
+            }
+            (Cluster(cluster), Cluster(other_cluster)) => {
+                Cow::Owned(Cluster(cluster.derive_from(other_cluster)))
+            }
+            _ => {
+                return Err(anyhow!(
+                    "{} can't derive from {}",
+                    util::erc_name(erc),
+                    util::erc_name(&ancestor)
+                ));
+            }
+        }
+    } else {
+        Cow::Borrowed(erc)
+    })
 }
 
 #[derive(Clone, Debug)]
