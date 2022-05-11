@@ -251,7 +251,7 @@ fn derive_register_cluster<'a>(
             }
             _ => {
                 return Err(anyhow!(
-                    "{} can't derive from {}",
+                    "{} can't be derived from {}",
                     util::erc_name(erc),
                     util::erc_name(&ancestor)
                 ));
