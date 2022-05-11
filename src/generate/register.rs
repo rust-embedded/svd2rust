@@ -1,6 +1,6 @@
 use crate::svd::{
-    Access, BitRange, DeriveFrom, EnumeratedValues, Field, ModifiedWriteValues, Peripheral,
-    ReadAction, Register, RegisterProperties, Usage, WriteConstraint,
+    Access, BitRange, EnumeratedValues, Field, ModifiedWriteValues, Peripheral, ReadAction,
+    Register, RegisterProperties, Usage, WriteConstraint,
 };
 use cast::u64;
 use core::u64;
@@ -18,11 +18,10 @@ pub fn render(
     all_registers: &[&Register],
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
-    defs: &RegisterProperties,
     config: &Config,
 ) -> Result<TokenStream> {
-    let properties = register.properties.derive_from(defs);
-    let access = util::access_of(&properties, register.fields.as_deref());
+    let properties = &register.properties;
+    let access = util::access_of(properties, register.fields.as_deref());
     let name = util::name_of(register, config.ignore_groups);
     let span = Span::call_site();
     let name_pc = Ident::new(&name.to_sanitized_upper_case(), span);
@@ -159,7 +158,7 @@ pub fn render(
                 all_peripherals,
                 &rty,
                 access,
-                &properties,
+                properties,
                 &mut mod_items,
                 &mut r_impl_items,
                 &mut w_impl_items,

@@ -213,7 +213,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
 
         debug!("Rendering peripheral {}", p.name);
-        match peripheral::render(p, &d.peripherals, &d.default_register_properties, config) {
+        match peripheral::render(p, &d.peripherals, config) {
             Ok(periph) => out.extend(periph),
             Err(e) => {
                 let descrip = p.description.as_deref().unwrap_or("No description");
