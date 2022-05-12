@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.24.0] - 2022-05-12
+
+[commits][v0.24.0]
+
 - Support "nested" `deriveFrom` for registers located in one peripheral
 - Use modifiedWriteValues for 1-bitwise fields if present
 - Use generic `FieldWriter`, `FieldReader`, `BitWriter`, `BitReader`
@@ -703,7 +707,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.23.1...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.24.0...HEAD
+[v0.24.0]: https://github.com/rust-embedded/svd2rust/compare/v0.23.1...v0.24.0
 [v0.23.1]: https://github.com/rust-embedded/svd2rust/compare/v0.23.0...v0.23.1
 [v0.23.0]: https://github.com/rust-embedded/svd2rust/compare/v0.22.2...v0.23.0
 [v0.22.2]: https://github.com/rust-embedded/svd2rust/compare/v0.22.1...v0.22.2
