@@ -143,11 +143,11 @@ jobs:
       - name: Cache
         uses: Swatinem/rust-cache@v1
         with:
-          key: svdtools-0.2.1
+          key: svdtools-0.2.3
 
       - name: Install svdtools
         run: |
-          cargo install svdtools --version 0.2.1 --target-dir target
+          cargo install svdtools --version 0.2.3 --target-dir target
 
       - name: Run CI script
         run: |
