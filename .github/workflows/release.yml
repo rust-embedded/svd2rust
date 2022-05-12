@@ -14,13 +14,13 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            suffix: ""
+            suffix: ".gz"
           - os: macos-latest
             target: x86_64-apple-darwin
-            suffix: ""
+            suffix: ".gz"
           - os: macos-latest
             target: aarch64-apple-darwin
-            suffix: ""
+            suffix: ".gz"
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             suffix: ".exe"
@@ -41,32 +41,43 @@ jobs:
         with:
           command: build
           args: --target ${{ matrix.target }} --release
+
+      - name: Compress and rename executable
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: gzip -c target/${{ matrix.target }}/release/svd2rust > svd2rust-${{ matrix.target }}${{ matrix.suffix }}
       - name: Rename executable
-        run: mv target/${{ matrix.target }}/release/svd2rust${{ matrix.suffix }} target/${{ matrix.target }}/release/svd2rust-${{ matrix.target }}${{ matrix.suffix }}
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: mv target/${{ matrix.target }}/release/svd2rust${{ matrix.suffix }} svd2rust-${{ matrix.target }}${{ matrix.suffix }}
+
       - uses: actions/upload-artifact@v3
         with:
           name: svd2rust-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/svd2rust-${{ matrix.target }}${{ matrix.suffix }}
+          path: svd2rust-${{ matrix.target }}${{ matrix.suffix }}
 
   release:
     name: release
     runs-on: ubuntu-latest
     needs: [build]
     steps:
+      - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
         with:
           path: artifacts
       - run: ls -R ./artifacts
-      - uses: softprops/action-gh-release@v1
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Set current date as environment variable
+        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - id: changelog-reader
+        uses: mindsers/changelog-reader-action@v2.0.0
         with:
-          prerelease: true
-          name: "Pre-release"
-          tag_name: "pre-release"
-          files: |
-            artifacts/**/*
+          version: ${{ (github.ref_type == 'tag' && github.ref_name) || 'Unreleased' }}
+
       - uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/v')
         with:
+          tag_name: ${{ steps.changelog-reader.outputs.version }}
+          name: ${{ (github.ref_type == 'tag' && steps.changelog-reader.outputs.version) || format('Prereleased {0}', env.CURRENT_DATE) }}
+          body: ${{ steps.changelog-reader.outputs.changes }}
+          prerelease: ${{ steps.changelog-reader.outputs.status == 'unreleased' }}
           files: |
             artifacts/**/*
