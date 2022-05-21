@@ -124,6 +124,10 @@ pub trait ToSanitizedUpperCase {
     fn to_sanitized_upper_case(&self) -> Cow<str>;
 }
 
+pub trait ToSanitizedConstantCase {
+    fn to_sanitized_constant_case(&self) -> Cow<str>;
+}
+
 pub trait ToSanitizedSnakeCase {
     fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str>;
     fn to_sanitized_snake_case(&self) -> Cow<str> {
@@ -178,6 +182,19 @@ impl ToSanitizedUpperCase for str {
                 Cow::from(format!("_{}", s.to_upper_case()))
             }
             _ => Cow::from(s.to_upper_case()),
+        }
+    }
+}
+
+impl ToSanitizedConstantCase for str {
+    fn to_sanitized_constant_case(&self) -> Cow<str> {
+        let s = self.replace(BLACKLIST_CHARS, "");
+
+        match s.chars().next().unwrap_or('\0') {
+            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
+                Cow::from(format!("_{}", s.to_constant_case()))
+            }
+            _ => Cow::from(s.to_constant_case()),
         }
     }
 }

@@ -9,7 +9,8 @@ use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
 
 use crate::util::{
-    self, Config, ToSanitizedPascalCase, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext,
+    self, Config, ToSanitizedConstantCase, ToSanitizedPascalCase, ToSanitizedSnakeCase,
+    ToSanitizedUpperCase, U32Ext,
 };
 use anyhow::{anyhow, Result};
 
@@ -341,7 +342,7 @@ pub fn fields(
         let BitRange { offset, width, .. } = f.bit_range;
         let name = util::replace_suffix(&f.name, "");
         let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
-        let name_pc = name.to_sanitized_upper_case();
+        let name_constant_case = name.to_sanitized_constant_case();
         let description_raw = f.description.as_deref().unwrap_or(""); // raw description, if absent using empty string
         let description = util::respace(&util::escape_brackets(description_raw));
 
@@ -374,9 +375,6 @@ pub fn fields(
 
         // Reader and writer use one common `Enum_A` unless a fields have two `enumeratedValues`,
         // then we have one for read-only `Enum_A` and another for write-only `Enum_AW`
-        let name_pc_a = Ident::new(&(name_pc.clone() + "_A"), span);
-        let mut name_pc_aw = &name_pc_a;
-
         let mut evs_r = None;
 
         let field_dim = match f {
@@ -410,26 +408,6 @@ pub fn fields(
         };
 
         if can_read {
-            let mut readerdoc = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
-                format!(
-                    "Fields `{}` reader - {}",
-                    util::replace_suffix(&f.name, suffixes_str),
-                    description,
-                )
-            } else {
-                format!("Field `{}` reader - {}", f.name, description)
-            };
-            if let Some(action) = f.read_action {
-                readerdoc += match action {
-                    ReadAction::Clear => "\n\nThe field is **cleared** (set to zero) following a read operation.",
-                    ReadAction::Set => "\n\nThe field is **set** (set to ones) following a read operation.",
-                    ReadAction::Modify => "\n\nThe field is **modified** in some way after a read operation.",
-                    ReadAction::ModifyExternal => "\n\nOne or more dependent resources other than the current field are immediately affected by a read operation.",
-                };
-            }
-
-            let name_pc_r = Ident::new(&(name_pc.clone() + "_R"), span);
-
             let cast = if width == 1 {
                 quote! { != 0 }
             } else {
@@ -450,6 +428,162 @@ pub fn fields(
                 }
             };
 
+            let field_reader_brief = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
+                format!(
+                    "Fields `{}` reader - {}",
+                    util::replace_suffix(&f.name, suffixes_str),
+                    description,
+                )
+            } else {
+                format!("Field `{}` reader - {}", f.name, description)
+            };
+
+            let (reader_ty, value_ty, value_doc_brief) = if let Some((evs, _)) =
+                lookup_filter(&lookup_results, Usage::Read)
+            {
+                if let Some(enum_name) = &evs.name {
+                    let enum_name_constant_case = enum_name.to_sanitized_constant_case();
+                    let enum_reader_ty =
+                        Ident::new(&format!("{}_R", enum_name_constant_case), span);
+                    let enum_value_ty = Ident::new(&format!("{}_A", enum_name_constant_case), span);
+                    let enum_reader_brief = format!("Enum `{}` reader", enum_name);
+                    (enum_reader_ty, enum_value_ty, enum_reader_brief)
+                } else {
+                    let derived_field_reader_ty =
+                        Ident::new(&format!("{}_R", name_constant_case), span);
+                    let derived_field_value_ty =
+                        Ident::new(&format!("{}_A", name_constant_case), span);
+                    (
+                        derived_field_reader_ty,
+                        derived_field_value_ty,
+                        field_reader_brief,
+                    )
+                }
+            } else {
+                let raw_field_reader_ty = Ident::new(&format!("{}_R", name_constant_case), span);
+                let raw_field_value_ty = fty.clone();
+                (raw_field_reader_ty, raw_field_value_ty, field_reader_brief)
+            };
+
+            let should_derive_reader = match lookup_filter(&lookup_results, Usage::Read) {
+                Some((_evs, Some(_base))) => false,
+                Some((_evs, None)) => true,
+                None => true,
+            };
+
+            if should_derive_reader {
+                let reader = if width == 1 {
+                    quote! { crate::BitReader<#value_ty> }
+                } else {
+                    quote! { crate::FieldReader<#fty, #value_ty> }
+                };
+                let mut readerdoc = value_doc_brief;
+                if let Some(action) = f.read_action {
+                    readerdoc += match action {
+                        ReadAction::Clear => "\n\nThe field is **cleared** (set to zero) following a read operation.",
+                        ReadAction::Set => "\n\nThe field is **set** (set to ones) following a read operation.",
+                        ReadAction::Modify => "\n\nThe field is **modified** in some way after a read operation.",
+                        ReadAction::ModifyExternal => "\n\nOne or more dependent resources other than the current field are immediately affected by a read operation.",
+                    };
+                }
+                mod_items.extend(quote! {
+                    #[doc = #readerdoc]
+                    pub type #reader_ty = #reader;
+                });
+            }
+
+            let mut enum_items = TokenStream::new();
+
+            if let Some((evs, None)) = lookup_filter(&lookup_results, Usage::Read) {
+                evs_r = Some(evs.clone());
+
+                let has_reserved_variant = evs.values.len() != (1 << width);
+                let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
+
+                if variants.is_empty() {
+                    add_with_no_variants(mod_items, &value_ty, &fty, &description, rv);
+                } else {
+                    add_from_variants(mod_items, &variants, &value_ty, &fty, &description, rv);
+
+                    let mut arms = TokenStream::new();
+                    for v in variants.iter().map(|v| {
+                        let i = util::unsuffixed_or_bool(v.value, width);
+                        let pc = &v.pc;
+
+                        if has_reserved_variant {
+                            quote! { #i => Some(#value_ty::#pc), }
+                        } else {
+                            quote! { #i => #value_ty::#pc, }
+                        }
+                    }) {
+                        arms.extend(v);
+                    }
+
+                    if has_reserved_variant {
+                        arms.extend(quote! {
+                            _ => None,
+                        });
+                    } else if 1 << width.to_ty_width()? != variants.len() {
+                        arms.extend(quote! {
+                            _ => unreachable!(),
+                        });
+                    }
+
+                    if has_reserved_variant {
+                        enum_items.extend(quote! {
+                            #[doc = "Get enumerated values variant"]
+                            #inline
+                            pub fn variant(&self) -> Option<#value_ty> {
+                                match self.bits {
+                                    #arms
+                                }
+                            }
+                        });
+                    } else {
+                        enum_items.extend(quote! {
+                        #[doc = "Get enumerated values variant"]
+                        #inline
+                        pub fn variant(&self) -> #value_ty {
+                            match self.bits {
+                                #arms
+                            }
+                        }});
+                    }
+
+                    for v in &variants {
+                        let pc = &v.pc;
+                        let sc = &v.nksc;
+
+                        let is_variant = Ident::new(
+                            &if sc.to_string().starts_with('_') {
+                                format!("is{}", sc)
+                            } else {
+                                format!("is_{}", sc)
+                            },
+                            span,
+                        );
+
+                        let doc = format!("Checks if the value of the field is `{}`", pc);
+                        enum_items.extend(quote! {
+                            #[doc = #doc]
+                            #inline
+                            pub fn #is_variant(&self) -> bool {
+                                *self == #value_ty::#pc
+                            }
+                        });
+                    }
+                }
+            }
+
+            if let Some((evs, Some(base))) = lookup_filter(&lookup_results, Usage::Read) {
+                evs_r = Some(evs.clone()); // preserve value, writer would not generate value_ty again
+                                           // if base.register == None, it emits pub use structure from same module which is not expected
+                if base.register != None {
+                    derive_from_base(mod_items, &base, &reader_ty, &description);
+                    derive_from_base(mod_items, &base, &value_ty, &description);
+                }
+            }
+
             if let Some((first, dim, increment, suffixes, suffixes_str)) = &field_dim {
                 let offset_calc = calculate_offset(*first, *increment, offset, true);
                 let value = quote! { ((self.bits >> #offset_calc) & #hexmask) #cast };
@@ -457,8 +591,8 @@ pub fn fields(
                 r_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub unsafe fn #name_sc(&self, n: u8) -> #name_pc_r {
-                        #name_pc_r::new ( #value )
+                    pub unsafe fn #name_sc(&self, n: u8) -> #reader_ty {
+                        #reader_ty::new ( #value )
                     }
                 });
                 for (i, suffix) in (0..*dim).zip(suffixes.iter()) {
@@ -488,8 +622,8 @@ pub fn fields(
                     r_impl_items.extend(quote! {
                         #[doc = #doc]
                         #inline
-                        pub fn #name_sc_n(&self) -> #name_pc_r {
-                            #name_pc_r::new ( #value )
+                        pub fn #name_sc_n(&self) -> #reader_ty {
+                            #reader_ty::new ( #value )
                         }
                     });
                 }
@@ -498,124 +632,15 @@ pub fn fields(
                 r_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub fn #name_sc(&self) -> #name_pc_r {
-                        #name_pc_r::new ( #value )
+                    pub fn #name_sc(&self) -> #reader_ty {
+                        #reader_ty::new ( #value )
                     }
                 });
             }
 
-            let mut enum_items = TokenStream::new();
-            let mut derived = false;
-            let mut ftype = fty.clone();
-            if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
-                evs_r = Some(evs.clone());
-
-                if let Some(base) = base {
-                    let pc_orig = util::replace_suffix(base.field, "");
-
-                    let pc = pc_orig.to_sanitized_upper_case();
-                    let base_pc_a = Ident::new(&(pc + "_A"), span);
-                    derive_from_base(mod_items, &base, &name_pc_a, &base_pc_a, &description);
-
-                    let pc = pc_orig.to_sanitized_upper_case();
-                    let base_pc_r = Ident::new(&(pc + "_R"), span);
-                    derive_from_base(mod_items, &base, &name_pc_r, &base_pc_r, &readerdoc);
-                    derived = true;
-                } else {
-                    let has_reserved_variant = evs.values.len() != (1 << width);
-                    let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
-
-                    if variants.is_empty() {
-                        add_with_no_variants(mod_items, &name_pc_a, &fty, &description, rv);
-                    } else {
-                        add_from_variants(mod_items, &variants, &name_pc_a, &fty, &description, rv);
-
-                        let mut arms = TokenStream::new();
-                        for v in variants.iter().map(|v| {
-                            let i = util::unsuffixed_or_bool(v.value, width);
-                            let pc = &v.pc;
-
-                            if has_reserved_variant {
-                                quote! { #i => Some(#name_pc_a::#pc), }
-                            } else {
-                                quote! { #i => #name_pc_a::#pc, }
-                            }
-                        }) {
-                            arms.extend(v);
-                        }
-
-                        if has_reserved_variant {
-                            arms.extend(quote! {
-                                _ => None,
-                            });
-                        } else if 1 << width.to_ty_width()? != variants.len() {
-                            arms.extend(quote! {
-                                _ => unreachable!(),
-                            });
-                        }
-
-                        if has_reserved_variant {
-                            enum_items.extend(quote! {
-                                #[doc = "Get enumerated values variant"]
-                                #inline
-                                pub fn variant(&self) -> Option<#name_pc_a> {
-                                    match self.bits {
-                                        #arms
-                                    }
-                                }
-                            });
-                        } else {
-                            enum_items.extend(quote! {
-                            #[doc = "Get enumerated values variant"]
-                            #inline
-                            pub fn variant(&self) -> #name_pc_a {
-                                match self.bits {
-                                    #arms
-                                }
-                            }});
-                        }
-
-                        for v in &variants {
-                            let pc = &v.pc;
-                            let sc = &v.nksc;
-
-                            let is_variant = Ident::new(
-                                &if sc.to_string().starts_with('_') {
-                                    format!("is{}", sc)
-                                } else {
-                                    format!("is_{}", sc)
-                                },
-                                span,
-                            );
-
-                            let doc = format!("Checks if the value of the field is `{}`", pc);
-                            enum_items.extend(quote! {
-                                #[doc = #doc]
-                                #inline
-                                pub fn #is_variant(&self) -> bool {
-                                    *self == #name_pc_a::#pc
-                                }
-                            });
-                        }
-                    }
-
-                    ftype = name_pc_a.clone();
-                }
-            }
-            if !derived {
-                let reader = if width == 1 {
-                    quote! { crate::BitReader<#ftype> }
-                } else {
-                    quote! { crate::FieldReader<#fty, #ftype> }
-                };
-                mod_items.extend(quote! {
-                    #[doc = #readerdoc]
-                    pub type #name_pc_r = #reader;
-                });
-            }
             if !enum_items.is_empty() {
                 mod_items.extend(quote! {
-                    impl #name_pc_r {
+                    impl #reader_ty {
                         #enum_items
                     }
                 });
@@ -627,7 +652,7 @@ pub fn fields(
                 .modified_write_values
                 .or(register.modified_write_values)
                 .unwrap_or_default();
-            let writerdoc = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
+            let field_writer_brief = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
                 format!(
                     "Fields `{}` writer - {}",
                     util::replace_suffix(&f.name, suffixes_str),
@@ -637,65 +662,86 @@ pub fn fields(
                 format!("Field `{}` writer - {}", f.name, description)
             };
 
-            let new_pc_aw = Ident::new(&(name_pc.clone() + "_AW"), span);
-            let name_pc_w = Ident::new(&(name_pc.clone() + "_W"), span);
+            let (writer_ty, value_ty, value_doc_brief) = if let Some((evs, _)) =
+                lookup_filter(&lookup_results, Usage::Write)
+            {
+                let writer_reader_different_enum = evs_r.as_ref() != Some(evs);
+                let value_ty_suffix = if writer_reader_different_enum {
+                    "AW"
+                } else {
+                    "A"
+                };
+                if let Some(enum_name) = &evs.name {
+                    let enum_name_constant_case = enum_name.to_sanitized_constant_case();
+                    let enum_writer_ty =
+                        Ident::new(&format!("{}_W", enum_name_constant_case), span);
+                    let enum_value_ty = Ident::new(
+                        &format!("{}_{}", enum_name_constant_case, value_ty_suffix),
+                        span,
+                    );
+                    let enum_writer_brief = format!("Enum `{}` writer", enum_name);
+                    (enum_writer_ty, enum_value_ty, enum_writer_brief)
+                } else {
+                    let derived_field_writer_ty =
+                        Ident::new(&format!("{}_W", name_constant_case), span);
+                    let derived_field_value_ty =
+                        Ident::new(&format!("{}_{}", name_constant_case, value_ty_suffix), span);
+                    (
+                        derived_field_writer_ty,
+                        derived_field_value_ty,
+                        field_writer_brief,
+                    )
+                }
+            } else {
+                let raw_field_writer_ty = Ident::new(&format!("{}_W", name_constant_case), span);
+                let raw_field_value_ty = fty.clone();
+                (raw_field_writer_ty, raw_field_value_ty, field_writer_brief)
+            };
+            let writerdoc = value_doc_brief; // no additional information to writers
+
+            let should_derive_writer = match lookup_filter(&lookup_results, Usage::Write) {
+                Some((_evs, Some(_base))) => false,
+                Some((_evs, None)) => true,
+                None => true,
+            };
 
             let mut proxy_items = TokenStream::new();
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
 
-            let mut derived = false;
-            if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Write) {
+            if let Some((evs, None)) = lookup_filter(&lookup_results, Usage::Write) {
                 let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
 
                 if variants.len() == 1 << width {
                     unsafety = false;
                 }
 
-                if Some(evs) != evs_r.as_ref() {
-                    name_pc_aw = &new_pc_aw;
-                    if let Some(base) = base.as_ref() {
-                        let pc = util::replace_suffix(base.field, "");
-                        let pc = pc.to_sanitized_upper_case();
-                        let base_pc_w = Ident::new(&(pc + "_AW"), span);
-                        derive_from_base(mod_items, base, name_pc_aw, &base_pc_w, &description);
-                    } else if variants.is_empty() {
-                        add_with_no_variants(mod_items, name_pc_aw, &fty, &description, rv);
+                let writer_reader_different_enum = evs_r.as_ref() != Some(evs);
+                if writer_reader_different_enum {
+                    if variants.is_empty() {
+                        add_with_no_variants(mod_items, &value_ty, &fty, &description, rv);
                     } else {
-                        add_from_variants(mod_items, &variants, name_pc_aw, &fty, &description, rv);
+                        add_from_variants(mod_items, &variants, &value_ty, &fty, &description, rv);
                     }
                 }
 
-                match base {
-                    Some(base) if base.peripheral.is_none() && base.register.is_none() => {
-                        let pc = util::replace_suffix(base.field, "");
-                        let pc = pc.to_sanitized_upper_case();
-                        let base_pc_w = Ident::new(&(pc + "_W"), span);
-                        derive_from_base(mod_items, &base, &name_pc_w, &base_pc_w, &writerdoc);
-                        derived = true;
-                    }
-                    _ => {
-                        if !variants.is_empty() {
-                            for v in &variants {
-                                let pc = &v.pc;
-                                let sc = &v.sc;
+                if !variants.is_empty() {
+                    for v in &variants {
+                        let pc = &v.pc;
+                        let sc = &v.sc;
 
-                                let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
-                                proxy_items.extend(quote! {
-                                    #[doc = #doc]
-                                    #inline
-                                    pub fn #sc(self) -> &'a mut W {
-                                        self.variant(#name_pc_aw::#pc)
-                                    }
-                                });
+                        let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
+                        proxy_items.extend(quote! {
+                            #[doc = #doc]
+                            #inline
+                            pub fn #sc(self) -> &'a mut W {
+                                self.variant(#value_ty::#pc)
                             }
-                        }
+                        });
                     }
                 }
-            } else {
-                name_pc_aw = &fty;
             }
 
-            if !derived {
+            if should_derive_writer {
                 let (offset, gen_offset) = if field_dim.is_some() {
                     (quote! { O }, quote! {, const O: u8 })
                 } else {
@@ -718,7 +764,7 @@ pub fn fields(
                         },
                         span,
                     );
-                    quote! { crate::#wproxy<'a, #rty, #name_uc_spec, #name_pc_aw, #offset> }
+                    quote! { crate::#wproxy<'a, #rty, #name_uc_spec, #value_ty, #offset> }
                 } else {
                     let wproxy = Ident::new(
                         if unsafety {
@@ -729,27 +775,39 @@ pub fn fields(
                         span,
                     );
                     let width = &util::unsuffixed(width as _);
-                    quote! { crate::#wproxy<'a, #rty, #name_uc_spec, #fty, #name_pc_aw, #width, #offset> }
+                    quote! { crate::#wproxy<'a, #rty, #name_uc_spec, #fty, #value_ty, #width, #offset> }
                 };
                 mod_items.extend(quote! {
                     #[doc = #writerdoc]
-                    pub type #name_pc_w<'a #gen_offset> = #proxy;
+                    pub type #writer_ty<'a #gen_offset> = #proxy;
                 });
             }
+
             if !proxy_items.is_empty() {
                 mod_items.extend(if field_dim.is_some() {
                     quote! {
-                        impl<'a, const O: u8> #name_pc_w<'a, O> {
+                        impl<'a, const O: u8> #writer_ty<'a, O> {
                             #proxy_items
                         }
                     }
                 } else {
                     quote! {
-                        impl<'a> #name_pc_w<'a> {
+                        impl<'a> #writer_ty<'a> {
                             #proxy_items
                         }
                     }
                 });
+            }
+
+            if let Some((evs, Some(base))) = lookup_filter(&lookup_results, Usage::Write) {
+                let writer_reader_different_enum = evs_r.as_ref() != Some(evs);
+                // if base.register == None, it emits pub use structure from same module which is not expected
+                if base.register != None {
+                    if writer_reader_different_enum {
+                        derive_from_base(mod_items, &base, &value_ty, &description);
+                    }
+                    derive_from_base(mod_items, &base, &writer_ty, &description);
+                }
             }
 
             if let Some((_, dim, increment, suffixes, suffixes_str)) = &field_dim {
@@ -757,8 +815,8 @@ pub fn fields(
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub unsafe fn #name_sc<const O: u8>(&mut self) -> #name_pc_w<O> {
-                        #name_pc_w::new(self)
+                    pub unsafe fn #name_sc<const O: u8>(&mut self) -> #writer_ty<O> {
+                        #writer_ty::new(self)
                     }
                 });
 
@@ -777,8 +835,8 @@ pub fn fields(
                     w_impl_items.extend(quote! {
                         #[doc = #doc]
                         #inline
-                        pub fn #name_sc_n(&mut self) -> #name_pc_w<#sub_offset> {
-                            #name_pc_w::new(self)
+                        pub fn #name_sc_n(&mut self) -> #writer_ty<#sub_offset> {
+                            #writer_ty::new(self)
                         }
                     });
                 }
@@ -787,8 +845,8 @@ pub fn fields(
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub fn #name_sc(&mut self) -> #name_pc_w {
-                        #name_pc_w::new(self)
+                    pub fn #name_sc(&mut self) -> #writer_ty {
+                        #writer_ty::new(self)
                     }
                 });
             }
@@ -864,7 +922,7 @@ impl Variant {
 
 fn add_with_no_variants(
     mod_items: &mut TokenStream,
-    pc: &Ident,
+    value_ty: &Ident,
     fty: &Ident,
     desc: &str,
     reset_value: Option<u64>,
@@ -884,10 +942,10 @@ fn add_with_no_variants(
     mod_items.extend(quote! {
         #[doc = #desc]
         #[derive(Clone, Copy, Debug, PartialEq)]
-        pub struct #pc(#fty);
-        impl From<#pc> for #fty {
+        pub struct #value_ty(#fty);
+        impl From<#value_ty> for #fty {
             #[inline(always)]
-            fn from(val: #pc) -> Self {
+            fn from(val: #value_ty) -> Self {
                 #cast
             }
         }
@@ -897,7 +955,7 @@ fn add_with_no_variants(
 fn add_from_variants(
     mod_items: &mut TokenStream,
     variants: &[Variant],
-    pc: &Ident,
+    value_ty: &Ident,
     fty: &Ident,
     desc: &str,
     reset_value: Option<u64>,
@@ -931,12 +989,12 @@ fn add_from_variants(
         #[doc = #desc]
         #[derive(Clone, Copy, Debug, PartialEq)]
         #repr
-        pub enum #pc {
+        pub enum #value_ty {
             #vars
         }
-        impl From<#pc> for #fty {
+        impl From<#value_ty> for #fty {
             #[inline(always)]
-            fn from(variant: #pc) -> Self {
+            fn from(variant: #value_ty) -> Self {
                 #cast
             }
         }
@@ -988,13 +1046,7 @@ fn description_with_bits(description: &str, offset: u64, width: u32) -> String {
     res
 }
 
-fn derive_from_base(
-    mod_items: &mut TokenStream,
-    base: &Base,
-    pc: &Ident,
-    base_pc: &Ident,
-    desc: &str,
-) {
+fn derive_from_base(mod_items: &mut TokenStream, base: &Base, base_pc: &Ident, desc: &str) {
     let span = Span::call_site();
     let path = if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
         let pmod_ = peripheral.to_sanitized_snake_case();
@@ -1013,7 +1065,7 @@ fn derive_from_base(
     };
     mod_items.extend(quote! {
         #[doc = #desc]
-        pub use #path as #pc;
+        pub use #path;
     });
 }
 
