@@ -56,6 +56,13 @@ pub fn render(
         (false, name_sc.clone())
     };
 
+    let feature_attribute = if config.feature_group && p.group_name.is_some() {
+        let feature_name = p.group_name.as_ref().unwrap().to_sanitized_snake_case();
+        quote! (#[cfg(feature = #feature_name)])
+    } else {
+        quote! {}
+    };
+
     match p_original {
         Peripheral::Array(p, dim) => {
             let names: Vec<Cow<str>> = names(p, dim).map(|n| n.into()).collect();
@@ -68,10 +75,13 @@ pub fn render(
             out.extend(quote! {
                 #(
                     #[doc = #description]
+                    #feature_attribute
                     pub struct #names_pc { _marker: PhantomData<*const ()> }
 
+                    #feature_attribute
                     unsafe impl Send for #names_pc {}
 
+                    #feature_attribute
                     impl #names_pc {
                         ///Pointer to the register block
                         pub const PTR: *const #base::RegisterBlock = #addresses as *const _;
@@ -83,6 +93,7 @@ pub fn render(
                         }
                     }
 
+                    #feature_attribute
                     impl Deref for #names_pc {
                         type Target = #base::RegisterBlock;
 
@@ -92,6 +103,7 @@ pub fn render(
                         }
                     }
 
+                    #feature_attribute
                     impl core::fmt::Debug for #names_pc {
                         fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                             f.debug_struct(#names_str).finish()
@@ -104,10 +116,13 @@ pub fn render(
             // Insert the peripheral structure
             out.extend(quote! {
                 #[doc = #description]
+                #feature_attribute
                 pub struct #name_pc { _marker: PhantomData<*const ()> }
 
+                #feature_attribute
                 unsafe impl Send for #name_pc {}
 
+                #feature_attribute
                 impl #name_pc {
                     ///Pointer to the register block
                     pub const PTR: *const #base::RegisterBlock = #address as *const _;
@@ -119,6 +134,7 @@ pub fn render(
                     }
                 }
 
+                #feature_attribute
                 impl Deref for #name_pc {
                     type Target = #base::RegisterBlock;
 
@@ -128,6 +144,7 @@ pub fn render(
                     }
                 }
 
+                #feature_attribute
                 impl core::fmt::Debug for #name_pc {
                     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                         f.debug_struct(#name_str).finish()
@@ -143,6 +160,7 @@ pub fn render(
         // re-export the base module to allow deriveFrom this one
         out.extend(quote! {
             #[doc = #description]
+            #feature_attribute
             pub use #base as #name_sc;
         });
         return Ok(out);
@@ -216,6 +234,7 @@ pub fn render(
 
     out.extend(quote! {
         #[doc = #description]
+        #feature_attribute
         pub mod #name_sc #open
     });
 

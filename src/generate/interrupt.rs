@@ -6,8 +6,8 @@ use cast::u64;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 
-use crate::util::{self, ToSanitizedUpperCase};
-use crate::Target;
+use crate::util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase};
+use crate::{Config, Target};
 use anyhow::Result;
 
 /// Generates code for `src/interrupt.rs`
@@ -15,58 +15,89 @@ pub fn render(
     target: Target,
     peripherals: &[Peripheral],
     device_x: &mut String,
+    config: &Config,
 ) -> Result<TokenStream> {
     let interrupts = peripherals
         .iter()
-        .flat_map(|p| p.interrupt.iter())
-        .map(|i| (i.value, i))
+        .flat_map(|p| p.interrupt.iter().map(move |i| (i, p.group_name.clone())))
+        .map(|i| (i.0.value, (i.0, i.1)))
         .collect::<HashMap<_, _>>();
 
     let mut interrupts = interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
-    interrupts.sort_by_key(|i| i.value);
+    interrupts.sort_by_key(|i| i.0.value);
 
     let mut root = TokenStream::new();
     let mut from_arms = TokenStream::new();
     let mut elements = TokenStream::new();
     let mut names = vec![];
+    let mut names_cfg_attr = vec![];
     let mut variants = TokenStream::new();
 
     // Current position in the vector table
     let mut pos = 0;
     let mut mod_items = TokenStream::new();
     for interrupt in &interrupts {
-        while pos < interrupt.value {
+        while pos < interrupt.0.value {
             elements.extend(quote!(Vector { _reserved: 0 },));
             pos += 1;
         }
         pos += 1;
 
-        let name_uc = Ident::new(&interrupt.name.to_sanitized_upper_case(), Span::call_site());
+        let name_uc = Ident::new(
+            &interrupt.0.name.to_sanitized_upper_case(),
+            Span::call_site(),
+        );
         let description = format!(
             "{} - {}",
-            interrupt.value,
+            interrupt.0.value,
             interrupt
+                .0
                 .description
                 .as_ref()
                 .map(|s| util::respace(s))
                 .as_ref()
                 .map(|s| util::escape_brackets(s))
-                .unwrap_or_else(|| interrupt.name.clone())
+                .unwrap_or_else(|| interrupt.0.name.clone())
         );
 
-        let value = util::unsuffixed(u64(interrupt.value));
+        let value = util::unsuffixed(u64(interrupt.0.value));
+
+        let mut feature_attribute_flag = false;
+        let (feature_attribute, not_feature_attribute) =
+            if config.feature_group && interrupt.1.is_some() {
+                let feature_name = interrupt.1.as_ref().unwrap().to_sanitized_snake_case();
+                feature_attribute_flag = true;
+                (
+                    quote!(#[cfg(feature = #feature_name)]),
+                    quote!(#[cfg(not(feature = #feature_name))]),
+                )
+            } else {
+                (quote!(), quote!())
+            };
 
         variants.extend(quote! {
             #[doc = #description]
+            #feature_attribute
             #name_uc = #value,
         });
 
         from_arms.extend(quote! {
+            #feature_attribute
             #value => Ok(Interrupt::#name_uc),
         });
 
-        elements.extend(quote!(Vector { _handler: #name_uc },));
+        if feature_attribute_flag {
+            elements.extend(quote! {
+                #not_feature_attribute
+                Vector { _reserved: 0 },
+                #feature_attribute
+                Vector { _handler: #name_uc },
+            });
+        } else {
+            elements.extend(quote!(Vector { _handler: #name_uc },));
+        }
         names.push(name_uc);
+        names_cfg_attr.push(feature_attribute);
     }
 
     let n = util::unsuffixed(u64(pos));
@@ -79,7 +110,7 @@ pub fn render(
             root.extend(quote! {
                 #[cfg(feature = "rt")]
                 extern "C" {
-                    #(fn #names();)*
+                    #(#names_cfg_attr fn #names();)*
                 }
 
                 #[doc(hidden)]
@@ -105,7 +136,7 @@ pub fn render(
             root.extend(quote! {
                 #[cfg(feature = "rt")]
                 extern "msp430-interrupt" {
-                    #(fn #names();)*
+                    #(#names_cfg_attr fn #names();)*
                 }
 
                 #[doc(hidden)]
@@ -133,7 +164,7 @@ pub fn render(
             root.extend(quote! {
                 #[cfg(feature = "rt")]
                 extern "C" {
-                    #(fn #names();)*
+                    #(#names_cfg_attr fn #names();)*
                 }
 
                 #[doc(hidden)]
@@ -158,7 +189,7 @@ pub fn render(
             root.extend(quote! {
                 #[cfg(feature = "rt")]
                 extern "C" {
-                    #(fn #names();)*
+                    #(#names_cfg_attr fn #names();)*
                 }
 
                 #[doc(hidden)]

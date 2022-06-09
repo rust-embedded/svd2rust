@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Add new feature `feature_group` which will generate cfg attribute for
+  every group name when it is on
+
 ## [v0.24.1] - 2022-07-04
 
 - Make field writer always generic around bit offset (fix bug #620)
