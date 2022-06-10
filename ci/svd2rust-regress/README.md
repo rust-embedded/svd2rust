@@ -60,7 +60,7 @@ FLAGS:
 
 OPTIONS:
     -a, --architecture <arch>
-            Filter by architecture, case sensitive, may be combined with other filters Options are: "CortexM", "RiscV", "Msp430" and "ESP32"
+            Filter by architecture, case sensitive, may be combined with other filters Options are: "CortexM", "RiscV", "Msp430", "Mips" and "XtensaLX"
     -p, --svd2rust-path <bin_path>
             Path to an `svd2rust` binary, relative or absolute. Defaults to `target/release/svd2rust[.exe]` of this
             repository (which must be already built)
