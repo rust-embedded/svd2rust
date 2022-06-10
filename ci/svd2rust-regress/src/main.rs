@@ -46,7 +46,7 @@ struct Opt {
     mfgr: Option<String>,
 
     /// Filter by architecture, case sensitive, may be combined with other filters
-    /// Options are: "CortexM", "RiscV", Mips, and "Msp430"
+    /// Options are: "CortexM", "RiscV", "Msp430", "Mips" and "XtensaLX"
     #[structopt(
         short = "a",
         long = "architecture",
