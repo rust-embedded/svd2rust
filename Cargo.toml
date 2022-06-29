@@ -33,12 +33,17 @@ section = "rust"
 doc = false
 name = "svd2rust"
 path = "src/main.rs"
+required-features = ["bin"]
+
+[features]
+default = ["bin"]
+bin = ["clap", "clap_conf", "env_logger"]
 
 [dependencies]
 cast = "0.3"
-clap = "2.33"
-clap_conf = "0.1.5"
-env_logger = "0.9"
+clap = { version = "2.33", optional = true }
+clap_conf = { version = "0.1.5", optional = true }
+env_logger = { version = "0.9", optional = true }
 inflections = "1.1"
 log = { version = "~0.4", features = ["std"] }
 quote = "1.0"

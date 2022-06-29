@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Make binary dependencies optional
+
 ## [v0.24.0] - 2022-05-12
 
 [commits][v0.24.0]
