@@ -25,6 +25,7 @@ name = "svd2rust"
 repository = "https://github.com/rust-embedded/svd2rust/"
 version = "0.24.0"
 readme = "README.md"
+rust-version = "1.60"
 
 [package.metadata.deb]
 section = "rust"
@@ -37,7 +38,7 @@ required-features = ["bin"]
 
 [features]
 default = ["bin"]
-bin = ["clap", "clap_conf", "env_logger"]
+bin = ["dep:clap", "dep:clap_conf", "dep:env_logger"]
 
 [dependencies]
 cast = "0.3"
