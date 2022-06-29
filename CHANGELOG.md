@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 
 - Make binary dependencies optional
+- Make JSON and YAML formats optional
+- Bump MSRV to 1.60
 
 ## [v0.24.0] - 2022-05-12
 

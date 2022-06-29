@@ -37,8 +37,10 @@ path = "src/main.rs"
 required-features = ["bin"]
 
 [features]
-default = ["bin"]
+default = ["bin", "json", "yaml"]
 bin = ["dep:clap", "dep:clap_conf", "dep:env_logger"]
+json = ["dep:serde_json"]
+yaml = ["dep:serde_yaml"]
 
 [dependencies]
 cast = "0.3"
@@ -51,8 +53,8 @@ quote = "1.0"
 proc-macro2 = "1.0"
 anyhow = "1.0"
 thiserror = "1.0"
-serde_json = "1.0.79"
-serde_yaml = "0.8.23"
+serde_json = { version = "1.0.79", optional = true }
+serde_yaml = { version = "0.8.23", optional = true }
 
 [dependencies.svd-parser]
 features = ["expand"]
