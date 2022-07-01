@@ -582,8 +582,10 @@ pub fn load_from(input: &str, config: &crate::util::Config) -> Result<svd::Devic
             svd_parser::parse_with_config(input, &parser_config)
                 .with_context(|| "Error parsing SVD XML file".to_string())?
         }
+        #[cfg(feature = "yaml")]
         SourceType::Yaml => serde_yaml::from_str(input)
             .with_context(|| "Error parsing SVD YAML file".to_string())?,
+        #[cfg(feature = "json")]
         SourceType::Json => serde_json::from_str(input)
             .with_context(|| "Error parsing SVD JSON file".to_string())?,
     };

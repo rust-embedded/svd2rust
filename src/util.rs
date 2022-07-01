@@ -88,7 +88,9 @@ impl Default for Target {
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum SourceType {
     Xml,
+    #[cfg(feature = "yaml")]
     Yaml,
+    #[cfg(feature = "json")]
     Json,
 }
 
@@ -102,9 +104,11 @@ impl SourceType {
     /// Make a new [`Source`] from a given extension.
     pub fn from_extension(s: &str) -> Option<Self> {
         match s {
-            "yml" | "yaml" => Some(Self::Yaml),
-            "json" => Some(Self::Json),
             "svd" | "xml" => Some(Self::Xml),
+            #[cfg(feature = "yaml")]
+            "yml" | "yaml" => Some(Self::Yaml),
+            #[cfg(feature = "json")]
+            "json" => Some(Self::Json),
             _ => None,
         }
     }
