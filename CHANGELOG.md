@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-- Make field writer always generic around bit offset
+## [v0.24.1] - 2022-07-04
+
+- Make field writer always generic around bit offset (fix bug #620)
 - Make binary dependencies optional
 - Make JSON and YAML formats optional
 - Bump MSRV to 1.60
@@ -712,7 +714,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.24.1...HEAD
+[v0.24.1]: https://github.com/rust-embedded/svd2rust/compare/v0.24.0...v0.24.1
 [v0.24.0]: https://github.com/rust-embedded/svd2rust/compare/v0.23.1...v0.24.0
 [v0.23.1]: https://github.com/rust-embedded/svd2rust/compare/v0.23.0...v0.23.1
 [v0.23.0]: https://github.com/rust-embedded/svd2rust/compare/v0.22.2...v0.23.0
