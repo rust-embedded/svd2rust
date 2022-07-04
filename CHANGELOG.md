@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Fix BitWriter derive
 - Make binary dependencies optional
 - Make JSON and YAML formats optional
 - Bump MSRV to 1.60

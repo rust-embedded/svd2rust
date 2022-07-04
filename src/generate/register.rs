@@ -670,8 +670,10 @@ pub fn fields(
                         let pc = util::replace_suffix(base.field, "");
                         let pc = pc.to_sanitized_upper_case();
                         let base_pc_w = Ident::new(&(pc + "_W"), span);
-                        derive_from_base(mod_items, &base, &name_pc_w, &base_pc_w, &writerdoc);
-                        derived = true;
+                        if base.bit_offset == f.bit_offset() {
+                            derive_from_base(mod_items, &base, &name_pc_w, &base_pc_w, &writerdoc);
+                            derived = true;
+                        }
                     }
                     _ => {
                         if !variants.is_empty() {
@@ -1022,6 +1024,7 @@ pub struct Base<'a> {
     pub peripheral: Option<&'a str>,
     pub register: Option<&'a str>,
     pub field: &'a str,
+    pub bit_offset: u32,
 }
 
 fn lookup<'a>(
@@ -1145,6 +1148,7 @@ fn lookup_in_field<'f>(
                 evs,
                 Some(Base {
                     field: &field.name,
+                    bit_offset: field.bit_offset(),
                     register: base_register,
                     peripheral: base_peripheral,
                 }),
@@ -1171,7 +1175,7 @@ fn lookup_in_register<'r>(
             .iter()
             .find(|evs| evs.name.as_deref() == Some(base_evs))
         {
-            matches.push((evs, &f.name))
+            matches.push((evs, f))
         }
     }
 
@@ -1184,7 +1188,8 @@ fn lookup_in_register<'r>(
         [(evs, field)] => Ok((
             evs,
             Some(Base {
-                field,
+                field: &field.name,
+                bit_offset: field.bit_offset(),
                 register: None,
                 peripheral: None,
             }),
