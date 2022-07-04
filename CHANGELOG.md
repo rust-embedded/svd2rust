@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Make field writer always generic around bit offset
 - Make binary dependencies optional
 - Make JSON and YAML formats optional
 - Bump MSRV to 1.60
