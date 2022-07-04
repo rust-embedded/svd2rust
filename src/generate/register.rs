@@ -666,14 +666,16 @@ pub fn fields(
                 }
 
                 match base {
-                    Some(base) if base.peripheral.is_none() && base.register.is_none() => {
+                    Some(base)
+                        if base.peripheral.is_none()
+                            && base.register.is_none()
+                            && base.bit_offset == f.bit_offset() =>
+                    {
                         let pc = util::replace_suffix(base.field, "");
                         let pc = pc.to_sanitized_upper_case();
                         let base_pc_w = Ident::new(&(pc + "_W"), span);
-                        if base.bit_offset == f.bit_offset() {
-                            derive_from_base(mod_items, &base, &name_pc_w, &base_pc_w, &writerdoc);
-                            derived = true;
-                        }
+                        derive_from_base(mod_items, &base, &name_pc_w, &base_pc_w, &writerdoc);
+                        derived = true;
                     }
                     _ => {
                         if !variants.is_empty() {
