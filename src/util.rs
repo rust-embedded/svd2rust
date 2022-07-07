@@ -30,6 +30,7 @@ pub struct Config {
     pub strict: bool,
     pub pascal_enum_values: bool,
     pub derive_more: bool,
+    pub feature_group: bool,
     pub output_dir: PathBuf,
     pub source_type: SourceType,
 }
@@ -47,6 +48,7 @@ impl Default for Config {
             strict: false,
             pascal_enum_values: false,
             derive_more: false,
+            feature_group: false,
             output_dir: PathBuf::from("."),
             source_type: SourceType::default(),
         }
@@ -481,4 +483,12 @@ impl FullName for PeripheralInfo {
     fn fullname(&self, _ignore_group: bool) -> Cow<str> {
         self.name.as_str().into()
     }
+}
+
+pub fn group_names(d: &Device) -> HashSet<Cow<str>> {
+    d.peripherals
+        .iter()
+        .filter_map(|p| p.group_name.as_ref())
+        .map(|name| name.to_sanitized_snake_case())
+        .collect()
 }

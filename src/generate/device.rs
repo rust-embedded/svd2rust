@@ -1,5 +1,5 @@
 use crate::svd::{array::names, Device, Peripheral};
-use crate::util::U32Ext;
+use crate::util::{ToSanitizedSnakeCase, U32Ext};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 
@@ -204,7 +204,12 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     }
 
     debug!("Rendering interrupts");
-    out.extend(interrupt::render(config.target, &d.peripherals, device_x)?);
+    out.extend(interrupt::render(
+        config.target,
+        &d.peripherals,
+        device_x,
+        config,
+    )?);
 
     for p in &d.peripherals {
         if config.target == Target::CortexM && core_peripherals.contains(&&*p.name.to_uppercase()) {
@@ -246,6 +251,12 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             // in the `Peripherals` struct
             continue;
         }
+        let feature_attribute = if config.feature_group && p.group_name.is_some() {
+            let feature_name = p.group_name.as_ref().unwrap().to_sanitized_snake_case();
+            quote!(#[cfg(feature = #feature_name)])
+        } else {
+            quote!()
+        };
 
         match p {
             Peripheral::Single(_p) => {
@@ -254,9 +265,10 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 let id = Ident::new(&p, Span::call_site());
                 fields.extend(quote! {
                     #[doc = #p]
+                    #feature_attribute
                     pub #id: #id,
                 });
-                exprs.extend(quote!(#id: #id { _marker: PhantomData },));
+                exprs.extend(quote!(#feature_attribute #id: #id { _marker: PhantomData },));
             }
             Peripheral::Array(_p, dim_element) => {
                 let p_names: Vec<Cow<str>> = names(p, dim_element).map(|n| n.into()).collect();
@@ -266,10 +278,13 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 fields.extend(quote! {
                     #(
                         #[doc = #p]
+                        #feature_attribute
                         pub #ids_f: #ids_f,
                     )*
                 });
-                exprs.extend(quote!(#(#ids_e: #ids_e { _marker: PhantomData },)*));
+                exprs.extend(
+                    quote!(#(#feature_attribute #ids_e: #ids_e { _marker: PhantomData },)*),
+                );
             }
         }
     }
