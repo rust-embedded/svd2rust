@@ -8,9 +8,7 @@ use log::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
 
-use crate::util::{
-    self, Config, ToSanitizedPascalCase, ToSanitizedSnakeCase, ToSanitizedUpperCase, U32Ext,
-};
+use crate::util::{self, Config, ToSanitizedCase, U32Ext};
 use anyhow::{anyhow, Result};
 
 pub fn render(
@@ -24,9 +22,12 @@ pub fn render(
     let access = util::access_of(properties, register.fields.as_deref());
     let name = util::name_of(register, config.ignore_groups);
     let span = Span::call_site();
-    let name_pc = Ident::new(&name.to_sanitized_upper_case(), span);
-    let name_uc_spec = Ident::new(&format!("{}_SPEC", &name.to_sanitized_upper_case()), span);
-    let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
+    let name_constant_case = Ident::new(&name.to_sanitized_constant_case(), span);
+    let name_constant_case_spec = Ident::new(
+        &format!("{}_SPEC", &name.to_sanitized_constant_case()),
+        span,
+    );
+    let name_snake_case = Ident::new(&name.to_sanitized_snake_case(), span);
     let rsize = properties
         .size
         .ok_or_else(|| anyhow!("Register {} has no `size` field", register.name))?;
@@ -65,13 +66,13 @@ pub fn render(
         mod_items.extend(quote! {
             #[doc = #desc]
             #derive
-            pub struct R(crate::R<#name_uc_spec>);
+            pub struct R(crate::R<#name_constant_case_spec>);
         });
 
         if !config.derive_more {
             mod_items.extend(quote! {
                 impl core::ops::Deref for R {
-                    type Target = crate::R<#name_uc_spec>;
+                    type Target = crate::R<#name_constant_case_spec>;
 
                     #[inline(always)]
                     fn deref(&self) -> &Self::Target {
@@ -79,9 +80,9 @@ pub fn render(
                     }
                 }
 
-                impl From<crate::R<#name_uc_spec>> for R {
+                impl From<crate::R<#name_constant_case_spec>> for R {
                     #[inline(always)]
-                    fn from(reader: crate::R<#name_uc_spec>) -> Self {
+                    fn from(reader: crate::R<#name_constant_case_spec>) -> Self {
                         R(reader)
                     }
                 }
@@ -100,13 +101,13 @@ pub fn render(
         mod_items.extend(quote! {
             #[doc = #desc]
             #derive
-            pub struct W(crate::W<#name_uc_spec>);
+            pub struct W(crate::W<#name_constant_case_spec>);
         });
 
         if !config.derive_more {
             mod_items.extend(quote! {
                 impl core::ops::Deref for W {
-                    type Target = crate::W<#name_uc_spec>;
+                    type Target = crate::W<#name_constant_case_spec>;
 
                     #[inline(always)]
                     fn deref(&self) -> &Self::Target {
@@ -121,9 +122,9 @@ pub fn render(
                     }
                 }
 
-                impl From<crate::W<#name_uc_spec>> for W {
+                impl From<crate::W<#name_constant_case_spec>> for W {
                     #[inline(always)]
-                    fn from(writer: crate::W<#name_uc_spec>) -> Self {
+                    fn from(writer: crate::W<#name_constant_case_spec>) -> Self {
                         W(writer)
                     }
                 }
@@ -152,7 +153,7 @@ pub fn render(
             fields(
                 &cur_fields,
                 register,
-                &name_uc_spec,
+                &name_constant_case_spec,
                 all_registers,
                 peripheral,
                 all_peripherals,
@@ -229,10 +230,10 @@ pub fn render(
     let mut doc = format!("{}\n\nThis register you can {}. See [API](https://docs.rs/svd2rust/#read--modify--write-api).",
                         &description, methods.join(", "));
 
-    if name_sc != "cfg" {
+    if name_snake_case != "cfg" {
         doc += format!(
             "\n\nFor information about available fields see [{0}](index.html) module",
-            &name_sc
+            &name_snake_case
         )
         .as_str();
     }
@@ -250,17 +251,17 @@ pub fn render(
 
     let alias_doc = format!(
         "{} register accessor: an alias for `Reg<{}>`",
-        name, name_uc_spec,
+        name, name_constant_case_spec,
     );
     out.extend(quote! {
         #[doc = #alias_doc]
-        pub type #name_pc = crate::Reg<#name_sc::#name_uc_spec>;
+        pub type #name_constant_case = crate::Reg<#name_snake_case::#name_constant_case_spec>;
     });
     mod_items.extend(quote! {
         #[doc = #doc]
-        pub struct #name_uc_spec;
+        pub struct #name_constant_case_spec;
 
-        impl crate::RegisterSpec for #name_uc_spec {
+        impl crate::RegisterSpec for #name_constant_case_spec {
             type Ux = #rty;
         }
     });
@@ -268,11 +269,11 @@ pub fn render(
     if can_read {
         let doc = format!(
             "`read()` method returns [{0}::R](R) reader structure",
-            &name_sc
+            &name_snake_case
         );
         mod_items.extend(quote! {
             #[doc = #doc]
-            impl crate::Readable for #name_uc_spec {
+            impl crate::Readable for #name_constant_case_spec {
                 type Reader = R;
             }
         });
@@ -280,11 +281,11 @@ pub fn render(
     if can_write {
         let doc = format!(
             "`write(|w| ..)` method takes [{0}::W](W) writer structure",
-            &name_sc
+            &name_snake_case
         );
         mod_items.extend(quote! {
             #[doc = #doc]
-            impl crate::Writable for #name_uc_spec {
+            impl crate::Writable for #name_constant_case_spec {
                 type Writer = W;
             }
         });
@@ -293,7 +294,7 @@ pub fn render(
         let doc = format!("`reset()` method sets {} to value {}", register.name, &rv);
         mod_items.extend(quote! {
             #[doc = #doc]
-            impl crate::Resettable for #name_uc_spec {
+            impl crate::Resettable for #name_constant_case_spec {
                 #[inline(always)]
                 fn reset_value() -> Self::Ux { #rv }
             }
@@ -302,7 +303,7 @@ pub fn render(
 
     out.extend(quote! {
         #[doc = #description]
-        pub mod #name_sc #open
+        pub mod #name_snake_case #open
     });
 
     out.extend(mod_items);
@@ -318,7 +319,7 @@ pub fn render(
 pub fn fields(
     fields: &[&Field],
     register: &Register,
-    name_uc_spec: &Ident,
+    name_constant_case_spec: &Ident,
     all_registers: &[&Register],
     peripheral: &Peripheral,
     all_peripherals: &[Peripheral],
@@ -340,8 +341,8 @@ pub fn fields(
         // TODO(AJM) - do we need to do anything with this range type?
         let BitRange { offset, width, .. } = f.bit_range;
         let name = util::replace_suffix(&f.name, "");
-        let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
-        let name_pc = name.to_sanitized_upper_case();
+        let name_snake_case = Ident::new(&name.to_sanitized_snake_case(), span);
+        let name_constant_case = name.to_sanitized_constant_case();
         let description_raw = f.description.as_deref().unwrap_or(""); // raw description, if absent using empty string
         let description = util::respace(&util::escape_brackets(description_raw));
 
@@ -374,8 +375,8 @@ pub fn fields(
 
         // Reader and writer use one common `Enum_A` unless a fields have two `enumeratedValues`,
         // then we have one for read-only `Enum_A` and another for write-only `Enum_AW`
-        let name_pc_a = Ident::new(&(name_pc.clone() + "_A"), span);
-        let mut name_pc_aw = &name_pc_a;
+        let name_constant_case_a = Ident::new(&(name_constant_case.clone() + "_A"), span);
+        let mut name_constant_case_aw = &name_constant_case_a;
 
         let mut evs_r = None;
 
@@ -428,7 +429,7 @@ pub fn fields(
                 };
             }
 
-            let name_pc_r = Ident::new(&(name_pc.clone() + "_R"), span);
+            let reader_ty = Ident::new(&(name_constant_case.clone() + "_R"), span);
 
             let cast = if width == 1 {
                 quote! { != 0 }
@@ -457,8 +458,8 @@ pub fn fields(
                 r_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub unsafe fn #name_sc(&self, n: u8) -> #name_pc_r {
-                        #name_pc_r::new ( #value )
+                    pub unsafe fn #name_snake_case(&self, n: u8) -> #reader_ty {
+                        #reader_ty::new ( #value )
                     }
                 });
                 for (i, suffix) in (0..*dim).zip(suffixes.iter()) {
@@ -477,7 +478,7 @@ pub fn fields(
                             self.bits
                         }
                     };
-                    let name_sc_n = Ident::new(
+                    let name_snake_case_n = Ident::new(
                         &util::replace_suffix(&f.name, suffix).to_sanitized_snake_case(),
                         Span::call_site(),
                     );
@@ -488,8 +489,8 @@ pub fn fields(
                     r_impl_items.extend(quote! {
                         #[doc = #doc]
                         #inline
-                        pub fn #name_sc_n(&self) -> #name_pc_r {
-                            #name_pc_r::new ( #value )
+                        pub fn #name_snake_case_n(&self) -> #reader_ty {
+                            #reader_ty::new ( #value )
                         }
                     });
                 }
@@ -498,8 +499,8 @@ pub fn fields(
                 r_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub fn #name_sc(&self) -> #name_pc_r {
-                        #name_pc_r::new ( #value )
+                    pub fn #name_snake_case(&self) -> #reader_ty {
+                        #reader_ty::new ( #value )
                     }
                 });
             }
@@ -513,22 +514,41 @@ pub fn fields(
                 if let Some(base) = base {
                     let pc_orig = util::replace_suffix(base.field, "");
 
-                    let pc = pc_orig.to_sanitized_upper_case();
+                    let pc = pc_orig.to_sanitized_constant_case();
                     let base_pc_a = Ident::new(&(pc + "_A"), span);
-                    derive_from_base(mod_items, &base, &name_pc_a, &base_pc_a, &description);
+                    derive_from_base(
+                        mod_items,
+                        &base,
+                        &name_constant_case_a,
+                        &base_pc_a,
+                        &description,
+                    );
 
-                    let pc = pc_orig.to_sanitized_upper_case();
+                    let pc = pc_orig.to_sanitized_constant_case();
                     let base_pc_r = Ident::new(&(pc + "_R"), span);
-                    derive_from_base(mod_items, &base, &name_pc_r, &base_pc_r, &readerdoc);
+                    derive_from_base(mod_items, &base, &reader_ty, &base_pc_r, &readerdoc);
                     derived = true;
                 } else {
                     let has_reserved_variant = evs.values.len() != (1 << width);
                     let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
 
                     if variants.is_empty() {
-                        add_with_no_variants(mod_items, &name_pc_a, &fty, &description, rv);
+                        add_with_no_variants(
+                            mod_items,
+                            &name_constant_case_a,
+                            &fty,
+                            &description,
+                            rv,
+                        );
                     } else {
-                        add_from_variants(mod_items, &variants, &name_pc_a, &fty, &description, rv);
+                        add_from_variants(
+                            mod_items,
+                            &variants,
+                            &name_constant_case_a,
+                            &fty,
+                            &description,
+                            rv,
+                        );
 
                         let mut arms = TokenStream::new();
                         for v in variants.iter().map(|v| {
@@ -536,9 +556,9 @@ pub fn fields(
                             let pc = &v.pc;
 
                             if has_reserved_variant {
-                                quote! { #i => Some(#name_pc_a::#pc), }
+                                quote! { #i => Some(#name_constant_case_a::#pc), }
                             } else {
-                                quote! { #i => #name_pc_a::#pc, }
+                                quote! { #i => #name_constant_case_a::#pc, }
                             }
                         }) {
                             arms.extend(v);
@@ -558,7 +578,7 @@ pub fn fields(
                             enum_items.extend(quote! {
                                 #[doc = "Get enumerated values variant"]
                                 #inline
-                                pub fn variant(&self) -> Option<#name_pc_a> {
+                                pub fn variant(&self) -> Option<#name_constant_case_a> {
                                     match self.bits {
                                         #arms
                                     }
@@ -568,7 +588,7 @@ pub fn fields(
                             enum_items.extend(quote! {
                             #[doc = "Get enumerated values variant"]
                             #inline
-                            pub fn variant(&self) -> #name_pc_a {
+                            pub fn variant(&self) -> #name_constant_case_a {
                                 match self.bits {
                                     #arms
                                 }
@@ -593,13 +613,13 @@ pub fn fields(
                                 #[doc = #doc]
                                 #inline
                                 pub fn #is_variant(&self) -> bool {
-                                    *self == #name_pc_a::#pc
+                                    *self == #name_constant_case_a::#pc
                                 }
                             });
                         }
                     }
 
-                    ftype = name_pc_a.clone();
+                    ftype = name_constant_case_a.clone();
                 }
             }
             if !derived {
@@ -610,12 +630,12 @@ pub fn fields(
                 };
                 mod_items.extend(quote! {
                     #[doc = #readerdoc]
-                    pub type #name_pc_r = #reader;
+                    pub type #reader_ty = #reader;
                 });
             }
             if !enum_items.is_empty() {
                 mod_items.extend(quote! {
-                    impl #name_pc_r {
+                    impl #reader_ty {
                         #enum_items
                     }
                 });
@@ -637,8 +657,8 @@ pub fn fields(
                 format!("Field `{}` writer - {}", f.name, description)
             };
 
-            let new_pc_aw = Ident::new(&(name_pc.clone() + "_AW"), span);
-            let name_pc_w = Ident::new(&(name_pc.clone() + "_W"), span);
+            let new_pc_aw = Ident::new(&(name_constant_case.clone() + "_AW"), span);
+            let writer_ty = Ident::new(&(name_constant_case.clone() + "_W"), span);
 
             let mut proxy_items = TokenStream::new();
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
@@ -652,25 +672,44 @@ pub fn fields(
                 }
 
                 if Some(evs) != evs_r.as_ref() {
-                    name_pc_aw = &new_pc_aw;
+                    name_constant_case_aw = &new_pc_aw;
                     if let Some(base) = base.as_ref() {
                         let pc = util::replace_suffix(base.field, "");
-                        let pc = pc.to_sanitized_upper_case();
+                        let pc = pc.to_sanitized_constant_case();
                         let base_pc_w = Ident::new(&(pc + "_AW"), span);
-                        derive_from_base(mod_items, base, name_pc_aw, &base_pc_w, &description);
+                        derive_from_base(
+                            mod_items,
+                            base,
+                            name_constant_case_aw,
+                            &base_pc_w,
+                            &description,
+                        );
                     } else if variants.is_empty() {
-                        add_with_no_variants(mod_items, name_pc_aw, &fty, &description, rv);
+                        add_with_no_variants(
+                            mod_items,
+                            name_constant_case_aw,
+                            &fty,
+                            &description,
+                            rv,
+                        );
                     } else {
-                        add_from_variants(mod_items, &variants, name_pc_aw, &fty, &description, rv);
+                        add_from_variants(
+                            mod_items,
+                            &variants,
+                            name_constant_case_aw,
+                            &fty,
+                            &description,
+                            rv,
+                        );
                     }
                 }
 
                 match base {
                     Some(base) if base.peripheral.is_none() && base.register.is_none() => {
                         let pc = util::replace_suffix(base.field, "");
-                        let pc = pc.to_sanitized_upper_case();
+                        let pc = pc.to_sanitized_constant_case();
                         let base_pc_w = Ident::new(&(pc + "_W"), span);
-                        derive_from_base(mod_items, &base, &name_pc_w, &base_pc_w, &writerdoc);
+                        derive_from_base(mod_items, &base, &writer_ty, &base_pc_w, &writerdoc);
                         derived = true;
                     }
                     _ => {
@@ -684,7 +723,7 @@ pub fn fields(
                                     #[doc = #doc]
                                     #inline
                                     pub fn #sc(self) -> &'a mut W {
-                                        self.variant(#name_pc_aw::#pc)
+                                        self.variant(#name_constant_case_aw::#pc)
                                     }
                                 });
                             }
@@ -692,7 +731,7 @@ pub fn fields(
                     }
                 }
             } else {
-                name_pc_aw = &fty;
+                name_constant_case_aw = &fty;
             }
 
             if !derived {
@@ -713,7 +752,7 @@ pub fn fields(
                         },
                         span,
                     );
-                    quote! { crate::#wproxy<'a, #rty, #name_uc_spec, #name_pc_aw, O> }
+                    quote! { crate::#wproxy<'a, #rty, #name_constant_case_spec, #name_constant_case_aw, O> }
                 } else {
                     let wproxy = Ident::new(
                         if unsafety {
@@ -724,16 +763,16 @@ pub fn fields(
                         span,
                     );
                     let width = &util::unsuffixed(width as _);
-                    quote! { crate::#wproxy<'a, #rty, #name_uc_spec, #fty, #name_pc_aw, #width, O> }
+                    quote! { crate::#wproxy<'a, #rty, #name_constant_case_spec, #fty, #name_constant_case_aw, #width, O> }
                 };
                 mod_items.extend(quote! {
                     #[doc = #writerdoc]
-                    pub type #name_pc_w<'a, const O: u8> = #proxy;
+                    pub type #writer_ty<'a, const O: u8> = #proxy;
                 });
             }
             if !proxy_items.is_empty() {
                 mod_items.extend(quote! {
-                    impl<'a, const O: u8> #name_pc_w<'a, O> {
+                    impl<'a, const O: u8> #writer_ty<'a, O> {
                         #proxy_items
                     }
                 });
@@ -744,14 +783,14 @@ pub fn fields(
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub unsafe fn #name_sc<const O: u8>(&mut self) -> #name_pc_w<O> {
-                        #name_pc_w::new(self)
+                    pub unsafe fn #name_snake_case<const O: u8>(&mut self) -> #writer_ty<O> {
+                        #writer_ty::new(self)
                     }
                 });
 
                 for (i, suffix) in (0..*dim).zip(suffixes.iter()) {
                     let sub_offset = offset + (i as u64) * (*increment as u64);
-                    let name_sc_n = Ident::new(
+                    let name_snake_case_n = Ident::new(
                         &util::replace_suffix(&f.name, suffix).to_sanitized_snake_case(),
                         Span::call_site(),
                     );
@@ -764,8 +803,8 @@ pub fn fields(
                     w_impl_items.extend(quote! {
                         #[doc = #doc]
                         #inline
-                        pub fn #name_sc_n(&mut self) -> #name_pc_w<#sub_offset> {
-                            #name_pc_w::new(self)
+                        pub fn #name_snake_case_n(&mut self) -> #writer_ty<#sub_offset> {
+                            #writer_ty::new(self)
                         }
                     });
                 }
@@ -775,8 +814,8 @@ pub fn fields(
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub fn #name_sc(&mut self) -> #name_pc_w<#offset> {
-                        #name_pc_w::new(self)
+                    pub fn #name_snake_case(&mut self) -> #writer_ty<#offset> {
+                        #writer_ty::new(self)
                     }
                 });
             }
@@ -837,7 +876,7 @@ impl Variant {
                         &(if pc {
                             ev.name.to_sanitized_pascal_case()
                         } else {
-                            ev.name.to_sanitized_upper_case()
+                            ev.name.to_sanitized_constant_case()
                         }),
                         span,
                     ),

@@ -6,7 +6,7 @@ use cast::u64;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 
-use crate::util::{self, ToSanitizedSnakeCase, ToSanitizedUpperCase};
+use crate::util::{self, ToSanitizedCase};
 use crate::{Config, Target};
 use anyhow::Result;
 
@@ -43,8 +43,8 @@ pub fn render(
         }
         pos += 1;
 
-        let name_uc = Ident::new(
-            &interrupt.0.name.to_sanitized_upper_case(),
+        let name_constant_case = Ident::new(
+            &interrupt.0.name.to_sanitized_constant_case(),
             Span::call_site(),
         );
         let description = format!(
@@ -78,12 +78,12 @@ pub fn render(
         variants.extend(quote! {
             #[doc = #description]
             #feature_attribute
-            #name_uc = #value,
+            #name_constant_case = #value,
         });
 
         from_arms.extend(quote! {
             #feature_attribute
-            #value => Ok(Interrupt::#name_uc),
+            #value => Ok(Interrupt::#name_constant_case),
         });
 
         if feature_attribute_flag {
@@ -91,12 +91,12 @@ pub fn render(
                 #not_feature_attribute
                 Vector { _reserved: 0 },
                 #feature_attribute
-                Vector { _handler: #name_uc },
+                Vector { _handler: #name_constant_case },
             });
         } else {
-            elements.extend(quote!(Vector { _handler: #name_uc },));
+            elements.extend(quote!(Vector { _handler: #name_constant_case },));
         }
-        names.push(name_uc);
+        names.push(name_constant_case);
         names_cfg_attr.push(feature_attribute);
     }
 

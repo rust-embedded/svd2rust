@@ -12,8 +12,8 @@ use quote::{quote, ToTokens};
 use syn::{parse_str, Token};
 
 use crate::util::{
-    self, handle_cluster_error, handle_reg_error, unsuffixed, Config, FullName,
-    ToSanitizedSnakeCase, ToSanitizedUpperCase, BITS_PER_BYTE,
+    self, handle_cluster_error, handle_reg_error, unsuffixed, Config, FullName, ToSanitizedCase,
+    BITS_PER_BYTE,
 };
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -44,16 +44,16 @@ pub fn render(
 
     let name = util::name_of(p, config.ignore_groups);
     let span = Span::call_site();
-    let name_str = name.to_sanitized_upper_case();
-    let name_pc = Ident::new(&name_str, span);
+    let name_str = name.to_sanitized_constant_case();
+    let name_constant_case = Ident::new(&name_str, span);
     let address = util::hex(p.base_address as u64);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
-    let name_sc = Ident::new(&name.to_sanitized_snake_case(), span);
+    let name_snake_case = Ident::new(&name.to_sanitized_snake_case(), span);
     let (derive_regs, base) = if let (Some(df), None) = (p_derivedfrom, &p_original.registers) {
         (true, Ident::new(&df.name.to_sanitized_snake_case(), span))
     } else {
-        (false, name_sc.clone())
+        (false, name_snake_case.clone())
     };
 
     let feature_attribute = if config.feature_group && p.group_name.is_some() {
@@ -66,8 +66,8 @@ pub fn render(
     match p_original {
         Peripheral::Array(p, dim) => {
             let names: Vec<Cow<str>> = names(p, dim).map(|n| n.into()).collect();
-            let names_str = names.iter().map(|n| n.to_sanitized_upper_case());
-            let names_pc = names_str.clone().map(|n| Ident::new(&n, span));
+            let names_str = names.iter().map(|n| n.to_sanitized_constant_case());
+            let names_constant_case = names_str.clone().map(|n| Ident::new(&n, span));
             let addresses =
                 (0..=dim.dim).map(|i| util::hex(p.base_address + (i * dim.dim_increment) as u64));
 
@@ -76,13 +76,13 @@ pub fn render(
                 #(
                     #[doc = #description]
                     #feature_attribute
-                    pub struct #names_pc { _marker: PhantomData<*const ()> }
+                    pub struct #names_constant_case { _marker: PhantomData<*const ()> }
 
                     #feature_attribute
-                    unsafe impl Send for #names_pc {}
+                    unsafe impl Send for #names_constant_case {}
 
                     #feature_attribute
-                    impl #names_pc {
+                    impl #names_constant_case {
                         ///Pointer to the register block
                         pub const PTR: *const #base::RegisterBlock = #addresses as *const _;
 
@@ -94,7 +94,7 @@ pub fn render(
                     }
 
                     #feature_attribute
-                    impl Deref for #names_pc {
+                    impl Deref for #names_constant_case {
                         type Target = #base::RegisterBlock;
 
                         #[inline(always)]
@@ -104,7 +104,7 @@ pub fn render(
                     }
 
                     #feature_attribute
-                    impl core::fmt::Debug for #names_pc {
+                    impl core::fmt::Debug for #names_constant_case {
                         fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                             f.debug_struct(#names_str).finish()
                         }
@@ -117,13 +117,13 @@ pub fn render(
             out.extend(quote! {
                 #[doc = #description]
                 #feature_attribute
-                pub struct #name_pc { _marker: PhantomData<*const ()> }
+                pub struct #name_constant_case { _marker: PhantomData<*const ()> }
 
                 #feature_attribute
-                unsafe impl Send for #name_pc {}
+                unsafe impl Send for #name_constant_case {}
 
                 #feature_attribute
-                impl #name_pc {
+                impl #name_constant_case {
                     ///Pointer to the register block
                     pub const PTR: *const #base::RegisterBlock = #address as *const _;
 
@@ -135,7 +135,7 @@ pub fn render(
                 }
 
                 #feature_attribute
-                impl Deref for #name_pc {
+                impl Deref for #name_constant_case {
                     type Target = #base::RegisterBlock;
 
                     #[inline(always)]
@@ -145,7 +145,7 @@ pub fn render(
                 }
 
                 #feature_attribute
-                impl core::fmt::Debug for #name_pc {
+                impl core::fmt::Debug for #name_constant_case {
                     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                         f.debug_struct(#name_str).finish()
                     }
@@ -161,7 +161,7 @@ pub fn render(
         out.extend(quote! {
             #[doc = #description]
             #feature_attribute
-            pub use #base as #name_sc;
+            pub use #base as #name_snake_case;
         });
         return Ok(out);
     }
@@ -235,7 +235,7 @@ pub fn render(
     out.extend(quote! {
         #[doc = #description]
         #feature_attribute
-        pub mod #name_sc #open
+        pub mod #name_snake_case #open
     });
 
     out.extend(mod_items);
@@ -627,7 +627,7 @@ fn register_or_cluster_block(
 
     let name = Ident::new(
         &match name {
-            Some(name) => name.to_sanitized_upper_case(),
+            Some(name) => name.to_sanitized_constant_case(),
             None => "RegisterBlock".into(),
         },
         span,
@@ -963,7 +963,7 @@ fn cluster_block(
 ) -> Result<TokenStream> {
     let mut mod_items = TokenStream::new();
 
-    // name_sc needs to take into account array type.
+    // name_snake_case needs to take into account array type.
     let description =
         util::escape_brackets(util::respace(c.description.as_ref().unwrap_or(&c.name)).as_ref());
 
@@ -975,7 +975,7 @@ fn cluster_block(
         },
         "",
     );
-    let name_sc = Ident::new(&mod_name.to_sanitized_snake_case(), Span::call_site());
+    let name_snake_case = Ident::new(&mod_name.to_sanitized_snake_case(), Span::call_site());
 
     let reg_block = register_or_cluster_block(&c.children, Some(&mod_name), config)?;
 
@@ -1006,7 +1006,7 @@ fn cluster_block(
 
         ///Register block
         #[doc = #description]
-        pub mod #name_sc {
+        pub mod #name_snake_case {
             #mod_items
         }
     })
@@ -1157,10 +1157,10 @@ fn name_to_ty_str<'a, 'b>(name: &'a str, ns: Option<&'b str>) -> Cow<'a, str> {
             String::from("self::")
                 + &ns.to_sanitized_snake_case()
                 + "::"
-                + &name.to_sanitized_upper_case(),
+                + &name.to_sanitized_constant_case(),
         )
     } else {
-        name.to_sanitized_upper_case()
+        name.to_sanitized_constant_case()
     }
 }
 
@@ -1175,13 +1175,13 @@ fn name_to_wrapped_ty_str(name: &str, ns: Option<&str>) -> String {
             "crate::Reg<self::{}::{}::{}_SPEC>",
             &ns.to_sanitized_snake_case(),
             &name.to_sanitized_snake_case(),
-            &name.to_sanitized_upper_case(),
+            &name.to_sanitized_constant_case(),
         )
     } else {
         format!(
             "crate::Reg<{}::{}_SPEC>",
             &name.to_sanitized_snake_case(),
-            &name.to_sanitized_upper_case(),
+            &name.to_sanitized_constant_case(),
         )
     }
 }

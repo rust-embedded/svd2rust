@@ -122,23 +122,51 @@ impl SourceType {
     }
 }
 
-pub trait ToSanitizedPascalCase {
+/// Convert self string into specific case without overlapping to svd2rust internal names
+pub trait ToSanitizedCase {
+    /// Convert self into PascalCase.
+    ///
+    /// Use on name of enumeration values.
     fn to_sanitized_pascal_case(&self) -> Cow<str>;
-}
-
-pub trait ToSanitizedUpperCase {
-    fn to_sanitized_upper_case(&self) -> Cow<str>;
-}
-
-pub trait ToSanitizedSnakeCase {
-    fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str>;
+    /// Convert self into CONSTANT_CASE.
+    ///
+    /// Use on name of reader structs, writer structs and enumerations.
+    fn to_sanitized_constant_case(&self) -> Cow<str>;
+    /// Convert self into snake_case, must use only if the target is used with extra prefix or suffix.
+    fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str>; // snake_case
+    /// Convert self into snake_case target and ensure target is not a Rust keyword.
+    ///
+    /// If the sanitized target is a Rust keyword, this function adds an underline `_`
+    /// to it.
+    ///
+    /// Use on name of peripheral modules, register modules and field modules.
     fn to_sanitized_snake_case(&self) -> Cow<str> {
         let s = self.to_sanitized_not_keyword_snake_case();
         sanitize_keyword(s)
     }
 }
 
-impl ToSanitizedSnakeCase for str {
+impl ToSanitizedCase for str {
+    fn to_sanitized_pascal_case(&self) -> Cow<str> {
+        let s = self.replace(BLACKLIST_CHARS, "");
+
+        match s.chars().next().unwrap_or('\0') {
+            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
+                Cow::from(format!("_{}", s.to_pascal_case()))
+            }
+            _ => Cow::from(s.to_pascal_case()),
+        }
+    }
+    fn to_sanitized_constant_case(&self) -> Cow<str> {
+        let s = self.replace(BLACKLIST_CHARS, "");
+
+        match s.chars().next().unwrap_or('\0') {
+            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
+                Cow::from(format!("_{}", s.to_constant_case()))
+            }
+            _ => Cow::from(s.to_constant_case()),
+        }
+    }
     fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str> {
         const INTERNALS: [&str; 4] = ["set_bit", "clear_bit", "bit", "bits"];
 
@@ -172,32 +200,6 @@ pub fn sanitize_keyword(sc: Cow<str>) -> Cow<str> {
         sc + "_"
     } else {
         sc
-    }
-}
-
-impl ToSanitizedUpperCase for str {
-    fn to_sanitized_upper_case(&self) -> Cow<str> {
-        let s = self.replace(BLACKLIST_CHARS, "");
-
-        match s.chars().next().unwrap_or('\0') {
-            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_upper_case()))
-            }
-            _ => Cow::from(s.to_upper_case()),
-        }
-    }
-}
-
-impl ToSanitizedPascalCase for str {
-    fn to_sanitized_pascal_case(&self) -> Cow<str> {
-        let s = self.replace(BLACKLIST_CHARS, "");
-
-        match s.chars().next().unwrap_or('\0') {
-            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_pascal_case()))
-            }
-            _ => Cow::from(s.to_pascal_case()),
-        }
     }
 }
 
