@@ -1,5 +1,4 @@
 use crate::svd::{array::names, Device, Peripheral};
-use crate::util::{ToSanitizedSnakeCase, U32Ext};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 
@@ -8,7 +7,7 @@ use std::borrow::Cow;
 use std::fs::File;
 use std::io::Write;
 
-use crate::util::{self, Config, ToSanitizedUpperCase};
+use crate::util::{self, Config, ToSanitizedCase, U32Ext};
 use crate::Target;
 use anyhow::{Context, Result};
 
@@ -261,7 +260,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         match p {
             Peripheral::Single(_p) => {
                 let p_name = util::name_of(p, config.ignore_groups);
-                let p = p_name.to_sanitized_upper_case();
+                let p = p_name.to_sanitized_constant_case();
                 let id = Ident::new(&p, Span::call_site());
                 fields.extend(quote! {
                     #[doc = #p]
@@ -272,7 +271,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             }
             Peripheral::Array(_p, dim_element) => {
                 let p_names: Vec<Cow<str>> = names(p, dim_element).map(|n| n.into()).collect();
-                let p = p_names.iter().map(|p| p.to_sanitized_upper_case());
+                let p = p_names.iter().map(|p| p.to_sanitized_constant_case());
                 let ids_f = p.clone().map(|p| Ident::new(&p, Span::call_site()));
                 let ids_e = ids_f.clone();
                 fields.extend(quote! {

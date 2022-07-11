@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Use constant case for structure names; internal rearrangements for
+  case conversation traits
 - Add new feature `feature_group` which will generate cfg attribute for
   every group name when it is on
 
