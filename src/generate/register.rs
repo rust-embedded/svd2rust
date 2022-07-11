@@ -705,7 +705,13 @@ pub fn fields(
                 }
 
                 match base {
-                    Some(base) if base.peripheral.is_none() && base.register.is_none() => {
+                    Some(base)
+                        if (base.peripheral.is_none()
+                            && (base.register.is_none()
+                                || base.register == Some(&register.name)))
+                            || base.peripheral == Some(&peripheral.name)
+                                && base.register == Some(&register.name) =>
+                    {
                         let pc = util::replace_suffix(base.field, "");
                         let pc = pc.to_sanitized_constant_case();
                         let base_pc_w = Ident::new(&(pc + "_W"), span);

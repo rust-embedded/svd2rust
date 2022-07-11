@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Fix derive field writer when link to same register
 - Use constant case for structure names; internal rearrangements for
   case conversation traits
 - Add new feature `feature_group` which will generate cfg attribute for
