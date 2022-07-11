@@ -414,6 +414,10 @@ main() {
             test_svd S6E2CC
         ;;
 
+        GD32)
+            test_svd_for_target cortex-m https://q.geek.nz/files/gd32f130.svd.patched
+        ;;
+
         Holtek)
             # OK
             test_svd ht32f125x
