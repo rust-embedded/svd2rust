@@ -1,3 +1,5 @@
+use std::collections::{hash_map::Entry, HashMap};
+
 use crate::svd::{
     Access, BitRange, EnumeratedValues, Field, ModifiedWriteValues, Peripheral, ReadAction,
     Register, RegisterProperties, Usage, WriteConstraint,
@@ -151,7 +153,7 @@ pub fn render(
 
         if !cur_fields.is_empty() {
             fields(
-                &cur_fields,
+                cur_fields,
                 register,
                 &name_constant_case_spec,
                 all_registers,
@@ -317,7 +319,7 @@ pub fn render(
 
 #[allow(clippy::too_many_arguments)]
 pub fn fields(
-    fields: &[&Field],
+    mut fields: Vec<&Field>,
     register: &Register,
     name_constant_case_spec: &Ident,
     all_registers: &[&Register],
@@ -334,6 +336,12 @@ pub fn fields(
     let span = Span::call_site();
     let can_read = access.can_read();
     let can_write = access.can_write();
+
+    fields.sort_by_key(|f| f.bit_offset());
+
+    let mut reader_derives = HashMap::new();
+    let mut writer_enum_derives = HashMap::new();
+    let mut writer_derives = HashMap::new();
 
     // TODO enumeratedValues
     let inline = quote! { #[inline(always)] };
@@ -366,7 +374,7 @@ pub fn fields(
 
         let lookup_results = lookup(
             evs,
-            fields,
+            &fields,
             register,
             all_registers,
             peripheral,
@@ -516,9 +524,16 @@ pub fn fields(
 
                     let pc = pc_orig.to_sanitized_constant_case();
                     let base_pc_a = Ident::new(&(pc + "_A"), span);
+                    let dbase = match reader_derives.entry(base) {
+                        Entry::Occupied(e) => *e.get(),
+                        Entry::Vacant(e) => {
+                            e.insert(Base::from_field(&f.name));
+                            base
+                        }
+                    };
                     derive_from_base(
                         mod_items,
-                        &base,
+                        &dbase,
                         &name_constant_case_a,
                         &base_pc_a,
                         &description,
@@ -526,7 +541,7 @@ pub fn fields(
 
                     let pc = pc_orig.to_sanitized_constant_case();
                     let base_pc_r = Ident::new(&(pc + "_R"), span);
-                    derive_from_base(mod_items, &base, &reader_ty, &base_pc_r, &readerdoc);
+                    derive_from_base(mod_items, &dbase, &reader_ty, &base_pc_r, &readerdoc);
                     derived = true;
                 } else {
                     let has_reserved_variant = evs.values.len() != (1 << width);
@@ -621,6 +636,8 @@ pub fn fields(
 
                     ftype = name_constant_case_a.clone();
                 }
+                let base = Base::from_field(&f.name);
+                reader_derives.insert(base, base);
             }
             if !derived {
                 let reader = if width == 1 {
@@ -677,67 +694,79 @@ pub fn fields(
                         let pc = util::replace_suffix(base.field, "");
                         let pc = pc.to_sanitized_constant_case();
                         let base_pc_w = Ident::new(&(pc + "_AW"), span);
+                        let dbase = match writer_enum_derives.entry(*base) {
+                            Entry::Occupied(e) => *e.get(),
+                            Entry::Vacant(e) => {
+                                e.insert(Base::from_field(&f.name));
+                                *base
+                            }
+                        };
                         derive_from_base(
                             mod_items,
-                            base,
+                            &dbase,
                             name_constant_case_aw,
                             &base_pc_w,
                             &description,
                         );
-                    } else if variants.is_empty() {
-                        add_with_no_variants(
-                            mod_items,
-                            name_constant_case_aw,
-                            &fty,
-                            &description,
-                            rv,
-                        );
                     } else {
-                        add_from_variants(
-                            mod_items,
-                            &variants,
-                            name_constant_case_aw,
-                            &fty,
-                            &description,
-                            rv,
-                        );
+                        if variants.is_empty() {
+                            add_with_no_variants(
+                                mod_items,
+                                name_constant_case_aw,
+                                &fty,
+                                &description,
+                                rv,
+                            );
+                        } else {
+                            add_from_variants(
+                                mod_items,
+                                &variants,
+                                name_constant_case_aw,
+                                &fty,
+                                &description,
+                                rv,
+                            );
+                        }
                     }
+                    let base = Base::from_field(&f.name);
+                    writer_enum_derives.insert(base, base);
                 }
 
                 match base {
                     Some(base)
-                        if (base.peripheral.is_none() &&base.register.is_none()) =>
+                        if (base.peripheral.is_none()
+                            && (base.register.is_none()
+                                || (base.register == Some(&register.name)
+                                    || base.register == register.derived_from.as_deref())))
+                            || ((base.peripheral == Some(&peripheral.name)
+                                || base.peripheral == peripheral.derived_from.as_deref())
+                                && base.register == Some(&register.name)) =>
                     {
                         let pc = util::replace_suffix(base.field, "");
                         let pc = pc.to_sanitized_constant_case();
                         let base_pc_w = Ident::new(&(pc + "_W"), span);
-                        derive_from_base(mod_items, &base, &writer_ty, &base_pc_w, &writerdoc);
+                        let dbase = match writer_derives.entry(base) {
+                            Entry::Occupied(e) => *e.get(),
+                            Entry::Vacant(e) => {
+                                e.insert(Base::from_field(&f.name));
+                                base
+                            }
+                        };
+                        derive_from_base(mod_items, &dbase, &writer_ty, &base_pc_w, &writerdoc);
                         derived = true;
                     }
-                    Some(base)
-                        if base.peripheral.is_none() && base.register.is_some() && (base.register == Some(&register.name) || base.register == register.derived_from.as_deref()) =>
-                    {
+                    Some(base) if writer_derives.get(&base).is_some() => {
                         let pc = util::replace_suffix(base.field, "");
                         let pc = pc.to_sanitized_constant_case();
                         let base_pc_w = Ident::new(&(pc + "_W"), span);
-                        derive_from_base(mod_items, &base, &writer_ty, &base_pc_w, &writerdoc);
+                        let dbase = writer_derives.get(&base).unwrap();
+                        derive_from_base(mod_items, &dbase, &writer_ty, &base_pc_w, &writerdoc);
                         derived = true;
-                        println!("=================");
-                        println!("{}::{}", register.name, f.name);
-                    }
-                    Some(base)
-                        if base.peripheral.is_some() && (base.peripheral == Some(&peripheral.name) || base.peripheral == peripheral.derived_from.as_deref())
-                                && base.register == Some(&register.name) =>
-                    {
-                        let pc = util::replace_suffix(base.field, "");
-                        let pc = pc.to_sanitized_constant_case();
-                        let base_pc_w = Ident::new(&(pc + "_W"), span);
-                        derive_from_base(mod_items, &base, &writer_ty, &base_pc_w, &writerdoc);
-                        derived = true;
-                        println!("=================");
-                        println!("{}::{}::{}", peripheral.name, register.name, f.name);
                     }
                     _ => {
+                        if let Some(base) = base {
+                            writer_derives.insert(base, Base::from_field(&f.name));
+                        }
                         if !variants.is_empty() {
                             for v in &variants {
                                 let pc = &v.pc;
@@ -755,6 +784,8 @@ pub fn fields(
                         }
                     }
                 }
+                let base = Base::from_field(&f.name);
+                writer_derives.insert(base, base);
             } else {
                 name_constant_case_aw = &fty;
             }
@@ -1069,11 +1100,21 @@ fn derive_from_base(
     });
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct Base<'a> {
     pub peripheral: Option<&'a str>,
     pub register: Option<&'a str>,
     pub field: &'a str,
+}
+
+impl<'a> Base<'a> {
+    pub fn from_field(field: &'a str) -> Self {
+        Self {
+            peripheral: None,
+            register: None,
+            field,
+        }
+    }
 }
 
 fn lookup<'a>(
@@ -1233,14 +1274,7 @@ fn lookup_in_register<'r>(
             base_evs,
             register.name
         )),
-        [(evs, field)] => Ok((
-            evs,
-            Some(Base {
-                field,
-                register: None,
-                peripheral: None,
-            }),
-        )),
+        [(evs, field)] => Ok((evs, Some(Base::from_field(field)))),
         matches => {
             let fields = matches.iter().map(|(f, _)| &f.name).collect::<Vec<_>>();
             Err(anyhow!(
