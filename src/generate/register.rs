@@ -151,7 +151,7 @@ pub fn render(
 
         if !cur_fields.is_empty() {
             fields(
-                &cur_fields,
+                cur_fields,
                 register,
                 &name_constant_case_spec,
                 all_registers,
@@ -317,7 +317,7 @@ pub fn render(
 
 #[allow(clippy::too_many_arguments)]
 pub fn fields(
-    fields: &[&Field],
+    mut fields: Vec<&Field>,
     register: &Register,
     name_constant_case_spec: &Ident,
     all_registers: &[&Register],
@@ -334,6 +334,8 @@ pub fn fields(
     let span = Span::call_site();
     let can_read = access.can_read();
     let can_write = access.can_write();
+
+    fields.sort_by_key(|f| f.bit_offset());
 
     // TODO enumeratedValues
     let inline = quote! { #[inline(always)] };
@@ -366,7 +368,7 @@ pub fn fields(
 
         let lookup_results = lookup(
             evs,
-            fields,
+            &fields,
             register,
             all_registers,
             peripheral,
@@ -1044,11 +1046,21 @@ fn derive_from_base(
     });
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct Base<'a> {
     pub peripheral: Option<&'a str>,
     pub register: Option<&'a str>,
     pub field: &'a str,
+}
+
+impl<'a> Base<'a> {
+    pub fn from_field(field: &'a str) -> Self {
+        Self {
+            peripheral: None,
+            register: None,
+            field,
+        }
+    }
 }
 
 fn lookup<'a>(
@@ -1208,14 +1220,7 @@ fn lookup_in_register<'r>(
             base_evs,
             register.name
         )),
-        [(evs, field)] => Ok((
-            evs,
-            Some(Base {
-                field,
-                register: None,
-                peripheral: None,
-            }),
-        )),
+        [(evs, field)] => Ok((evs, Some(Base::from_field(field)))),
         matches => {
             let fields = matches.iter().map(|(f, _)| &f.name).collect::<Vec<_>>();
             Err(anyhow!(
