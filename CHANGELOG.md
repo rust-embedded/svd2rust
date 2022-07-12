@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   case conversation traits
 - Add new feature `feature_group` which will generate cfg attribute for
   every group name when it is on
+- Sort fields by offset before process
 
 ## [v0.24.1] - 2022-07-04
 

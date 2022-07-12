@@ -456,7 +456,7 @@ fn handle_erc_error<T>(msg: &str, name: &str, descrip: &str, res: Result<T>) -> 
     res.with_context(|| format!("{}\nName: {}\nDescription: {}", msg, name, descrip))
 }
 
-pub fn get_register_sizes(d: &Device) -> HashSet<u32> {
+pub fn get_register_sizes(d: &Device) -> Vec<u32> {
     let mut reg_sizes = HashSet::new();
     for p in &d.peripherals {
         for r in p.all_registers() {
@@ -465,6 +465,8 @@ pub fn get_register_sizes(d: &Device) -> HashSet<u32> {
             }
         }
     }
+    let mut reg_sizes: Vec<_> = reg_sizes.into_iter().collect();
+    reg_sizes.sort();
     reg_sizes
 }
 
