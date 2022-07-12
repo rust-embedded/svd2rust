@@ -706,10 +706,27 @@ pub fn fields(
 
                 match base {
                     Some(base)
-                        if (base.peripheral.is_none()
-                            && (base.register.is_none()
-                                || base.register == Some(&register.name)))
-                            || base.peripheral == Some(&peripheral.name)
+                        if (base.peripheral.is_none() &&base.register.is_none()) =>
+                    {
+                        let pc = util::replace_suffix(base.field, "");
+                        let pc = pc.to_sanitized_constant_case();
+                        let base_pc_w = Ident::new(&(pc + "_W"), span);
+                        derive_from_base(mod_items, &base, &writer_ty, &base_pc_w, &writerdoc);
+                        derived = true;
+                    }
+                    Some(base)
+                        if base.peripheral.is_none() && base.register.is_some() && (base.register == Some(&register.name) || base.register == register.derived_from.as_deref()) =>
+                    {
+                        let pc = util::replace_suffix(base.field, "");
+                        let pc = pc.to_sanitized_constant_case();
+                        let base_pc_w = Ident::new(&(pc + "_W"), span);
+                        derive_from_base(mod_items, &base, &writer_ty, &base_pc_w, &writerdoc);
+                        derived = true;
+                        println!("=================");
+                        println!("{}::{}", register.name, f.name);
+                    }
+                    Some(base)
+                        if base.peripheral.is_some() && (base.peripheral == Some(&peripheral.name) || base.peripheral == peripheral.derived_from.as_deref())
                                 && base.register == Some(&register.name) =>
                     {
                         let pc = util::replace_suffix(base.field, "");
@@ -717,6 +734,8 @@ pub fn fields(
                         let base_pc_w = Ident::new(&(pc + "_W"), span);
                         derive_from_base(mod_items, &base, &writer_ty, &base_pc_w, &writerdoc);
                         derived = true;
+                        println!("=================");
+                        println!("{}::{}::{}", peripheral.name, register.name, f.name);
                     }
                     _ => {
                         if !variants.is_empty() {
