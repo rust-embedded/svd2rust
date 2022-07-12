@@ -415,7 +415,7 @@ main() {
         ;;
 
         GD32)
-            test_svd_for_target cortex-m https://q.geek.nz/files/gd32f130.svd.patched
+            #test_svd_for_target cortex-m https://q.geek.nz/files/gd32f130.svd.patched
         ;;
 
         Holtek)
