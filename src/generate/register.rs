@@ -375,11 +375,6 @@ pub fn fields(
             all_peripherals,
         )?;
 
-        // Reader and writer use one common `Enum_A` unless a fields have two `enumeratedValues`,
-        // then we have one for read-only `Enum_A` and another for write-only `Enum_AW`
-        let name_constant_case_a = Ident::new(&(name_constant_case.clone() + "_A"), span);
-        let mut value_write_ty = &name_constant_case_a;
-
         let mut evs_r = None;
 
         // Reads dim information from svd field. If it has dim index, the field is treated as an
@@ -438,7 +433,7 @@ pub fn fields(
 
             // get a brief description for this field
             // the suffix string from field name is removed in brief description.
-            let mut field_reader_brief = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
+            let field_reader_brief = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
                 format!(
                     "Fields `{}` reader - {}",
                     util::replace_suffix(&f.name, suffixes_str),
@@ -447,17 +442,192 @@ pub fn fields(
             } else {
                 format!("Field `{}` reader - {}", f.name, description)
             };
-            if let Some(action) = f.read_action {
-                field_reader_brief += match action {
-                    ReadAction::Clear => "\n\nThe field is **cleared** (set to zero) following a read operation.",
-                    ReadAction::Set => "\n\nThe field is **set** (set to ones) following a read operation.",
-                    ReadAction::Modify => "\n\nThe field is **modified** in some way after a read operation.",
-                    ReadAction::ModifyExternal => "\n\nOne or more dependent resources other than the current field are immediately affected by a read operation.",
-                };
-            }
+
+            // get the type of value structure. It can be generated from either name field
+            // in enumeratedValues if it's an enumeration, or from field name directly if it's not.
+            let value_read_ty = if let Some((evs, _)) = lookup_filter(&lookup_results, Usage::Read)
+            {
+                if let Some(enum_name) = &evs.name {
+                    let enum_name_constant_case = enum_name.to_sanitized_constant_case();
+                    let enum_value_read_ty =
+                        Ident::new(&format!("{}_A", enum_name_constant_case), span);
+                    enum_value_read_ty
+                } else {
+                    let derived_field_value_read_ty =
+                        Ident::new(&format!("{}_A", name_constant_case), span);
+                    derived_field_value_read_ty
+                }
+            } else {
+                let raw_field_value_read_ty = fty.clone();
+                raw_field_value_read_ty
+            };
 
             // name of read proxy type
             let reader_ty = Ident::new(&(name_constant_case.clone() + "_R"), span);
+
+            // if it's enumeratedValues and it's derived from base, don't derive the read proxy
+            // as the base has already dealt with this;
+            // if it's enumeratedValues but not derived from base, derive the reader from
+            // information in enumeratedValues;
+            // if it's not enumeratedValues, always derive the read proxy as we do not need to re-export
+            // it again from BitReader or FieldReader.
+            let should_derive_reader = match lookup_filter(&lookup_results, Usage::Read) {
+                Some((_evs, Some(_base))) => false,
+                Some((_evs, None)) => true,
+                None => true,
+            };
+
+            // derive the read proxy structure if necessary.
+            if should_derive_reader {
+                let reader = if width == 1 {
+                    quote! { crate::BitReader<#value_read_ty> }
+                } else {
+                    quote! { crate::FieldReader<#fty, #value_read_ty> }
+                };
+                let mut readerdoc = field_reader_brief.clone();
+                if let Some(action) = f.read_action {
+                    readerdoc += match action {
+                        ReadAction::Clear => "\n\nThe field is **cleared** (set to zero) following a read operation.",
+                        ReadAction::Set => "\n\nThe field is **set** (set to ones) following a read operation.",
+                        ReadAction::Modify => "\n\nThe field is **modified** in some way after a read operation.",
+                        ReadAction::ModifyExternal => "\n\nOne or more dependent resources other than the current field are immediately affected by a read operation.",
+                    };
+                }
+                mod_items.extend(quote! {
+                    #[doc = #readerdoc]
+                    pub type #reader_ty = #reader;
+                });
+            }
+
+            // collect information on items in enumeration to generate it later.
+            let mut enum_items = TokenStream::new();
+
+            // if this is an enumeratedValues not derived from base, generate the enum structure
+            // and implement functions for each value in enumeration.
+            if let Some((evs, None)) = lookup_filter(&lookup_results, Usage::Read) {
+                // we have enumeration for read, record this. If the enumeration for write operation
+                // later on is the same as the read enumeration, we reuse and do not generate again.
+                evs_r = Some(evs.clone());
+
+                // do we have finite definition of this enumeration in svd? If not, the later code would
+                // return an Option when the value read from field does not match any defined values.
+                let has_reserved_variant = evs.values.len() != (1 << width);
+                // parse enum variants from enumeratedValues svd record
+                let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
+
+                // if there's no variant defined in enumeratedValues, generate enumeratedValues with new-type
+                // wrapper struct, and generate From conversation only.
+                // else, generate enumeratedValues into a Rust enum with functions for each variant.
+                if variants.is_empty() {
+                    // generate struct VALUE_READ_TY_A(fty) and From<fty> for VALUE_READ_TY_A.
+                    add_with_no_variants(mod_items, &value_read_ty, &fty, &description, rv);
+                } else {
+                    // generate enum VALUE_READ_TY_A { ... each variants ... } and and From<fty> for VALUE_READ_TY_A.
+                    add_from_variants(mod_items, &variants, &value_read_ty, &fty, &description, rv);
+
+                    // prepare code for each match arm. If we have reserved variant, the match operation would
+                    // return an Option, thus we wrap the return value with Some.
+                    let mut arms = TokenStream::new();
+                    for v in variants.iter().map(|v| {
+                        let i = util::unsuffixed_or_bool(v.value, width);
+                        let pc = &v.pc;
+
+                        if has_reserved_variant {
+                            quote! { #i => Some(#value_read_ty::#pc), }
+                        } else {
+                            quote! { #i => #value_read_ty::#pc, }
+                        }
+                    }) {
+                        arms.extend(v);
+                    }
+
+                    // if we have reserved variant, for all values other than defined we return None.
+                    // if svd suggests it only would return defined variants but FieldReader has
+                    // other values, it's regarded as unreachable and we enter unreachable! macro.
+                    // This situation is rare and only exists if unsafe code casts any illegal value
+                    // into a FieldReader structure.
+                    if has_reserved_variant {
+                        arms.extend(quote! {
+                            _ => None,
+                        });
+                    } else if 1 << width.to_ty_width()? != variants.len() {
+                        arms.extend(quote! {
+                            _ => unreachable!(),
+                        });
+                    }
+
+                    // prepare the `variant` function. This function would return field value in
+                    // Rust structure; if we have reserved variant we return by Option.
+                    if has_reserved_variant {
+                        enum_items.extend(quote! {
+                            #[doc = "Get enumerated values variant"]
+                            #inline
+                            pub fn variant(&self) -> Option<#value_read_ty> {
+                                match self.bits {
+                                    #arms
+                                }
+                            }
+                        });
+                    } else {
+                        enum_items.extend(quote! {
+                        #[doc = "Get enumerated values variant"]
+                        #inline
+                        pub fn variant(&self) -> #value_read_ty {
+                            match self.bits {
+                                #arms
+                            }
+                        }});
+                    }
+
+                    // for each variant defined, we generate an `is_variant` function.
+                    for v in &variants {
+                        let pc = &v.pc;
+                        let sc = &v.nksc;
+
+                        let is_variant = Ident::new(
+                            &if sc.to_string().starts_with('_') {
+                                format!("is{}", sc)
+                            } else {
+                                format!("is_{}", sc)
+                            },
+                            span,
+                        );
+
+                        let doc = format!("Checks if the value of the field is `{}`", pc);
+                        enum_items.extend(quote! {
+                            #[doc = #doc]
+                            #inline
+                            pub fn #is_variant(&self) -> bool {
+                                *self == #value_read_ty::#pc
+                            }
+                        });
+                    }
+                }
+            }
+
+            // if this value is derived from a base, generate `pub use` code for each read proxy and value
+            // if necessary.
+            if let Some((evs, Some(base))) = lookup_filter(&lookup_results, Usage::Read) {
+                // preserve value; if read type equals write type, writer would not generate value type again
+                evs_r = Some(evs.clone());
+                // generate pub use field_1 reader as field_2 reader
+                let base_field = util::replace_suffix(base.field, "");
+                let base_constant_case = base_field.to_sanitized_constant_case();
+                let base_r = Ident::new(&(base_constant_case + "_R"), span);
+                derive_from_base(mod_items, &base, &reader_ty, &base_r, &field_reader_brief);
+                // only pub use enum when base.register != None. if base.register == None, it emits
+                // pub use enum from same module which is not expected
+                if base.register != None {
+                    // use the same enum structure name
+                    derive_from_base(
+                        mod_items,
+                        &base,
+                        &value_read_ty,
+                        &value_read_ty,
+                        &description,
+                    );
+                }
+            }
 
             if let Some((first, dim, increment, suffixes, suffixes_str)) = &field_dim {
                 let offset_calc = calculate_offset(*first, *increment, offset, true);
@@ -513,164 +683,6 @@ pub fn fields(
                 });
             }
 
-            // collect information on items in enumeration to generate it later.
-            let mut enum_items = TokenStream::new();
-            let mut should_derive_reader = true;
-            let mut ftype = fty.clone();
-
-            // if this is an enumeratedValues not derived from base, generate the enum structure
-            // and implement functions for each value in enumeration.
-            if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Read) {
-                evs_r = Some(evs.clone());
-
-                if let Some(base) = base {
-                    let pc_orig = util::replace_suffix(base.field, "");
-
-                    let pc = pc_orig.to_sanitized_constant_case();
-                    let base_pc_a = Ident::new(&(pc + "_A"), span);
-                    derive_from_base(
-                        mod_items,
-                        &base,
-                        &name_constant_case_a,
-                        &base_pc_a,
-                        &description,
-                    );
-
-                    let pc = pc_orig.to_sanitized_constant_case();
-                    let base_pc_r = Ident::new(&(pc + "_R"), span);
-                    derive_from_base(
-                        mod_items,
-                        &base,
-                        &reader_ty,
-                        &base_pc_r,
-                        &field_reader_brief,
-                    );
-                    should_derive_reader = false;
-                } else {
-                    // do we have finite definition of this enumeration in svd? If not, the later code would
-                    // return an Option when the value read from field does not match any defined values.
-                    let has_reserved_variant = evs.values.len() != (1 << width);
-                    // parse enum variants from enumeratedValues svd record
-                    let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
-
-                    // if there's no variant defined in enumeratedValues, generate enumeratedValues with new-type
-                    // wrapper struct, and generate From conversation only.
-                    // else, generate enumeratedValues into a Rust enum with functions for each variant.
-                    if variants.is_empty() {
-                        // generate struct VALUE_READ_TY_A(fty) and From<fty> for VALUE_READ_TY_A.
-                        add_with_no_variants(
-                            mod_items,
-                            &name_constant_case_a,
-                            &fty,
-                            &description,
-                            rv,
-                        );
-                    } else {
-                        // generate enum VALUE_READ_TY_A { ... each variants ... } and and From<fty> for VALUE_READ_TY_A.
-                        add_from_variants(
-                            mod_items,
-                            &variants,
-                            &name_constant_case_a,
-                            &fty,
-                            &description,
-                            rv,
-                        );
-
-                        // prepare code for each match arm. If we have reserved variant, the match operation would
-                        // return an Option, thus we wrap the return value with Some.
-                        let mut arms = TokenStream::new();
-                        for v in variants.iter().map(|v| {
-                            let i = util::unsuffixed_or_bool(v.value, width);
-                            let pc = &v.pc;
-
-                            if has_reserved_variant {
-                                quote! { #i => Some(#name_constant_case_a::#pc), }
-                            } else {
-                                quote! { #i => #name_constant_case_a::#pc, }
-                            }
-                        }) {
-                            arms.extend(v);
-                        }
-
-                        // if we have reserved variant, for all values other than defined we return None.
-                        // if svd suggests it only would return defined variants but FieldReader has
-                        // other values, it's regarded as unreachable and we enter unreachable! macro.
-                        // This situation is rare and only exists if unsafe code casts any illegal value
-                        // into a FieldReader structure.
-                        if has_reserved_variant {
-                            arms.extend(quote! {
-                                _ => None,
-                            });
-                        } else if 1 << width.to_ty_width()? != variants.len() {
-                            arms.extend(quote! {
-                                _ => unreachable!(),
-                            });
-                        }
-
-                        // prepare the `variant` function. This function would return field value in
-                        // Rust structure; if we have reserved variant we return by Option.
-                        if has_reserved_variant {
-                            enum_items.extend(quote! {
-                                #[doc = "Get enumerated values variant"]
-                                #inline
-                                pub fn variant(&self) -> Option<#name_constant_case_a> {
-                                    match self.bits {
-                                        #arms
-                                    }
-                                }
-                            });
-                        } else {
-                            enum_items.extend(quote! {
-                            #[doc = "Get enumerated values variant"]
-                            #inline
-                            pub fn variant(&self) -> #name_constant_case_a {
-                                match self.bits {
-                                    #arms
-                                }
-                            }});
-                        }
-
-                        // for each variant defined, we generate an `is_variant` function.
-                        for v in &variants {
-                            let pc = &v.pc;
-                            let sc = &v.nksc;
-
-                            let is_variant = Ident::new(
-                                &if sc.to_string().starts_with('_') {
-                                    format!("is{}", sc)
-                                } else {
-                                    format!("is_{}", sc)
-                                },
-                                span,
-                            );
-
-                            let doc = format!("Checks if the value of the field is `{}`", pc);
-                            enum_items.extend(quote! {
-                                #[doc = #doc]
-                                #inline
-                                pub fn #is_variant(&self) -> bool {
-                                    *self == #name_constant_case_a::#pc
-                                }
-                            });
-                        }
-                    }
-
-                    ftype = name_constant_case_a.clone();
-                }
-            }
-
-            // derive the read proxy structure if necessary.
-            if should_derive_reader {
-                let reader = if width == 1 {
-                    quote! { crate::BitReader<#ftype> }
-                } else {
-                    quote! { crate::FieldReader<#fty, #ftype> }
-                };
-                mod_items.extend(quote! {
-                    #[doc = #field_reader_brief]
-                    pub type #reader_ty = #reader;
-                });
-            }
             // generate the enumeration functions prepared before.
             if !enum_items.is_empty() {
                 mod_items.extend(quote! {
@@ -699,16 +711,37 @@ pub fn fields(
                 format!("Field `{}` writer - {}", f.name, description)
             };
 
-            let new_pc_aw = Ident::new(&(name_constant_case.clone() + "_AW"), span);
+            let value_write_ty =
+                if let Some((evs, _)) = lookup_filter(&lookup_results, Usage::Write) {
+                    let writer_reader_different_enum = evs_r.as_ref() != Some(evs);
+                    let ty_suffix = if writer_reader_different_enum {
+                        "AW"
+                    } else {
+                        "A"
+                    };
+                    if let Some(enum_name) = &evs.name {
+                        let enum_name_constant_case = enum_name.to_sanitized_constant_case();
+                        let enum_value_write_ty =
+                            Ident::new(&format!("{}_{}", enum_name_constant_case, ty_suffix), span);
+                        enum_value_write_ty
+                    } else {
+                        let derived_field_value_write_ty =
+                            Ident::new(&format!("{}_{}", name_constant_case, ty_suffix), span);
+                        derived_field_value_write_ty
+                    }
+                } else {
+                    let raw_field_value_write_ty = fty.clone();
+                    raw_field_value_write_ty
+                };
+
             // name of write proxy type
             let writer_ty = Ident::new(&(name_constant_case.clone() + "_W"), span);
 
             let mut proxy_items = TokenStream::new();
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
 
-            let mut should_derive_writer = true;
             // if we writes to enumeratedValues, generate its structure if it differs from read structure.
-            if let Some((evs, base)) = lookup_filter(&lookup_results, Usage::Write) {
+            if let Some((evs, None)) = lookup_filter(&lookup_results, Usage::Write) {
                 // parse variants from enumeratedValues svd record
                 let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
 
@@ -717,20 +750,19 @@ pub fn fields(
                     unsafety = false;
                 }
 
-                if Some(evs) != evs_r.as_ref() {
-                    value_write_ty = &new_pc_aw;
-                    if let Some(base) = base.as_ref() {
-                        let pc = util::replace_suffix(base.field, "");
-                        let pc = pc.to_sanitized_constant_case();
-                        let base_pc_w = Ident::new(&(pc + "_AW"), span);
-                        derive_from_base(mod_items, base, value_write_ty, &base_pc_w, &description);
-                    } else if variants.is_empty() {
-                        add_with_no_variants(mod_items, value_write_ty, &fty, &description, rv);
+                // does the read and the write value has the same name? If we have the same,
+                // we can reuse read value type other than generating a new one.
+                let writer_reader_different_enum = evs_r.as_ref() != Some(evs);
+
+                // generate write value structure and From conversation if we can't reuse read value structure.
+                if writer_reader_different_enum {
+                    if variants.is_empty() {
+                        add_with_no_variants(mod_items, &value_write_ty, &fty, &description, rv);
                     } else {
                         add_from_variants(
                             mod_items,
                             &variants,
-                            value_write_ty,
+                            &value_write_ty,
                             &fty,
                             &description,
                             rv,
@@ -738,41 +770,28 @@ pub fn fields(
                     }
                 }
 
-                match base {
-                    Some(base) if base.peripheral.is_none() && base.register.is_none() => {
-                        let pc = util::replace_suffix(base.field, "");
-                        let pc = pc.to_sanitized_constant_case();
-                        let base_pc_w = Ident::new(&(pc + "_W"), span);
-                        derive_from_base(
-                            mod_items,
-                            &base,
-                            &writer_ty,
-                            &base_pc_w,
-                            &field_writer_brief,
-                        );
-                        should_derive_writer = false;
-                    }
-                    _ => {
-                        if !variants.is_empty() {
-                            // for each variant defined, generate a write function to this field.
-                            for v in &variants {
-                                let pc = &v.pc;
-                                let sc = &v.sc;
-                                let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
-                                proxy_items.extend(quote! {
-                                    #[doc = #doc]
-                                    #inline
-                                    pub fn #sc(self) -> &'a mut W {
-                                        self.variant(#value_write_ty::#pc)
-                                    }
-                                });
-                            }
+                // for each variant defined, generate a write function to this field.
+                for v in &variants {
+                    let pc = &v.pc;
+                    let sc = &v.sc;
+                    let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
+                    proxy_items.extend(quote! {
+                        #[doc = #doc]
+                        #inline
+                        pub fn #sc(self) -> &'a mut W {
+                            self.variant(#value_write_ty::#pc)
                         }
-                    }
+                    });
                 }
-            } else {
-                value_write_ty = &fty;
             }
+
+            // derive writer. We derive writer if the write proxy is in current register module,
+            // or writer in different register have different _SPEC structures
+            let should_derive_writer = match lookup_filter(&lookup_results, Usage::Write) {
+                Some((_evs, Some(base))) => base.register != None,
+                Some((_evs, None)) => true,
+                None => true,
+            };
 
             // derive writer structure by type alias to generic write proxy structure.
             if should_derive_writer {
@@ -819,6 +838,34 @@ pub fn fields(
                         #proxy_items
                     }
                 });
+            }
+
+            if let Some((evs, Some(base))) = lookup_filter(&lookup_results, Usage::Write) {
+                // if base.register == None, it emits pub use structure from same module.
+                if base.register != None {
+                    let writer_reader_different_enum = evs_r.as_ref() != Some(evs);
+                    if writer_reader_different_enum {
+                        // use the same enum structure name
+                        derive_from_base(
+                            mod_items,
+                            &base,
+                            &value_write_ty,
+                            &value_write_ty,
+                            &description,
+                        );
+                    }
+                } else {
+                    // if base.register == None, derive write from the same module. This is allowed because both
+                    // the generated and source write proxy are in the same module.
+                    // we never reuse writer for writer in different module does not have the same _SPEC strcuture,
+                    // thus we cannot write to current register using re-exported write proxy.
+
+                    // generate pub use field_1 writer as field_2 writer
+                    let base_field = util::replace_suffix(base.field, "");
+                    let base_constant_case = base_field.to_sanitized_constant_case();
+                    let base_w = Ident::new(&(base_constant_case + "_W"), span);
+                    derive_from_base(mod_items, &base, &writer_ty, &base_w, &field_writer_brief);
+                }
             }
 
             if let Some((_, dim, increment, suffixes, suffixes_str)) = &field_dim {
