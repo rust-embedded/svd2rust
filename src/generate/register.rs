@@ -7,6 +7,7 @@ use core::u64;
 use log::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
+use std::collections::HashSet;
 use svd_parser::expand::{
     derive_enumerated_values, derive_field, EnumPath, FieldPath, Index, RegisterPath,
 };
@@ -337,6 +338,12 @@ pub fn fields(
 
     fields.sort_by_key(|f| f.bit_offset());
 
+    // Hack for #625
+    let mut enum_derives = HashSet::new();
+    let mut reader_derives = HashSet::new();
+    let mut writer_enum_derives = HashSet::new();
+    let mut writer_derives = HashSet::new();
+
     // TODO enumeratedValues
     let inline = quote! { #[inline(always)] };
     for &f in fields.iter() {
@@ -625,26 +632,32 @@ pub fn fields(
                 let base_field = util::replace_suffix(&base.field.name, "");
                 let base_constant_case = base_field.to_sanitized_constant_case();
                 let base_r = Ident::new(&(base_constant_case + "_R"), span);
-                derive_from_base(
-                    mod_items,
-                    &base,
-                    &fpath,
-                    &reader_ty,
-                    &base_r,
-                    &field_reader_brief,
-                )?;
-                // only pub use enum when base.register != None. if base.register == None, it emits
-                // pub use enum from same module which is not expected
-                if base.register() != fpath.register() {
-                    // use the same enum structure name
+                if !reader_derives.contains(&reader_ty) {
                     derive_from_base(
                         mod_items,
                         &base,
                         &fpath,
-                        &value_read_ty,
-                        &value_read_ty,
-                        &description,
+                        &reader_ty,
+                        &base_r,
+                        &field_reader_brief,
                     )?;
+                    reader_derives.insert(reader_ty.clone());
+                }
+                // only pub use enum when base.register != None. if base.register == None, it emits
+                // pub use enum from same module which is not expected
+                if base.register() != fpath.register() {
+                    // use the same enum structure name
+                    if !enum_derives.contains(&value_read_ty) {
+                        derive_from_base(
+                            mod_items,
+                            &base,
+                            &fpath,
+                            &value_read_ty,
+                            &value_read_ty,
+                            &description,
+                        )?;
+                        enum_derives.insert(value_read_ty.clone());
+                    }
                 }
             }
 
@@ -865,14 +878,17 @@ pub fn fields(
                     let writer_reader_different_enum = evs_r.as_ref() != Some(evs);
                     if writer_reader_different_enum {
                         // use the same enum structure name
-                        derive_from_base(
-                            mod_items,
-                            &base,
-                            &fpath,
-                            &value_write_ty,
-                            &value_write_ty,
-                            &description,
-                        )?;
+                        if !writer_enum_derives.contains(&value_write_ty) {
+                            derive_from_base(
+                                mod_items,
+                                &base,
+                                &fpath,
+                                &value_write_ty,
+                                &value_write_ty,
+                                &description,
+                            )?;
+                            writer_enum_derives.insert(value_write_ty.clone());
+                        }
                     }
                 } else {
                     // if base.register == None, derive write from the same module. This is allowed because both
@@ -884,14 +900,17 @@ pub fn fields(
                     let base_field = util::replace_suffix(&base.field.name, "");
                     let base_constant_case = base_field.to_sanitized_constant_case();
                     let base_w = Ident::new(&(base_constant_case + "_W"), span);
-                    derive_from_base(
-                        mod_items,
-                        &base,
-                        &fpath,
-                        &writer_ty,
-                        &base_w,
-                        &field_writer_brief,
-                    )?;
+                    if !writer_derives.contains(&writer_ty) {
+                        derive_from_base(
+                            mod_items,
+                            &base,
+                            &fpath,
+                            &writer_ty,
+                            &base_w,
+                            &field_writer_brief,
+                        )?;
+                        writer_derives.insert(writer_ty.clone());
+                    }
                 }
             }
 
