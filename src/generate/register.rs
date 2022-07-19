@@ -476,8 +476,8 @@ pub fn fields(
                     derived_field_value_read_ty
                 }
             } else {
-                let raw_field_value_read_ty = fty.clone();
-                raw_field_value_read_ty
+                // raw_field_value_read_ty
+                fty.clone()
             };
 
             // name of read proxy type
@@ -635,7 +635,7 @@ pub fn fields(
                 if !reader_derives.contains(&reader_ty) {
                     derive_from_base(
                         mod_items,
-                        &base,
+                        base,
                         &fpath,
                         &reader_ty,
                         &base_r,
@@ -650,7 +650,7 @@ pub fn fields(
                     if !enum_derives.contains(&value_read_ty) {
                         derive_from_base(
                             mod_items,
-                            &base,
+                            base,
                             &fpath,
                             &value_read_ty,
                             &value_read_ty,
@@ -762,8 +762,8 @@ pub fn fields(
                         derived_field_value_write_ty
                     }
                 } else {
-                    let raw_field_value_write_ty = fty.clone();
-                    raw_field_value_write_ty
+                    // raw_field_value_write_ty
+                    fty.clone()
                 };
 
             // name of write proxy type
@@ -881,7 +881,7 @@ pub fn fields(
                         if !writer_enum_derives.contains(&value_write_ty) {
                             derive_from_base(
                                 mod_items,
-                                &base,
+                                base,
                                 &fpath,
                                 &value_write_ty,
                                 &value_write_ty,
@@ -903,7 +903,7 @@ pub fn fields(
                     if !writer_derives.contains(&writer_ty) {
                         derive_from_base(
                             mod_items,
-                            &base,
+                            base,
                             &fpath,
                             &writer_ty,
                             &base_w,

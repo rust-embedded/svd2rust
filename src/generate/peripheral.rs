@@ -25,7 +25,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
     let mut path = None;
     let dpath = p.derived_from.take();
     if let Some(dpath) = dpath {
-        path = derive_peripheral(&mut p, &dpath, &index)?;
+        path = derive_peripheral(&mut p, &dpath, index)?;
     }
 
     let name = util::name_of(&p, config.ignore_groups);
@@ -162,7 +162,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
 
     // Build up an alternate erc list by expanding any derived registers/clusters
     // erc: *E*ither *R*egister or *C*luster
-    let mut ercs = p.registers.take().unwrap_or(Vec::new());
+    let mut ercs = p.registers.take().unwrap_or_default();
 
     // No `struct RegisterBlock` can be generated
     if ercs.is_empty() {
@@ -922,7 +922,7 @@ fn cluster_block(
                 let mut cpath = None;
                 let dpath = c.derived_from.take();
                 if let Some(dpath) = dpath {
-                    cpath = derive_cluster(c, &dpath, &path, index)?;
+                    cpath = derive_cluster(c, &dpath, path, index)?;
                 }
                 let cpath = cpath.unwrap_or_else(|| path.new_cluster(&c.name));
                 mod_items.extend(cluster_block(c, &cpath, index, config)?);
@@ -933,7 +933,7 @@ fn cluster_block(
                 let mut rpath = None;
                 let dpath = reg.derived_from.take();
                 if let Some(dpath) = dpath {
-                    rpath = derive_register(reg, &dpath, &path, index)?;
+                    rpath = derive_register(reg, &dpath, path, index)?;
                 }
                 let rpath = rpath.unwrap_or_else(|| path.new_register(&reg.name));
                 match register::render(reg, &rpath, index, config) {
