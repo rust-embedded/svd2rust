@@ -99,6 +99,14 @@ impl<REG: Resettable + Writable> Reg<REG> {
     ///     .field3().variant(VARIANT)
     /// );
     /// ```
+    /// or an alternative way of saying the same:
+    /// ```ignore
+    /// periph.reg.write(|w| {
+    ///     w.field1().bits(newfield1bits);
+    ///     w.field2().set_bit();
+    ///     w.field3().variant(VARIANT)
+    /// });
+    /// ```
     /// In the latter case, other fields will be set to their reset value.
     #[inline(always)]
     pub fn write<F>(&self, f: F)
@@ -153,6 +161,14 @@ impl<REG: Readable + Writable> Reg<REG> {
     ///     .field2().set_bit()
     ///     .field3().variant(VARIANT)
     /// );
+    /// ```
+    /// or an alternative way of saying the same:
+    /// ```ignore
+    /// periph.reg.modify(|_, w| {
+    ///     w.field1().bits(newfield1bits);
+    ///     w.field2().set_bit();
+    ///     w.field3().variant(VARIANT)
+    /// });
     /// ```
     /// Other fields will have the value they had before the call to `modify`.
     #[inline(always)]
