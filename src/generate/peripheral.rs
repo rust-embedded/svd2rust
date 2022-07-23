@@ -178,24 +178,24 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
     for erc in &mut ercs {
         match erc {
             RegisterCluster::Cluster(c) => {
+                trace!("Cluster: {}", c.name);
                 let mut cpath = None;
                 let dpath = c.derived_from.take();
                 if let Some(dpath) = dpath {
                     cpath = derive_cluster(c, &dpath, &path, index)?;
                 }
                 let cpath = cpath.unwrap_or_else(|| path.new_cluster(&c.name));
-                trace!("Cluster: {}", c.name);
                 mod_items.extend(cluster_block(c, &cpath, index, config)?);
             }
 
             RegisterCluster::Register(reg) => {
+                trace!("Register: {}", reg.name);
                 let mut rpath = None;
                 let dpath = reg.derived_from.take();
                 if let Some(dpath) = dpath {
                     rpath = derive_register(reg, &dpath, &path, index)?;
                 }
                 let rpath = rpath.unwrap_or_else(|| path.new_register(&reg.name));
-                trace!("Register: {}", reg.name);
                 match register::render(reg, &rpath, index, config) {
                     Ok(rendered_reg) => mod_items.extend(rendered_reg),
                     Err(e) => {
