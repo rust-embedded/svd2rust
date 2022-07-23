@@ -1,21 +1,24 @@
 use crate::svd::{
-    Access, BitRange, EnumeratedValues, Field, ModifiedWriteValues, Peripheral, ReadAction,
-    Register, RegisterProperties, Usage, WriteConstraint,
+    Access, BitRange, EnumeratedValues, Field, ModifiedWriteValues, ReadAction, Register,
+    RegisterProperties, Usage, WriteConstraint,
 };
 use cast::u64;
 use core::u64;
 use log::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
+use std::collections::HashSet;
+use svd_parser::expand::{
+    derive_enumerated_values, derive_field, EnumPath, FieldPath, Index, RegisterPath,
+};
 
 use crate::util::{self, Config, ToSanitizedCase, U32Ext};
 use anyhow::{anyhow, Result};
 
 pub fn render(
     register: &Register,
-    all_registers: &[&Register],
-    peripheral: &Peripheral,
-    all_peripherals: &[Peripheral],
+    path: &RegisterPath,
+    index: &Index,
     config: &Config,
 ) -> Result<TokenStream> {
     let properties = &register.properties;
@@ -153,10 +156,9 @@ pub fn render(
             fields(
                 cur_fields,
                 register,
+                path,
+                index,
                 &name_constant_case_spec,
-                all_registers,
-                peripheral,
-                all_peripherals,
                 &rty,
                 access,
                 properties,
@@ -319,10 +321,9 @@ pub fn render(
 pub fn fields(
     mut fields: Vec<&Field>,
     register: &Register,
+    rpath: &RegisterPath,
+    index: &Index,
     name_constant_case_spec: &Ident,
-    all_registers: &[&Register],
-    peripheral: &Peripheral,
-    all_peripherals: &[Peripheral],
     rty: &Ident,
     access: Access,
     properties: &RegisterProperties,
@@ -337,9 +338,22 @@ pub fn fields(
 
     fields.sort_by_key(|f| f.bit_offset());
 
+    // Hack for #625
+    let mut enum_derives = HashSet::new();
+    let mut reader_derives = HashSet::new();
+    let mut writer_enum_derives = HashSet::new();
+    let mut writer_derives = HashSet::new();
+
     // TODO enumeratedValues
     let inline = quote! { #[inline(always)] };
-    for f in fields.iter() {
+    for &f in fields.iter() {
+        let mut f = f.clone();
+        let mut fpath = None;
+        let dpath = f.derived_from.take();
+        if let Some(dpath) = dpath {
+            fpath = derive_field(&mut f, &dpath, rpath, index)?;
+        }
+        let fpath = fpath.unwrap_or_else(|| rpath.new_field(&f.name));
         // TODO(AJM) - do we need to do anything with this range type?
         let BitRange { offset, width, .. } = f.bit_range;
         let name = util::replace_suffix(&f.name, "");
@@ -358,7 +372,6 @@ pub fn fields(
         let offset = u64::from(offset);
         let rv = properties.reset_value.map(|rv| (rv >> offset) & mask);
         let fty = width.to_ty()?;
-        let evs = &f.enumerated_values;
 
         let use_mask = if let Some(size) = properties.size {
             size != width
@@ -366,20 +379,25 @@ pub fn fields(
             true
         };
 
-        let lookup_results = lookup(
-            evs,
-            &fields,
-            register,
-            all_registers,
-            peripheral,
-            all_peripherals,
-        )?;
+        let mut lookup_results = Vec::new();
+        for mut ev in f.enumerated_values.clone().into_iter() {
+            let mut epath = None;
+            let dpath = ev.derived_from.take();
+            if let Some(dpath) = dpath {
+                epath = Some(derive_enumerated_values(&mut ev, &dpath, &fpath, index)?);
+            }
+            // TODO: remove this hack
+            if let Some(epath) = epath.as_ref() {
+                ev = (*index.evs.get(epath).unwrap()).clone();
+            }
+            lookup_results.push((ev, epath));
+        }
 
         let mut evs_r = None;
 
         // Reads dim information from svd field. If it has dim index, the field is treated as an
         // array; or it should be treated as a single register field.
-        let field_dim = match f {
+        let field_dim = match &f {
             Field::Array(_, de) => {
                 let first = if let Some(dim_index) = &de.dim_index {
                     if let Ok(first) = dim_index[0].parse::<u32>() {
@@ -458,8 +476,8 @@ pub fn fields(
                     derived_field_value_read_ty
                 }
             } else {
-                let raw_field_value_read_ty = fty.clone();
-                raw_field_value_read_ty
+                // raw_field_value_read_ty
+                fty.clone()
             };
 
             // name of read proxy type
@@ -611,21 +629,35 @@ pub fn fields(
                 // preserve value; if read type equals write type, writer would not generate value type again
                 evs_r = Some(evs.clone());
                 // generate pub use field_1 reader as field_2 reader
-                let base_field = util::replace_suffix(base.field, "");
+                let base_field = util::replace_suffix(&base.field.name, "");
                 let base_constant_case = base_field.to_sanitized_constant_case();
                 let base_r = Ident::new(&(base_constant_case + "_R"), span);
-                derive_from_base(mod_items, &base, &reader_ty, &base_r, &field_reader_brief);
-                // only pub use enum when base.register != None. if base.register == None, it emits
-                // pub use enum from same module which is not expected
-                if base.register != None {
-                    // use the same enum structure name
+                if !reader_derives.contains(&reader_ty) {
                     derive_from_base(
                         mod_items,
-                        &base,
-                        &value_read_ty,
-                        &value_read_ty,
-                        &description,
-                    );
+                        base,
+                        &fpath,
+                        &reader_ty,
+                        &base_r,
+                        &field_reader_brief,
+                    )?;
+                    reader_derives.insert(reader_ty.clone());
+                }
+                // only pub use enum when base.register != None. if base.register == None, it emits
+                // pub use enum from same module which is not expected
+                if base.register() != fpath.register() {
+                    // use the same enum structure name
+                    if !enum_derives.contains(&value_read_ty) {
+                        derive_from_base(
+                            mod_items,
+                            base,
+                            &fpath,
+                            &value_read_ty,
+                            &value_read_ty,
+                            &description,
+                        )?;
+                        enum_derives.insert(value_read_ty.clone());
+                    }
                 }
             }
 
@@ -730,8 +762,8 @@ pub fn fields(
                         derived_field_value_write_ty
                     }
                 } else {
-                    let raw_field_value_write_ty = fty.clone();
-                    raw_field_value_write_ty
+                    // raw_field_value_write_ty
+                    fty.clone()
                 };
 
             // name of write proxy type
@@ -788,7 +820,7 @@ pub fn fields(
             // derive writer. We derive writer if the write proxy is in current register module,
             // or writer in different register have different _SPEC structures
             let should_derive_writer = match lookup_filter(&lookup_results, Usage::Write) {
-                Some((_evs, Some(base))) => base.register != None,
+                Some((_evs, Some(base))) => base.register() != fpath.register(),
                 Some((_evs, None)) => true,
                 None => true,
             };
@@ -842,17 +874,21 @@ pub fn fields(
 
             if let Some((evs, Some(base))) = lookup_filter(&lookup_results, Usage::Write) {
                 // if base.register == None, it emits pub use structure from same module.
-                if base.register != None {
+                if base.register() != fpath.register() {
                     let writer_reader_different_enum = evs_r.as_ref() != Some(evs);
                     if writer_reader_different_enum {
                         // use the same enum structure name
-                        derive_from_base(
-                            mod_items,
-                            &base,
-                            &value_write_ty,
-                            &value_write_ty,
-                            &description,
-                        );
+                        if !writer_enum_derives.contains(&value_write_ty) {
+                            derive_from_base(
+                                mod_items,
+                                base,
+                                &fpath,
+                                &value_write_ty,
+                                &value_write_ty,
+                                &description,
+                            )?;
+                            writer_enum_derives.insert(value_write_ty.clone());
+                        }
                     }
                 } else {
                     // if base.register == None, derive write from the same module. This is allowed because both
@@ -861,10 +897,20 @@ pub fn fields(
                     // thus we cannot write to current register using re-exported write proxy.
 
                     // generate pub use field_1 writer as field_2 writer
-                    let base_field = util::replace_suffix(base.field, "");
+                    let base_field = util::replace_suffix(&base.field.name, "");
                     let base_constant_case = base_field.to_sanitized_constant_case();
                     let base_w = Ident::new(&(base_constant_case + "_W"), span);
-                    derive_from_base(mod_items, &base, &writer_ty, &base_w, &field_writer_brief);
+                    if !writer_derives.contains(&writer_ty) {
+                        derive_from_base(
+                            mod_items,
+                            base,
+                            &fpath,
+                            &writer_ty,
+                            &base_w,
+                            &field_writer_brief,
+                        )?;
+                        writer_derives.insert(writer_ty.clone());
+                    }
                 }
             }
 
@@ -1107,237 +1153,37 @@ fn description_with_bits(description: &str, offset: u64, width: u32) -> String {
 
 fn derive_from_base(
     mod_items: &mut TokenStream,
-    base: &Base,
+    base: &EnumPath,
+    field: &FieldPath,
     pc: &Ident,
     base_pc: &Ident,
     desc: &str,
-) {
+) -> Result<(), syn::Error> {
     let span = Span::call_site();
-    let path = if let (Some(peripheral), Some(register)) = (&base.peripheral, &base.register) {
-        let pmod_ = peripheral.to_sanitized_snake_case();
-        let rmod_ = register.to_sanitized_snake_case();
-        let pmod_ = Ident::new(&pmod_, span);
-        let rmod_ = Ident::new(&rmod_, span);
-
-        quote! { crate::#pmod_::#rmod_::#base_pc }
-    } else if let Some(register) = &base.register {
-        let mod_ = register.to_sanitized_snake_case();
+    let path = if base.register() == field.register() {
+        quote! { #base_pc }
+    } else if base.register().block == field.register().block {
+        let mod_ = base.register().name.to_sanitized_snake_case();
         let mod_ = Ident::new(&mod_, span);
 
         quote! { super::#mod_::#base_pc }
     } else {
-        quote! { #base_pc }
+        let rmod_ = crate::util::register_path_to_ty(base.register())?;
+
+        quote! { #rmod_::#base_pc }
     };
     mod_items.extend(quote! {
         #[doc = #desc]
         pub use #path as #pc;
     });
+    Ok(())
 }
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub struct Base<'a> {
-    pub peripheral: Option<&'a str>,
-    pub register: Option<&'a str>,
-    pub field: &'a str,
-}
-
-impl<'a> Base<'a> {
-    pub fn from_field(field: &'a str) -> Self {
-        Self {
-            peripheral: None,
-            register: None,
-            field,
-        }
-    }
-}
-
-fn lookup<'a>(
-    evs: &'a [EnumeratedValues],
-    fields: &'a [&'a Field],
-    register: &'a Register,
-    all_registers: &'a [&'a Register],
-    peripheral: &'a Peripheral,
-    all_peripherals: &'a [Peripheral],
-) -> Result<Vec<(&'a EnumeratedValues, Option<Base<'a>>)>> {
-    let evs = evs
-        .iter()
-        .map(|evs| {
-            if let Some(base) = &evs.derived_from {
-                let mut parts = base.split('.');
-
-                match (parts.next(), parts.next(), parts.next(), parts.next()) {
-                    (
-                        Some(base_peripheral),
-                        Some(base_register),
-                        Some(base_field),
-                        Some(base_evs),
-                    ) => lookup_in_peripherals(
-                        base_peripheral,
-                        base_register,
-                        base_field,
-                        base_evs,
-                        all_peripherals,
-                    ),
-                    (Some(base_register), Some(base_field), Some(base_evs), None) => {
-                        lookup_in_peripheral(
-                            None,
-                            base_register,
-                            base_field,
-                            base_evs,
-                            all_registers,
-                            peripheral,
-                        )
-                    }
-                    (Some(base_field), Some(base_evs), None, None) => {
-                        lookup_in_fields(base_evs, base_field, fields, register)
-                    }
-                    (Some(base_evs), None, None, None) => lookup_in_register(base_evs, register),
-                    _ => unreachable!(),
-                }
-            } else {
-                Ok((evs, None))
-            }
-        })
-        .collect::<Result<Vec<_>>>()?;
-
-    Ok(evs)
-}
-
-fn lookup_filter<'a>(
-    evs: &[(&'a EnumeratedValues, Option<Base<'a>>)],
+fn lookup_filter(
+    evs: &[(EnumeratedValues, Option<EnumPath>)],
     usage: Usage,
-) -> Option<(&'a EnumeratedValues, Option<Base<'a>>)> {
-    for (evs, base) in evs.iter() {
-        if evs.usage == Some(usage) {
-            return Some((*evs, *base));
-        }
-    }
-
-    evs.first().cloned()
-}
-
-fn lookup_in_fields<'f>(
-    base_evs: &str,
-    base_field: &str,
-    fields: &'f [&'f Field],
-    register: &Register,
-) -> Result<(&'f EnumeratedValues, Option<Base<'f>>)> {
-    if let Some(base_field) = fields.iter().find(|f| f.name == base_field) {
-        lookup_in_field(base_evs, None, None, base_field)
-    } else {
-        Err(anyhow!(
-            "Field {} not found in register {}",
-            base_field,
-            register.name
-        ))
-    }
-}
-
-fn lookup_in_peripheral<'p>(
-    base_peripheral: Option<&'p str>,
-    base_register: &'p str,
-    base_field: &str,
-    base_evs: &str,
-    all_registers: &[&'p Register],
-    peripheral: &'p Peripheral,
-) -> Result<(&'p EnumeratedValues, Option<Base<'p>>)> {
-    if let Some(register) = all_registers.iter().find(|r| r.name == base_register) {
-        if let Some(field) = register.get_field(base_field) {
-            lookup_in_field(base_evs, Some(base_register), base_peripheral, field)
-        } else {
-            Err(anyhow!(
-                "No field {} in register {}",
-                base_field,
-                register.name
-            ))
-        }
-    } else {
-        Err(anyhow!(
-            "No register {} in peripheral {}",
-            base_register,
-            peripheral.name
-        ))
-    }
-}
-
-fn lookup_in_field<'f>(
-    base_evs: &str,
-    base_register: Option<&'f str>,
-    base_peripheral: Option<&'f str>,
-    field: &'f Field,
-) -> Result<(&'f EnumeratedValues, Option<Base<'f>>)> {
-    for evs in &field.enumerated_values {
-        if evs.name.as_deref() == Some(base_evs) {
-            return Ok((
-                evs,
-                Some(Base {
-                    field: &field.name,
-                    register: base_register,
-                    peripheral: base_peripheral,
-                }),
-            ));
-        }
-    }
-
-    Err(anyhow!(
-        "No EnumeratedValues {} in field {}",
-        base_evs,
-        field.name
-    ))
-}
-
-fn lookup_in_register<'r>(
-    base_evs: &str,
-    register: &'r Register,
-) -> Result<(&'r EnumeratedValues, Option<Base<'r>>)> {
-    let mut matches = vec![];
-
-    for f in register.fields() {
-        if let Some(evs) = f
-            .enumerated_values
-            .iter()
-            .find(|evs| evs.name.as_deref() == Some(base_evs))
-        {
-            matches.push((evs, &f.name))
-        }
-    }
-
-    match &matches[..] {
-        [] => Err(anyhow!(
-            "EnumeratedValues {} not found in register {}",
-            base_evs,
-            register.name
-        )),
-        [(evs, field)] => Ok((evs, Some(Base::from_field(field)))),
-        matches => {
-            let fields = matches.iter().map(|(f, _)| &f.name).collect::<Vec<_>>();
-            Err(anyhow!(
-                "Fields {:?} have an enumeratedValues named {}",
-                fields,
-                base_evs
-            ))
-        }
-    }
-}
-
-fn lookup_in_peripherals<'p>(
-    base_peripheral: &'p str,
-    base_register: &'p str,
-    base_field: &str,
-    base_evs: &str,
-    all_peripherals: &'p [Peripheral],
-) -> Result<(&'p EnumeratedValues, Option<Base<'p>>)> {
-    if let Some(peripheral) = all_peripherals.iter().find(|p| p.name == base_peripheral) {
-        let all_registers = peripheral.all_registers().collect::<Vec<_>>();
-        lookup_in_peripheral(
-            Some(base_peripheral),
-            base_register,
-            base_field,
-            base_evs,
-            all_registers.as_slice(),
-            peripheral,
-        )
-    } else {
-        Err(anyhow!("No peripheral {}", base_peripheral))
-    }
+) -> Option<&(EnumeratedValues, Option<EnumPath>)> {
+    evs.iter()
+        .find(|evsbase| evsbase.0.usage == Some(usage))
+        .or_else(|| evs.first())
 }

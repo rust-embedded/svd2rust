@@ -15,6 +15,7 @@ use crate::generate::{interrupt, peripheral};
 
 /// Whole device generation
 pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<TokenStream> {
+    let index = svd_parser::expand::Index::create(d);
     let mut out = TokenStream::new();
 
     let commit_info = {
@@ -217,7 +218,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
 
         debug!("Rendering peripheral {}", p.name);
-        match peripheral::render(p, &d.peripherals, config) {
+        match peripheral::render(p, &index, config) {
             Ok(periph) => out.extend(periph),
             Err(e) => {
                 let descrip = p.description.as_deref().unwrap_or("No description");

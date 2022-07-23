@@ -1,10 +1,9 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use svd_parser::expand::{derive_cluster, derive_peripheral, derive_register, BlockPath, Index};
 
 use crate::svd::{
-    array::names, Cluster, ClusterInfo, DeriveFrom, DimElement, Peripheral, Register,
-    RegisterCluster,
+    array::names, Cluster, ClusterInfo, DimElement, Peripheral, Register, RegisterCluster,
 };
 use log::{debug, trace, warn};
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
@@ -19,30 +18,17 @@ use anyhow::{anyhow, bail, Context, Result};
 
 use crate::generate::register;
 
-pub fn render(
-    p_original: &Peripheral,
-    all_peripherals: &[Peripheral],
-    config: &Config,
-) -> Result<TokenStream> {
+pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result<TokenStream> {
     let mut out = TokenStream::new();
 
-    let p_derivedfrom = p_original
-        .derived_from
-        .as_ref()
-        .and_then(|s| all_peripherals.iter().find(|x| x.name == *s));
-
-    let p_merged = p_derivedfrom.map(|ancestor| p_original.derive_from(ancestor));
-    let p = p_merged.as_ref().unwrap_or(p_original);
-
-    if let (Some(df), None) = (p_original.derived_from.as_ref(), &p_derivedfrom) {
-        return Err(anyhow!(
-            "Couldn't find derivedFrom original: {} for {}, skipping",
-            df,
-            p_original.name
-        ));
+    let mut p = p_original.clone();
+    let mut path = None;
+    let dpath = p.derived_from.take();
+    if let Some(dpath) = dpath {
+        path = derive_peripheral(&mut p, &dpath, index)?;
     }
 
-    let name = util::name_of(p, config.ignore_groups);
+    let name = util::name_of(&p, config.ignore_groups);
     let span = Span::call_site();
     let name_str = name.to_sanitized_constant_case();
     let name_constant_case = Ident::new(&name_str, span);
@@ -50,10 +36,14 @@ pub fn render(
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
     let name_snake_case = Ident::new(&name.to_sanitized_snake_case(), span);
-    let (derive_regs, base) = if let (Some(df), None) = (p_derivedfrom, &p_original.registers) {
-        (true, Ident::new(&df.name.to_sanitized_snake_case(), span))
+    let (derive_regs, base, path) = if let Some(path) = path {
+        (
+            true,
+            Ident::new(&path.peripheral.to_sanitized_snake_case(), span),
+            path,
+        )
     } else {
-        (false, name_snake_case.clone())
+        (false, name_snake_case.clone(), BlockPath::new(&p.name))
     };
 
     let feature_attribute = if config.feature_group && p.group_name.is_some() {
@@ -63,7 +53,7 @@ pub fn render(
         quote! {}
     };
 
-    match p_original {
+    match &p {
         Peripheral::Array(p, dim) => {
             let names: Vec<Cow<str>> = names(p, dim).map(|n| n.into()).collect();
             let names_str = names.iter().map(|n| n.to_sanitized_constant_case());
@@ -166,35 +156,55 @@ pub fn render(
         return Ok(out);
     }
 
-    // erc: *E*ither *R*egister or *C*luster
-    let ercs_in = p.registers.as_ref().map(|x| x.as_ref()).unwrap_or(&[][..]);
-
-    // make a pass to expand derived registers and clusters.  Ideally, for the most minimal
-    // code size, we'd do some analysis to figure out if we can 100% reuse the
-    // code that we're deriving from.  For the sake of proving the concept, we're
-    // just going to emit a second copy of the accessor code.  It'll probably
-    // get inlined by the compiler anyway, right? :-)
-
-    // Build a map so that we can look up registers within this peripheral
-    let mut erc_map = HashMap::new();
-    for erc in ercs_in {
-        erc_map.insert(util::erc_name(erc), erc);
-    }
+    let description = util::escape_brackets(
+        util::respace(p.description.as_ref().unwrap_or(&name.as_ref().to_owned())).as_ref(),
+    );
 
     // Build up an alternate erc list by expanding any derived registers/clusters
-    let mut ercs = Vec::with_capacity(ercs_in.len());
-    for erc in ercs_in {
-        ercs.push(derive_register_cluster(erc, &erc_map)?.into_owned());
-    }
-
-    // And revise registers, clusters and ercs to refer to our expanded versions
-    let registers: &[&Register] = &util::only_registers(&ercs)[..];
-    let clusters = util::only_clusters(&ercs);
+    // erc: *E*ither *R*egister or *C*luster
+    let mut ercs = p.registers.take().unwrap_or_default();
 
     // No `struct RegisterBlock` can be generated
-    if registers.is_empty() && clusters.is_empty() {
+    if ercs.is_empty() {
         // Drop the definition of the peripheral
         return Ok(TokenStream::new());
+    }
+
+    debug!("Pushing cluster & register information into output");
+    // Push all cluster & register related information into the peripheral module
+
+    let mut mod_items = TokenStream::new();
+
+    for erc in &mut ercs {
+        match erc {
+            RegisterCluster::Cluster(c) => {
+                trace!("Cluster: {}", c.name);
+                let mut cpath = None;
+                let dpath = c.derived_from.take();
+                if let Some(dpath) = dpath {
+                    cpath = derive_cluster(c, &dpath, &path, index)?;
+                }
+                let cpath = cpath.unwrap_or_else(|| path.new_cluster(&c.name));
+                mod_items.extend(cluster_block(c, &cpath, index, config)?);
+            }
+
+            RegisterCluster::Register(reg) => {
+                trace!("Register: {}", reg.name);
+                let mut rpath = None;
+                let dpath = reg.derived_from.take();
+                if let Some(dpath) = dpath {
+                    rpath = derive_register(reg, &dpath, &path, index)?;
+                }
+                let rpath = rpath.unwrap_or_else(|| path.new_register(&reg.name));
+                match register::render(reg, &rpath, index, config) {
+                    Ok(rendered_reg) => mod_items.extend(rendered_reg),
+                    Err(e) => {
+                        let res: Result<TokenStream> = Err(e);
+                        return handle_reg_error("Error rendering register", reg, res);
+                    }
+                };
+            }
+        }
     }
 
     // Push any register or cluster blocks into the output
@@ -202,32 +212,7 @@ pub fn render(
         "Pushing {} register or cluster blocks into output",
         ercs.len()
     );
-    let mut mod_items = TokenStream::new();
-    mod_items.extend(register_or_cluster_block(&ercs, None, config)?);
-
-    debug!("Pushing cluster information into output");
-    // Push all cluster related information into the peripheral module
-    for c in &clusters {
-        trace!("Cluster: {}", c.name);
-        mod_items.extend(cluster_block(c, p, all_peripherals, config)?);
-    }
-
-    debug!("Pushing register information into output");
-    // Push all register related information into the peripheral module
-    for reg in registers {
-        trace!("Register: {}", reg.name);
-        match register::render(reg, registers, p, all_peripherals, config) {
-            Ok(rendered_reg) => mod_items.extend(rendered_reg),
-            Err(e) => {
-                let res: Result<TokenStream> = Err(e);
-                return handle_reg_error("Error rendering register", *reg, res);
-            }
-        };
-    }
-
-    let description = util::escape_brackets(
-        util::respace(p.description.as_ref().unwrap_or(&name.as_ref().to_owned())).as_ref(),
-    );
+    let reg_block = register_or_cluster_block(&ercs, None, config)?;
 
     let open = Punct::new('{', Spacing::Alone);
     let close = Punct::new('}', Spacing::Alone);
@@ -238,47 +223,14 @@ pub fn render(
         pub mod #name_snake_case #open
     });
 
+    out.extend(reg_block);
     out.extend(mod_items);
 
     close.to_tokens(&mut out);
 
+    p.registers = Some(ercs);
+
     Ok(out)
-}
-
-fn derive_register_cluster<'a>(
-    erc: &'a RegisterCluster,
-    erc_map: &'a HashMap<&'a String, &'a RegisterCluster>,
-) -> Result<Cow<'a, RegisterCluster>> {
-    Ok(if let Some(derived) = util::erc_derived_from(erc) {
-        let ancestor = erc_map.get(derived).ok_or_else(|| {
-            anyhow!(
-                "register/cluster {} derivedFrom missing register/cluster {}",
-                util::erc_name(erc),
-                derived
-            )
-        })?;
-
-        let ancestor = derive_register_cluster(ancestor, erc_map)?;
-
-        use RegisterCluster::*;
-        match (erc, ancestor.as_ref()) {
-            (Register(reg), Register(other_reg)) => {
-                Cow::Owned(Register(reg.derive_from(other_reg)))
-            }
-            (Cluster(cluster), Cluster(other_cluster)) => {
-                Cow::Owned(Cluster(cluster.derive_from(other_cluster)))
-            }
-            _ => {
-                return Err(anyhow!(
-                    "{} can't be derived from {}",
-                    util::erc_name(erc),
-                    util::erc_name(&ancestor)
-                ));
-            }
-        }
-    } else {
-        Cow::Borrowed(erc)
-    })
 }
 
 #[derive(Clone, Debug)]
@@ -956,16 +908,48 @@ fn expand_register(
 
 /// Render a Cluster Block into `TokenStream`
 fn cluster_block(
-    c: &Cluster,
-    p: &Peripheral,
-    all_peripherals: &[Peripheral],
+    c: &mut Cluster,
+    path: &BlockPath,
+    index: &Index,
     config: &Config,
 ) -> Result<TokenStream> {
     let mut mod_items = TokenStream::new();
 
-    // name_snake_case needs to take into account array type.
-    let description =
-        util::escape_brackets(util::respace(c.description.as_ref().unwrap_or(&c.name)).as_ref());
+    for rc in &mut c.children {
+        match rc {
+            // Generate the sub-cluster blocks.
+            RegisterCluster::Cluster(c) => {
+                let mut cpath = None;
+                let dpath = c.derived_from.take();
+                if let Some(dpath) = dpath {
+                    cpath = derive_cluster(c, &dpath, path, index)?;
+                }
+                let cpath = cpath.unwrap_or_else(|| path.new_cluster(&c.name));
+                mod_items.extend(cluster_block(c, &cpath, index, config)?);
+            }
+
+            // Generate definition for each of the registers.
+            RegisterCluster::Register(reg) => {
+                let mut rpath = None;
+                let dpath = reg.derived_from.take();
+                if let Some(dpath) = dpath {
+                    rpath = derive_register(reg, &dpath, path, index)?;
+                }
+                let rpath = rpath.unwrap_or_else(|| path.new_register(&reg.name));
+                match register::render(reg, &rpath, index, config) {
+                    Ok(rendered_reg) => mod_items.extend(rendered_reg),
+                    Err(e) => {
+                        let res: Result<TokenStream> = Err(e);
+                        return handle_reg_error(
+                            "Error generating register definition for a register cluster",
+                            reg,
+                            res,
+                        );
+                    }
+                };
+            }
+        }
+    }
 
     // Generate the register block.
     let mod_name = util::replace_suffix(
@@ -975,31 +959,14 @@ fn cluster_block(
         },
         "",
     );
-    let name_snake_case = Ident::new(&mod_name.to_sanitized_snake_case(), Span::call_site());
 
     let reg_block = register_or_cluster_block(&c.children, Some(&mod_name), config)?;
 
-    // Generate definition for each of the registers.
-    let registers = util::only_registers(&c.children);
-    for reg in &registers {
-        match register::render(reg, &registers, p, all_peripherals, config) {
-            Ok(rendered_reg) => mod_items.extend(rendered_reg),
-            Err(e) => {
-                let res: Result<TokenStream> = Err(e);
-                return handle_reg_error(
-                    "Error generating register definition for a register cluster",
-                    *reg,
-                    res,
-                );
-            }
-        };
-    }
+    // name_snake_case needs to take into account array type.
+    let description =
+        util::escape_brackets(util::respace(c.description.as_ref().unwrap_or(&c.name)).as_ref());
 
-    // Generate the sub-cluster blocks.
-    let clusters = util::only_clusters(&c.children);
-    for c in &clusters {
-        mod_items.extend(cluster_block(c, p, all_peripherals, config)?);
-    }
+    let name_snake_case = Ident::new(&mod_name.to_sanitized_snake_case(), Span::call_site());
 
     Ok(quote! {
         #reg_block

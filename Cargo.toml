@@ -58,11 +58,11 @@ serde_yaml = { version = "0.8.23", optional = true }
 
 [dependencies.svd-parser]
 features = ["expand"]
-version = "0.13.3"
+version = "0.14.0"
 
 [dependencies.svd-rs]
 features = ["serde"]
-version = "0.13.2"
+version = "0.14.0"
 
 [dependencies.syn]
 version = "1.0"

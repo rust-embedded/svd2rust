@@ -9,6 +9,7 @@ use quote::{quote, ToTokens};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use svd_rs::{MaybeArray, PeripheralInfo};
+use syn::parse_str;
 
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -320,6 +321,19 @@ pub fn unsuffixed_or_bool(n: u64, width: u32) -> TokenStream {
     } else {
         unsuffixed(n)
     }
+}
+
+pub fn register_path_to_ty(
+    rpath: &svd_parser::expand::RegisterPath,
+) -> Result<syn::Type, syn::Error> {
+    let mut ident = format!("crate::{}", &rpath.peripheral().to_sanitized_snake_case());
+    for ps in &rpath.block.path {
+        ident.push_str("::");
+        ident.push_str(&ps.to_sanitized_snake_case());
+    }
+    ident.push_str("::");
+    ident.push_str(&rpath.name.to_sanitized_snake_case());
+    Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
 }
 
 pub trait U32Ext {
