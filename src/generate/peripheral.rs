@@ -684,12 +684,10 @@ fn expand_cluster(
                 (array_info.dim == 1) || (cluster_size == array_info.dim_increment * BITS_PER_BYTE);
 
             // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
-            let sequential_indexes = array_info.dim_index.as_ref().map_or(true, |dim_index| {
-                dim_index
-                    .iter()
-                    .map(|element| element.parse::<u32>())
-                    .eq((0..array_info.dim).map(Ok))
-            });
+            let sequential_indexes_from0 = array_info
+                .indexes_as_range()
+                .filter(|r| *r.start() == 0)
+                .is_some();
 
             let convert_list = match config.keep_list {
                 true => match &array_info.dim_name {
@@ -702,7 +700,7 @@ fn expand_cluster(
             let array_convertible = sequential_addresses && convert_list;
 
             if array_convertible {
-                if sequential_indexes {
+                if sequential_indexes_from0 {
                     cluster_expanded.push(RegisterBlockField {
                         syn_field: convert_svd_cluster(cluster, name)?,
                         description: info.description.as_ref().unwrap_or(&info.name).into(),
@@ -711,16 +709,16 @@ fn expand_cluster(
                         accessors: None,
                     });
                 } else {
+                    let span = Span::call_site();
                     let mut accessors = TokenStream::new();
                     let nb_name = util::replace_suffix(&info.name, "");
                     let ty = name_to_ty(&nb_name, name)?;
-                    let nb_name_cs =
-                        Ident::new(&nb_name.to_sanitized_snake_case(), Span::call_site());
+                    let nb_name_cs = Ident::new(&nb_name.to_sanitized_snake_case(), span);
                     let description = info.description.as_ref().unwrap_or(&info.name);
                     for (i, idx) in array_info.indexes().enumerate() {
                         let idx_name = Ident::new(
                             &util::replace_suffix(&info.name, &idx).to_sanitized_snake_case(),
-                            Span::call_site(),
+                            span,
                         );
                         let comment = make_comment(
                             cluster_size,
@@ -744,7 +742,7 @@ fn expand_cluster(
                         accessors: Some(accessors),
                     });
                 }
-            } else if sequential_indexes && config.const_generic {
+            } else if sequential_indexes_from0 && config.const_generic {
                 // Include a ZST ArrayProxy giving indexed access to the
                 // elements.
                 cluster_expanded.push(array_proxy(info, array_info, name)?);
@@ -794,14 +792,6 @@ fn expand_register(
             let sequential_addresses = (array_info.dim == 1)
                 || (register_size == array_info.dim_increment * BITS_PER_BYTE);
 
-            // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
-            let sequential_indexes = array_info.dim_index.as_ref().map_or(true, |dim_index| {
-                dim_index
-                    .iter()
-                    .map(|element| element.parse::<u32>())
-                    .eq((0..array_info.dim).map(Ok))
-            });
-
             let convert_list = match config.keep_list {
                 true => match &array_info.dim_name {
                     Some(dim_name) => dim_name.contains("[%s]"),
@@ -813,7 +803,13 @@ fn expand_register(
             let array_convertible = sequential_addresses && convert_list;
 
             if array_convertible {
-                if sequential_indexes {
+                // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
+                let sequential_indexes_from0 = array_info
+                    .indexes_as_range()
+                    .filter(|r| *r.start() == 0)
+                    .is_some();
+
+                if sequential_indexes_from0 {
                     register_expanded.push(RegisterBlockField {
                         syn_field: convert_svd_register(register, name, config.ignore_groups)?,
                         description: info.description.clone().unwrap_or_default(),
@@ -943,7 +939,7 @@ fn cluster_block(
 
     // name_snake_case needs to take into account array type.
     let description =
-        util::escape_brackets(util::respace(c.description.as_ref().unwrap_or(&c.name)).as_ref());
+        util::escape_brackets(&util::respace(c.description.as_ref().unwrap_or(&c.name)));
 
     let name_snake_case = Ident::new(&mod_name.to_sanitized_snake_case(), Span::call_site());
 
