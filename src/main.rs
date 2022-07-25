@@ -57,11 +57,6 @@ fn run() -> Result<()> {
                 .help("Enable features only available to nightly rustc"),
         )
         .arg(
-            Arg::with_name("const_generic").long("const_generic").help(
-                "Use const generics to generate writers for same fields with different offsets",
-            ),
-        )
-        .arg(
             Arg::with_name("ignore_groups")
                 .long("ignore_groups")
                 .help("Don't add alternateGroup name as prefix to register name"),
@@ -163,8 +158,6 @@ fn run() -> Result<()> {
         cfg.bool_flag("generic_mod", Filter::Arg) || cfg.bool_flag("generic_mod", Filter::Conf);
     let make_mod =
         cfg.bool_flag("make_mod", Filter::Arg) || cfg.bool_flag("make_mod", Filter::Conf);
-    let const_generic =
-        cfg.bool_flag("const_generic", Filter::Arg) || cfg.bool_flag("const_generic", Filter::Conf);
     let ignore_groups =
         cfg.bool_flag("ignore_groups", Filter::Arg) || cfg.bool_flag("ignore_groups", Filter::Conf);
     let keep_list =
@@ -194,7 +187,6 @@ fn run() -> Result<()> {
         nightly,
         generic_mod,
         make_mod,
-        const_generic,
         ignore_groups,
         keep_list,
         strict,

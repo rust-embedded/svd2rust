@@ -2,9 +2,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use svd_parser::expand::{derive_cluster, derive_peripheral, derive_register, BlockPath, Index};
 
-use crate::svd::{
-    array::names, Cluster, ClusterInfo, DimElement, Peripheral, Register, RegisterCluster,
-};
+use crate::svd::{array::names, Cluster, ClusterInfo, Peripheral, Register, RegisterCluster};
 use log::{debug, trace, warn};
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
@@ -742,10 +740,6 @@ fn expand_cluster(
                         accessors: Some(accessors),
                     });
                 }
-            } else if sequential_indexes_from0 && config.const_generic {
-                // Include a ZST ArrayProxy giving indexed access to the
-                // elements.
-                cluster_expanded.push(array_proxy(info, array_info, name)?);
             } else {
                 for (field_num, syn_field) in
                     expand_svd_cluster(cluster, name)?.into_iter().enumerate()
@@ -1000,31 +994,6 @@ fn convert_svd_register(
 
             new_syn_field(&nb_name.to_sanitized_snake_case(), array_ty)
         }
-    })
-}
-
-/// Return an syn::Type for an ArrayProxy.
-fn array_proxy(
-    info: &ClusterInfo,
-    array_info: &DimElement,
-    name: Option<&str>,
-) -> Result<RegisterBlockField, syn::Error> {
-    let ty_name = util::replace_suffix(&info.name, "");
-    let tys = name_to_ty_str(&ty_name, name);
-
-    let ap_path = parse_str::<syn::TypePath>(&format!(
-        "crate::ArrayProxy<{}, {}, {}>",
-        tys,
-        array_info.dim,
-        util::hex(array_info.dim_increment as u64)
-    ))?;
-
-    Ok(RegisterBlockField {
-        syn_field: new_syn_field(&ty_name.to_sanitized_snake_case(), ap_path.into()),
-        description: info.description.as_ref().unwrap_or(&info.name).into(),
-        offset: info.address_offset,
-        size: 0,
-        accessors: None,
     })
 }
 
