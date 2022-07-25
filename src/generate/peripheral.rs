@@ -415,8 +415,8 @@ impl FieldRegions {
             .for_each(|r| {
                 let new_ident = r.shortest_ident();
                 warn!(
-                    "Found type name conflict with region {:?}, renamed to {:?}",
-                    r.ident, new_ident
+                    "Found type name conflict with region {:?}, renamed to {new_ident:?}",
+                    r.ident
                 );
                 r.ident = new_ident;
             });
@@ -425,19 +425,12 @@ impl FieldRegions {
 }
 
 fn make_comment(size: u32, offset: u32, description: &str) -> String {
+    let desc = util::escape_brackets(&util::respace(description));
     if size > 32 {
-        format!(
-            "0x{:02x}..0x{:02x} - {}",
-            offset,
-            offset + size / 8,
-            util::escape_brackets(&util::respace(description)),
-        )
+        let end = offset + size / 8;
+        format!("0x{offset:02x}..0x{end:02x} - {desc}")
     } else {
-        format!(
-            "0x{:02x} - {}",
-            offset,
-            util::escape_brackets(&util::respace(description)),
-        )
+        format!("0x{offset:02x} - {desc}")
     }
 }
 
@@ -472,7 +465,7 @@ fn register_or_cluster_block(
         // Check if we need padding
         let pad = region.offset - last_end;
         if pad != 0 {
-            let name = Ident::new(&format!("_reserved{}", i), span);
+            let name = Ident::new(&format!("_reserved{i}"), span);
             let pad = util::hex(pad as u64);
             rbfs.extend(quote! {
                 #name : [u8; #pad],
@@ -529,8 +522,7 @@ fn register_or_cluster_block(
             // nice identifier.
             let name = Ident::new(
                 &format!(
-                    "_reserved_{}_{}",
-                    i,
+                    "_reserved_{i}_{}",
                     region
                         .compute_ident()
                         .unwrap_or_else(|| format!("{}_{}", region.offset, region.end))
@@ -988,14 +980,14 @@ fn convert_svd_register(
         Register::Single(info) => {
             let info_name = info.fullname(ignore_group);
             let ty = name_to_wrapped_ty(&info_name, name)
-                .with_context(|| format!("Error converting register name {}", info_name))?;
+                .with_context(|| format!("Error converting register name {info_name}"))?;
             new_syn_field(&info_name.to_sanitized_snake_case(), ty)
         }
         Register::Array(info, array_info) => {
             let info_name = info.fullname(ignore_group);
             let nb_name = util::replace_suffix(&info_name, "");
             let ty = name_to_wrapped_ty(&nb_name, name)
-                .with_context(|| format!("Error converting register name {}", nb_name))?;
+                .with_context(|| format!("Error converting register name {nb_name}"))?;
             let array_ty = new_syn_array(ty, array_info.dim)?;
 
             new_syn_field(&nb_name.to_sanitized_snake_case(), array_ty)
@@ -1013,8 +1005,7 @@ fn array_proxy(
     let tys = name_to_ty_str(&ty_name, name);
 
     let ap_path = parse_str::<syn::TypePath>(&format!(
-        "crate::ArrayProxy<{}, {}, {}>",
-        tys,
+        "crate::ArrayProxy<{tys}, {}, {}>",
         array_info.dim,
         util::hex(array_info.dim_increment as u64)
     ))?;
@@ -1139,5 +1130,5 @@ fn name_to_wrapped_ty(name: &str, ns: Option<&str>) -> Result<syn::Type> {
     parse_str::<syn::TypePath>(&ident)
         .map(syn::Type::Path)
         .map_err(anyhow::Error::from)
-        .with_context(|| format!("Determining syn::TypePath from ident \"{}\" failed", ident))
+        .with_context(|| format!("Determining syn::TypePath from ident \"{ident}\" failed"))
 }

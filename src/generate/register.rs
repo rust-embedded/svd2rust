@@ -229,13 +229,11 @@ pub fn render(
         .iter()
         .map(|s| format!("[`{0}`](crate::generic::Reg::{0})", s))
         .collect::<Vec<_>>();
-    let mut doc = format!("{}\n\nThis register you can {}. See [API](https://docs.rs/svd2rust/#read--modify--write-api).",
-                        &description, methods.join(", "));
+    let mut doc = format!("{description}\n\nThis register you can {}. See [API](https://docs.rs/svd2rust/#read--modify--write-api).", methods.join(", "));
 
     if name_snake_case != "cfg" {
         doc += format!(
-            "\n\nFor information about available fields see [{0}](index.html) module",
-            &name_snake_case
+            "\n\nFor information about available fields see [{name_snake_case}](index.html) module"
         )
         .as_str();
     }
@@ -251,10 +249,8 @@ pub fn render(
         }
     }
 
-    let alias_doc = format!(
-        "{} register accessor: an alias for `Reg<{}>`",
-        name, name_constant_case_spec,
-    );
+    let alias_doc =
+        format!("{name} register accessor: an alias for `Reg<{name_constant_case_spec}>`");
     out.extend(quote! {
         #[doc = #alias_doc]
         pub type #name_constant_case = crate::Reg<#name_snake_case::#name_constant_case_spec>;
@@ -269,10 +265,7 @@ pub fn render(
     });
 
     if can_read {
-        let doc = format!(
-            "`read()` method returns [{0}::R](R) reader structure",
-            &name_snake_case
-        );
+        let doc = format!("`read()` method returns [{name_snake_case}::R](R) reader structure",);
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Readable for #name_constant_case_spec {
@@ -281,10 +274,8 @@ pub fn render(
         });
     }
     if can_write {
-        let doc = format!(
-            "`write(|w| ..)` method takes [{0}::W](W) writer structure",
-            &name_snake_case
-        );
+        let doc =
+            format!("`write(|w| ..)` method takes [{name_snake_case}::W](W) writer structure",);
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Writable for #name_constant_case_spec {
@@ -293,7 +284,7 @@ pub fn render(
         });
     }
     if let Some(rv) = properties.reset_value.map(util::hex) {
-        let doc = format!("`reset()` method sets {} to value {}", register.name, &rv);
+        let doc = format!("`reset()` method sets {} to value {rv}", register.name);
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Resettable for #name_constant_case_spec {
@@ -416,7 +407,7 @@ pub fn fields(
                     0
                 };
                 let suffixes: Vec<_> = de.indexes().collect();
-                let suffixes_str = format!("({}-{})", first, first + de.dim - 1);
+                let suffixes_str = format!("({first}-{})", first + de.dim - 1);
                 Some((first, de.dim, de.dim_increment, suffixes, suffixes_str))
             }
             Field::Single(_) => {
@@ -453,12 +444,11 @@ pub fn fields(
             // the suffix string from field name is removed in brief description.
             let field_reader_brief = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
                 format!(
-                    "Fields `{}` reader - {}",
+                    "Fields `{}` reader - {description}",
                     util::replace_suffix(&f.name, suffixes_str),
-                    description,
                 )
             } else {
-                format!("Field `{}` reader - {}", f.name, description)
+                format!("Field `{}` reader - {description}", f.name)
             };
 
             // get the type of value structure. It can be generated from either name field
@@ -468,11 +458,11 @@ pub fn fields(
                 if let Some(enum_name) = &evs.name {
                     let enum_name_constant_case = enum_name.to_sanitized_constant_case();
                     let enum_value_read_ty =
-                        Ident::new(&format!("{}_A", enum_name_constant_case), span);
+                        Ident::new(&format!("{enum_name_constant_case}_A"), span);
                     enum_value_read_ty
                 } else {
                     let derived_field_value_read_ty =
-                        Ident::new(&format!("{}_A", name_constant_case), span);
+                        Ident::new(&format!("{name_constant_case}_A"), span);
                     derived_field_value_read_ty
                 }
             } else {
@@ -604,14 +594,14 @@ pub fn fields(
 
                         let is_variant = Ident::new(
                             &if sc.to_string().starts_with('_') {
-                                format!("is{}", sc)
+                                format!("is{sc}")
                             } else {
-                                format!("is_{}", sc)
+                                format!("is_{sc}")
                             },
                             span,
                         );
 
-                        let doc = format!("Checks if the value of the field is `{}`", pc);
+                        let doc = format!("Checks if the value of the field is `{pc}`");
                         enum_items.extend(quote! {
                             #[doc = #doc]
                             #inline
@@ -735,12 +725,11 @@ pub fn fields(
             // gets a brief of write proxy
             let field_writer_brief = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
                 format!(
-                    "Fields `{}` writer - {}",
+                    "Fields `{}` writer - {description}",
                     util::replace_suffix(&f.name, suffixes_str),
-                    description,
                 )
             } else {
-                format!("Field `{}` writer - {}", f.name, description)
+                format!("Field `{}` writer - {description}", f.name)
             };
 
             let value_write_ty =
@@ -754,11 +743,11 @@ pub fn fields(
                     if let Some(enum_name) = &evs.name {
                         let enum_name_constant_case = enum_name.to_sanitized_constant_case();
                         let enum_value_write_ty =
-                            Ident::new(&format!("{}_{}", enum_name_constant_case, ty_suffix), span);
+                            Ident::new(&format!("{enum_name_constant_case}_{ty_suffix}"), span);
                         enum_value_write_ty
                     } else {
                         let derived_field_value_write_ty =
-                            Ident::new(&format!("{}_{}", name_constant_case, ty_suffix), span);
+                            Ident::new(&format!("{name_constant_case}_{ty_suffix}"), span);
                         derived_field_value_write_ty
                     }
                 } else {
@@ -1007,7 +996,7 @@ impl Variant {
                     doc: ev
                         .description
                         .clone()
-                        .unwrap_or_else(|| format!("`{:b}`", value)),
+                        .unwrap_or_else(|| format!("`{value:b}`")),
                     pc: Ident::new(
                         &(if pc {
                             ev.name.to_sanitized_pascal_case()
@@ -1039,9 +1028,9 @@ fn add_with_no_variants(
     };
 
     let desc = if let Some(rv) = reset_value {
-        format!("{}\n\nValue on reset: {}", desc, rv)
+        format!("{desc}\n\nValue on reset: {rv}")
     } else {
-        desc.to_owned()
+        desc.to_string()
     };
 
     mod_items.extend(quote! {
@@ -1085,9 +1074,9 @@ fn add_from_variants(
     }
 
     let desc = if let Some(rv) = reset_value {
-        format!("{}\n\nValue on reset: {}", desc, rv)
+        format!("{desc}\n\nValue on reset: {rv}")
     } else {
-        desc.to_owned()
+        desc.to_string()
     };
 
     mod_items.extend(quote! {
@@ -1140,9 +1129,9 @@ fn calculate_offset(
 
 fn description_with_bits(description: &str, offset: u64, width: u32) -> String {
     let mut res = if width == 1 {
-        format!("Bit {}", offset)
+        format!("Bit {offset}")
     } else {
-        format!("Bits {}:{}", offset, offset + width as u64 - 1)
+        format!("Bits {offset}:{}", offset + width as u64 - 1)
     };
     if !description.is_empty() {
         res.push_str(" - ");

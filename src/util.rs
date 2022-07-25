@@ -291,13 +291,13 @@ pub fn hex(n: u64) -> TokenStream {
     );
     syn::parse_str::<syn::Lit>(
         &(if h4 != 0 {
-            format!("0x{:04x}_{:04x}_{:04x}_{:04x}", h4, h3, h2, h1)
+            format!("0x{h4:04x}_{h3:04x}_{h2:04x}_{h1:04x}")
         } else if h3 != 0 {
-            format!("0x{:04x}_{:04x}_{:04x}", h3, h2, h1)
+            format!("0x{h3:04x}_{h2:04x}_{h1:04x}")
         } else if h2 != 0 {
-            format!("0x{:04x}_{:04x}", h2, h1)
+            format!("0x{h2:04x}_{h1:04x}")
         } else if h1 & 0xff00 != 0 {
-            format!("0x{:04x}", h1)
+            format!("0x{h1:04x}")
         } else if h1 != 0 {
             format!("0x{:02x}", h1 & 0xff)
         } else {
@@ -429,7 +429,7 @@ pub fn handle_cluster_error<T>(msg: &str, cluster: &Cluster, res: Result<T>) -> 
 }
 
 fn handle_erc_error<T>(msg: &str, name: &str, descrip: &str, res: Result<T>) -> Result<T> {
-    res.with_context(|| format!("{}\nName: {}\nDescription: {}", msg, name, descrip))
+    res.with_context(|| format!("{msg}\nName: {name}\nDescription: {descrip}"))
 }
 
 pub fn get_register_sizes(d: &Device) -> Vec<u32> {
@@ -453,7 +453,7 @@ pub trait FullName {
 impl FullName for RegisterInfo {
     fn fullname(&self, ignore_group: bool) -> Cow<str> {
         match &self.alternate_group {
-            Some(group) if !ignore_group => format!("{}_{}", group, self.name).into(),
+            Some(group) if !ignore_group => format!("{group}_{}", self.name).into(),
             _ => self.name.as_str().into(),
         }
     }

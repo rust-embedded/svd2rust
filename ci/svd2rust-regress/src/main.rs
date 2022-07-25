@@ -94,7 +94,7 @@ fn validate_architecture(s: String) -> Result<(), String> {
     if tests::TESTS.iter().any(|t| format!("{:?}", t.arch) == s) {
         Ok(())
     } else {
-        Err(format!("Architecture `{}` is not a valid value", s))
+        Err(format!("Architecture `{s}` is not a valid value"))
     }
 }
 
@@ -102,7 +102,7 @@ fn validate_manufacturer(s: String) -> Result<(), String> {
     if tests::TESTS.iter().any(|t| format!("{:?}", t.mfgr) == s) {
         Ok(())
     } else {
-        Err(format!("Manufacturer `{}` is not a valid value", s))
+        Err(format!("Manufacturer `{s}` is not a valid value"))
     }
 }
 

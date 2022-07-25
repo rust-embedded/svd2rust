@@ -232,7 +232,7 @@ fn run() -> Result<()> {
     if feature_group {
         let group_names: Vec<String> = group_names(&device)
             .iter()
-            .map(|s| format!("{} = []\n", s))
+            .map(|s| format!("{s} = []\n"))
             .collect();
         write!(
             File::create(path.join("features.toml"))?,
@@ -275,7 +275,7 @@ fn setup_logging<'a>(getter: &'a impl clap_conf::Getter<'a, String>) {
 
 fn main() {
     if let Err(ref e) = run() {
-        error!("{:?}", e);
+        error!("{e:?}");
 
         process::exit(1);
     }
