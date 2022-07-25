@@ -281,6 +281,7 @@ pub fn render(
         });
     }
     if let Some(rv) = properties.reset_value.map(util::hex) {
+        let rv = rv.into_token_stream();
         let doc = format!("`reset()` method sets {} to value {rv}", register.name);
         mod_items.extend(quote! {
             #[doc = #doc]

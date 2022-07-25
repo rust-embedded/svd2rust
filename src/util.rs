@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use crate::svd::{Access, Cluster, Device, Field, Register, RegisterInfo, RegisterProperties};
 use inflections::Inflect;
-use proc_macro2::{Ident, Literal, Span, TokenStream};
-use quote::{quote, ToTokens};
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::quote;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use svd_rs::{MaybeArray, PeripheralInfo};
@@ -282,7 +282,7 @@ pub fn access_of(properties: &RegisterProperties, fields: Option<&[Field]>) -> A
     })
 }
 
-pub fn digit_or_hex(n: u64) -> TokenStream {
+pub fn digit_or_hex(n: u64) -> syn::LitInt {
     if n < 10 {
         unsuffixed(n)
     } else {
@@ -291,14 +291,14 @@ pub fn digit_or_hex(n: u64) -> TokenStream {
 }
 
 /// Turns `n` into an unsuffixed separated hex token
-pub fn hex(n: u64) -> TokenStream {
+pub fn hex(n: u64) -> syn::LitInt {
     let (h4, h3, h2, h1) = (
         (n >> 48) & 0xffff,
         (n >> 32) & 0xffff,
         (n >> 16) & 0xffff,
         n & 0xffff,
     );
-    syn::parse_str::<syn::Lit>(
+    syn::LitInt::new(
         &(if h4 != 0 {
             format!("0x{h4:04x}_{h3:04x}_{h2:04x}_{h1:04x}")
         } else if h3 != 0 {
@@ -312,21 +312,20 @@ pub fn hex(n: u64) -> TokenStream {
         } else {
             "0".to_string()
         }),
+        Span::call_site(),
     )
-    .unwrap()
-    .into_token_stream()
 }
 
 /// Turns `n` into an unsuffixed token
-pub fn unsuffixed(n: u64) -> TokenStream {
-    Literal::u64_unsuffixed(n).into_token_stream()
+pub fn unsuffixed(n: u64) -> syn::LitInt {
+    syn::LitInt::new(&n.to_string(), Span::call_site())
 }
 
-pub fn unsuffixed_or_bool(n: u64, width: u32) -> TokenStream {
+pub fn unsuffixed_or_bool(n: u64, width: u32) -> syn::Lit {
     if width == 1 {
-        Ident::new(if n == 0 { "false" } else { "true" }, Span::call_site()).into_token_stream()
+        syn::Lit::Bool(syn::LitBool::new(n != 0, Span::call_site()))
     } else {
-        unsuffixed(n)
+        syn::Lit::Int(unsuffixed(n))
     }
 }
 

@@ -1002,7 +1002,7 @@ fn array_proxy(
     let ap_path = parse_str::<syn::TypePath>(&format!(
         "crate::ArrayProxy<{tys}, {}, {}>",
         array_info.dim,
-        util::hex(array_info.dim_increment as u64)
+        util::hex(array_info.dim_increment as u64).into_token_stream(),
     ))?;
 
     Ok(RegisterBlockField {
