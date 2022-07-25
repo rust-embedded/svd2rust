@@ -1,8 +1,6 @@
 use std::borrow::Cow;
 
-use crate::svd::{
-    Access, Cluster, Device, Field, Register, RegisterCluster, RegisterInfo, RegisterProperties,
-};
+use crate::svd::{Access, Cluster, Device, Field, Register, RegisterInfo, RegisterProperties};
 use inflections::Inflect;
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 use quote::{quote, ToTokens};
@@ -333,7 +331,7 @@ pub fn register_path_to_ty(
     }
     ident.push_str("::");
     ident.push_str(&rpath.name.to_sanitized_snake_case());
-    Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
+    parse_str::<syn::TypePath>(&ident).map(syn::Type::Path)
 }
 
 pub trait U32Ext {
@@ -391,42 +389,6 @@ impl U32Ext for u32 {
             }
         })
     }
-}
-
-/// Return the name of either register or cluster.
-pub fn erc_name(erc: &RegisterCluster) -> &String {
-    match erc {
-        RegisterCluster::Register(r) => &r.name,
-        RegisterCluster::Cluster(c) => &c.name,
-    }
-}
-
-/// Return the name of either register or cluster from which this register or cluster is derived.
-pub fn erc_derived_from(erc: &RegisterCluster) -> &Option<String> {
-    match erc {
-        RegisterCluster::Register(r) => &r.derived_from,
-        RegisterCluster::Cluster(c) => &c.derived_from,
-    }
-}
-
-/// Return only the clusters from the slice of either register or clusters.
-pub fn only_clusters(ercs: &[RegisterCluster]) -> Vec<&Cluster> {
-    ercs.iter()
-        .filter_map(|x| match x {
-            RegisterCluster::Cluster(x) => Some(x),
-            _ => None,
-        })
-        .collect()
-}
-
-/// Return only the registers the given slice of either register or clusters.
-pub fn only_registers(ercs: &[RegisterCluster]) -> Vec<&Register> {
-    ercs.iter()
-        .filter_map(|x| match x {
-            RegisterCluster::Register(x) => Some(x),
-            _ => None,
-        })
-        .collect()
 }
 
 pub fn build_rs() -> TokenStream {

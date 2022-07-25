@@ -1114,7 +1114,7 @@ fn name_to_ty_str<'a, 'b>(name: &'a str, ns: Option<&'b str>) -> Cow<'a, str> {
 
 fn name_to_ty(name: &str, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
     let ident = name_to_ty_str(name, ns);
-    Ok(syn::Type::Path(parse_str::<syn::TypePath>(&ident)?))
+    parse_str::<syn::TypePath>(&ident).map(syn::Type::Path)
 }
 
 fn name_to_wrapped_ty_str(name: &str, ns: Option<&str>) -> String {
@@ -1136,14 +1136,8 @@ fn name_to_wrapped_ty_str(name: &str, ns: Option<&str>) -> String {
 
 fn name_to_wrapped_ty(name: &str, ns: Option<&str>) -> Result<syn::Type> {
     let ident = name_to_wrapped_ty_str(name, ns);
-    match parse_str::<syn::TypePath>(&ident) {
-        Ok(path) => Ok(syn::Type::Path(path)),
-        Err(e) => {
-            let mut res = Err(e.into());
-            res = res.with_context(|| {
-                format!("Determining syn::TypePath from ident \"{}\" failed", ident)
-            });
-            res
-        }
-    }
+    parse_str::<syn::TypePath>(&ident)
+        .map(syn::Type::Path)
+        .map_err(anyhow::Error::from)
+        .with_context(|| format!("Determining syn::TypePath from ident \"{}\" failed", ident))
 }
