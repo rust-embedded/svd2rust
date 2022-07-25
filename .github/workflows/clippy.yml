@@ -15,7 +15,7 @@ jobs:
           components: clippy
 
       - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
 
       - uses: actions-rs/clippy-check@v1
         with:

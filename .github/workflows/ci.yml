@@ -32,7 +32,7 @@ jobs:
           target: ${{ matrix.TARGET }}
 
       - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.TARGET }}
 
@@ -90,7 +90,7 @@ jobs:
           override: true
 
       - name: Cache
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
 
       - name: Self install
         run: |
@@ -116,7 +116,7 @@ jobs:
           override: true
 
       - name: Cache
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
 
       - name: Self install
         run: |
@@ -141,7 +141,7 @@ jobs:
           override: true
 
       - name: Cache
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
         with:
           key: svdtools-0.2.3
 
@@ -169,7 +169,7 @@ jobs:
           components: rustfmt
 
       - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
 
       - uses: actions-rs/cargo@v1
         with:
