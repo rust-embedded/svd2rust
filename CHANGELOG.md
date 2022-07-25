@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Refactor `periperal.rs`
 - use `svd_parser::expand::Index` for derive
 - Generated enum names now consider `name` field in `enumeratedValues`
 - Use constant case for structure names; internal rearrangements for
