@@ -983,7 +983,7 @@ fn convert_svd_register(
             let nb_name = util::replace_suffix(&info_name, "");
             let ty = name_to_wrapped_ty(&nb_name, name)
                 .with_context(|| format!("Error converting register name {nb_name}"))?;
-            let array_ty = new_syn_array(ty, array_info.dim)?;
+            let array_ty = new_syn_array(ty, array_info.dim);
 
             new_syn_field(nb_name.to_snake_case_ident(Span::call_site()), array_ty)
         }
@@ -1054,7 +1054,7 @@ fn convert_svd_cluster(cluster: &Cluster, name: Option<&str>) -> Result<syn::Fie
         Cluster::Array(info, array_info) => {
             let ty_name = util::replace_suffix(&info.name, "");
             let ty = name_to_ty(&ty_name, name)?;
-            let array_ty = new_syn_array(ty, array_info.dim)?;
+            let array_ty = new_syn_array(ty, array_info.dim);
 
             new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), array_ty)
         }
@@ -1074,14 +1074,14 @@ fn new_syn_field(ident: Ident, ty: syn::Type) -> syn::Field {
     }
 }
 
-fn new_syn_array(ty: syn::Type, len: u32) -> Result<syn::Type, syn::Error> {
+fn new_syn_array(ty: syn::Type, len: u32) -> syn::Type {
     let span = Span::call_site();
-    Ok(syn::Type::Array(syn::TypeArray {
+    syn::Type::Array(syn::TypeArray {
         bracket_token: syn::token::Bracket { span },
         elem: ty.into(),
         semi_token: Token![;](span),
         len: new_syn_u32(len, span),
-    }))
+    })
 }
 
 fn new_syn_u32(len: u32, span: Span) -> syn::Expr {
