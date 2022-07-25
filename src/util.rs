@@ -127,10 +127,16 @@ pub trait ToSanitizedCase {
     ///
     /// Use on name of enumeration values.
     fn to_sanitized_pascal_case(&self) -> Cow<str>;
+    fn to_pascal_case_ident(&self, span: Span) -> Ident {
+        Ident::new(&self.to_sanitized_pascal_case(), span)
+    }
     /// Convert self into CONSTANT_CASE.
     ///
     /// Use on name of reader structs, writer structs and enumerations.
     fn to_sanitized_constant_case(&self) -> Cow<str>;
+    fn to_constant_case_ident(&self, span: Span) -> Ident {
+        Ident::new(&self.to_sanitized_constant_case(), span)
+    }
     /// Convert self into snake_case, must use only if the target is used with extra prefix or suffix.
     fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str>; // snake_case
     /// Convert self into snake_case target and ensure target is not a Rust keyword.
@@ -142,6 +148,9 @@ pub trait ToSanitizedCase {
     fn to_sanitized_snake_case(&self) -> Cow<str> {
         let s = self.to_sanitized_not_keyword_snake_case();
         sanitize_keyword(s)
+    }
+    fn to_snake_case_ident(&self, span: Span) -> Ident {
+        Ident::new(&self.to_sanitized_snake_case(), span)
     }
 }
 

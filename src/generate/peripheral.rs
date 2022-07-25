@@ -35,13 +35,9 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
     let address = util::hex(p.base_address as u64);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
-    let name_snake_case = Ident::new(&name.to_sanitized_snake_case(), span);
+    let name_snake_case = name.to_snake_case_ident(span);
     let (derive_regs, base, path) = if let Some(path) = path {
-        (
-            true,
-            Ident::new(&path.peripheral.to_sanitized_snake_case(), span),
-            path,
-        )
+        (true, path.peripheral.to_snake_case_ident(span), path)
     } else {
         (false, name_snake_case.clone(), BlockPath::new(&p.name))
     };
@@ -705,13 +701,11 @@ fn expand_cluster(
                     let mut accessors = TokenStream::new();
                     let nb_name = util::replace_suffix(&info.name, "");
                     let ty = name_to_ty(&nb_name, name)?;
-                    let nb_name_cs = Ident::new(&nb_name.to_sanitized_snake_case(), span);
+                    let nb_name_cs = nb_name.to_snake_case_ident(span);
                     let description = info.description.as_ref().unwrap_or(&info.name);
                     for (i, idx) in array_info.indexes().enumerate() {
-                        let idx_name = Ident::new(
-                            &util::replace_suffix(&info.name, &idx).to_sanitized_snake_case(),
-                            span,
-                        );
+                        let idx_name =
+                            util::replace_suffix(&info.name, &idx).to_snake_case_ident(span);
                         let comment = make_comment(
                             cluster_size,
                             info.address_offset + (i as u32) * cluster_size / 8,
@@ -814,14 +808,12 @@ fn expand_register(
                     let mut accessors = TokenStream::new();
                     let nb_name = util::replace_suffix(&info.fullname(config.ignore_groups), "");
                     let ty = name_to_wrapped_ty(&nb_name, name)?;
-                    let nb_name_cs = Ident::new(&nb_name.to_sanitized_snake_case(), span);
+                    let nb_name_cs = nb_name.to_snake_case_ident(span);
                     let description = info.description.clone().unwrap_or_default();
                     let info_name = info.fullname(config.ignore_groups);
                     for (i, idx) in array_info.indexes().enumerate() {
-                        let idx_name = Ident::new(
-                            &util::replace_suffix(&info_name, &idx).to_sanitized_snake_case(),
-                            span,
-                        );
+                        let idx_name =
+                            util::replace_suffix(&info_name, &idx).to_snake_case_ident(span);
                         let comment = make_comment(
                             register_size,
                             info.address_offset + (i as u32) * register_size / 8,
@@ -933,7 +925,7 @@ fn cluster_block(
     let description =
         util::escape_brackets(&util::respace(c.description.as_ref().unwrap_or(&c.name)));
 
-    let name_snake_case = Ident::new(&mod_name.to_sanitized_snake_case(), Span::call_site());
+    let name_snake_case = mod_name.to_snake_case_ident(Span::call_site());
 
     Ok(quote! {
         #reg_block
@@ -962,7 +954,10 @@ fn expand_svd_register(
 
             let ty = name_to_wrapped_ty(&ty_name, name)?;
 
-            out.push(new_syn_field(&nb_name.to_sanitized_snake_case(), ty));
+            out.push(new_syn_field(
+                nb_name.to_snake_case_ident(Span::call_site()),
+                ty,
+            ));
         }
         Ok(out)
     } else {
@@ -981,7 +976,7 @@ fn convert_svd_register(
             let info_name = info.fullname(ignore_group);
             let ty = name_to_wrapped_ty(&info_name, name)
                 .with_context(|| format!("Error converting register name {info_name}"))?;
-            new_syn_field(&info_name.to_sanitized_snake_case(), ty)
+            new_syn_field(info_name.to_snake_case_ident(Span::call_site()), ty)
         }
         Register::Array(info, array_info) => {
             let info_name = info.fullname(ignore_group);
@@ -990,7 +985,7 @@ fn convert_svd_register(
                 .with_context(|| format!("Error converting register name {nb_name}"))?;
             let array_ty = new_syn_array(ty, array_info.dim)?;
 
-            new_syn_field(&nb_name.to_sanitized_snake_case(), array_ty)
+            new_syn_field(nb_name.to_snake_case_ident(Span::call_site()), array_ty)
         }
     })
 }
@@ -1011,7 +1006,10 @@ fn array_proxy(
     ))?;
 
     Ok(RegisterBlockField {
-        syn_field: new_syn_field(&ty_name.to_sanitized_snake_case(), ap_path.into()),
+        syn_field: new_syn_field(
+            ty_name.to_snake_case_ident(Span::call_site()),
+            ap_path.into(),
+        ),
         description: info.description.as_ref().unwrap_or(&info.name).into(),
         offset: info.address_offset,
         size: 0,
@@ -1034,7 +1032,10 @@ fn expand_svd_cluster(
 
             let ty = name_to_ty(&ty_name, name)?;
 
-            out.push(new_syn_field(&nb_name.to_sanitized_snake_case(), ty));
+            out.push(new_syn_field(
+                nb_name.to_snake_case_ident(Span::call_site()),
+                ty,
+            ));
         }
         Ok(out)
     } else {
@@ -1048,22 +1049,22 @@ fn convert_svd_cluster(cluster: &Cluster, name: Option<&str>) -> Result<syn::Fie
         Cluster::Single(info) => {
             let ty_name = util::replace_suffix(&info.name, "");
             let ty = name_to_ty(&ty_name, name)?;
-            new_syn_field(&info.name.to_sanitized_snake_case(), ty)
+            new_syn_field(info.name.to_snake_case_ident(Span::call_site()), ty)
         }
         Cluster::Array(info, array_info) => {
             let ty_name = util::replace_suffix(&info.name, "");
             let ty = name_to_ty(&ty_name, name)?;
             let array_ty = new_syn_array(ty, array_info.dim)?;
 
-            new_syn_field(&ty_name.to_sanitized_snake_case(), array_ty)
+            new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), array_ty)
         }
     })
 }
 
-fn new_syn_field(ident: &str, ty: syn::Type) -> syn::Field {
+fn new_syn_field(ident: Ident, ty: syn::Type) -> syn::Field {
     let span = Span::call_site();
     syn::Field {
-        ident: Some(Ident::new(ident, span)),
+        ident: Some(ident),
         vis: syn::Visibility::Public(syn::VisPublic {
             pub_token: Token![pub](span),
         }),
