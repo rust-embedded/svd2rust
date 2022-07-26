@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Move cluster struct inside mod
 - Use inlined variables in `format!` (Rust 1.58)
 - Refactor `periperal.rs`
 - use `svd_parser::expand::Index` for derive
