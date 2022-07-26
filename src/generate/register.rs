@@ -345,6 +345,11 @@ pub fn fields(
         let fpath = fpath.unwrap_or_else(|| rpath.new_field(&f.name));
         // TODO(AJM) - do we need to do anything with this range type?
         let BitRange { offset, width, .. } = f.bit_range;
+
+        if f.is_single() && f.name.contains("%s") {
+            return Err(anyhow!("incorrect field {}", f.name));
+        }
+
         let name = util::replace_suffix(&f.name, "");
         let name_snake_case = name.to_snake_case_ident(span);
         let name_constant_case = name.to_sanitized_constant_case();
@@ -384,36 +389,15 @@ pub fn fields(
 
         let mut evs_r = None;
 
-        // Reads dim information from svd field. If it has dim index, the field is treated as an
-        // array; or it should be treated as a single register field.
-        let field_dim = match &f {
-            Field::Array(_, de) => {
-                let first = if let Some(dim_index) = &de.dim_index {
-                    if let Ok(first) = dim_index[0].parse::<u32>() {
-                        let sequential_indexes = dim_index
-                            .iter()
-                            .map(|element| element.parse::<u32>())
-                            .eq((first..de.dim + first).map(Ok));
-                        if !sequential_indexes {
-                            return Err(anyhow!("unsupported array indexes in {}", f.name));
-                        }
-                        first
-                    } else {
-                        0
-                    }
-                } else {
-                    0
-                };
+        let brief_suffix = if let Field::Array(_, de) = &f {
+            if let Some(range) = de.indexes_as_range() {
+                format!("[{}-{}]", *range.start(), *range.end())
+            } else {
                 let suffixes: Vec<_> = de.indexes().collect();
-                let suffixes_str = format!("({first}-{})", first + de.dim - 1);
-                Some((first, de.dim, de.dim_increment, suffixes, suffixes_str))
+                format!("[{}]", suffixes.join(","))
             }
-            Field::Single(_) => {
-                if f.name.contains("%s") {
-                    return Err(anyhow!("incorrect field {}", f.name));
-                }
-                None
-            }
+        } else {
+            String::new()
         };
 
         // If this field can be read, generate read proxy structure and value structure.
@@ -440,14 +424,7 @@ pub fn fields(
 
             // get a brief description for this field
             // the suffix string from field name is removed in brief description.
-            let field_reader_brief = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
-                format!(
-                    "Fields `{}` reader - {description}",
-                    util::replace_suffix(&f.name, suffixes_str),
-                )
-            } else {
-                format!("Field `{}` reader - {description}", f.name)
-            };
+            let field_reader_brief = format!("Field `{name}{brief_suffix}` reader - {description}");
 
             // get the type of value structure. It can be generated from either name field
             // in enumeratedValues if it's an enumeration, or from field name directly if it's not.
@@ -644,19 +621,24 @@ pub fn fields(
                 }
             }
 
-            if let Some((first, dim, increment, suffixes, suffixes_str)) = &field_dim {
-                let offset_calc = calculate_offset(*first, *increment, offset, true);
-                let value = quote! { ((self.bits >> #offset_calc) & #hexmask) #cast };
-                let doc = &util::replace_suffix(&description, suffixes_str);
-                r_impl_items.extend(quote! {
-                    #[doc = #doc]
-                    #inline
-                    pub unsafe fn #name_snake_case(&self, n: u8) -> #reader_ty {
-                        #reader_ty::new ( #value )
-                    }
-                });
-                for (i, suffix) in (0..*dim).zip(suffixes.iter()) {
-                    let sub_offset = offset + (i as u64) * (*increment as u64);
+            if let Field::Array(_, de) = &f {
+                let increment = de.dim_increment;
+                let doc = &util::replace_suffix(&description, &brief_suffix);
+                if let Some(range) = de.indexes_as_range() {
+                    let first = *range.start();
+
+                    let offset_calc = calculate_offset(first, increment, offset, true);
+                    let value = quote! { ((self.bits >> #offset_calc) & #hexmask) #cast };
+                    r_impl_items.extend(quote! {
+                        #[doc = #doc]
+                        #inline
+                        pub unsafe fn #name_snake_case(&self, n: u8) -> #reader_ty {
+                            #reader_ty::new ( #value )
+                        }
+                    });
+                }
+                for (i, suffix) in de.indexes().enumerate() {
+                    let sub_offset = offset + (i as u64) * (increment as u64);
                     let value = if sub_offset != 0 {
                         let sub_offset = &util::unsuffixed(sub_offset);
                         quote! {
@@ -671,11 +653,11 @@ pub fn fields(
                             self.bits
                         }
                     };
-                    let name_snake_case_n = util::replace_suffix(&f.name, suffix)
+                    let name_snake_case_n = util::replace_suffix(&f.name, &suffix)
                         .to_snake_case_ident(Span::call_site());
                     let doc = util::replace_suffix(
                         &description_with_bits(description_raw, sub_offset, width),
-                        suffix,
+                        &suffix,
                     );
                     r_impl_items.extend(quote! {
                         #[doc = #doc]
@@ -714,14 +696,7 @@ pub fn fields(
                 .or(register.modified_write_values)
                 .unwrap_or_default();
             // gets a brief of write proxy
-            let field_writer_brief = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
-                format!(
-                    "Fields `{}` writer - {description}",
-                    util::replace_suffix(&f.name, suffixes_str),
-                )
-            } else {
-                format!("Field `{}` writer - {description}", f.name)
-            };
+            let field_writer_brief = format!("Field `{name}{brief_suffix}` writer - {description}");
 
             let value_write_ty =
                 if let Some((evs, _)) = lookup_filter(&lookup_results, Usage::Write) {
@@ -889,8 +864,9 @@ pub fn fields(
                 }
             }
 
-            if let Some((_, dim, increment, suffixes, suffixes_str)) = &field_dim {
-                let doc = &util::replace_suffix(&description, suffixes_str);
+            if let Field::Array(_, de) = &f {
+                let increment = de.dim_increment;
+                let doc = &util::replace_suffix(&description, &brief_suffix);
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
@@ -899,13 +875,13 @@ pub fn fields(
                     }
                 });
 
-                for (i, suffix) in (0..*dim).zip(suffixes.iter()) {
-                    let sub_offset = offset + (i as u64) * (*increment as u64);
-                    let name_snake_case_n = &util::replace_suffix(&f.name, suffix)
+                for (i, suffix) in de.indexes().enumerate() {
+                    let sub_offset = offset + (i as u64) * (increment as u64);
+                    let name_snake_case_n = &util::replace_suffix(&f.name, &suffix)
                         .to_snake_case_ident(Span::call_site());
                     let doc = util::replace_suffix(
                         &description_with_bits(description_raw, sub_offset, width),
-                        suffix,
+                        &suffix,
                     );
                     let sub_offset = util::unsuffixed(sub_offset as u64);
 
