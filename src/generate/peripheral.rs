@@ -10,10 +10,7 @@ use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parse_str, Token};
 
-use crate::util::{
-    self, handle_cluster_error, handle_reg_error, unsuffixed, Config, FullName, ToSanitizedCase,
-    BITS_PER_BYTE,
-};
+use crate::util::{self, unsuffixed, Config, FullName, ToSanitizedCase, BITS_PER_BYTE};
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::generate::register;
@@ -570,26 +567,24 @@ fn expand(ercs: &[RegisterCluster], config: &Config) -> Result<Vec<RegisterBlock
     debug!("Expanding registers or clusters into Register Block Fields");
     for erc in ercs {
         match &erc {
-            RegisterCluster::Register(register) => match expand_register(register, config) {
-                Ok(expanded_reg) => {
-                    trace!("Register: {}", register.name);
-                    ercs_expanded.extend(expanded_reg);
-                }
-                Err(e) => {
-                    let res = Err(e);
-                    return handle_reg_error("Error expanding register", register, res);
-                }
-            },
-            RegisterCluster::Cluster(cluster) => match expand_cluster(cluster, config) {
-                Ok(expanded_cluster) => {
-                    trace!("Cluster: {}", cluster.name);
-                    ercs_expanded.extend(expanded_cluster);
-                }
-                Err(e) => {
-                    let res = Err(e);
-                    return handle_cluster_error("Error expanding register cluster", cluster, res);
-                }
-            },
+            RegisterCluster::Register(register) => {
+                let reg_name = &register.name;
+                let expanded_reg = expand_register(register, config).with_context(|| {
+                    let descrip = register.description.as_deref().unwrap_or("No description");
+                    format!("Error expanding register\nName: {reg_name}\nDescription: {descrip}")
+                })?;
+                trace!("Register: {reg_name}");
+                ercs_expanded.extend(expanded_reg);
+            }
+            RegisterCluster::Cluster(cluster) => {
+                let cluster_name = &cluster.name;
+                let expanded_cluster = expand_cluster(cluster, config).with_context(|| {
+                    let descrip = cluster.description.as_deref().unwrap_or("No description");
+                    format!("Error expanding cluster\nName: {cluster_name}\nDescription: {descrip}")
+                })?;
+                trace!("Cluster: {cluster_name}");
+                ercs_expanded.extend(expanded_cluster);
+            }
         };
     }
 
@@ -880,14 +875,17 @@ fn render_ercs(
                 if let Some(dpath) = dpath {
                     rpath = derive_register(reg, &dpath, path, index)?;
                 }
-                let rpath = rpath.unwrap_or_else(|| path.new_register(&reg.name));
-                match register::render(reg, &rpath, index, config) {
-                    Ok(rendered_reg) => mod_items.extend(rendered_reg),
-                    Err(e) => {
-                        let res: Result<TokenStream> = Err(e);
-                        return handle_reg_error("Error rendering register", reg, res);
-                    }
-                };
+                let reg_name = &reg.name;
+                let rpath = rpath.unwrap_or_else(|| path.new_register(reg_name));
+
+                let rendered_reg =
+                    register::render(reg, &rpath, index, config).with_context(|| {
+                        let descrip = reg.description.as_deref().unwrap_or("No description");
+                        format!(
+                            "Error rendering register\nName: {reg_name}\nDescription: {descrip}"
+                        )
+                    })?;
+                mod_items.extend(rendered_reg)
             }
         }
     }

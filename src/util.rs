@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::svd::{Access, Cluster, Device, Field, Register, RegisterInfo, RegisterProperties};
+use crate::svd::{Access, Device, Field, RegisterInfo, RegisterProperties};
 use inflections::Inflect;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use svd_rs::{MaybeArray, PeripheralInfo};
 use syn::parse_str;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 
 pub const BITS_PER_BYTE: u32 = 8;
 
@@ -422,22 +422,6 @@ pub fn build_rs() -> TokenStream {
             println!("cargo:rerun-if-changed=build.rs");
         }
     }
-}
-
-pub fn handle_reg_error<T>(msg: &str, reg: &Register, res: Result<T>) -> Result<T> {
-    let reg_name = &reg.name;
-    let descrip = reg.description.as_deref().unwrap_or("No description");
-    handle_erc_error(msg, reg_name, descrip, res)
-}
-
-pub fn handle_cluster_error<T>(msg: &str, cluster: &Cluster, res: Result<T>) -> Result<T> {
-    let cluster_name = &cluster.name;
-    let descrip = cluster.description.as_deref().unwrap_or("No description");
-    handle_erc_error(msg, cluster_name, descrip, res)
-}
-
-fn handle_erc_error<T>(msg: &str, name: &str, descrip: &str, res: Result<T>) -> Result<T> {
-    res.with_context(|| format!("{msg}\nName: {name}\nDescription: {descrip}"))
 }
 
 pub fn get_register_sizes(d: &Device) -> Vec<u32> {
