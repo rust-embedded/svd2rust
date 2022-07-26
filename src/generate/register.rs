@@ -25,12 +25,9 @@ pub fn render(
     let access = util::access_of(properties, register.fields.as_deref());
     let name = util::name_of(register, config.ignore_groups);
     let span = Span::call_site();
-    let name_constant_case = Ident::new(&name.to_sanitized_constant_case(), span);
-    let name_constant_case_spec = Ident::new(
-        &format!("{}_SPEC", &name.to_sanitized_constant_case()),
-        span,
-    );
-    let name_snake_case = Ident::new(&name.to_sanitized_snake_case(), span);
+    let name_constant_case = name.to_constant_case_ident(span);
+    let name_constant_case_spec = format!("{name}_SPEC").to_constant_case_ident(span);
+    let name_snake_case = name.to_snake_case_ident(span);
     let rsize = properties
         .size
         .ok_or_else(|| anyhow!("Register {} has no `size` field", register.name))?;
@@ -229,13 +226,11 @@ pub fn render(
         .iter()
         .map(|s| format!("[`{0}`](crate::generic::Reg::{0})", s))
         .collect::<Vec<_>>();
-    let mut doc = format!("{}\n\nThis register you can {}. See [API](https://docs.rs/svd2rust/#read--modify--write-api).",
-                        &description, methods.join(", "));
+    let mut doc = format!("{description}\n\nThis register you can {}. See [API](https://docs.rs/svd2rust/#read--modify--write-api).", methods.join(", "));
 
     if name_snake_case != "cfg" {
         doc += format!(
-            "\n\nFor information about available fields see [{0}](index.html) module",
-            &name_snake_case
+            "\n\nFor information about available fields see [{name_snake_case}](index.html) module"
         )
         .as_str();
     }
@@ -251,10 +246,8 @@ pub fn render(
         }
     }
 
-    let alias_doc = format!(
-        "{} register accessor: an alias for `Reg<{}>`",
-        name, name_constant_case_spec,
-    );
+    let alias_doc =
+        format!("{name} register accessor: an alias for `Reg<{name_constant_case_spec}>`");
     out.extend(quote! {
         #[doc = #alias_doc]
         pub type #name_constant_case = crate::Reg<#name_snake_case::#name_constant_case_spec>;
@@ -269,10 +262,7 @@ pub fn render(
     });
 
     if can_read {
-        let doc = format!(
-            "`read()` method returns [{0}::R](R) reader structure",
-            &name_snake_case
-        );
+        let doc = format!("`read()` method returns [{name_snake_case}::R](R) reader structure",);
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Readable for #name_constant_case_spec {
@@ -281,10 +271,8 @@ pub fn render(
         });
     }
     if can_write {
-        let doc = format!(
-            "`write(|w| ..)` method takes [{0}::W](W) writer structure",
-            &name_snake_case
-        );
+        let doc =
+            format!("`write(|w| ..)` method takes [{name_snake_case}::W](W) writer structure",);
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Writable for #name_constant_case_spec {
@@ -293,7 +281,8 @@ pub fn render(
         });
     }
     if let Some(rv) = properties.reset_value.map(util::hex) {
-        let doc = format!("`reset()` method sets {} to value {}", register.name, &rv);
+        let rv = rv.into_token_stream();
+        let doc = format!("`reset()` method sets {} to value {rv}", register.name);
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Resettable for #name_constant_case_spec {
@@ -356,8 +345,13 @@ pub fn fields(
         let fpath = fpath.unwrap_or_else(|| rpath.new_field(&f.name));
         // TODO(AJM) - do we need to do anything with this range type?
         let BitRange { offset, width, .. } = f.bit_range;
+
+        if f.is_single() && f.name.contains("%s") {
+            return Err(anyhow!("incorrect field {}", f.name));
+        }
+
         let name = util::replace_suffix(&f.name, "");
-        let name_snake_case = Ident::new(&name.to_sanitized_snake_case(), span);
+        let name_snake_case = name.to_snake_case_ident(span);
         let name_constant_case = name.to_sanitized_constant_case();
         let description_raw = f.description.as_deref().unwrap_or(""); // raw description, if absent using empty string
         let description = util::respace(&util::escape_brackets(description_raw));
@@ -395,36 +389,15 @@ pub fn fields(
 
         let mut evs_r = None;
 
-        // Reads dim information from svd field. If it has dim index, the field is treated as an
-        // array; or it should be treated as a single register field.
-        let field_dim = match &f {
-            Field::Array(_, de) => {
-                let first = if let Some(dim_index) = &de.dim_index {
-                    if let Ok(first) = dim_index[0].parse::<u32>() {
-                        let sequential_indexes = dim_index
-                            .iter()
-                            .map(|element| element.parse::<u32>())
-                            .eq((first..de.dim + first).map(Ok));
-                        if !sequential_indexes {
-                            return Err(anyhow!("unsupported array indexes in {}", f.name));
-                        }
-                        first
-                    } else {
-                        0
-                    }
-                } else {
-                    0
-                };
+        let brief_suffix = if let Field::Array(_, de) = &f {
+            if let Some(range) = de.indexes_as_range() {
+                format!("[{}-{}]", *range.start(), *range.end())
+            } else {
                 let suffixes: Vec<_> = de.indexes().collect();
-                let suffixes_str = format!("({}-{})", first, first + de.dim - 1);
-                Some((first, de.dim, de.dim_increment, suffixes, suffixes_str))
+                format!("[{}]", suffixes.join(","))
             }
-            Field::Single(_) => {
-                if f.name.contains("%s") {
-                    return Err(anyhow!("incorrect field {}", f.name));
-                }
-                None
-            }
+        } else {
+            String::new()
         };
 
         // If this field can be read, generate read proxy structure and value structure.
@@ -451,29 +424,17 @@ pub fn fields(
 
             // get a brief description for this field
             // the suffix string from field name is removed in brief description.
-            let field_reader_brief = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
-                format!(
-                    "Fields `{}` reader - {}",
-                    util::replace_suffix(&f.name, suffixes_str),
-                    description,
-                )
-            } else {
-                format!("Field `{}` reader - {}", f.name, description)
-            };
+            let field_reader_brief = format!("Field `{name}{brief_suffix}` reader - {description}");
 
             // get the type of value structure. It can be generated from either name field
             // in enumeratedValues if it's an enumeration, or from field name directly if it's not.
             let value_read_ty = if let Some((evs, _)) = lookup_filter(&lookup_results, Usage::Read)
             {
                 if let Some(enum_name) = &evs.name {
-                    let enum_name_constant_case = enum_name.to_sanitized_constant_case();
-                    let enum_value_read_ty =
-                        Ident::new(&format!("{}_A", enum_name_constant_case), span);
-                    enum_value_read_ty
+                    format!("{enum_name}_A").to_constant_case_ident(span)
                 } else {
-                    let derived_field_value_read_ty =
-                        Ident::new(&format!("{}_A", name_constant_case), span);
-                    derived_field_value_read_ty
+                    // derived_field_value_read_ty
+                    Ident::new(&format!("{name_constant_case}_A"), span)
                 }
             } else {
                 // raw_field_value_read_ty
@@ -604,14 +565,14 @@ pub fn fields(
 
                         let is_variant = Ident::new(
                             &if sc.to_string().starts_with('_') {
-                                format!("is{}", sc)
+                                format!("is{sc}")
                             } else {
-                                format!("is_{}", sc)
+                                format!("is_{sc}")
                             },
                             span,
                         );
 
-                        let doc = format!("Checks if the value of the field is `{}`", pc);
+                        let doc = format!("Checks if the value of the field is `{pc}`");
                         enum_items.extend(quote! {
                             #[doc = #doc]
                             #inline
@@ -630,8 +591,7 @@ pub fn fields(
                 evs_r = Some(evs.clone());
                 // generate pub use field_1 reader as field_2 reader
                 let base_field = util::replace_suffix(&base.field.name, "");
-                let base_constant_case = base_field.to_sanitized_constant_case();
-                let base_r = Ident::new(&(base_constant_case + "_R"), span);
+                let base_r = (base_field + "_R").to_constant_case_ident(span);
                 if !reader_derives.contains(&reader_ty) {
                     derive_from_base(
                         mod_items,
@@ -661,19 +621,24 @@ pub fn fields(
                 }
             }
 
-            if let Some((first, dim, increment, suffixes, suffixes_str)) = &field_dim {
-                let offset_calc = calculate_offset(*first, *increment, offset, true);
-                let value = quote! { ((self.bits >> #offset_calc) & #hexmask) #cast };
-                let doc = &util::replace_suffix(&description, suffixes_str);
-                r_impl_items.extend(quote! {
-                    #[doc = #doc]
-                    #inline
-                    pub unsafe fn #name_snake_case(&self, n: u8) -> #reader_ty {
-                        #reader_ty::new ( #value )
-                    }
-                });
-                for (i, suffix) in (0..*dim).zip(suffixes.iter()) {
-                    let sub_offset = offset + (i as u64) * (*increment as u64);
+            if let Field::Array(_, de) = &f {
+                let increment = de.dim_increment;
+                let doc = &util::replace_suffix(&description, &brief_suffix);
+                if let Some(range) = de.indexes_as_range() {
+                    let first = *range.start();
+
+                    let offset_calc = calculate_offset(first, increment, offset, true);
+                    let value = quote! { ((self.bits >> #offset_calc) & #hexmask) #cast };
+                    r_impl_items.extend(quote! {
+                        #[doc = #doc]
+                        #inline
+                        pub unsafe fn #name_snake_case(&self, n: u8) -> #reader_ty {
+                            #reader_ty::new ( #value )
+                        }
+                    });
+                }
+                for (i, suffix) in de.indexes().enumerate() {
+                    let sub_offset = offset + (i as u64) * (increment as u64);
                     let value = if sub_offset != 0 {
                         let sub_offset = &util::unsuffixed(sub_offset);
                         quote! {
@@ -688,13 +653,11 @@ pub fn fields(
                             self.bits
                         }
                     };
-                    let name_snake_case_n = Ident::new(
-                        &util::replace_suffix(&f.name, suffix).to_sanitized_snake_case(),
-                        Span::call_site(),
-                    );
+                    let name_snake_case_n = util::replace_suffix(&f.name, &suffix)
+                        .to_snake_case_ident(Span::call_site());
                     let doc = util::replace_suffix(
                         &description_with_bits(description_raw, sub_offset, width),
-                        suffix,
+                        &suffix,
                     );
                     r_impl_items.extend(quote! {
                         #[doc = #doc]
@@ -733,15 +696,7 @@ pub fn fields(
                 .or(register.modified_write_values)
                 .unwrap_or_default();
             // gets a brief of write proxy
-            let field_writer_brief = if let Some((_, _, _, _, suffixes_str)) = &field_dim {
-                format!(
-                    "Fields `{}` writer - {}",
-                    util::replace_suffix(&f.name, suffixes_str),
-                    description,
-                )
-            } else {
-                format!("Field `{}` writer - {}", f.name, description)
-            };
+            let field_writer_brief = format!("Field `{name}{brief_suffix}` writer - {description}");
 
             let value_write_ty =
                 if let Some((evs, _)) = lookup_filter(&lookup_results, Usage::Write) {
@@ -752,14 +707,10 @@ pub fn fields(
                         "A"
                     };
                     if let Some(enum_name) = &evs.name {
-                        let enum_name_constant_case = enum_name.to_sanitized_constant_case();
-                        let enum_value_write_ty =
-                            Ident::new(&format!("{}_{}", enum_name_constant_case, ty_suffix), span);
-                        enum_value_write_ty
+                        format!("{enum_name}_{ty_suffix}").to_constant_case_ident(span)
                     } else {
-                        let derived_field_value_write_ty =
-                            Ident::new(&format!("{}_{}", name_constant_case, ty_suffix), span);
-                        derived_field_value_write_ty
+                        // derived_field_value_write_ty
+                        Ident::new(&format!("{name_constant_case}_{ty_suffix}"), span)
                     }
                 } else {
                     // raw_field_value_write_ty
@@ -898,8 +849,7 @@ pub fn fields(
 
                     // generate pub use field_1 writer as field_2 writer
                     let base_field = util::replace_suffix(&base.field.name, "");
-                    let base_constant_case = base_field.to_sanitized_constant_case();
-                    let base_w = Ident::new(&(base_constant_case + "_W"), span);
+                    let base_w = (base_field + "_W").to_constant_case_ident(span);
                     if !writer_derives.contains(&writer_ty) {
                         derive_from_base(
                             mod_items,
@@ -914,8 +864,9 @@ pub fn fields(
                 }
             }
 
-            if let Some((_, dim, increment, suffixes, suffixes_str)) = &field_dim {
-                let doc = &util::replace_suffix(&description, suffixes_str);
+            if let Field::Array(_, de) = &f {
+                let increment = de.dim_increment;
+                let doc = &util::replace_suffix(&description, &brief_suffix);
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
@@ -924,15 +875,13 @@ pub fn fields(
                     }
                 });
 
-                for (i, suffix) in (0..*dim).zip(suffixes.iter()) {
-                    let sub_offset = offset + (i as u64) * (*increment as u64);
-                    let name_snake_case_n = Ident::new(
-                        &util::replace_suffix(&f.name, suffix).to_sanitized_snake_case(),
-                        Span::call_site(),
-                    );
+                for (i, suffix) in de.indexes().enumerate() {
+                    let sub_offset = offset + (i as u64) * (increment as u64);
+                    let name_snake_case_n = &util::replace_suffix(&f.name, &suffix)
+                        .to_snake_case_ident(Span::call_site());
                     let doc = util::replace_suffix(
                         &description_with_bits(description_raw, sub_offset, width),
-                        suffix,
+                        &suffix,
                     );
                     let sub_offset = util::unsuffixed(sub_offset as u64);
 
@@ -1007,15 +956,12 @@ impl Variant {
                     doc: ev
                         .description
                         .clone()
-                        .unwrap_or_else(|| format!("`{:b}`", value)),
-                    pc: Ident::new(
-                        &(if pc {
-                            ev.name.to_sanitized_pascal_case()
-                        } else {
-                            ev.name.to_sanitized_constant_case()
-                        }),
-                        span,
-                    ),
+                        .unwrap_or_else(|| format!("`{value:b}`")),
+                    pc: if pc {
+                        ev.name.to_pascal_case_ident(span)
+                    } else {
+                        ev.name.to_constant_case_ident(span)
+                    },
                     nksc: Ident::new(&nksc, span),
                     sc: Ident::new(&sc, span),
                     value,
@@ -1039,9 +985,9 @@ fn add_with_no_variants(
     };
 
     let desc = if let Some(rv) = reset_value {
-        format!("{}\n\nValue on reset: {}", desc, rv)
+        format!("{desc}\n\nValue on reset: {rv}")
     } else {
-        desc.to_owned()
+        desc.to_string()
     };
 
     mod_items.extend(quote! {
@@ -1085,9 +1031,9 @@ fn add_from_variants(
     }
 
     let desc = if let Some(rv) = reset_value {
-        format!("{}\n\nValue on reset: {}", desc, rv)
+        format!("{desc}\n\nValue on reset: {rv}")
     } else {
-        desc.to_owned()
+        desc.to_string()
     };
 
     mod_items.extend(quote! {
@@ -1140,9 +1086,9 @@ fn calculate_offset(
 
 fn description_with_bits(description: &str, offset: u64, width: u32) -> String {
     let mut res = if width == 1 {
-        format!("Bit {}", offset)
+        format!("Bit {offset}")
     } else {
-        format!("Bits {}:{}", offset, offset + width as u64 - 1)
+        format!("Bits {offset}:{}", offset + width as u64 - 1)
     };
     if !description.is_empty() {
         res.push_str(" - ");
@@ -1163,8 +1109,7 @@ fn derive_from_base(
     let path = if base.register() == field.register() {
         quote! { #base_pc }
     } else if base.register().block == field.register().block {
-        let mod_ = base.register().name.to_sanitized_snake_case();
-        let mod_ = Ident::new(&mod_, span);
+        let mod_ = base.register().name.to_snake_case_ident(span);
 
         quote! { super::#mod_::#base_pc }
     } else {

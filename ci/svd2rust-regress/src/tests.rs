@@ -1,4 +1,5 @@
 use inflections::Inflect;
+use std::borrow::Cow;
 
 #[derive(Debug, PartialEq)]
 pub enum Architecture {
@@ -68,7 +69,9 @@ impl TestCase {
     }
 
     pub fn name(&self) -> String {
-        format!("{:?}-{}", self.mfgr, self.chip.replace(".", "_")).to_sanitized_snake_case()
+        format!("{:?}-{}", self.mfgr, self.chip.replace(".", "_"))
+            .to_sanitized_snake_case()
+            .into()
     }
 }
 
@@ -80,92 +83,49 @@ use self::RunWhen::*;
 /// that are not valid in Rust ident
 const BLACKLIST_CHARS: &[char] = &['(', ')', '[', ']'];
 
-/// Lovingly stolen from `svd2rust`. Probably could be `Cow`
-pub trait ToSanitizedSnakeCase {
-    fn to_sanitized_snake_case(&self) -> String;
+/// Lovingly stolen from `svd2rust`
+pub trait ToSanitizedCase {
+    fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str>;
+    fn to_sanitized_snake_case(&self) -> Cow<str> {
+        let s = self.to_sanitized_not_keyword_snake_case();
+        sanitize_keyword(s)
+    }
 }
 
-impl ToSanitizedSnakeCase for str {
-    fn to_sanitized_snake_case(&self) -> String {
-        macro_rules! keywords {
-            ($s:expr, $($kw:ident),+,) => {
-                String::from(match &$s.to_lowercase()[..] {
-                    $(stringify!($kw) => concat!(stringify!($kw), "_")),+,
-                    _ => return String::from($s.to_snake_case())
-                })
-            }
-        }
+impl ToSanitizedCase for str {
+    fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str> {
+        const INTERNALS: [&str; 4] = ["set_bit", "clear_bit", "bit", "bits"];
 
         let s = self.replace(BLACKLIST_CHARS, "");
-
         match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                format!("_{}", s.to_snake_case())
+                format!("_{}", s.to_snake_case()).into()
             }
             _ => {
-                keywords! {
-                    s,
-                    abstract,
-                    alignof,
-                    as,
-                    r#async,
-                    r#await,
-                    become,
-                    box,
-                    break,
-                    const,
-                    continue,
-                    crate,
-                    do,
-                    else,
-                    enum,
-                    extern,
-                    false,
-                    final,
-                    fn,
-                    for,
-                    if,
-                    impl,
-                    in,
-                    let,
-                    loop,
-                    macro,
-                    match,
-                    mod,
-                    move,
-                    mut,
-                    offsetof,
-                    override,
-                    priv,
-                    proc,
-                    pub,
-                    pure,
-                    ref,
-                    return,
-                    self,
-                    sizeof,
-                    static,
-                    struct,
-                    super,
-                    trait,
-                    true,
-                    r#try,
-                    type,
-                    typeof,
-                    unsafe,
-                    unsized,
-                    use,
-                    virtual,
-                    where,
-                    while,
-                    yield,
-                    set_bit,
-                    clear_bit,
-                    bit,
-                    bits,
+                let s = Cow::from(s.to_snake_case());
+                if INTERNALS.contains(&s.as_ref()) {
+                    s + "_"
+                } else {
+                    s
                 }
             }
         }
+    }
+}
+
+pub fn sanitize_keyword(sc: Cow<str>) -> Cow<str> {
+    const KEYWORDS: [&str; 55] = [
+        "abstract", "alignof", "as", "async", "await", "become", "box", "break", "const",
+        "continue", "crate", "do", "dyn", "else", "enum", "extern", "false", "final", "fn", "for",
+        "if", "impl", "in", "let", "loop", "macro", "match", "mod", "move", "mut", "offsetof",
+        "override", "priv", "proc", "pub", "pure", "ref", "return", "self", "sizeof", "static",
+        "struct", "super", "trait", "true", "try", "type", "typeof", "unsafe", "unsized", "use",
+        "virtual", "where", "while", "yield",
+    ];
+    if KEYWORDS.contains(&sc.as_ref()) {
+        sc + "_"
+    } else {
+        sc
     }
 }
 

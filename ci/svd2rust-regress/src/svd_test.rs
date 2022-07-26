@@ -28,10 +28,10 @@ fn path_helper_base(base: &PathBuf, input: &[&str]) -> PathBuf {
 
 /// Create and write to file
 fn file_helper(payload: &str, path: &PathBuf) -> Result<()> {
-    let mut f = File::create(path).chain_err(|| format!("Failed to create {:?}", path))?;
+    let mut f = File::create(path).chain_err(|| format!("Failed to create {path:?}"))?;
 
     f.write_all(payload.as_bytes())
-        .chain_err(|| format!("Failed to write to {:?}", path))?;
+        .chain_err(|| format!("Failed to write to {path:?}"))?;
 
     Ok(())
 }

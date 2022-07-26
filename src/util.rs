@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use crate::svd::{Access, Cluster, Device, Field, Register, RegisterInfo, RegisterProperties};
 use inflections::Inflect;
-use proc_macro2::{Ident, Literal, Span, TokenStream};
-use quote::{quote, ToTokens};
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::quote;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use svd_rs::{MaybeArray, PeripheralInfo};
@@ -127,10 +127,16 @@ pub trait ToSanitizedCase {
     ///
     /// Use on name of enumeration values.
     fn to_sanitized_pascal_case(&self) -> Cow<str>;
+    fn to_pascal_case_ident(&self, span: Span) -> Ident {
+        Ident::new(&self.to_sanitized_pascal_case(), span)
+    }
     /// Convert self into CONSTANT_CASE.
     ///
     /// Use on name of reader structs, writer structs and enumerations.
     fn to_sanitized_constant_case(&self) -> Cow<str>;
+    fn to_constant_case_ident(&self, span: Span) -> Ident {
+        Ident::new(&self.to_sanitized_constant_case(), span)
+    }
     /// Convert self into snake_case, must use only if the target is used with extra prefix or suffix.
     fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str>; // snake_case
     /// Convert self into snake_case target and ensure target is not a Rust keyword.
@@ -142,6 +148,9 @@ pub trait ToSanitizedCase {
     fn to_sanitized_snake_case(&self) -> Cow<str> {
         let s = self.to_sanitized_not_keyword_snake_case();
         sanitize_keyword(s)
+    }
+    fn to_snake_case_ident(&self, span: Span) -> Ident {
+        Ident::new(&self.to_sanitized_snake_case(), span)
     }
 }
 
@@ -273,7 +282,7 @@ pub fn access_of(properties: &RegisterProperties, fields: Option<&[Field]>) -> A
     })
 }
 
-pub fn digit_or_hex(n: u64) -> TokenStream {
+pub fn digit_or_hex(n: u64) -> syn::LitInt {
     if n < 10 {
         unsuffixed(n)
     } else {
@@ -282,42 +291,41 @@ pub fn digit_or_hex(n: u64) -> TokenStream {
 }
 
 /// Turns `n` into an unsuffixed separated hex token
-pub fn hex(n: u64) -> TokenStream {
+pub fn hex(n: u64) -> syn::LitInt {
     let (h4, h3, h2, h1) = (
         (n >> 48) & 0xffff,
         (n >> 32) & 0xffff,
         (n >> 16) & 0xffff,
         n & 0xffff,
     );
-    syn::parse_str::<syn::Lit>(
+    syn::LitInt::new(
         &(if h4 != 0 {
-            format!("0x{:04x}_{:04x}_{:04x}_{:04x}", h4, h3, h2, h1)
+            format!("0x{h4:04x}_{h3:04x}_{h2:04x}_{h1:04x}")
         } else if h3 != 0 {
-            format!("0x{:04x}_{:04x}_{:04x}", h3, h2, h1)
+            format!("0x{h3:04x}_{h2:04x}_{h1:04x}")
         } else if h2 != 0 {
-            format!("0x{:04x}_{:04x}", h2, h1)
+            format!("0x{h2:04x}_{h1:04x}")
         } else if h1 & 0xff00 != 0 {
-            format!("0x{:04x}", h1)
+            format!("0x{h1:04x}")
         } else if h1 != 0 {
             format!("0x{:02x}", h1 & 0xff)
         } else {
             "0".to_string()
         }),
+        Span::call_site(),
     )
-    .unwrap()
-    .into_token_stream()
 }
 
 /// Turns `n` into an unsuffixed token
-pub fn unsuffixed(n: u64) -> TokenStream {
-    Literal::u64_unsuffixed(n).into_token_stream()
+pub fn unsuffixed(n: u64) -> syn::LitInt {
+    syn::LitInt::new(&n.to_string(), Span::call_site())
 }
 
-pub fn unsuffixed_or_bool(n: u64, width: u32) -> TokenStream {
+pub fn unsuffixed_or_bool(n: u64, width: u32) -> syn::Lit {
     if width == 1 {
-        Ident::new(if n == 0 { "false" } else { "true" }, Span::call_site()).into_token_stream()
+        syn::Lit::Bool(syn::LitBool::new(n != 0, Span::call_site()))
     } else {
-        unsuffixed(n)
+        syn::Lit::Int(unsuffixed(n))
     }
 }
 
@@ -429,7 +437,7 @@ pub fn handle_cluster_error<T>(msg: &str, cluster: &Cluster, res: Result<T>) -> 
 }
 
 fn handle_erc_error<T>(msg: &str, name: &str, descrip: &str, res: Result<T>) -> Result<T> {
-    res.with_context(|| format!("{}\nName: {}\nDescription: {}", msg, name, descrip))
+    res.with_context(|| format!("{msg}\nName: {name}\nDescription: {descrip}"))
 }
 
 pub fn get_register_sizes(d: &Device) -> Vec<u32> {
@@ -453,7 +461,7 @@ pub trait FullName {
 impl FullName for RegisterInfo {
     fn fullname(&self, ignore_group: bool) -> Cow<str> {
         match &self.alternate_group {
-            Some(group) if !ignore_group => format!("{}_{}", group, self.name).into(),
+            Some(group) if !ignore_group => format!("{group}_{}", self.name).into(),
             _ => self.name.as_str().into(),
         }
     }
