@@ -906,7 +906,12 @@ fn cluster_block(
 
     let name_snake_case = mod_name.to_snake_case_ident(Span::call_site());
 
+    let struct_path = name_to_ty(&mod_name)?;
+
     Ok(quote! {
+        #[doc = #description]
+        pub use #struct_path;
+
         ///Cluster
         #[doc = #description]
         pub mod #name_snake_case {
