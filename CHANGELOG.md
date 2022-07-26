@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Remove `sequential_indexes` check in generating of field.
 - Refactor `periperal.rs`
 - use `svd_parser::expand::Index` for derive
 - Generated enum names now consider `name` field in `enumeratedValues`

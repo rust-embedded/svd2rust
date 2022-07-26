@@ -401,13 +401,6 @@ pub fn fields(
             Field::Array(_, de) => {
                 let first = if let Some(dim_index) = &de.dim_index {
                     if let Ok(first) = dim_index[0].parse::<u32>() {
-                        let sequential_indexes = dim_index
-                            .iter()
-                            .map(|element| element.parse::<u32>())
-                            .eq((first..de.dim + first).map(Ok));
-                        if !sequential_indexes {
-                            return Err(anyhow!("unsupported array indexes in {}", f.name));
-                        }
                         first
                     } else {
                         0
