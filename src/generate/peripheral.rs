@@ -439,7 +439,7 @@ fn register_or_cluster_block(
     let mut accessors = TokenStream::new();
 
     let ercs_expanded =
-        expand(ercs, name, config).with_context(|| "Could not expand register or cluster block")?;
+        expand(ercs, config).with_context(|| "Could not expand register or cluster block")?;
 
     // Locate conflicting regions; we'll need to use unions to represent them.
     let mut regions = FieldRegions::default();
@@ -564,17 +564,13 @@ fn register_or_cluster_block(
 
 /// Expand a list of parsed `Register`s or `Cluster`s, and render them to
 /// `RegisterBlockField`s containing `Field`s.
-fn expand(
-    ercs: &[RegisterCluster],
-    name: Option<&str>,
-    config: &Config,
-) -> Result<Vec<RegisterBlockField>> {
+fn expand(ercs: &[RegisterCluster], config: &Config) -> Result<Vec<RegisterBlockField>> {
     let mut ercs_expanded = vec![];
 
     debug!("Expanding registers or clusters into Register Block Fields");
     for erc in ercs {
         match &erc {
-            RegisterCluster::Register(register) => match expand_register(register, name, config) {
+            RegisterCluster::Register(register) => match expand_register(register, config) {
                 Ok(expanded_reg) => {
                     trace!("Register: {}", register.name);
                     ercs_expanded.extend(expanded_reg);
@@ -584,7 +580,7 @@ fn expand(
                     return handle_reg_error("Error expanding register", register, res);
                 }
             },
-            RegisterCluster::Cluster(cluster) => match expand_cluster(cluster, name, config) {
+            RegisterCluster::Cluster(cluster) => match expand_cluster(cluster, config) {
                 Ok(expanded_cluster) => {
                     trace!("Cluster: {}", cluster.name);
                     ercs_expanded.extend(expanded_cluster);
@@ -631,7 +627,7 @@ fn cluster_info_size_in_bits(info: &ClusterInfo, config: &Config) -> Result<u32>
     for c in &info.children {
         let end = match c {
             RegisterCluster::Register(reg) => {
-                let reg_size: u32 = expand_register(reg, None, config)?
+                let reg_size: u32 = expand_register(reg, config)?
                     .iter()
                     .map(|rbf| rbf.size)
                     .sum();
@@ -649,11 +645,7 @@ fn cluster_info_size_in_bits(info: &ClusterInfo, config: &Config) -> Result<u32>
 }
 
 /// Render a given cluster (and any children) into `RegisterBlockField`s
-fn expand_cluster(
-    cluster: &Cluster,
-    name: Option<&str>,
-    config: &Config,
-) -> Result<Vec<RegisterBlockField>> {
+fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBlockField>> {
     let mut cluster_expanded = vec![];
 
     let cluster_size = cluster_info_size_in_bits(cluster, config)
@@ -661,7 +653,7 @@ fn expand_cluster(
 
     match cluster {
         Cluster::Single(info) => cluster_expanded.push(RegisterBlockField {
-            syn_field: convert_svd_cluster(cluster, name)?,
+            syn_field: convert_svd_cluster(cluster)?,
             description: info.description.as_ref().unwrap_or(&info.name).into(),
             offset: info.address_offset,
             size: cluster_size,
@@ -690,7 +682,7 @@ fn expand_cluster(
             if array_convertible {
                 if sequential_indexes_from0 {
                     cluster_expanded.push(RegisterBlockField {
-                        syn_field: convert_svd_cluster(cluster, name)?,
+                        syn_field: convert_svd_cluster(cluster)?,
                         description: info.description.as_ref().unwrap_or(&info.name).into(),
                         offset: info.address_offset,
                         size: cluster_size * array_info.dim,
@@ -700,7 +692,7 @@ fn expand_cluster(
                     let span = Span::call_site();
                     let mut accessors = TokenStream::new();
                     let nb_name = util::replace_suffix(&info.name, "");
-                    let ty = name_to_ty(&nb_name, name)?;
+                    let ty = name_to_ty(&nb_name)?;
                     let nb_name_cs = nb_name.to_snake_case_ident(span);
                     let description = info.description.as_ref().unwrap_or(&info.name);
                     for (i, idx) in array_info.indexes().enumerate() {
@@ -721,7 +713,7 @@ fn expand_cluster(
                         });
                     }
                     cluster_expanded.push(RegisterBlockField {
-                        syn_field: convert_svd_cluster(cluster, name)?,
+                        syn_field: convert_svd_cluster(cluster)?,
                         description: description.into(),
                         offset: info.address_offset,
                         size: cluster_size * array_info.dim,
@@ -731,11 +723,9 @@ fn expand_cluster(
             } else if sequential_indexes_from0 && config.const_generic {
                 // Include a ZST ArrayProxy giving indexed access to the
                 // elements.
-                cluster_expanded.push(array_proxy(info, array_info, name)?);
+                cluster_expanded.push(array_proxy(info, array_info)?);
             } else {
-                for (field_num, syn_field) in
-                    expand_svd_cluster(cluster, name)?.into_iter().enumerate()
-                {
+                for (field_num, syn_field) in expand_svd_cluster(cluster)?.into_iter().enumerate() {
                     cluster_expanded.push(RegisterBlockField {
                         syn_field,
                         description: info.description.as_ref().unwrap_or(&info.name).into(),
@@ -753,11 +743,7 @@ fn expand_cluster(
 
 /// If svd register arrays can't be converted to rust arrays (non sequential addresses, non
 /// numeral indexes, or not containing all elements from 0 to size) they will be expanded
-fn expand_register(
-    register: &Register,
-    name: Option<&str>,
-    config: &Config,
-) -> Result<Vec<RegisterBlockField>> {
+fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterBlockField>> {
     let mut register_expanded = vec![];
 
     let register_size = register
@@ -767,7 +753,7 @@ fn expand_register(
 
     match register {
         Register::Single(info) => register_expanded.push(RegisterBlockField {
-            syn_field: convert_svd_register(register, name, config.ignore_groups)
+            syn_field: convert_svd_register(register, config.ignore_groups)
                 .with_context(|| "syn error occured")?,
             description: info.description.clone().unwrap_or_default(),
             offset: info.address_offset,
@@ -797,7 +783,7 @@ fn expand_register(
 
                 if sequential_indexes_from0 {
                     register_expanded.push(RegisterBlockField {
-                        syn_field: convert_svd_register(register, name, config.ignore_groups)?,
+                        syn_field: convert_svd_register(register, config.ignore_groups)?,
                         description: info.description.clone().unwrap_or_default(),
                         offset: info.address_offset,
                         size: register_size * array_info.dim,
@@ -807,7 +793,7 @@ fn expand_register(
                     let span = Span::call_site();
                     let mut accessors = TokenStream::new();
                     let nb_name = util::replace_suffix(&info.fullname(config.ignore_groups), "");
-                    let ty = name_to_wrapped_ty(&nb_name, name)?;
+                    let ty = name_to_wrapped_ty(&nb_name)?;
                     let nb_name_cs = nb_name.to_snake_case_ident(span);
                     let description = info.description.clone().unwrap_or_default();
                     let info_name = info.fullname(config.ignore_groups);
@@ -829,7 +815,7 @@ fn expand_register(
                         });
                     }
                     register_expanded.push(RegisterBlockField {
-                        syn_field: convert_svd_register(register, name, config.ignore_groups)?,
+                        syn_field: convert_svd_register(register, config.ignore_groups)?,
                         description,
                         offset: info.address_offset,
                         size: register_size * array_info.dim,
@@ -837,10 +823,9 @@ fn expand_register(
                     });
                 }
             } else {
-                for (field_num, syn_field) in
-                    expand_svd_register(register, name, config.ignore_groups)?
-                        .into_iter()
-                        .enumerate()
+                for (field_num, syn_field) in expand_svd_register(register, config.ignore_groups)?
+                    .into_iter()
+                    .enumerate()
                 {
                     register_expanded.push(RegisterBlockField {
                         syn_field,
@@ -911,13 +896,7 @@ fn cluster_block(
     let mod_items = render_ercs(&mut c.children, path, index, config)?;
 
     // Generate the register block.
-    let mod_name = util::replace_suffix(
-        match c {
-            Cluster::Single(info) => &info.name,
-            Cluster::Array(info, _ai) => &info.name,
-        },
-        "",
-    );
+    let mod_name = util::replace_suffix(&c.name, "");
 
     let reg_block = register_or_cluster_block(&c.children, Some(&mod_name), config)?;
 
@@ -928,11 +907,11 @@ fn cluster_block(
     let name_snake_case = mod_name.to_snake_case_ident(Span::call_site());
 
     Ok(quote! {
-        #reg_block
-
-        ///Register block
+        ///Cluster
         #[doc = #description]
         pub mod #name_snake_case {
+            #reg_block
+
             #mod_items
         }
     })
@@ -940,11 +919,7 @@ fn cluster_block(
 
 /// Takes a svd::Register which may be a register array, and turn in into
 /// a list of syn::Field where the register arrays have been expanded.
-fn expand_svd_register(
-    register: &Register,
-    name: Option<&str>,
-    ignore_group: bool,
-) -> Result<Vec<syn::Field>> {
+fn expand_svd_register(register: &Register, ignore_group: bool) -> Result<Vec<syn::Field>> {
     if let Register::Array(info, array_info) = register {
         let ty_name = util::replace_suffix(&info.fullname(ignore_group), "");
 
@@ -952,7 +927,7 @@ fn expand_svd_register(
         for idx in array_info.indexes() {
             let nb_name = util::replace_suffix(&info.fullname(ignore_group), &idx);
 
-            let ty = name_to_wrapped_ty(&ty_name, name)?;
+            let ty = name_to_wrapped_ty(&ty_name)?;
 
             out.push(new_syn_field(
                 nb_name.to_snake_case_ident(Span::call_site()),
@@ -961,27 +936,23 @@ fn expand_svd_register(
         }
         Ok(out)
     } else {
-        Ok(vec![convert_svd_register(register, name, ignore_group)?])
+        Ok(vec![convert_svd_register(register, ignore_group)?])
     }
 }
 
 /// Convert a parsed `Register` into its `Field` equivalent
-fn convert_svd_register(
-    register: &Register,
-    name: Option<&str>,
-    ignore_group: bool,
-) -> Result<syn::Field> {
+fn convert_svd_register(register: &Register, ignore_group: bool) -> Result<syn::Field> {
     Ok(match register {
         Register::Single(info) => {
             let info_name = info.fullname(ignore_group);
-            let ty = name_to_wrapped_ty(&info_name, name)
+            let ty = name_to_wrapped_ty(&info_name)
                 .with_context(|| format!("Error converting register name {info_name}"))?;
             new_syn_field(info_name.to_snake_case_ident(Span::call_site()), ty)
         }
         Register::Array(info, array_info) => {
             let info_name = info.fullname(ignore_group);
             let nb_name = util::replace_suffix(&info_name, "");
-            let ty = name_to_wrapped_ty(&nb_name, name)
+            let ty = name_to_wrapped_ty(&nb_name)
                 .with_context(|| format!("Error converting register name {nb_name}"))?;
             let array_ty = new_syn_array(ty, array_info.dim);
 
@@ -994,10 +965,9 @@ fn convert_svd_register(
 fn array_proxy(
     info: &ClusterInfo,
     array_info: &DimElement,
-    name: Option<&str>,
 ) -> Result<RegisterBlockField, syn::Error> {
     let ty_name = util::replace_suffix(&info.name, "");
-    let tys = name_to_ty_str(&ty_name, name);
+    let tys = name_to_ty_str(&ty_name);
 
     let ap_path = parse_str::<syn::TypePath>(&format!(
         "crate::ArrayProxy<{tys}, {}, {}>",
@@ -1019,10 +989,7 @@ fn array_proxy(
 
 /// Takes a svd::Cluster which may contain a register array, and turn it into
 /// a list of syn::Field where the register arrays have been expanded.
-fn expand_svd_cluster(
-    cluster: &Cluster,
-    name: Option<&str>,
-) -> Result<Vec<syn::Field>, syn::Error> {
+fn expand_svd_cluster(cluster: &Cluster) -> Result<Vec<syn::Field>, syn::Error> {
     if let Cluster::Array(info, array_info) = cluster {
         let ty_name = util::replace_suffix(&info.name, "");
 
@@ -1030,7 +997,7 @@ fn expand_svd_cluster(
         for idx in array_info.indexes() {
             let nb_name = util::replace_suffix(&info.name, &idx);
 
-            let ty = name_to_ty(&ty_name, name)?;
+            let ty = name_to_ty(&ty_name)?;
 
             out.push(new_syn_field(
                 nb_name.to_snake_case_ident(Span::call_site()),
@@ -1039,21 +1006,21 @@ fn expand_svd_cluster(
         }
         Ok(out)
     } else {
-        Ok(vec![convert_svd_cluster(cluster, name)?])
+        Ok(vec![convert_svd_cluster(cluster)?])
     }
 }
 
 /// Convert a parsed `Cluster` into its `Field` equivalent
-fn convert_svd_cluster(cluster: &Cluster, name: Option<&str>) -> Result<syn::Field, syn::Error> {
+fn convert_svd_cluster(cluster: &Cluster) -> Result<syn::Field, syn::Error> {
     Ok(match cluster {
         Cluster::Single(info) => {
             let ty_name = util::replace_suffix(&info.name, "");
-            let ty = name_to_ty(&ty_name, name)?;
+            let ty = name_to_ty(&ty_name)?;
             new_syn_field(info.name.to_snake_case_ident(Span::call_site()), ty)
         }
         Cluster::Array(info, array_info) => {
             let ty_name = util::replace_suffix(&info.name, "");
-            let ty = name_to_ty(&ty_name, name)?;
+            let ty = name_to_ty(&ty_name)?;
             let array_ty = new_syn_array(ty, array_info.dim);
 
             new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), array_ty)
@@ -1091,43 +1058,29 @@ fn new_syn_u32(len: u32, span: Span) -> syn::Expr {
     })
 }
 
-fn name_to_ty_str<'a, 'b>(name: &'a str, ns: Option<&'b str>) -> Cow<'a, str> {
-    if let Some(ns) = ns {
-        Cow::Owned(
-            String::from("self::")
-                + &ns.to_sanitized_snake_case()
-                + "::"
-                + &name.to_sanitized_constant_case(),
-        )
-    } else {
+fn name_to_ty_str(name: &str) -> String {
+    format!(
+        "{}::{}",
+        name.to_sanitized_snake_case(),
         name.to_sanitized_constant_case()
-    }
+    )
 }
 
-fn name_to_ty(name: &str, ns: Option<&str>) -> Result<syn::Type, syn::Error> {
-    let ident = name_to_ty_str(name, ns);
+fn name_to_ty(name: &str) -> Result<syn::Type, syn::Error> {
+    let ident = name_to_ty_str(name);
     parse_str::<syn::TypePath>(&ident).map(syn::Type::Path)
 }
 
-fn name_to_wrapped_ty_str(name: &str, ns: Option<&str>) -> String {
-    if let Some(ns) = ns {
-        format!(
-            "crate::Reg<self::{}::{}::{}_SPEC>",
-            &ns.to_sanitized_snake_case(),
-            &name.to_sanitized_snake_case(),
-            &name.to_sanitized_constant_case(),
-        )
-    } else {
-        format!(
-            "crate::Reg<{}::{}_SPEC>",
-            &name.to_sanitized_snake_case(),
-            &name.to_sanitized_constant_case(),
-        )
-    }
+fn name_to_wrapped_ty_str(name: &str) -> String {
+    format!(
+        "crate::Reg<{}::{}_SPEC>",
+        &name.to_sanitized_snake_case(),
+        &name.to_sanitized_constant_case(),
+    )
 }
 
-fn name_to_wrapped_ty(name: &str, ns: Option<&str>) -> Result<syn::Type> {
-    let ident = name_to_wrapped_ty_str(name, ns);
+fn name_to_wrapped_ty(name: &str) -> Result<syn::Type> {
+    let ident = name_to_wrapped_ty_str(name);
     parse_str::<syn::TypePath>(&ident)
         .map(syn::Type::Path)
         .map_err(anyhow::Error::from)
