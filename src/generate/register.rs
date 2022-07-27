@@ -9,13 +9,77 @@ use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
 use std::collections::HashSet;
 use svd_parser::expand::{
-    derive_enumerated_values, derive_field, EnumPath, FieldPath, Index, RegisterPath,
+    derive_enumerated_values, derive_field, BlockPath, EnumPath, FieldPath, Index, RegisterPath,
 };
 
-use crate::util::{self, Config, ToSanitizedCase, U32Ext};
+use crate::util::{self, ident_to_path, path_segment, type_path, Config, ToSanitizedCase, U32Ext};
 use anyhow::{anyhow, Result};
+use syn::punctuated::Punctuated;
 
 pub fn render(
+    register: &Register,
+    path: &BlockPath,
+    dpath: Option<RegisterPath>,
+    index: &Index,
+    config: &Config,
+) -> Result<TokenStream> {
+    let mut out = TokenStream::new();
+    let name = util::name_of(register, config.ignore_groups);
+    let span = Span::call_site();
+    let name_constant_case = name.to_constant_case_ident(span);
+    let name_constant_case_spec = format!("{name}_SPEC").to_constant_case_ident(span);
+    let name_snake_case = name.to_snake_case_ident(span);
+    let description = util::escape_brackets(
+        util::respace(&register.description.clone().unwrap_or_else(|| {
+            warn!("Missing description for register {}", register.name);
+            Default::default()
+        }))
+        .as_ref(),
+    );
+    let alias_doc =
+        format!("{name} register accessor: an alias for `Reg<{name_constant_case_spec}>`");
+    let wrapped_name = util::name_to_wrapped_ty(&name);
+    out.extend(quote! {
+        #[doc = #alias_doc]
+        pub type #name_constant_case = #wrapped_name;
+    });
+
+    let mod_items = if let Some(dpath) = dpath.as_ref() {
+        let mut derived_spec = if &dpath.block == path {
+            let mut segments = Punctuated::new();
+            segments.push(path_segment(Ident::new("super", span)));
+            type_path(segments)
+        } else {
+            util::block_path_to_ty(&dpath.block, span)
+        };
+        let dname = util::name_of(index.registers.get(dpath).unwrap(), config.ignore_groups);
+        derived_spec
+            .path
+            .segments
+            .push(path_segment(dname.to_snake_case_ident(span)));
+        derived_spec.path.segments.push(path_segment(
+            format!("{}_SPEC", dname).to_constant_case_ident(span),
+        ));
+
+        quote! {
+            #[doc = #description]
+            pub use #derived_spec as #name_constant_case_spec;
+        }
+    } else {
+        render_register_mod(register, &path.new_register(&register.name), index, config)?
+    };
+
+    out.extend(quote! {
+        #[doc = #description]
+        pub mod #name_snake_case {
+            #mod_items
+        }
+    });
+
+    Ok(out)
+}
+
+pub fn render_register_mod(
     register: &Register,
     path: &RegisterPath,
     index: &Index,
@@ -25,7 +89,6 @@ pub fn render(
     let access = util::access_of(properties, register.fields.as_deref());
     let name = util::name_of(register, config.ignore_groups);
     let span = Span::call_site();
-    let name_constant_case = name.to_constant_case_ident(span);
     let name_constant_case_spec = format!("{name}_SPEC").to_constant_case_ident(span);
     let name_snake_case = name.to_snake_case_ident(span);
     let rsize = properties
@@ -221,7 +284,6 @@ pub fn render(
         close.to_tokens(&mut mod_items);
     }
 
-    let mut out = TokenStream::new();
     let methods = methods
         .iter()
         .map(|s| format!("[`{0}`](crate::generic::Reg::{0})", s))
@@ -246,12 +308,6 @@ pub fn render(
         }
     }
 
-    let alias_doc =
-        format!("{name} register accessor: an alias for `Reg<{name_constant_case_spec}>`");
-    out.extend(quote! {
-        #[doc = #alias_doc]
-        pub type #name_constant_case = crate::Reg<#name_snake_case::#name_constant_case_spec>;
-    });
     mod_items.extend(quote! {
         #[doc = #doc]
         pub struct #name_constant_case_spec;
@@ -291,19 +347,7 @@ pub fn render(
             }
         });
     }
-
-    out.extend(quote! {
-        #[doc = #description]
-        pub mod #name_snake_case #open
-    });
-
-    out.extend(mod_items);
-
-    out.extend(quote! {
-        #close
-    });
-
-    Ok(out)
+    Ok(mod_items)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1107,15 +1151,17 @@ fn derive_from_base(
 ) -> Result<(), syn::Error> {
     let span = Span::call_site();
     let path = if base.register() == field.register() {
-        quote! { #base_pc }
+        ident_to_path(base_pc.clone())
     } else if base.register().block == field.register().block {
-        let mod_ = base.register().name.to_snake_case_ident(span);
-
-        quote! { super::#mod_::#base_pc }
+        let mut segments = Punctuated::new();
+        segments.push(path_segment(Ident::new("super", span)));
+        segments.push(path_segment(base.register().name.to_snake_case_ident(span)));
+        segments.push(path_segment(base_pc.clone()));
+        type_path(segments)
     } else {
-        let rmod_ = crate::util::register_path_to_ty(base.register())?;
-
-        quote! { #rmod_::#base_pc }
+        let mut rmod_ = crate::util::register_path_to_ty(base.register(), span);
+        rmod_.path.segments.push(path_segment(base_pc.clone()));
+        rmod_
     };
     mod_items.extend(quote! {
         #[doc = #desc]

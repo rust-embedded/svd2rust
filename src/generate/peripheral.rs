@@ -8,9 +8,12 @@ use crate::svd::{
 use log::{debug, trace, warn};
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{parse_str, Token};
+use syn::{punctuated::Punctuated, Token};
 
-use crate::util::{self, unsuffixed, Config, FullName, ToSanitizedCase, BITS_PER_BYTE};
+use crate::util::{
+    self, array_proxy_type, name_to_ty, name_to_wrapped_ty, new_syn_u32, path_segment, type_path,
+    unsuffixed, Config, FullName, ToSanitizedCase, BITS_PER_BYTE,
+};
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::generate::register;
@@ -686,7 +689,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                     let span = Span::call_site();
                     let mut accessors = TokenStream::new();
                     let nb_name = util::replace_suffix(&info.name, "");
-                    let ty = name_to_ty(&nb_name)?;
+                    let ty = name_to_ty(&nb_name);
                     let nb_name_cs = nb_name.to_snake_case_ident(span);
                     for (i, idx) in array_info.indexes().enumerate() {
                         let idx_name =
@@ -717,14 +720,13 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
             } else if sequential_indexes_from0 && config.const_generic {
                 // Include a ZST ArrayProxy giving indexed access to the
                 // elements.
-                cluster_expanded.push(array_proxy(info, array_info)?);
+                cluster_expanded.push(array_proxy(info, array_info));
             } else {
                 let ty_name = util::replace_suffix(&info.name, "");
-                let ty = name_to_ty(&ty_name)?;
+                let ty = syn::Type::Path(name_to_ty(&ty_name));
 
                 for (field_num, idx) in array_info.indexes().enumerate() {
                     let nb_name = util::replace_suffix(&info.name, &idx);
-
                     let syn_field =
                         new_syn_field(nb_name.to_snake_case_ident(Span::call_site()), ty.clone());
 
@@ -790,7 +792,7 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
                     let span = Span::call_site();
                     let mut accessors = TokenStream::new();
                     let nb_name = util::replace_suffix(&info.fullname(config.ignore_groups), "");
-                    let ty = name_to_wrapped_ty(&nb_name)?;
+                    let ty = name_to_wrapped_ty(&nb_name);
                     let nb_name_cs = nb_name.to_snake_case_ident(span);
                     let info_name = info.fullname(config.ignore_groups);
                     for (i, idx) in array_info.indexes().enumerate() {
@@ -822,11 +824,10 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
             } else {
                 let info_name = info.fullname(config.ignore_groups);
                 let ty_name = util::replace_suffix(&info_name, "");
-                let ty = name_to_wrapped_ty(&ty_name)?;
+                let ty = name_to_wrapped_ty(&ty_name);
 
                 for (field_num, idx) in array_info.indexes().enumerate() {
                     let nb_name = util::replace_suffix(&info_name, &idx);
-
                     let syn_field =
                         new_syn_field(nb_name.to_snake_case_ident(Span::call_site()), ty.clone());
 
@@ -863,8 +864,7 @@ fn render_ercs(
                 if let Some(dpath) = dpath {
                     cpath = derive_cluster(c, &dpath, path, index)?;
                 }
-                let cpath = cpath.unwrap_or_else(|| path.new_cluster(&c.name));
-                mod_items.extend(cluster_block(c, &cpath, index, config)?);
+                mod_items.extend(cluster_block(c, path, cpath, index, config)?);
             }
 
             // Generate definition for each of the registers.
@@ -876,10 +876,9 @@ fn render_ercs(
                     rpath = derive_register(reg, &dpath, path, index)?;
                 }
                 let reg_name = &reg.name;
-                let rpath = rpath.unwrap_or_else(|| path.new_register(reg_name));
 
                 let rendered_reg =
-                    register::render(reg, &rpath, index, config).with_context(|| {
+                    register::render(reg, path, rpath, index, config).with_context(|| {
                         let descrip = reg.description.as_deref().unwrap_or("No description");
                         format!(
                             "Error rendering register\nName: {reg_name}\nDescription: {descrip}"
@@ -896,23 +895,57 @@ fn render_ercs(
 fn cluster_block(
     c: &mut Cluster,
     path: &BlockPath,
+    dpath: Option<BlockPath>,
     index: &Index,
     config: &Config,
 ) -> Result<TokenStream> {
-    let mod_items = render_ercs(&mut c.children, path, index, config)?;
-
-    // Generate the register block.
-    let mod_name = util::replace_suffix(&c.name, "");
-
-    let reg_block = register_or_cluster_block(&c.children, Some(&mod_name), config)?;
-
-    // name_snake_case needs to take into account array type.
     let description =
         util::escape_brackets(&util::respace(c.description.as_ref().unwrap_or(&c.name)));
+    let mod_name = util::replace_suffix(&c.name, "");
 
-    let name_snake_case = mod_name.to_snake_case_ident(Span::call_site());
+    // name_snake_case needs to take into account array type.
+    let span = Span::call_site();
+    let name_snake_case = mod_name.to_snake_case_ident(span);
+    let name_constant_case = mod_name.to_constant_case_ident(span);
 
-    let struct_path = name_to_ty(&mod_name)?;
+    let struct_path = name_to_ty(&mod_name);
+
+    let mod_items = if let Some(dpath) = dpath {
+        let dparent = util::parent(&dpath);
+        let mut derived = if &dparent == path {
+            let mut segments = Punctuated::new();
+            segments.push(path_segment(Ident::new("super", span)));
+            type_path(segments)
+        } else {
+            util::block_path_to_ty(&dparent, span)
+        };
+        let dname = util::replace_suffix(&index.clusters.get(&dpath).unwrap().name, "");
+        derived
+            .path
+            .segments
+            .push(path_segment(dname.to_snake_case_ident(span)));
+        derived
+            .path
+            .segments
+            .push(path_segment(dname.to_constant_case_ident(span)));
+
+        quote! {
+            #[doc = #description]
+            pub use #derived as #name_constant_case;
+        }
+    } else {
+        let cpath = path.new_cluster(&c.name);
+        let mod_items = render_ercs(&mut c.children, &cpath, index, config)?;
+
+        // Generate the register block.
+        let reg_block = register_or_cluster_block(&c.children, Some(&mod_name), config)?;
+
+        quote! {
+            #reg_block
+
+            #mod_items
+        }
+    };
 
     Ok(quote! {
         #[doc = #description]
@@ -921,8 +954,6 @@ fn cluster_block(
         ///Cluster
         #[doc = #description]
         pub mod #name_snake_case {
-            #reg_block
-
             #mod_items
         }
     })
@@ -933,15 +964,13 @@ fn register_to_syn_field(register: &Register, ignore_group: bool) -> Result<syn:
     Ok(match register {
         Register::Single(info) => {
             let info_name = info.fullname(ignore_group);
-            let ty = name_to_wrapped_ty(&info_name)
-                .with_context(|| format!("Error converting register name {info_name}"))?;
+            let ty = name_to_wrapped_ty(&info_name);
             new_syn_field(info_name.to_snake_case_ident(Span::call_site()), ty)
         }
         Register::Array(info, array_info) => {
             let info_name = info.fullname(ignore_group);
             let nb_name = util::replace_suffix(&info_name, "");
-            let ty = name_to_wrapped_ty(&nb_name)
-                .with_context(|| format!("Error converting register name {nb_name}"))?;
+            let ty = name_to_wrapped_ty(&nb_name);
             let array_ty = new_syn_array(ty, array_info.dim);
 
             new_syn_field(nb_name.to_snake_case_ident(Span::call_site()), array_ty)
@@ -950,42 +979,31 @@ fn register_to_syn_field(register: &Register, ignore_group: bool) -> Result<syn:
 }
 
 /// Return an syn::Type for an ArrayProxy.
-fn array_proxy(
-    info: &ClusterInfo,
-    array_info: &DimElement,
-) -> Result<RegisterBlockField, syn::Error> {
+fn array_proxy(info: &ClusterInfo, array_info: &DimElement) -> RegisterBlockField {
     let ty_name = util::replace_suffix(&info.name, "");
-    let tys = name_to_ty_str(&ty_name);
+    let ty = name_to_ty(&ty_name);
 
-    let ap_path = parse_str::<syn::TypePath>(&format!(
-        "crate::ArrayProxy<{tys}, {}, {}>",
-        array_info.dim,
-        util::hex(array_info.dim_increment as u64).into_token_stream(),
-    ))?;
+    let ap_path = array_proxy_type(ty, array_info);
 
-    Ok(RegisterBlockField {
-        syn_field: new_syn_field(
-            ty_name.to_snake_case_ident(Span::call_site()),
-            ap_path.into(),
-        ),
+    RegisterBlockField {
+        syn_field: new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), ap_path),
         description: info.description.as_ref().unwrap_or(&info.name).into(),
         offset: info.address_offset,
         size: 0,
         accessors: None,
-    })
+    }
 }
 
 /// Convert a parsed `Cluster` into its `Field` equivalent
 fn cluster_to_syn_field(cluster: &Cluster) -> Result<syn::Field, syn::Error> {
     Ok(match cluster {
         Cluster::Single(info) => {
-            let ty_name = util::replace_suffix(&info.name, "");
-            let ty = name_to_ty(&ty_name)?;
+            let ty = syn::Type::Path(name_to_ty(&info.name));
             new_syn_field(info.name.to_snake_case_ident(Span::call_site()), ty)
         }
         Cluster::Array(info, array_info) => {
             let ty_name = util::replace_suffix(&info.name, "");
-            let ty = name_to_ty(&ty_name)?;
+            let ty = syn::Type::Path(name_to_ty(&ty_name));
             let array_ty = new_syn_array(ty, array_info.dim);
 
             new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), array_ty)
@@ -1014,40 +1032,4 @@ fn new_syn_array(ty: syn::Type, len: u32) -> syn::Type {
         semi_token: Token![;](span),
         len: new_syn_u32(len, span),
     })
-}
-
-fn new_syn_u32(len: u32, span: Span) -> syn::Expr {
-    syn::Expr::Lit(syn::ExprLit {
-        attrs: Vec::new(),
-        lit: syn::Lit::Int(syn::LitInt::new(&len.to_string(), span)),
-    })
-}
-
-fn name_to_ty_str(name: &str) -> String {
-    format!(
-        "{}::{}",
-        name.to_sanitized_snake_case(),
-        name.to_sanitized_constant_case()
-    )
-}
-
-fn name_to_ty(name: &str) -> Result<syn::Type, syn::Error> {
-    let ident = name_to_ty_str(name);
-    parse_str::<syn::TypePath>(&ident).map(syn::Type::Path)
-}
-
-fn name_to_wrapped_ty_str(name: &str) -> String {
-    format!(
-        "crate::Reg<{}::{}_SPEC>",
-        &name.to_sanitized_snake_case(),
-        &name.to_sanitized_constant_case(),
-    )
-}
-
-fn name_to_wrapped_ty(name: &str) -> Result<syn::Type> {
-    let ident = name_to_wrapped_ty_str(name);
-    parse_str::<syn::TypePath>(&ident)
-        .map(syn::Type::Path)
-        .map_err(anyhow::Error::from)
-        .with_context(|| format!("Determining syn::TypePath from ident \"{ident}\" failed"))
 }

@@ -1,13 +1,18 @@
 use std::borrow::Cow;
 
-use crate::svd::{Access, Device, Field, RegisterInfo, RegisterProperties};
+use crate::svd::{Access, Device, DimElement, Field, RegisterInfo, RegisterProperties};
 use inflections::Inflect;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use svd_parser::expand::BlockPath;
 use svd_rs::{MaybeArray, PeripheralInfo};
-use syn::parse_str;
+
+use syn::{
+    punctuated::Punctuated, token::Colon2, AngleBracketedGenericArguments, GenericArgument, Lit,
+    LitInt, PathArguments, PathSegment, Token, Type, TypePath,
+};
 
 use anyhow::{anyhow, bail, Result};
 
@@ -282,7 +287,7 @@ pub fn access_of(properties: &RegisterProperties, fields: Option<&[Field]>) -> A
     })
 }
 
-pub fn digit_or_hex(n: u64) -> syn::LitInt {
+pub fn digit_or_hex(n: u64) -> LitInt {
     if n < 10 {
         unsuffixed(n)
     } else {
@@ -291,14 +296,14 @@ pub fn digit_or_hex(n: u64) -> syn::LitInt {
 }
 
 /// Turns `n` into an unsuffixed separated hex token
-pub fn hex(n: u64) -> syn::LitInt {
+pub fn hex(n: u64) -> LitInt {
     let (h4, h3, h2, h1) = (
         (n >> 48) & 0xffff,
         (n >> 32) & 0xffff,
         (n >> 16) & 0xffff,
         n & 0xffff,
     );
-    syn::LitInt::new(
+    LitInt::new(
         &(if h4 != 0 {
             format!("0x{h4:04x}_{h3:04x}_{h2:04x}_{h1:04x}")
         } else if h3 != 0 {
@@ -317,29 +322,130 @@ pub fn hex(n: u64) -> syn::LitInt {
 }
 
 /// Turns `n` into an unsuffixed token
-pub fn unsuffixed(n: u64) -> syn::LitInt {
-    syn::LitInt::new(&n.to_string(), Span::call_site())
+pub fn unsuffixed(n: u64) -> LitInt {
+    LitInt::new(&n.to_string(), Span::call_site())
 }
 
-pub fn unsuffixed_or_bool(n: u64, width: u32) -> syn::Lit {
+pub fn unsuffixed_or_bool(n: u64, width: u32) -> Lit {
     if width == 1 {
-        syn::Lit::Bool(syn::LitBool::new(n != 0, Span::call_site()))
+        Lit::Bool(syn::LitBool::new(n != 0, Span::call_site()))
     } else {
-        syn::Lit::Int(unsuffixed(n))
+        Lit::Int(unsuffixed(n))
     }
 }
 
-pub fn register_path_to_ty(
-    rpath: &svd_parser::expand::RegisterPath,
-) -> Result<syn::Type, syn::Error> {
-    let mut ident = format!("crate::{}", &rpath.peripheral().to_sanitized_snake_case());
-    for ps in &rpath.block.path {
-        ident.push_str("::");
-        ident.push_str(&ps.to_sanitized_snake_case());
+pub fn new_syn_u32(len: u32, span: Span) -> syn::Expr {
+    syn::Expr::Lit(syn::ExprLit {
+        attrs: Vec::new(),
+        lit: syn::Lit::Int(syn::LitInt::new(&len.to_string(), span)),
+    })
+}
+
+pub fn array_proxy_type(ty: TypePath, array_info: &DimElement) -> Type {
+    let span = Span::call_site();
+    let inner_path = GenericArgument::Type(Type::Path(ty));
+    let mut args = Punctuated::new();
+    args.push(inner_path);
+    args.push(GenericArgument::Const(new_syn_u32(array_info.dim, span)));
+    args.push(GenericArgument::Const(syn::Expr::Lit(syn::ExprLit {
+        attrs: Vec::new(),
+        lit: syn::Lit::Int(hex(array_info.dim_increment as u64)),
+    })));
+    let arguments = PathArguments::AngleBracketed(AngleBracketedGenericArguments {
+        colon2_token: None,
+        lt_token: Token![<](span),
+        args,
+        gt_token: Token![>](span),
+    });
+
+    let mut segments = Punctuated::new();
+    segments.push(path_segment(Ident::new("crate", span)));
+    segments.push(PathSegment {
+        ident: Ident::new("ArrayProxy", span),
+        arguments,
+    });
+    Type::Path(type_path(segments))
+}
+
+pub fn name_to_ty(name: &str) -> TypePath {
+    let span = Span::call_site();
+    let mut segments = Punctuated::new();
+    segments.push(path_segment(name.to_snake_case_ident(span)));
+    segments.push(path_segment(name.to_constant_case_ident(span)));
+    type_path(segments)
+}
+
+pub fn name_to_wrapped_ty(name: &str) -> Type {
+    let span = Span::call_site();
+    let mut segments = Punctuated::new();
+    segments.push(path_segment(name.to_snake_case_ident(span)));
+    segments.push(path_segment(
+        format!("{name}_SPEC").to_constant_case_ident(span),
+    ));
+    let inner_path = GenericArgument::Type(Type::Path(type_path(segments)));
+    let mut args = Punctuated::new();
+    args.push(inner_path);
+    let arguments = PathArguments::AngleBracketed(AngleBracketedGenericArguments {
+        colon2_token: None,
+        lt_token: Token![<](span),
+        args,
+        gt_token: Token![>](span),
+    });
+
+    let mut segments = Punctuated::new();
+    segments.push(path_segment(Ident::new("crate", span)));
+    segments.push(PathSegment {
+        ident: Ident::new("Reg", span),
+        arguments,
+    });
+    Type::Path(type_path(segments))
+}
+
+pub fn block_path_to_ty(bpath: &svd_parser::expand::BlockPath, span: Span) -> TypePath {
+    let mut segments = Punctuated::new();
+    segments.push(path_segment(Ident::new("crate", span)));
+    segments.push(path_segment(bpath.peripheral.to_snake_case_ident(span)));
+    for ps in &bpath.path {
+        segments.push(path_segment(ps.to_snake_case_ident(span)));
     }
-    ident.push_str("::");
-    ident.push_str(&rpath.name.to_sanitized_snake_case());
-    parse_str::<syn::TypePath>(&ident).map(syn::Type::Path)
+    type_path(segments)
+}
+
+pub fn register_path_to_ty(rpath: &svd_parser::expand::RegisterPath, span: Span) -> TypePath {
+    let mut p = block_path_to_ty(&rpath.block, span);
+    p.path
+        .segments
+        .push(path_segment(rpath.name.to_snake_case_ident(span)));
+    p
+}
+
+pub fn ident_to_path(ident: Ident) -> TypePath {
+    let mut segments = Punctuated::new();
+    segments.push(path_segment(ident));
+    type_path(segments)
+}
+
+pub fn type_path(segments: Punctuated<PathSegment, Colon2>) -> TypePath {
+    TypePath {
+        qself: None,
+        path: syn::Path {
+            leading_colon: None,
+            segments,
+        },
+    }
+}
+
+pub fn path_segment(ident: Ident) -> PathSegment {
+    PathSegment {
+        ident,
+        arguments: PathArguments::None,
+    }
+}
+
+pub fn parent(p: &BlockPath) -> BlockPath {
+    let mut p = p.clone();
+    p.path.pop().unwrap();
+    p
 }
 
 pub trait U32Ext {
