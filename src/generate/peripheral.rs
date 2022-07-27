@@ -10,10 +10,7 @@ use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parse_str, Token};
 
-use crate::util::{
-    self, handle_cluster_error, handle_reg_error, unsuffixed, Config, FullName, ToSanitizedCase,
-    BITS_PER_BYTE,
-};
+use crate::util::{self, unsuffixed, Config, FullName, ToSanitizedCase, BITS_PER_BYTE};
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::generate::register;
@@ -570,26 +567,24 @@ fn expand(ercs: &[RegisterCluster], config: &Config) -> Result<Vec<RegisterBlock
     debug!("Expanding registers or clusters into Register Block Fields");
     for erc in ercs {
         match &erc {
-            RegisterCluster::Register(register) => match expand_register(register, config) {
-                Ok(expanded_reg) => {
-                    trace!("Register: {}", register.name);
-                    ercs_expanded.extend(expanded_reg);
-                }
-                Err(e) => {
-                    let res = Err(e);
-                    return handle_reg_error("Error expanding register", register, res);
-                }
-            },
-            RegisterCluster::Cluster(cluster) => match expand_cluster(cluster, config) {
-                Ok(expanded_cluster) => {
-                    trace!("Cluster: {}", cluster.name);
-                    ercs_expanded.extend(expanded_cluster);
-                }
-                Err(e) => {
-                    let res = Err(e);
-                    return handle_cluster_error("Error expanding register cluster", cluster, res);
-                }
-            },
+            RegisterCluster::Register(register) => {
+                let reg_name = &register.name;
+                let expanded_reg = expand_register(register, config).with_context(|| {
+                    let descrip = register.description.as_deref().unwrap_or("No description");
+                    format!("Error expanding register\nName: {reg_name}\nDescription: {descrip}")
+                })?;
+                trace!("Register: {reg_name}");
+                ercs_expanded.extend(expanded_reg);
+            }
+            RegisterCluster::Cluster(cluster) => {
+                let cluster_name = &cluster.name;
+                let expanded_cluster = expand_cluster(cluster, config).with_context(|| {
+                    let descrip = cluster.description.as_deref().unwrap_or("No description");
+                    format!("Error expanding cluster\nName: {cluster_name}\nDescription: {descrip}")
+                })?;
+                trace!("Cluster: {cluster_name}");
+                ercs_expanded.extend(expanded_cluster);
+            }
         };
     }
 
@@ -650,11 +645,16 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
 
     let cluster_size = cluster_info_size_in_bits(cluster, config)
         .with_context(|| format!("Cluster {} has no determinable `size` field", cluster.name))?;
+    let description = cluster
+        .description
+        .as_ref()
+        .unwrap_or(&cluster.name)
+        .to_string();
 
     match cluster {
         Cluster::Single(info) => cluster_expanded.push(RegisterBlockField {
-            syn_field: convert_svd_cluster(cluster)?,
-            description: info.description.as_ref().unwrap_or(&info.name).into(),
+            syn_field: cluster_to_syn_field(cluster)?,
+            description,
             offset: info.address_offset,
             size: cluster_size,
             accessors: None,
@@ -680,28 +680,21 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
             let array_convertible = sequential_addresses && convert_list;
 
             if array_convertible {
-                if sequential_indexes_from0 {
-                    cluster_expanded.push(RegisterBlockField {
-                        syn_field: convert_svd_cluster(cluster)?,
-                        description: info.description.as_ref().unwrap_or(&info.name).into(),
-                        offset: info.address_offset,
-                        size: cluster_size * array_info.dim,
-                        accessors: None,
-                    });
+                let accessors = if sequential_indexes_from0 {
+                    None
                 } else {
                     let span = Span::call_site();
                     let mut accessors = TokenStream::new();
                     let nb_name = util::replace_suffix(&info.name, "");
                     let ty = name_to_ty(&nb_name)?;
                     let nb_name_cs = nb_name.to_snake_case_ident(span);
-                    let description = info.description.as_ref().unwrap_or(&info.name);
                     for (i, idx) in array_info.indexes().enumerate() {
                         let idx_name =
                             util::replace_suffix(&info.name, &idx).to_snake_case_ident(span);
                         let comment = make_comment(
                             cluster_size,
                             info.address_offset + (i as u32) * cluster_size / 8,
-                            description,
+                            &description,
                         );
                         let i = unsuffixed(i as _);
                         accessors.extend(quote! {
@@ -712,23 +705,32 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                             }
                         });
                     }
-                    cluster_expanded.push(RegisterBlockField {
-                        syn_field: convert_svd_cluster(cluster)?,
-                        description: description.into(),
-                        offset: info.address_offset,
-                        size: cluster_size * array_info.dim,
-                        accessors: Some(accessors),
-                    });
-                }
+                    Some(accessors)
+                };
+                cluster_expanded.push(RegisterBlockField {
+                    syn_field: cluster_to_syn_field(cluster)?,
+                    description,
+                    offset: info.address_offset,
+                    size: cluster_size * array_info.dim,
+                    accessors,
+                });
             } else if sequential_indexes_from0 && config.const_generic {
                 // Include a ZST ArrayProxy giving indexed access to the
                 // elements.
                 cluster_expanded.push(array_proxy(info, array_info)?);
             } else {
-                for (field_num, syn_field) in expand_svd_cluster(cluster)?.into_iter().enumerate() {
+                let ty_name = util::replace_suffix(&info.name, "");
+                let ty = name_to_ty(&ty_name)?;
+
+                for (field_num, idx) in array_info.indexes().enumerate() {
+                    let nb_name = util::replace_suffix(&info.name, &idx);
+
+                    let syn_field =
+                        new_syn_field(nb_name.to_snake_case_ident(Span::call_site()), ty.clone());
+
                     cluster_expanded.push(RegisterBlockField {
                         syn_field,
-                        description: info.description.as_ref().unwrap_or(&info.name).into(),
+                        description: description.clone(),
                         offset: info.address_offset + field_num as u32 * array_info.dim_increment,
                         size: cluster_size,
                         accessors: None,
@@ -750,12 +752,13 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
         .properties
         .size
         .ok_or_else(|| anyhow!("Register {} has no `size` field", register.name))?;
+    let description = register.description.clone().unwrap_or_default();
 
     match register {
         Register::Single(info) => register_expanded.push(RegisterBlockField {
-            syn_field: convert_svd_register(register, config.ignore_groups)
+            syn_field: register_to_syn_field(register, config.ignore_groups)
                 .with_context(|| "syn error occured")?,
-            description: info.description.clone().unwrap_or_default(),
+            description,
             offset: info.address_offset,
             size: register_size,
             accessors: None,
@@ -781,21 +784,14 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
                     .filter(|r| *r.start() == 0)
                     .is_some();
 
-                if sequential_indexes_from0 {
-                    register_expanded.push(RegisterBlockField {
-                        syn_field: convert_svd_register(register, config.ignore_groups)?,
-                        description: info.description.clone().unwrap_or_default(),
-                        offset: info.address_offset,
-                        size: register_size * array_info.dim,
-                        accessors: None,
-                    });
+                let accessors = if sequential_indexes_from0 {
+                    None
                 } else {
                     let span = Span::call_site();
                     let mut accessors = TokenStream::new();
                     let nb_name = util::replace_suffix(&info.fullname(config.ignore_groups), "");
                     let ty = name_to_wrapped_ty(&nb_name)?;
                     let nb_name_cs = nb_name.to_snake_case_ident(span);
-                    let description = info.description.clone().unwrap_or_default();
                     let info_name = info.fullname(config.ignore_groups);
                     for (i, idx) in array_info.indexes().enumerate() {
                         let idx_name =
@@ -814,22 +810,29 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
                             }
                         });
                     }
-                    register_expanded.push(RegisterBlockField {
-                        syn_field: convert_svd_register(register, config.ignore_groups)?,
-                        description,
-                        offset: info.address_offset,
-                        size: register_size * array_info.dim,
-                        accessors: Some(accessors),
-                    });
-                }
+                    Some(accessors)
+                };
+                register_expanded.push(RegisterBlockField {
+                    syn_field: register_to_syn_field(register, config.ignore_groups)?,
+                    description,
+                    offset: info.address_offset,
+                    size: register_size * array_info.dim,
+                    accessors,
+                });
             } else {
-                for (field_num, syn_field) in expand_svd_register(register, config.ignore_groups)?
-                    .into_iter()
-                    .enumerate()
-                {
+                let info_name = info.fullname(config.ignore_groups);
+                let ty_name = util::replace_suffix(&info_name, "");
+                let ty = name_to_wrapped_ty(&ty_name)?;
+
+                for (field_num, idx) in array_info.indexes().enumerate() {
+                    let nb_name = util::replace_suffix(&info_name, &idx);
+
+                    let syn_field =
+                        new_syn_field(nb_name.to_snake_case_ident(Span::call_site()), ty.clone());
+
                     register_expanded.push(RegisterBlockField {
                         syn_field,
-                        description: info.description.clone().unwrap_or_default(),
+                        description: description.clone(),
                         offset: info.address_offset + field_num as u32 * array_info.dim_increment,
                         size: register_size,
                         accessors: None,
@@ -872,14 +875,17 @@ fn render_ercs(
                 if let Some(dpath) = dpath {
                     rpath = derive_register(reg, &dpath, path, index)?;
                 }
-                let rpath = rpath.unwrap_or_else(|| path.new_register(&reg.name));
-                match register::render(reg, &rpath, index, config) {
-                    Ok(rendered_reg) => mod_items.extend(rendered_reg),
-                    Err(e) => {
-                        let res: Result<TokenStream> = Err(e);
-                        return handle_reg_error("Error rendering register", reg, res);
-                    }
-                };
+                let reg_name = &reg.name;
+                let rpath = rpath.unwrap_or_else(|| path.new_register(reg_name));
+
+                let rendered_reg =
+                    register::render(reg, &rpath, index, config).with_context(|| {
+                        let descrip = reg.description.as_deref().unwrap_or("No description");
+                        format!(
+                            "Error rendering register\nName: {reg_name}\nDescription: {descrip}"
+                        )
+                    })?;
+                mod_items.extend(rendered_reg)
             }
         }
     }
@@ -922,31 +928,8 @@ fn cluster_block(
     })
 }
 
-/// Takes a svd::Register which may be a register array, and turn in into
-/// a list of syn::Field where the register arrays have been expanded.
-fn expand_svd_register(register: &Register, ignore_group: bool) -> Result<Vec<syn::Field>> {
-    if let Register::Array(info, array_info) = register {
-        let ty_name = util::replace_suffix(&info.fullname(ignore_group), "");
-
-        let mut out = vec![];
-        for idx in array_info.indexes() {
-            let nb_name = util::replace_suffix(&info.fullname(ignore_group), &idx);
-
-            let ty = name_to_wrapped_ty(&ty_name)?;
-
-            out.push(new_syn_field(
-                nb_name.to_snake_case_ident(Span::call_site()),
-                ty,
-            ));
-        }
-        Ok(out)
-    } else {
-        Ok(vec![convert_svd_register(register, ignore_group)?])
-    }
-}
-
 /// Convert a parsed `Register` into its `Field` equivalent
-fn convert_svd_register(register: &Register, ignore_group: bool) -> Result<syn::Field> {
+fn register_to_syn_field(register: &Register, ignore_group: bool) -> Result<syn::Field> {
     Ok(match register {
         Register::Single(info) => {
             let info_name = info.fullname(ignore_group);
@@ -992,31 +975,8 @@ fn array_proxy(
     })
 }
 
-/// Takes a svd::Cluster which may contain a register array, and turn it into
-/// a list of syn::Field where the register arrays have been expanded.
-fn expand_svd_cluster(cluster: &Cluster) -> Result<Vec<syn::Field>, syn::Error> {
-    if let Cluster::Array(info, array_info) = cluster {
-        let ty_name = util::replace_suffix(&info.name, "");
-
-        let mut out = vec![];
-        for idx in array_info.indexes() {
-            let nb_name = util::replace_suffix(&info.name, &idx);
-
-            let ty = name_to_ty(&ty_name)?;
-
-            out.push(new_syn_field(
-                nb_name.to_snake_case_ident(Span::call_site()),
-                ty,
-            ));
-        }
-        Ok(out)
-    } else {
-        Ok(vec![convert_svd_cluster(cluster)?])
-    }
-}
-
 /// Convert a parsed `Cluster` into its `Field` equivalent
-fn convert_svd_cluster(cluster: &Cluster) -> Result<syn::Field, syn::Error> {
+fn cluster_to_syn_field(cluster: &Cluster) -> Result<syn::Field, syn::Error> {
     Ok(match cluster {
         Cluster::Single(info) => {
             let ty_name = util::replace_suffix(&info.name, "");
