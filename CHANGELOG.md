@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Move cluster struct inside mod
 - Support non-sequential field arrays
 - Use inlined variables in `format!` (Rust 1.58)
-- Refactor `periperal.rs` & `util.rs`
+- Refactor, clean `periperal.rs` & `util.rs`
 - use `svd_parser::expand::Index` for derive
 - Generated enum names now consider `name` field in `enumeratedValues`
 - Use constant case for structure names; internal rearrangements for
