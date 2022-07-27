@@ -877,10 +877,9 @@ fn render_ercs(
                     rpath = derive_register(reg, &dpath, path, index)?;
                 }
                 let reg_name = &reg.name;
-                let rpath = rpath.unwrap_or_else(|| path.new_register(reg_name));
 
-                let rendered_reg =
-                    register::render(reg, &rpath, index, config).with_context(|| {
+                let rendered_reg = register::render(reg, path, &rpath, index, config)
+                    .with_context(|| {
                         let descrip = reg.description.as_deref().unwrap_or("No description");
                         format!(
                             "Error rendering register\nName: {reg_name}\nDescription: {descrip}"
