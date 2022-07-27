@@ -653,7 +653,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
 
     match cluster {
         Cluster::Single(info) => cluster_expanded.push(RegisterBlockField {
-            syn_field: convert_svd_cluster(cluster)?,
+            syn_field: cluster_to_syn_field(cluster)?,
             description: info.description.as_ref().unwrap_or(&info.name).into(),
             offset: info.address_offset,
             size: cluster_size,
@@ -682,7 +682,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
             if array_convertible {
                 if sequential_indexes_from0 {
                     cluster_expanded.push(RegisterBlockField {
-                        syn_field: convert_svd_cluster(cluster)?,
+                        syn_field: cluster_to_syn_field(cluster)?,
                         description: info.description.as_ref().unwrap_or(&info.name).into(),
                         offset: info.address_offset,
                         size: cluster_size * array_info.dim,
@@ -713,7 +713,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         });
                     }
                     cluster_expanded.push(RegisterBlockField {
-                        syn_field: convert_svd_cluster(cluster)?,
+                        syn_field: cluster_to_syn_field(cluster)?,
                         description: description.into(),
                         offset: info.address_offset,
                         size: cluster_size * array_info.dim,
@@ -753,7 +753,7 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
 
     match register {
         Register::Single(info) => register_expanded.push(RegisterBlockField {
-            syn_field: convert_svd_register(register, config.ignore_groups)
+            syn_field: register_to_syn_field(register, config.ignore_groups)
                 .with_context(|| "syn error occured")?,
             description: info.description.clone().unwrap_or_default(),
             offset: info.address_offset,
@@ -783,7 +783,7 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
 
                 if sequential_indexes_from0 {
                     register_expanded.push(RegisterBlockField {
-                        syn_field: convert_svd_register(register, config.ignore_groups)?,
+                        syn_field: register_to_syn_field(register, config.ignore_groups)?,
                         description: info.description.clone().unwrap_or_default(),
                         offset: info.address_offset,
                         size: register_size * array_info.dim,
@@ -815,7 +815,7 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
                         });
                     }
                     register_expanded.push(RegisterBlockField {
-                        syn_field: convert_svd_register(register, config.ignore_groups)?,
+                        syn_field: register_to_syn_field(register, config.ignore_groups)?,
                         description,
                         offset: info.address_offset,
                         size: register_size * array_info.dim,
@@ -941,12 +941,12 @@ fn expand_svd_register(register: &Register, ignore_group: bool) -> Result<Vec<sy
         }
         Ok(out)
     } else {
-        Ok(vec![convert_svd_register(register, ignore_group)?])
+        Ok(vec![register_to_syn_field(register, ignore_group)?])
     }
 }
 
 /// Convert a parsed `Register` into its `Field` equivalent
-fn convert_svd_register(register: &Register, ignore_group: bool) -> Result<syn::Field> {
+fn register_to_syn_field(register: &Register, ignore_group: bool) -> Result<syn::Field> {
     Ok(match register {
         Register::Single(info) => {
             let info_name = info.fullname(ignore_group);
@@ -1011,12 +1011,12 @@ fn expand_svd_cluster(cluster: &Cluster) -> Result<Vec<syn::Field>, syn::Error> 
         }
         Ok(out)
     } else {
-        Ok(vec![convert_svd_cluster(cluster)?])
+        Ok(vec![cluster_to_syn_field(cluster)?])
     }
 }
 
 /// Convert a parsed `Cluster` into its `Field` equivalent
-fn convert_svd_cluster(cluster: &Cluster) -> Result<syn::Field, syn::Error> {
+fn cluster_to_syn_field(cluster: &Cluster) -> Result<syn::Field, syn::Error> {
     Ok(match cluster {
         Cluster::Single(info) => {
             let ty_name = util::replace_suffix(&info.name, "");
