@@ -8,11 +8,11 @@ use crate::svd::{
 use log::{debug, trace, warn};
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::Token;
+use syn::{punctuated::Punctuated, Token};
 
 use crate::util::{
-    self, array_proxy_type, name_to_ty, name_to_wrapped_ty, new_syn_u32, unsuffixed, Config,
-    FullName, ToSanitizedCase, BITS_PER_BYTE,
+    self, array_proxy_type, name_to_ty, name_to_wrapped_ty, new_syn_u32, path_segment, type_path,
+    unsuffixed, Config, FullName, ToSanitizedCase, BITS_PER_BYTE,
 };
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -864,8 +864,7 @@ fn render_ercs(
                 if let Some(dpath) = dpath {
                     cpath = derive_cluster(c, &dpath, path, index)?;
                 }
-                let cpath = cpath.unwrap_or_else(|| path.new_cluster(&c.name));
-                mod_items.extend(cluster_block(c, &cpath, index, config)?);
+                mod_items.extend(cluster_block(c, path, cpath, index, config)?);
             }
 
             // Generate definition for each of the registers.
@@ -878,8 +877,8 @@ fn render_ercs(
                 }
                 let reg_name = &reg.name;
 
-                let rendered_reg = register::render(reg, path, &rpath, index, config)
-                    .with_context(|| {
+                let rendered_reg =
+                    register::render(reg, path, rpath, index, config).with_context(|| {
                         let descrip = reg.description.as_deref().unwrap_or("No description");
                         format!(
                             "Error rendering register\nName: {reg_name}\nDescription: {descrip}"
@@ -896,23 +895,57 @@ fn render_ercs(
 fn cluster_block(
     c: &mut Cluster,
     path: &BlockPath,
+    dpath: Option<BlockPath>,
     index: &Index,
     config: &Config,
 ) -> Result<TokenStream> {
-    let mod_items = render_ercs(&mut c.children, path, index, config)?;
-
-    // Generate the register block.
-    let mod_name = util::replace_suffix(&c.name, "");
-
-    let reg_block = register_or_cluster_block(&c.children, Some(&mod_name), config)?;
-
-    // name_snake_case needs to take into account array type.
     let description =
         util::escape_brackets(&util::respace(c.description.as_ref().unwrap_or(&c.name)));
+    let mod_name = util::replace_suffix(&c.name, "");
 
-    let name_snake_case = mod_name.to_snake_case_ident(Span::call_site());
+    // name_snake_case needs to take into account array type.
+    let span = Span::call_site();
+    let name_snake_case = mod_name.to_snake_case_ident(span);
+    let name_constant_case = mod_name.to_constant_case_ident(span);
 
     let struct_path = name_to_ty(&mod_name);
+
+    let mod_items = if let Some(dpath) = dpath {
+        let dparent = util::parent(&dpath);
+        let mut derived = if &dparent == path {
+            let mut segments = Punctuated::new();
+            segments.push(path_segment(Ident::new("super", span)));
+            type_path(segments)
+        } else {
+            util::block_path_to_ty(&dparent, span)
+        };
+        let dname = util::replace_suffix(&index.clusters.get(&dpath).unwrap().name, "");
+        derived
+            .path
+            .segments
+            .push(path_segment(dname.to_snake_case_ident(span)));
+        derived
+            .path
+            .segments
+            .push(path_segment(dname.to_constant_case_ident(span)));
+
+        quote! {
+            #[doc = #description]
+            pub use #derived as #name_constant_case;
+        }
+    } else {
+        let cpath = path.new_cluster(&c.name);
+        let mod_items = render_ercs(&mut c.children, &cpath, index, config)?;
+
+        // Generate the register block.
+        let reg_block = register_or_cluster_block(&c.children, Some(&mod_name), config)?;
+
+        quote! {
+            #reg_block
+
+            #mod_items
+        }
+    };
 
     Ok(quote! {
         #[doc = #description]
@@ -921,8 +954,6 @@ fn cluster_block(
         ///Cluster
         #[doc = #description]
         pub mod #name_snake_case {
-            #reg_block
-
             #mod_items
         }
     })

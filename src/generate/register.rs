@@ -19,7 +19,7 @@ use syn::punctuated::Punctuated;
 pub fn render(
     register: &Register,
     path: &BlockPath,
-    dpath: &Option<RegisterPath>,
+    dpath: Option<RegisterPath>,
     index: &Index,
     config: &Config,
 ) -> Result<TokenStream> {
@@ -44,8 +44,7 @@ pub fn render(
         pub type #name_constant_case = #wrapped_name;
     });
 
-    let mod_items = if let Some(dpath) = dpath {
-        let mut mod_items = TokenStream::new();
+    let mod_items = if let Some(dpath) = dpath.as_ref() {
         let mut derived_spec = if &dpath.block == path {
             let mut segments = Punctuated::new();
             segments.push(path_segment(Ident::new("super", span)));
@@ -62,11 +61,10 @@ pub fn render(
             format!("{}_SPEC", dname).to_constant_case_ident(span),
         ));
 
-        mod_items.extend(quote! {
+        quote! {
             #[doc = #description]
             pub use #derived_spec as #name_constant_case_spec;
-        });
-        mod_items
+        }
     } else {
         render_register_mod(register, &path.new_register(&register.name), index, config)?
     };

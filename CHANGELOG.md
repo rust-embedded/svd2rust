@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Create aliases for derived registers & clusters
 - Move cluster struct inside mod
 - Support non-sequential field arrays
 - Use inlined variables in `format!` (Rust 1.58)
