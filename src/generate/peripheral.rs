@@ -2,9 +2,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use svd_parser::expand::{derive_cluster, derive_peripheral, derive_register, BlockPath, Index};
 
-use crate::svd::{
-    array::names, Cluster, ClusterInfo, DimElement, Peripheral, Register, RegisterCluster,
-};
+use crate::svd::{array::names, Cluster, ClusterInfo, Peripheral, Register, RegisterCluster};
 use log::{debug, trace, warn};
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
@@ -533,13 +531,11 @@ fn register_or_cluster_block(
         last_end = region.end;
     }
 
-    let name = Ident::new(
-        &match name {
-            Some(name) => name.to_sanitized_constant_case(),
-            None => "RegisterBlock".into(),
-        },
-        span,
-    );
+    let name = if let Some(name) = name {
+        name.to_constant_case_ident(span)
+    } else {
+        Ident::new("RegisterBlock", span)
+    };
 
     let accessors = if !accessors.is_empty() {
         quote! {
@@ -654,14 +650,24 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
         .unwrap_or(&cluster.name)
         .to_string();
 
+    let ty_name = if cluster.is_single() {
+        cluster.name.to_string()
+    } else {
+        util::replace_suffix(&cluster.name, "")
+    };
+    let ty = syn::Type::Path(name_to_ty(&ty_name));
+
     match cluster {
-        Cluster::Single(info) => cluster_expanded.push(RegisterBlockField {
-            syn_field: cluster_to_syn_field(cluster)?,
-            description,
-            offset: info.address_offset,
-            size: cluster_size,
-            accessors: None,
-        }),
+        Cluster::Single(info) => {
+            let syn_field = new_syn_field(info.name.to_snake_case_ident(Span::call_site()), ty);
+            cluster_expanded.push(RegisterBlockField {
+                syn_field,
+                description,
+                offset: info.address_offset,
+                size: cluster_size,
+                accessors: None,
+            })
+        }
         Cluster::Array(info, array_info) => {
             let sequential_addresses =
                 (array_info.dim == 1) || (cluster_size == array_info.dim_increment * BITS_PER_BYTE);
@@ -688,9 +694,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 } else {
                     let span = Span::call_site();
                     let mut accessors = TokenStream::new();
-                    let nb_name = util::replace_suffix(&info.name, "");
-                    let ty = name_to_ty(&nb_name);
-                    let nb_name_cs = nb_name.to_snake_case_ident(span);
+                    let nb_name_cs = ty_name.to_snake_case_ident(span);
                     for (i, idx) in array_info.indexes().enumerate() {
                         let idx_name =
                             util::replace_suffix(&info.name, &idx).to_snake_case_ident(span);
@@ -710,8 +714,12 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                     }
                     Some(accessors)
                 };
+                let array_ty = new_syn_array(ty, array_info.dim);
                 cluster_expanded.push(RegisterBlockField {
-                    syn_field: cluster_to_syn_field(cluster)?,
+                    syn_field: new_syn_field(
+                        ty_name.to_snake_case_ident(Span::call_site()),
+                        array_ty,
+                    ),
                     description,
                     offset: info.address_offset,
                     size: cluster_size * array_info.dim,
@@ -720,11 +728,17 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
             } else if sequential_indexes_from0 && config.const_generic {
                 // Include a ZST ArrayProxy giving indexed access to the
                 // elements.
-                cluster_expanded.push(array_proxy(info, array_info));
+                let ap_path = array_proxy_type(ty, array_info);
+                let syn_field =
+                    new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), ap_path);
+                cluster_expanded.push(RegisterBlockField {
+                    syn_field,
+                    description: info.description.as_ref().unwrap_or(&info.name).into(),
+                    offset: info.address_offset,
+                    size: 0,
+                    accessors: None,
+                });
             } else {
-                let ty_name = util::replace_suffix(&info.name, "");
-                let ty = syn::Type::Path(name_to_ty(&ty_name));
-
                 for (field_num, idx) in array_info.indexes().enumerate() {
                     let nb_name = util::replace_suffix(&info.name, &idx);
                     let syn_field =
@@ -756,15 +770,25 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
         .ok_or_else(|| anyhow!("Register {} has no `size` field", register.name))?;
     let description = register.description.clone().unwrap_or_default();
 
+    let info_name = register.fullname(config.ignore_groups);
+    let ty_name = if register.is_single() {
+        info_name.to_string()
+    } else {
+        util::replace_suffix(&info_name, "")
+    };
+    let ty = name_to_wrapped_ty(&ty_name);
+
     match register {
-        Register::Single(info) => register_expanded.push(RegisterBlockField {
-            syn_field: register_to_syn_field(register, config.ignore_groups)
-                .with_context(|| "syn error occured")?,
-            description,
-            offset: info.address_offset,
-            size: register_size,
-            accessors: None,
-        }),
+        Register::Single(info) => {
+            let syn_field = new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), ty);
+            register_expanded.push(RegisterBlockField {
+                syn_field,
+                description,
+                offset: info.address_offset,
+                size: register_size,
+                accessors: None,
+            })
+        }
         Register::Array(info, array_info) => {
             let sequential_addresses = (array_info.dim == 1)
                 || (register_size == array_info.dim_increment * BITS_PER_BYTE);
@@ -791,10 +815,7 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
                 } else {
                     let span = Span::call_site();
                     let mut accessors = TokenStream::new();
-                    let nb_name = util::replace_suffix(&info.fullname(config.ignore_groups), "");
-                    let ty = name_to_wrapped_ty(&nb_name);
-                    let nb_name_cs = nb_name.to_snake_case_ident(span);
-                    let info_name = info.fullname(config.ignore_groups);
+                    let nb_name_cs = ty_name.to_snake_case_ident(span);
                     for (i, idx) in array_info.indexes().enumerate() {
                         let idx_name =
                             util::replace_suffix(&info_name, &idx).to_snake_case_ident(span);
@@ -814,18 +835,17 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
                     }
                     Some(accessors)
                 };
+                let array_ty = new_syn_array(ty, array_info.dim);
+                let syn_field =
+                    new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), array_ty);
                 register_expanded.push(RegisterBlockField {
-                    syn_field: register_to_syn_field(register, config.ignore_groups)?,
+                    syn_field,
                     description,
                     offset: info.address_offset,
                     size: register_size * array_info.dim,
                     accessors,
                 });
             } else {
-                let info_name = info.fullname(config.ignore_groups);
-                let ty_name = util::replace_suffix(&info_name, "");
-                let ty = name_to_wrapped_ty(&ty_name);
-
                 for (field_num, idx) in array_info.indexes().enumerate() {
                     let nb_name = util::replace_suffix(&info_name, &idx);
                     let syn_field =
@@ -955,58 +975,6 @@ fn cluster_block(
         #[doc = #description]
         pub mod #name_snake_case {
             #mod_items
-        }
-    })
-}
-
-/// Convert a parsed `Register` into its `Field` equivalent
-fn register_to_syn_field(register: &Register, ignore_group: bool) -> Result<syn::Field> {
-    Ok(match register {
-        Register::Single(info) => {
-            let info_name = info.fullname(ignore_group);
-            let ty = name_to_wrapped_ty(&info_name);
-            new_syn_field(info_name.to_snake_case_ident(Span::call_site()), ty)
-        }
-        Register::Array(info, array_info) => {
-            let info_name = info.fullname(ignore_group);
-            let nb_name = util::replace_suffix(&info_name, "");
-            let ty = name_to_wrapped_ty(&nb_name);
-            let array_ty = new_syn_array(ty, array_info.dim);
-
-            new_syn_field(nb_name.to_snake_case_ident(Span::call_site()), array_ty)
-        }
-    })
-}
-
-/// Return an syn::Type for an ArrayProxy.
-fn array_proxy(info: &ClusterInfo, array_info: &DimElement) -> RegisterBlockField {
-    let ty_name = util::replace_suffix(&info.name, "");
-    let ty = name_to_ty(&ty_name);
-
-    let ap_path = array_proxy_type(ty, array_info);
-
-    RegisterBlockField {
-        syn_field: new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), ap_path),
-        description: info.description.as_ref().unwrap_or(&info.name).into(),
-        offset: info.address_offset,
-        size: 0,
-        accessors: None,
-    }
-}
-
-/// Convert a parsed `Cluster` into its `Field` equivalent
-fn cluster_to_syn_field(cluster: &Cluster) -> Result<syn::Field, syn::Error> {
-    Ok(match cluster {
-        Cluster::Single(info) => {
-            let ty = syn::Type::Path(name_to_ty(&info.name));
-            new_syn_field(info.name.to_snake_case_ident(Span::call_site()), ty)
-        }
-        Cluster::Array(info, array_info) => {
-            let ty_name = util::replace_suffix(&info.name, "");
-            let ty = syn::Type::Path(name_to_ty(&ty_name));
-            let array_ty = new_syn_array(ty, array_info.dim);
-
-            new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), array_ty)
         }
     })
 }

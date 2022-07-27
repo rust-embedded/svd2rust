@@ -341,9 +341,9 @@ pub fn new_syn_u32(len: u32, span: Span) -> syn::Expr {
     })
 }
 
-pub fn array_proxy_type(ty: TypePath, array_info: &DimElement) -> Type {
+pub fn array_proxy_type(ty: Type, array_info: &DimElement) -> Type {
     let span = Span::call_site();
-    let inner_path = GenericArgument::Type(Type::Path(ty));
+    let inner_path = GenericArgument::Type(ty);
     let mut args = Punctuated::new();
     args.push(inner_path);
     args.push(GenericArgument::Const(new_syn_u32(array_info.dim, span)));
