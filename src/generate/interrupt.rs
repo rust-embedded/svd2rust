@@ -3,7 +3,7 @@ use std::fmt::Write;
 
 use crate::svd::Peripheral;
 use cast::u64;
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 
 use crate::util::{self, ToSanitizedCase};
@@ -19,8 +19,19 @@ pub fn render(
 ) -> Result<TokenStream> {
     let interrupts = peripherals
         .iter()
-        .flat_map(|p| p.interrupt.iter().map(move |i| (i, p.group_name.clone())))
-        .map(|i| (i.0.value, (i.0, i.1)))
+        .flat_map(|p| {
+            p.interrupt.iter().map(move |i| {
+                (i, p.group_name.clone(), {
+                    match p {
+                        Peripheral::Single(info) => info.name.clone(),
+                        Peripheral::Array(info, dim_element) => {
+                            svd_rs::array::names(info, dim_element).next().unwrap()
+                        }
+                    }
+                })
+            })
+        })
+        .map(|i| (i.0.value, (i.0, i.1, i.2)))
         .collect::<HashMap<_, _>>();
 
     let mut interrupts = interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
@@ -43,10 +54,7 @@ pub fn render(
         }
         pos += 1;
 
-        let name_constant_case = Ident::new(
-            &interrupt.0.name.to_sanitized_constant_case(),
-            Span::call_site(),
-        );
+        let name_constant_case = interrupt.0.name.to_constant_case_ident(Span::call_site());
         let description = format!(
             "{} - {}",
             interrupt.0.value,
@@ -63,17 +71,21 @@ pub fn render(
         let value = util::unsuffixed(u64(interrupt.0.value));
 
         let mut feature_attribute_flag = false;
-        let (feature_attribute, not_feature_attribute) =
-            if config.feature_group && interrupt.1.is_some() {
-                let feature_name = interrupt.1.as_ref().unwrap().to_sanitized_snake_case();
-                feature_attribute_flag = true;
-                (
-                    quote!(#[cfg(feature = #feature_name)]),
-                    quote!(#[cfg(not(feature = #feature_name))]),
-                )
-            } else {
-                (quote!(), quote!())
-            };
+        let mut feature_attribute = TokenStream::new();
+        let mut not_feature_attribute = TokenStream::new();
+        if config.feature_group && interrupt.1.is_some() {
+            let feature_name = interrupt.1.as_ref().unwrap().to_sanitized_snake_case();
+            feature_attribute_flag = true;
+            feature_attribute.extend(quote! { #[cfg(feature = #feature_name)] });
+            not_feature_attribute.extend(quote! { feature = #feature_name, });
+        }
+        if config.feature_peripheral {
+            let feature_name = interrupt.2.to_sanitized_snake_case();
+            feature_attribute_flag = true;
+            feature_attribute.extend(quote! { #[cfg(feature = #feature_name)] });
+            not_feature_attribute.extend(quote! { feature = #feature_name, });
+        }
+        let not_feature_attribute = quote! { #[cfg(not(all(#not_feature_attribute)))] };
 
         variants.extend(quote! {
             #[doc = #description]

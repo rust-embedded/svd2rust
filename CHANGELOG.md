@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Add `feature_peripheral` option which generates cfg features for each peripheral
 - Use register aliases in `RegisterBlock` (both structure and mod)
 - Create aliases for derived registers & clusters
 - Move cluster struct inside mod

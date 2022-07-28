@@ -248,18 +248,21 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             // in the `Peripherals` struct
             continue;
         }
-        let feature_attribute = if config.feature_group && p.group_name.is_some() {
+        let mut feature_attribute = TokenStream::new();
+        if config.feature_group && p.group_name.is_some() {
             let feature_name = p.group_name.as_ref().unwrap().to_sanitized_snake_case();
-            quote!(#[cfg(feature = #feature_name)])
-        } else {
-            quote!()
+            feature_attribute.extend(quote! { #[cfg(feature = #feature_name)] })
         };
 
         match p {
             Peripheral::Single(_p) => {
                 let p_name = util::name_of(p, config.ignore_groups);
+                let p_snake = p_name.to_sanitized_snake_case();
                 let p = p_name.to_sanitized_constant_case();
                 let id = Ident::new(&p, Span::call_site());
+                if config.feature_peripheral {
+                    feature_attribute.extend(quote! { #[cfg(feature = #p_snake)] })
+                };
                 fields.extend(quote! {
                     #[doc = #p]
                     #feature_attribute
@@ -272,6 +275,17 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 let p = p_names.iter().map(|p| p.to_sanitized_constant_case());
                 let ids_f = p.clone().map(|p| Ident::new(&p, Span::call_site()));
                 let ids_e = ids_f.clone();
+                let feature_attribute = p_names
+                    .iter()
+                    .map(|p_name| {
+                        let p_snake = p_name.to_sanitized_snake_case();
+                        let mut feature_attribute = feature_attribute.clone();
+                        if config.feature_peripheral {
+                            feature_attribute.extend(quote! { #[cfg(feature = #p_snake)] })
+                        };
+                        feature_attribute
+                    })
+                    .collect::<Vec<_>>();
                 fields.extend(quote! {
                     #(
                         #[doc = #p]
