@@ -415,10 +415,10 @@ pub fn path_segment(ident: Ident) -> PathSegment {
     }
 }
 
-pub fn parent(p: &BlockPath) -> BlockPath {
+pub fn parent(p: &BlockPath) -> Option<BlockPath> {
     let mut p = p.clone();
-    p.path.pop().unwrap();
-    p
+    p.path.pop()?;
+    Some(p)
 }
 
 pub trait U32Ext {
