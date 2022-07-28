@@ -367,38 +367,11 @@ pub fn array_proxy_type(ty: Type, array_info: &DimElement) -> Type {
     Type::Path(type_path(segments))
 }
 
-pub fn name_to_ty(name: &str) -> TypePath {
+pub fn name_to_ty(name: &str) -> Type {
     let span = Span::call_site();
     let mut segments = Punctuated::new();
-    segments.push(path_segment(name.to_snake_case_ident(span)));
     segments.push(path_segment(name.to_constant_case_ident(span)));
-    type_path(segments)
-}
-
-pub fn name_to_wrapped_ty(name: &str) -> Type {
-    let span = Span::call_site();
-    let mut segments = Punctuated::new();
-    segments.push(path_segment(name.to_snake_case_ident(span)));
-    segments.push(path_segment(
-        format!("{name}_SPEC").to_constant_case_ident(span),
-    ));
-    let inner_path = GenericArgument::Type(Type::Path(type_path(segments)));
-    let mut args = Punctuated::new();
-    args.push(inner_path);
-    let arguments = PathArguments::AngleBracketed(AngleBracketedGenericArguments {
-        colon2_token: None,
-        lt_token: Token![<](span),
-        args,
-        gt_token: Token![>](span),
-    });
-
-    let mut segments = Punctuated::new();
-    segments.push(path_segment(Ident::new("crate", span)));
-    segments.push(PathSegment {
-        ident: Ident::new("Reg", span),
-        arguments,
-    });
-    Type::Path(type_path(segments))
+    syn::Type::Path(type_path(segments))
 }
 
 pub fn block_path_to_ty(bpath: &svd_parser::expand::BlockPath, span: Span) -> TypePath {

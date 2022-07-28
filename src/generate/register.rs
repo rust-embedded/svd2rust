@@ -36,45 +36,40 @@ pub fn render(
         }))
         .as_ref(),
     );
-    let alias_doc =
-        format!("{name} register accessor: an alias for `Reg<{name_constant_case_spec}>`");
-    let wrapped_name = util::name_to_wrapped_ty(&name);
-    out.extend(quote! {
-        #[doc = #alias_doc]
-        pub type #name_constant_case = #wrapped_name;
-    });
 
-    let mod_items = if let Some(dpath) = dpath.as_ref() {
-        let mut derived_spec = if &dpath.block == path {
-            let mut segments = Punctuated::new();
-            segments.push(path_segment(Ident::new("super", span)));
-            type_path(segments)
+    if let Some(dpath) = dpath.as_ref() {
+        let mut derived = if &dpath.block == path {
+            type_path(Punctuated::new())
         } else {
             util::block_path_to_ty(&dpath.block, span)
         };
         let dname = util::name_of(index.registers.get(dpath).unwrap(), config.ignore_groups);
-        derived_spec
+        derived
             .path
             .segments
-            .push(path_segment(dname.to_snake_case_ident(span)));
-        derived_spec.path.segments.push(path_segment(
-            format!("{}_SPEC", dname).to_constant_case_ident(span),
-        ));
+            .push(path_segment(dname.to_constant_case_ident(span)));
 
-        quote! {
+        out.extend(quote! {
             #[doc = #description]
-            pub use #derived_spec as #name_constant_case_spec;
-        }
+            pub use #derived as #name_constant_case;
+        });
     } else {
-        render_register_mod(register, &path.new_register(&register.name), index, config)?
-    };
+        let alias_doc =
+            format!("{name} register accessor: an alias for `Reg<{name_constant_case_spec}>`");
+        out.extend(quote! {
+            #[doc = #alias_doc]
+            pub type #name_constant_case = crate::Reg<#name_snake_case::#name_constant_case_spec>;
+        });
+        let mod_items =
+            render_register_mod(register, &path.new_register(&register.name), index, config)?;
 
-    out.extend(quote! {
-        #[doc = #description]
-        pub mod #name_snake_case {
-            #mod_items
-        }
-    });
+        out.extend(quote! {
+            #[doc = #description]
+            pub mod #name_snake_case {
+                #mod_items
+            }
+        });
+    };
 
     Ok(out)
 }

@@ -9,8 +9,8 @@ use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, Token};
 
 use crate::util::{
-    self, array_proxy_type, name_to_ty, name_to_wrapped_ty, new_syn_u32, path_segment, type_path,
-    unsuffixed, Config, FullName, ToSanitizedCase, BITS_PER_BYTE,
+    self, array_proxy_type, name_to_ty, new_syn_u32, path_segment, type_path, unsuffixed, Config,
+    FullName, ToSanitizedCase, BITS_PER_BYTE,
 };
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -655,7 +655,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
     } else {
         util::replace_suffix(&cluster.name, "")
     };
-    let ty = syn::Type::Path(name_to_ty(&ty_name));
+    let ty = name_to_ty(&ty_name);
 
     match cluster {
         Cluster::Single(info) => {
@@ -776,7 +776,7 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
     } else {
         util::replace_suffix(&info_name, "")
     };
-    let ty = name_to_wrapped_ty(&ty_name);
+    let ty = name_to_ty(&ty_name);
 
     match register {
         Register::Single(info) => {
@@ -928,14 +928,10 @@ fn cluster_block(
     let name_snake_case = mod_name.to_snake_case_ident(span);
     let name_constant_case = mod_name.to_constant_case_ident(span);
 
-    let struct_path = name_to_ty(&mod_name);
-
-    let mod_items = if let Some(dpath) = dpath {
+    if let Some(dpath) = dpath {
         let dparent = util::parent(&dpath);
         let mut derived = if &dparent == path {
-            let mut segments = Punctuated::new();
-            segments.push(path_segment(Ident::new("super", span)));
-            type_path(segments)
+            type_path(Punctuated::new())
         } else {
             util::block_path_to_ty(&dparent, span)
         };
@@ -943,16 +939,12 @@ fn cluster_block(
         derived
             .path
             .segments
-            .push(path_segment(dname.to_snake_case_ident(span)));
-        derived
-            .path
-            .segments
             .push(path_segment(dname.to_constant_case_ident(span)));
 
-        quote! {
+        Ok(quote! {
             #[doc = #description]
             pub use #derived as #name_constant_case;
-        }
+        })
     } else {
         let cpath = path.new_cluster(&c.name);
         let mod_items = render_ercs(&mut c.children, &cpath, index, config)?;
@@ -960,23 +952,23 @@ fn cluster_block(
         // Generate the register block.
         let reg_block = register_or_cluster_block(&c.children, Some(&mod_name), config)?;
 
-        quote! {
+        let mod_items = quote! {
             #reg_block
 
             #mod_items
-        }
-    };
+        };
 
-    Ok(quote! {
-        #[doc = #description]
-        pub use #struct_path;
+        Ok(quote! {
+            #[doc = #description]
+            pub use #name_snake_case::#name_constant_case;
 
-        ///Cluster
-        #[doc = #description]
-        pub mod #name_snake_case {
-            #mod_items
-        }
-    })
+            ///Cluster
+            #[doc = #description]
+            pub mod #name_snake_case {
+                #mod_items
+            }
+        })
+    }
 }
 
 fn new_syn_field(ident: Ident, ty: syn::Type) -> syn::Field {
