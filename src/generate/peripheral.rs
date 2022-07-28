@@ -40,11 +40,10 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         (false, name_snake_case.clone(), BlockPath::new(&p.name))
     };
 
-    let feature_attribute = if config.feature_group && p.group_name.is_some() {
+    let mut feature_attribute = TokenStream::new();
+    if config.feature_group && p.group_name.is_some() {
         let feature_name = p.group_name.as_ref().unwrap().to_sanitized_snake_case();
-        quote! (#[cfg(feature = #feature_name)])
-    } else {
-        quote! {}
+        feature_attribute.extend(quote! { #[cfg(feature = #feature_name)] });
     };
 
     match &p {
@@ -54,18 +53,28 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
             let names_constant_case = names_str.clone().map(|n| Ident::new(&n, span));
             let addresses =
                 (0..=dim.dim).map(|i| util::hex(p.base_address + (i * dim.dim_increment) as u64));
-
+            let snake_names = names
+                .iter()
+                .map(|p_name| p_name.to_sanitized_snake_case())
+                .collect::<Vec<_>>();
+            let feature_attribute_n = snake_names.iter().map(|p_snake| {
+                let mut feature_attribute = feature_attribute.clone();
+                if config.feature_peripheral {
+                    feature_attribute.extend(quote! { #[cfg(feature = #p_snake)] })
+                };
+                feature_attribute
+            });
             // Insert the peripherals structure
             out.extend(quote! {
                 #(
                     #[doc = #description]
-                    #feature_attribute
+                    #feature_attribute_n
                     pub struct #names_constant_case { _marker: PhantomData<*const ()> }
 
-                    #feature_attribute
+                    #feature_attribute_n
                     unsafe impl Send for #names_constant_case {}
 
-                    #feature_attribute
+                    #feature_attribute_n
                     impl #names_constant_case {
                         ///Pointer to the register block
                         pub const PTR: *const #base::RegisterBlock = #addresses as *const _;
@@ -77,7 +86,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                         }
                     }
 
-                    #feature_attribute
+                    #feature_attribute_n
                     impl Deref for #names_constant_case {
                         type Target = #base::RegisterBlock;
 
@@ -87,7 +96,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                         }
                     }
 
-                    #feature_attribute
+                    #feature_attribute_n
                     impl core::fmt::Debug for #names_constant_case {
                         fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                             f.debug_struct(#names_str).finish()
@@ -95,8 +104,26 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                     }
                 )*
             });
+
+            let feature_any_attribute = quote! {#[cfg(any(#(feature = #snake_names),*))]};
+
+            // Derived peripherals may not require re-implementation, and will instead
+            // use a single definition of the non-derived version.
+            if derive_regs {
+                // re-export the base module to allow deriveFrom this one
+                out.extend(quote! {
+                    #[doc = #description]
+                    #feature_any_attribute
+                    pub use #base as #name_snake_case;
+                });
+                return Ok(out);
+            }
         }
-        _ => {
+        Peripheral::Single(_) => {
+            let p_snake = name.to_sanitized_snake_case();
+            if config.feature_peripheral {
+                feature_attribute.extend(quote! { #[cfg(feature = #p_snake)] })
+            };
             // Insert the peripheral structure
             out.extend(quote! {
                 #[doc = #description]
@@ -135,19 +162,19 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                     }
                 }
             });
-        }
-    }
 
-    // Derived peripherals may not require re-implementation, and will instead
-    // use a single definition of the non-derived version.
-    if derive_regs {
-        // re-export the base module to allow deriveFrom this one
-        out.extend(quote! {
-            #[doc = #description]
-            #feature_attribute
-            pub use #base as #name_snake_case;
-        });
-        return Ok(out);
+            // Derived peripherals may not require re-implementation, and will instead
+            // use a single definition of the non-derived version.
+            if derive_regs {
+                // re-export the base module to allow deriveFrom this one
+                out.extend(quote! {
+                    #[doc = #description]
+                    #feature_attribute
+                    pub use #base as #name_snake_case;
+                });
+                return Ok(out);
+            }
+        }
     }
 
     let description = util::escape_brackets(

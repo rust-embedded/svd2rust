@@ -7,7 +7,7 @@ use quote::quote;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use svd_parser::expand::BlockPath;
-use svd_rs::{MaybeArray, PeripheralInfo};
+use svd_rs::{MaybeArray, Peripheral, PeripheralInfo};
 
 use syn::{
     punctuated::Punctuated, token::Colon2, AngleBracketedGenericArguments, GenericArgument, Lit,
@@ -35,6 +35,7 @@ pub struct Config {
     pub pascal_enum_values: bool,
     pub derive_more: bool,
     pub feature_group: bool,
+    pub feature_peripheral: bool,
     pub output_dir: PathBuf,
     pub source_type: SourceType,
 }
@@ -53,6 +54,7 @@ impl Default for Config {
             pascal_enum_values: false,
             derive_more: false,
             feature_group: false,
+            feature_peripheral: false,
             output_dir: PathBuf::from("."),
             source_type: SourceType::default(),
         }
@@ -536,10 +538,30 @@ impl FullName for PeripheralInfo {
     }
 }
 
-pub fn group_names(d: &Device) -> HashSet<Cow<str>> {
-    d.peripherals
+pub fn group_names(d: &Device) -> Vec<Cow<str>> {
+    let set: HashSet<_> = d
+        .peripherals
         .iter()
         .filter_map(|p| p.group_name.as_ref())
         .map(|name| name.to_sanitized_snake_case())
-        .collect()
+        .collect();
+    let mut v: Vec<_> = set.into_iter().collect();
+    v.sort();
+    v
+}
+
+pub fn peripheral_names(d: &Device) -> Vec<String> {
+    let mut v = Vec::new();
+    for p in &d.peripherals {
+        match p {
+            Peripheral::Single(info) => {
+                v.push(replace_suffix(&info.name.to_sanitized_snake_case(), ""))
+            }
+            Peripheral::Array(info, dim) => v.extend(
+                svd_rs::array::names(info, dim).map(|n| n.to_sanitized_snake_case().into()),
+            ),
+        }
+    }
+    v.sort();
+    v
 }
