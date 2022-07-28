@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-- Use register aliases in `RegisterBlock`
+- Use register aliases in `RegisterBlock` (both structure and mod)
 - Create aliases for derived registers & clusters
 - Move cluster struct inside mod
 - Support non-sequential field arrays

@@ -23,11 +23,9 @@ pub fn render(
     index: &Index,
     config: &Config,
 ) -> Result<TokenStream> {
-    let mut out = TokenStream::new();
     let name = util::name_of(register, config.ignore_groups);
     let span = Span::call_site();
     let name_constant_case = name.to_constant_case_ident(span);
-    let name_constant_case_spec = format!("{name}_SPEC").to_constant_case_ident(span);
     let name_snake_case = name.to_snake_case_ident(span);
     let description = util::escape_brackets(
         util::respace(&register.description.clone().unwrap_or_else(|| {
@@ -44,24 +42,47 @@ pub fn render(
             util::block_path_to_ty(&dpath.block, span)
         };
         let dname = util::name_of(index.registers.get(dpath).unwrap(), config.ignore_groups);
+        let mut mod_derived = derived.clone();
         derived
             .path
             .segments
             .push(path_segment(dname.to_constant_case_ident(span)));
+        mod_derived
+            .path
+            .segments
+            .push(path_segment(dname.to_snake_case_ident(span)));
 
-        out.extend(quote! {
-            #[doc = #description]
+        Ok(quote! {
             pub use #derived as #name_constant_case;
-        });
+            pub use #mod_derived as #name_snake_case;
+        })
     } else {
-        let alias_doc =
-            format!("{name} register accessor: an alias for `Reg<{name_constant_case_spec}>`");
+        let name_constant_case_spec = format!("{name}_SPEC").to_constant_case_ident(span);
+        let access = util::access_of(&register.properties, register.fields.as_deref());
+        let accs = if access.can_read() && access.can_write() {
+            "rw"
+        } else if access.can_write() {
+            "w"
+        } else if access.can_read() {
+            "r"
+        } else {
+            return Err(anyhow!("Incorrect access of register {}", register.name));
+        };
+        let alias_doc = format!(
+            "{name} ({accs}) register accessor: an alias for `Reg<{name_constant_case_spec}>`"
+        );
+        let mut out = TokenStream::new();
         out.extend(quote! {
             #[doc = #alias_doc]
             pub type #name_constant_case = crate::Reg<#name_snake_case::#name_constant_case_spec>;
         });
-        let mod_items =
-            render_register_mod(register, &path.new_register(&register.name), index, config)?;
+        let mod_items = render_register_mod(
+            register,
+            access,
+            &path.new_register(&register.name),
+            index,
+            config,
+        )?;
 
         out.extend(quote! {
             #[doc = #description]
@@ -69,19 +90,19 @@ pub fn render(
                 #mod_items
             }
         });
-    };
 
-    Ok(out)
+        Ok(out)
+    }
 }
 
 pub fn render_register_mod(
     register: &Register,
+    access: Access,
     path: &RegisterPath,
     index: &Index,
     config: &Config,
 ) -> Result<TokenStream> {
     let properties = &register.properties;
-    let access = util::access_of(properties, register.fields.as_deref());
     let name = util::name_of(register, config.ignore_groups);
     let span = Span::call_site();
     let name_constant_case_spec = format!("{name}_SPEC").to_constant_case_ident(span);

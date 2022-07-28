@@ -929,21 +929,27 @@ fn cluster_block(
     let name_constant_case = mod_name.to_constant_case_ident(span);
 
     if let Some(dpath) = dpath {
-        let dparent = util::parent(&dpath);
+        let dparent = util::parent(&dpath).unwrap();
         let mut derived = if &dparent == path {
             type_path(Punctuated::new())
         } else {
             util::block_path_to_ty(&dparent, span)
         };
         let dname = util::replace_suffix(&index.clusters.get(&dpath).unwrap().name, "");
+        let mut mod_derived = derived.clone();
         derived
             .path
             .segments
             .push(path_segment(dname.to_constant_case_ident(span)));
+        mod_derived
+            .path
+            .segments
+            .push(path_segment(dname.to_snake_case_ident(span)));
 
         Ok(quote! {
             #[doc = #description]
             pub use #derived as #name_constant_case;
+            pub use #mod_derived as #name_snake_case;
         })
     } else {
         let cpath = path.new_cluster(&c.name);
