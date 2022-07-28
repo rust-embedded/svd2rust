@@ -245,6 +245,11 @@ fn run() -> Result<()> {
                     .iter()
                     .map(|s| format!("{s} = []\n")),
             );
+            let add_groups: Vec<_> = util::group_names(&device)
+                .iter()
+                .map(|s| format!("\"{s}\""))
+                .collect();
+            features.push(format!("all-groups = [{}]\n", add_groups.join(",")))
         }
         if feature_peripheral {
             features.extend(
@@ -257,7 +262,7 @@ fn run() -> Result<()> {
                 .map(|s| format!("\"{s}\""))
                 .collect();
             features.push(format!(
-                "all_peripherals = [{}]\n",
+                "all-peripherals = [{}]\n",
                 add_peripherals.join(",")
             ))
         }

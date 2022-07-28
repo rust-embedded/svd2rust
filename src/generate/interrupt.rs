@@ -25,10 +25,7 @@ pub fn render(
                     match p {
                         Peripheral::Single(info) => info.name.clone(),
                         Peripheral::Array(info, dim_element) => {
-                            svd_rs::array::names(info, dim_element)
-                                .next()
-                                .unwrap()
-                                .into()
+                            svd_rs::array::names(info, dim_element).next().unwrap()
                         }
                     }
                 })
