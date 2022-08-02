@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.25.0] - 2022-08-02
+
 - Add `feature_peripheral` option which generates cfg features for each peripheral
 - Use register aliases in `RegisterBlock` (both structure and mod)
 - Create aliases for derived registers & clusters
@@ -730,7 +732,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.24.1...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.25.0...HEAD
+[v0.25.0]: https://github.com/rust-embedded/svd2rust/compare/v0.24.1...v0.25.0
 [v0.24.1]: https://github.com/rust-embedded/svd2rust/compare/v0.24.0...v0.24.1
 [v0.24.0]: https://github.com/rust-embedded/svd2rust/compare/v0.23.1...v0.24.0
 [v0.23.1]: https://github.com/rust-embedded/svd2rust/compare/v0.23.0...v0.23.1
