@@ -86,6 +86,11 @@ fn run() -> Result<()> {
                 .help("Use independent cfg feature flags for each peripheral"),
         )
         .arg(
+            Arg::with_name("max_cluster_size")
+                .long("max_cluster_size")
+                .help("Use array increment for cluster size"),
+        )
+        .arg(
             Arg::with_name("make_mod")
                 .long("make_mod")
                 .short("m")
@@ -183,6 +188,8 @@ fn run() -> Result<()> {
         cfg.bool_flag("feature_group", Filter::Arg) || cfg.bool_flag("feature_group", Filter::Conf);
     let feature_peripheral = cfg.bool_flag("feature_peripheral", Filter::Arg)
         || cfg.bool_flag("feature_peripheral", Filter::Conf);
+    let max_cluster_size = cfg.bool_flag("max_cluster_size", Filter::Arg)
+        || cfg.bool_flag("max_cluster_size", Filter::Conf);
 
     let mut source_type = cfg
         .grab()
@@ -209,6 +216,7 @@ fn run() -> Result<()> {
         derive_more,
         feature_group,
         feature_peripheral,
+        max_cluster_size,
         output_dir: path.clone(),
         source_type,
     };
