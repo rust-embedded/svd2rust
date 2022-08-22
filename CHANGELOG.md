@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.25.1] - 2022-08-22
+
 - Fixed parentheses in RegisterBlock field accessors
 - Check cluster size, add `max_cluster_size` option
 
@@ -735,7 +737,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.25.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.25.1...HEAD
+[v0.25.1]: https://github.com/rust-embedded/svd2rust/compare/v0.25.0...v0.25.1
 [v0.25.0]: https://github.com/rust-embedded/svd2rust/compare/v0.24.1...v0.25.0
 [v0.24.1]: https://github.com/rust-embedded/svd2rust/compare/v0.24.0...v0.24.1
 [v0.24.0]: https://github.com/rust-embedded/svd2rust/compare/v0.23.1...v0.24.0
