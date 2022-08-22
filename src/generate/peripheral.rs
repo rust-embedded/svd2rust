@@ -670,7 +670,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
     let mut cluster_expanded = vec![];
 
     let cluster_size = cluster_info_size_in_bits(cluster, config)
-        .with_context(|| format!("Cluster {} has no determinable `size` field", cluster.name))?;
+        .with_context(|| format!("Can't calculate cluster {} size", cluster.name))?;
     let description = cluster
         .description
         .as_ref()
@@ -696,8 +696,17 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
             })
         }
         Cluster::Array(info, array_info) => {
-            let sequential_addresses =
-                (array_info.dim == 1) || (cluster_size == array_info.dim_increment * BITS_PER_BYTE);
+            let increment_bits = array_info.dim_increment * BITS_PER_BYTE;
+            if cluster_size > increment_bits {
+                let cname = &cluster.name;
+                return Err(anyhow!("Cluster {cname} has size {cluster_size} bits that is more then array increment {increment_bits} bits"));
+            }
+            let cluster_size = if config.max_cluster_size {
+                increment_bits
+            } else {
+                cluster_size
+            };
+            let sequential_addresses = (array_info.dim == 1) || (cluster_size == increment_bits);
 
             // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
             let sequential_indexes_from0 = array_info

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Check cluster size, add `max_cluster_size` option
+
 ## [v0.25.0] - 2022-08-02
 
 - Add `feature_peripheral` option which generates cfg features for each peripheral

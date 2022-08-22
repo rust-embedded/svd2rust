@@ -22,7 +22,7 @@ pub const BITS_PER_BYTE: u32 = 8;
 /// that are not valid in Rust ident
 const BLACKLIST_CHARS: &[char] = &['(', ')', '[', ']', '/', ' ', '-'];
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Config {
     pub target: Target,
     pub nightly: bool,
@@ -36,6 +36,7 @@ pub struct Config {
     pub derive_more: bool,
     pub feature_group: bool,
     pub feature_peripheral: bool,
+    pub max_cluster_size: bool,
     pub output_dir: PathBuf,
     pub source_type: SourceType,
 }
@@ -55,6 +56,7 @@ impl Default for Config {
             derive_more: false,
             feature_group: false,
             feature_peripheral: false,
+            max_cluster_size: false,
             output_dir: PathBuf::from("."),
             source_type: SourceType::default(),
         }
@@ -63,7 +65,7 @@ impl Default for Config {
 
 #[allow(clippy::upper_case_acronyms)]
 #[allow(non_camel_case_types)]
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Target {
     CortexM,
     Msp430,
@@ -93,7 +95,7 @@ impl Default for Target {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SourceType {
     Xml,
     #[cfg(feature = "yaml")]
