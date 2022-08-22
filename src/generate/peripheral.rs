@@ -223,12 +223,39 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
 }
 
 #[derive(Clone, Debug)]
+pub struct ArrayAccessor {
+    pub doc: String,
+    pub name: Ident,
+    pub ty: syn::Type,
+    pub basename: Ident,
+    pub i: syn::LitInt,
+}
+
+impl ArrayAccessor {
+    pub fn to_tokens(&self, method: bool) -> TokenStream {
+        let parens = method.then(|| quote! {()});
+        let doc = &self.doc;
+        let name = &self.name;
+        let ty = &self.ty;
+        let basename = &self.basename;
+        let i = &self.i;
+        quote! {
+            #[doc = #doc]
+            #[inline(always)]
+            pub fn #name(&self) -> &#ty {
+                &self.#basename#parens[#i]
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 struct RegisterBlockField {
     syn_field: syn::Field,
     description: String,
     offset: u32,
     size: u32,
-    accessors: Option<TokenStream>,
+    accessors: Vec<ArrayAccessor>,
 }
 
 #[derive(Clone, Debug)]
@@ -471,9 +498,6 @@ fn register_or_cluster_block(
 
     for reg_block_field in &ercs_expanded {
         regions.add(reg_block_field)?;
-        if let Some(ts) = &reg_block_field.accessors {
-            accessors.extend(ts.clone());
-        }
     }
 
     // We need to compute the idents of each register/union block first to make sure no conflicts exists.
@@ -524,6 +548,12 @@ fn register_or_cluster_block(
                 reg_block_field.syn_field.to_tokens(&mut region_rbfs);
                 Punct::new(',', Spacing::Alone).to_tokens(&mut region_rbfs);
             }
+            accessors.extend(
+                reg_block_field
+                    .accessors
+                    .iter()
+                    .map(|a| a.to_tokens(is_region_a_union)),
+            );
         }
 
         if !is_region_a_union {
@@ -692,7 +722,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 description,
                 offset: info.address_offset,
                 size: cluster_size,
-                accessors: None,
+                accessors: Vec::new(),
             })
         }
         Cluster::Array(info, array_info) => {
@@ -726,10 +756,10 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
 
             if array_convertible {
                 let accessors = if sequential_indexes_from0 {
-                    None
+                    Vec::new()
                 } else {
                     let span = Span::call_site();
-                    let mut accessors = TokenStream::new();
+                    let mut accessors = Vec::new();
                     let nb_name_cs = ty_name.to_snake_case_ident(span);
                     for (i, idx) in array_info.indexes().enumerate() {
                         let idx_name =
@@ -740,15 +770,15 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                             &description,
                         );
                         let i = unsuffixed(i as _);
-                        accessors.extend(quote! {
-                            #[doc = #comment]
-                            #[inline(always)]
-                            pub fn #idx_name(&self) -> &#ty {
-                                &self.#nb_name_cs[#i]
-                            }
+                        accessors.push(ArrayAccessor {
+                            doc: comment,
+                            name: idx_name,
+                            ty: ty.clone(),
+                            basename: nb_name_cs.clone(),
+                            i,
                         });
                     }
-                    Some(accessors)
+                    accessors
                 };
                 let array_ty = new_syn_array(ty, array_info.dim);
                 cluster_expanded.push(RegisterBlockField {
@@ -772,7 +802,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                     description: info.description.as_ref().unwrap_or(&info.name).into(),
                     offset: info.address_offset,
                     size: 0,
-                    accessors: None,
+                    accessors: Vec::new(),
                 });
             } else {
                 for (field_num, idx) in array_info.indexes().enumerate() {
@@ -785,7 +815,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         description: description.clone(),
                         offset: info.address_offset + field_num as u32 * array_info.dim_increment,
                         size: cluster_size,
-                        accessors: None,
+                        accessors: Vec::new(),
                     });
                 }
             }
@@ -822,7 +852,7 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
                 description,
                 offset: info.address_offset,
                 size: register_size,
-                accessors: None,
+                accessors: Vec::new(),
             })
         }
         Register::Array(info, array_info) => {
@@ -847,10 +877,10 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
                     .is_some();
 
                 let accessors = if sequential_indexes_from0 {
-                    None
+                    Vec::new()
                 } else {
                     let span = Span::call_site();
-                    let mut accessors = TokenStream::new();
+                    let mut accessors = Vec::new();
                     let nb_name_cs = ty_name.to_snake_case_ident(span);
                     for (i, idx) in array_info.indexes().enumerate() {
                         let idx_name =
@@ -861,15 +891,15 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
                             &description,
                         );
                         let i = unsuffixed(i as _);
-                        accessors.extend(quote! {
-                            #[doc = #comment]
-                            #[inline(always)]
-                            pub fn #idx_name(&self) -> &#ty {
-                                &self.#nb_name_cs[#i]
-                            }
+                        accessors.push(ArrayAccessor {
+                            doc: comment,
+                            name: idx_name,
+                            ty: ty.clone(),
+                            basename: nb_name_cs.clone(),
+                            i,
                         });
                     }
-                    Some(accessors)
+                    accessors
                 };
                 let array_ty = new_syn_array(ty, array_info.dim);
                 let syn_field =
@@ -892,7 +922,7 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
                         description: description.clone(),
                         offset: info.address_offset + field_num as u32 * array_info.dim_increment,
                         size: register_size,
-                        accessors: None,
+                        accessors: Vec::new(),
                     });
                 }
             }

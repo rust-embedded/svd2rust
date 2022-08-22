@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Fixed parentheses in RegisterBlock field accessors
 - Check cluster size, add `max_cluster_size` option
 
 ## [v0.25.0] - 2022-08-02
