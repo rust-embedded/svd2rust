@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Use `critical_section::with` instead of `interrupt::free` for `Peripherals::take`.
+
 ## [v0.25.1] - 2022-08-22
 
 - Fixed parentheses in RegisterBlock field accessors

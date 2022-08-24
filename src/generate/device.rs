@@ -300,31 +300,6 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
     }
 
-    let span = Span::call_site();
-    let take = match config.target {
-        Target::CortexM => Some(Ident::new("cortex_m", span)),
-        Target::Msp430 => Some(Ident::new("msp430", span)),
-        Target::RISCV => Some(Ident::new("riscv", span)),
-        Target::XtensaLX => Some(Ident::new("xtensa_lx", span)),
-        Target::Mips => Some(Ident::new("mips_mcu", span)),
-        Target::None => None,
-    }
-    .map(|krate| {
-        quote! {
-            ///Returns all the peripherals *once*
-            #[inline]
-            pub fn take() -> Option<Self> {
-                #krate::interrupt::free(|_| {
-                    if unsafe { DEVICE_PERIPHERALS } {
-                        None
-                    } else {
-                        Some(unsafe { Peripherals::steal() })
-                    }
-                })
-            }
-        }
-    });
-
     out.extend(quote! {
         // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
         // crate as that would let you `take` the device peripherals more than once (one per minor
@@ -332,16 +307,35 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         #[no_mangle]
         static mut DEVICE_PERIPHERALS: bool = false;
 
-        ///All the peripherals
+        /// All the peripherals.
         #[allow(non_snake_case)]
         pub struct Peripherals {
             #fields
         }
 
         impl Peripherals {
-            #take
+            /// Returns all the peripherals *once*.
+            #[cfg(feature = "critical-section")]
+            #[inline]
+            pub fn take() -> Option<Self> {
+                critical_section::with(|_| {
+                    // SAFETY: We are in a critical section, so we have exclusive access
+                    // to `DEVICE_PERIPHERALS`.
+                    if unsafe { DEVICE_PERIPHERALS } {
+                        return None
+                    }
 
-            ///Unchecked version of `Peripherals::take`
+                    // SAFETY: `DEVICE_PERIPHERALS` is set to `true` by `Peripherals::steal`,
+                    // ensuring the peripherals can only be returned once.
+                    Some(unsafe { Peripherals::steal() })
+                })
+            }
+
+            /// Unchecked version of `Peripherals::take`.
+            ///
+            /// # Safety
+            ///
+            /// Each of the returned peripherals must be used at most once.
             #[inline]
             pub unsafe fn steal() -> Self {
                 DEVICE_PERIPHERALS = true;

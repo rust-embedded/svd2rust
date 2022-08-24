@@ -2,7 +2,7 @@
 //!
 //! [CMSIS-SVD]: http://www.keil.com/pack/doc/CMSIS/SVD/html/index.html
 //!
-//! A SVD file is an XML file that describes the hardware features of a
+//! An SVD file is an XML file that describes the hardware features of a
 //! microcontroller. In particular, it lists all the peripherals available to the
 //! device, where the registers associated to each device are located in memory,
 //! and what's the function of each register.
@@ -56,19 +56,22 @@
 //! $ cargo fmt
 //! ```
 //!
-//! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
-//! `cortex-m` v0.7, `cortex-m-rt` >=v0.6.13 and `vcell` >=v0.1.2. Furthermore
-//! the "device" feature of `cortex-m-rt` must be enabled when the "rt" feature is enabled. The
-//! `Cargo.toml` of the device crate will look like this:
+//! The resulting crate must provide an opt-in `rt` feature and depend on these crates:
+//!
+//! - [`critical-section`](https://crates.io/crates/critical-section) v1.x
+//! - [`cortex-m`](https://crates.io/crates/cortex-m) >=v0.7.6
+//! - [`cortex-m-rt`](https://crates.io/crates/cortex-m-rt) >=v0.6.13
+//! - [`vcell`](https://crates.io/crates/vcell) >=v0.1.2
+//!
+//! Furthermore, the "device" feature of `cortex-m-rt` must be enabled when the `rt` feature
+//! is enabled. The `Cargo.toml` of the device crate will look like this:
 //!
 //! ``` toml
 //! [dependencies]
-//! cortex-m = "0.7"
+//! critical-section = { version = "1.0", optional = true }
+//! cortex-m = "0.7.6"
+//! cortex-m-rt = { version = "0.6.13", optional = true }
 //! vcell = "0.1.2"
-//!
-//! [dependencies.cortex-m-rt]
-//! optional = true
-//! version = "0.6.13"
 //!
 //! [features]
 //! rt = ["cortex-m-rt/device"]
@@ -110,21 +113,24 @@
 //! $ cargo fmt
 //! ```
 //!
-//! The resulting crate must provide opt-in "rt" feature and depend on these crates: `msp430`
-//! v0.3.x, `msp430-rt` v0.3.x, and `vcell` v0.1.x. If the `--nightly` flag is provided to
-//! `svd2rust`, then `msp430-atomic` v0.1.4 is also needed. Furthermore the "device" feature of
-//! `msp430-rt` must be enabled when the "rt" feature is enabled. The `Cargo.toml` of the device
-//! crate will look like this:
+//! The resulting crate must provide opt-in `rt` feature and depend on these crates:
+//!
+//! - [`critical-section`](https://crates.io/crates/critical-section) v1.x
+//! - [`msp430`](https://crates.io/crates/msp430) v0.3.x
+//! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.3.x
+//! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
+//!
+//! If the `--nightly` flag is provided to `svd2rust`, then `msp430-atomic` v0.1.4 is also needed.
+//! Furthermore the "device" feature of `msp430-rt` must be enabled when the `rt` feature is
+//! enabled. The `Cargo.toml` of the device crate will look like this:
 //!
 //! ``` toml
 //! [dependencies]
+//! critical-section = { version = "1.0", optional = true }
 //! msp430 = "0.3.0"
-//! vcell = "0.1.0"
 //! msp430-atomic = "0.1.4" # Only when using the --nightly flag
-//!
-//! [dependencies.msp430-rt]
-//! optional = true
-//! version = "0.3.0"
+//! msp430-rt = { version = "0.3.0", optional = true }
+//! vcell = "0.1.0"
 //!
 //! [features]
 //! rt = ["msp430-rt/device"]
@@ -134,27 +140,24 @@
 //! ## Other targets
 //!
 //! When the target is riscv or none `svd2rust` will emit only the `lib.rs` file. Like in
-//! the cortex-m case we recommend you use `form` and `rustfmt` on the output.
+//! the `cortex-m` case, we recommend you use `form` and `rustfmt` on the output.
 //!
-//! The resulting crate must provide an opt-in "rt" feature and depend on these crates:
+//! The resulting crate must provide an opt-in `rt` feature and depend on these crates:
 //!
-//! - [`bare-metal`](https://crates.io/crates/bare-metal) v0.2.x
+//! - [`critical-section`](https://crates.io/crates/critical-section) v1.x
+//! - [`riscv`](https://crates.io/crates/riscv) v0.9.x (if target is RISC-V)
+//! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.9.x (if target is RISC-V)
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
-//! - [`riscv`](https://crates.io/crates/riscv) v0.4.x if target = riscv.
-//! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.4.x if target = riscv.
 //!
-//! The `*-rt` dependencies must be optional only enabled when the "rt" feature is enabled. The
-//! `Cargo.toml` of the device crate will look like this for a riscv target:
+//! The `*-rt` dependencies must be optional only enabled when the `rt` feature is enabled. The
+//! `Cargo.toml` of the device crate will look like this for a RISC-V target:
 //!
 //! ``` toml
 //! [dependencies]
-//! bare-metal = "0.2.0"
-//! riscv = "0.4.0"
+//! critical-section = { version = "1.0", optional = true }
+//! riscv = "0.9.0"
+//! riscv-rt = { version = "0.9.0", optional = true }
 //! vcell = "0.1.0"
-//!
-//! [dependencies.riscv-rt]
-//! optional = true
-//! version = "0.4.0"
 //!
 //! [features]
 //! rt = ["riscv-rt"]
@@ -458,7 +461,6 @@
 //! used with the `cortex-m` crate `NVIC` API.
 //!
 //! ```ignore
-//! use cortex_m::interrupt;
 //! use cortex_m::peripheral::Peripherals;
 //! use stm32f30x::Interrupt;
 //!
@@ -469,9 +471,9 @@
 //! nvic.enable(Interrupt::TIM3);
 //! ```
 //!
-//! ## the "rt" feature
+//! ## the `rt` feature
 //!
-//! If the "rt" Cargo feature of the svd2rust generated crate is enabled, the crate will populate the
+//! If the `rt` Cargo feature of the svd2rust generated crate is enabled, the crate will populate the
 //! part of the vector table that contains the interrupt vectors and provide an
 //! [`interrupt!`](macro.interrupt.html) macro (non Cortex-M/MSP430 targets) or [`interrupt`] attribute
 //! (Cortex-M or [MSP430](https://docs.rs/msp430-rt-macros/0.1/msp430_rt_macros/attr.interrupt.html))
