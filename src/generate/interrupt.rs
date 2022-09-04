@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fmt::Write;
 
 use crate::svd::Peripheral;
-use cast::u64;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 
@@ -68,7 +67,7 @@ pub fn render(
                 .unwrap_or_else(|| interrupt.0.name.clone())
         );
 
-        let value = util::unsuffixed(u64(interrupt.0.value));
+        let value = util::unsuffixed(interrupt.0.value.into());
 
         let mut feature_attribute_flag = false;
         let mut feature_attribute = TokenStream::new();
@@ -112,7 +111,7 @@ pub fn render(
         names_cfg_attr.push(feature_attribute);
     }
 
-    let n = util::unsuffixed(u64(pos));
+    let n = util::unsuffixed(pos.into());
     match target {
         Target::CortexM => {
             for name in &names {

@@ -43,8 +43,7 @@ json = ["dep:serde_json"]
 yaml = ["dep:serde_yaml"]
 
 [dependencies]
-cast = "0.3"
-clap = { version = "2.33", optional = true }
+clap = { version = "2.34", optional = true }
 clap_conf = { version = "0.1.5", optional = true }
 env_logger = { version = "0.9", optional = true }
 inflections = "1.1"
@@ -53,8 +52,8 @@ quote = "1.0"
 proc-macro2 = "1.0"
 anyhow = "1.0"
 thiserror = "1.0"
-serde_json = { version = "1.0.79", optional = true }
-serde_yaml = { version = "0.8.23", optional = true }
+serde_json = { version = "1.0.85", optional = true }
+serde_yaml = { version = "0.9.11", optional = true }
 
 [dependencies.svd-parser]
 features = ["expand"]

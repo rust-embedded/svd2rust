@@ -2,7 +2,6 @@ use crate::svd::{
     Access, BitRange, EnumeratedValues, Field, ModifiedWriteValues, ReadAction, Register,
     RegisterProperties, Usage, WriteConstraint,
 };
-use cast::u64;
 use core::u64;
 use log::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
@@ -1006,9 +1005,9 @@ impl Variant {
             // generate code for them
             .filter(|field| field.name.to_lowercase() != "reserved" && field.is_default == None)
             .map(|ev| {
-                let value = u64(ev.value.ok_or_else(|| {
-                    anyhow!("EnumeratedValue {} has no `<value>` field", ev.name)
-                })?);
+                let value = ev
+                    .value
+                    .ok_or_else(|| anyhow!("EnumeratedValue {} has no `<value>` field", ev.name))?;
 
                 let nksc = ev.name.to_sanitized_not_keyword_snake_case();
                 let sc = util::sanitize_keyword(nksc.clone());
