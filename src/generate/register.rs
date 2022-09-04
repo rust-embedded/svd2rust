@@ -1051,7 +1051,7 @@ fn add_with_no_variants(
 
     mod_items.extend(quote! {
         #[doc = #desc]
-        #[derive(Clone, Copy, Debug, PartialEq)]
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
         pub struct #pc(#fty);
         impl From<#pc> for #fty {
             #[inline(always)]
@@ -1097,7 +1097,7 @@ fn add_from_variants(
 
     mod_items.extend(quote! {
         #[doc = #desc]
-        #[derive(Clone, Copy, Debug, PartialEq)]
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
         #repr
         pub enum #pc {
             #vars

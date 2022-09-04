@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Add `Eq` autoimplementation for enums
 - Use `critical_section::with` instead of `interrupt::free` for `Peripherals::take`.
 - Bring documentation on how to generate MSP430 PACs up to date (in line with
   [msp430_svd](https://github.com/pftbest/msp430_svd)).
