@@ -81,7 +81,9 @@
 //!
 //! MSP430 does not natively use the SVD format. However, SVD files can be generated using the
 //! [`msp430_svd` application](https://github.com/pftbest/msp430_svd). Most header and DSLite
-//! files provided by TI are mirrored in the repository of `msp430_svd`.
+//! files provided by TI are mirrored in the repository of `msp430_svd`. The application does
+//! not need to be installed; the `msp430gen` command below can be substituted by
+//! `cargo run -- msp430g2553 > msp430g2553.svd` from the `msp430_svd` crate root.
 //!
 //! When targeting the MSP430 architecture `svd2rust` will _also_ generate three files in the
 //! current directory:
@@ -98,9 +100,9 @@
 //! [`form`]: https://crates.io/crates/form
 //!
 //! ``` text
-//! $ msp430gen msp430g2553 > out.svd
+//! $ msp430gen msp430g2553 > msp430g2553.svd
 //!
-//! $ xmllint -format out.svd > msp430g2553.svd
+//! $ xmllint -format msp430g2553.svd --output msp430g2553.svd
 //!
 //! $ svd2rust -g --target=msp430 -i msp430g2553.svd
 //!
@@ -116,8 +118,8 @@
 //! The resulting crate must provide opt-in `rt` feature and depend on these crates:
 //!
 //! - [`critical-section`](https://crates.io/crates/critical-section) v1.x
-//! - [`msp430`](https://crates.io/crates/msp430) v0.3.x
-//! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.3.x
+//! - [`msp430`](https://crates.io/crates/msp430) v0.4.x
+//! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.4.x
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
 //!
 //! If the `--nightly` flag is provided to `svd2rust`, then `msp430-atomic` v0.1.4 is also needed.
@@ -127,9 +129,9 @@
 //! ``` toml
 //! [dependencies]
 //! critical-section = { version = "1.0", optional = true }
-//! msp430 = "0.3.0"
+//! msp430 = "0.4.0"
 //! msp430-atomic = "0.1.4" # Only when using the --nightly flag
-//! msp430-rt = { version = "0.3.0", optional = true }
+//! msp430-rt = { version = "0.4.0", optional = true }
 //! vcell = "0.1.0"
 //!
 //! [features]
