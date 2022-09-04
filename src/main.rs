@@ -1,38 +1,62 @@
 #![recursion_limit = "128"]
 
-use log::{error, info};
-use std::path::{Path, PathBuf};
+use log::{debug, error, info};
 
 use std::fs::File;
 use std::io::Write;
 use std::process;
 
 use anyhow::{Context, Result};
-use clap::{App, Arg};
+use clap::{Arg, Command};
 
 use svd2rust::{
     generate, load_from,
     util::{self, build_rs, Config, SourceType, Target},
 };
 
+fn parse_configs(app: Command) -> Result<Config> {
+    use irx_config::parsers::{cmd, toml};
+    use irx_config::ConfigBuilder;
+    let irxconfig = ConfigBuilder::default()
+        .append_parser(
+            cmd::ParserBuilder::new(app)
+                .single_flags_as_bool(true)
+                .build()?,
+        )
+        .append_parser(
+            toml::ParserBuilder::default()
+                .default_path("svd2rust.toml")
+                .path_option("config")
+                .ignore_missing_file(true)
+                .build()?,
+        )
+        .load()?;
+
+    irxconfig.get().map_err(Into::into)
+}
+
 fn run() -> Result<()> {
-    use clap_conf::prelude::*;
     use std::io::Read;
 
-    let matches = App::new("svd2rust")
+    let log_help = format!(
+        "Choose which messages to log (overrides {})",
+        env_logger::DEFAULT_FILTER_ENV
+    );
+
+    let app = Command::new("svd2rust")
         .about("Generate a Rust API from SVD files")
         .arg(
             Arg::with_name("input")
                 .help("Input SVD file")
-                .short("i")
+                .short('i')
                 .takes_value(true)
                 .value_name("FILE"),
         )
         .arg(
-            Arg::with_name("output")
+            Arg::with_name("output_dir")
                 .long("output-dir")
                 .help("Directory to place generated files")
-                .short("o")
+                .short('o')
                 .takes_value(true)
                 .value_name("PATH"),
         )
@@ -40,7 +64,7 @@ fn run() -> Result<()> {
             Arg::with_name("config")
                 .long("config")
                 .help("Config TOML file")
-                .short("c")
+                .short('c')
                 .takes_value(true)
                 .value_name("TOML_FILE"),
         )
@@ -52,7 +76,7 @@ fn run() -> Result<()> {
                 .value_name("ARCH"),
         )
         .arg(
-            Arg::with_name("nightly_features")
+            Arg::with_name("nightly")
                 .long("nightly")
                 .help("Enable features only available to nightly rustc"),
         )
@@ -72,7 +96,7 @@ fn run() -> Result<()> {
         .arg(
             Arg::with_name("generic_mod")
                 .long("generic_mod")
-                .short("g")
+                .short('g')
                 .help("Push generic mod in separate file"),
         )
         .arg(
@@ -93,13 +117,13 @@ fn run() -> Result<()> {
         .arg(
             Arg::with_name("make_mod")
                 .long("make_mod")
-                .short("m")
+                .short('m')
                 .help("Create mod.rs instead of lib.rs, without inner attributes"),
         )
         .arg(
             Arg::with_name("strict")
                 .long("strict")
-                .short("s")
+                .short('s')
                 .help("Make advanced checks due to parsing SVD"),
         )
         .arg(
@@ -120,22 +144,31 @@ fn run() -> Result<()> {
         .arg(
             Arg::with_name("log_level")
                 .long("log")
-                .short("l")
-                .help(&format!(
-                    "Choose which messages to log (overrides {})",
-                    env_logger::DEFAULT_FILTER_ENV
-                ))
+                .short('l')
+                .help(log_help.as_ref())
                 .takes_value(true)
                 .possible_values(&["off", "error", "warn", "info", "debug", "trace"]),
         )
         .version(concat!(
             env!("CARGO_PKG_VERSION"),
             include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
-        ))
-        .get_matches();
+        ));
+
+    let mut config = match parse_configs(app) {
+        Ok(config) => {
+            setup_logging(&config.log_level);
+            config
+        }
+        Err(e) => {
+            setup_logging(&None);
+            return Err(e);
+        }
+    };
+
+    debug!("Current svd2rust config: {config:#?}");
 
     let input = &mut String::new();
-    match matches.value_of("input") {
+    match config.input.as_ref() {
         Some(file) => {
             File::open(file)
                 .context("Cannot open the SVD file")?
@@ -151,75 +184,10 @@ fn run() -> Result<()> {
         }
     }
 
-    let path = PathBuf::from(matches.value_of("output").unwrap_or("."));
-
-    let config_filename = matches.value_of("config").unwrap_or("");
-
-    let cfg = with_toml_env(&matches, &[config_filename, "svd2rust.toml"]);
-
-    setup_logging(&cfg);
-
-    let target = cfg
-        .grab()
-        .arg("target")
-        .conf("target")
-        .done()
-        .map(|s| Target::parse(&s))
-        .unwrap_or_else(|| Ok(Target::default()))?;
-
-    let nightly =
-        cfg.bool_flag("nightly_features", Filter::Arg) || cfg.bool_flag("nightly", Filter::Conf);
-    let generic_mod =
-        cfg.bool_flag("generic_mod", Filter::Arg) || cfg.bool_flag("generic_mod", Filter::Conf);
-    let make_mod =
-        cfg.bool_flag("make_mod", Filter::Arg) || cfg.bool_flag("make_mod", Filter::Conf);
-    let const_generic =
-        cfg.bool_flag("const_generic", Filter::Arg) || cfg.bool_flag("const_generic", Filter::Conf);
-    let ignore_groups =
-        cfg.bool_flag("ignore_groups", Filter::Arg) || cfg.bool_flag("ignore_groups", Filter::Conf);
-    let keep_list =
-        cfg.bool_flag("keep_list", Filter::Arg) || cfg.bool_flag("keep_list", Filter::Conf);
-    let strict = cfg.bool_flag("strict", Filter::Arg) || cfg.bool_flag("strict", Filter::Conf);
-    let pascal_enum_values = cfg.bool_flag("pascal_enum_values", Filter::Arg)
-        || cfg.bool_flag("pascal_enum_values", Filter::Conf);
-    let derive_more =
-        cfg.bool_flag("derive_more", Filter::Arg) || cfg.bool_flag("derive_more", Filter::Conf);
-    let feature_group =
-        cfg.bool_flag("feature_group", Filter::Arg) || cfg.bool_flag("feature_group", Filter::Conf);
-    let feature_peripheral = cfg.bool_flag("feature_peripheral", Filter::Arg)
-        || cfg.bool_flag("feature_peripheral", Filter::Conf);
-    let max_cluster_size = cfg.bool_flag("max_cluster_size", Filter::Arg)
-        || cfg.bool_flag("max_cluster_size", Filter::Conf);
-
-    let mut source_type = cfg
-        .grab()
-        .arg("source_type")
-        .conf("source_type")
-        .done()
-        .and_then(|s| SourceType::from_extension(&s))
-        .unwrap_or_default();
-
-    if let Some(file) = matches.value_of("input") {
-        source_type = SourceType::from_path(Path::new(file))
+    if let Some(file) = config.input.as_ref() {
+        config.source_type = SourceType::from_path(file)
     }
-
-    let config = Config {
-        target,
-        nightly,
-        generic_mod,
-        make_mod,
-        const_generic,
-        ignore_groups,
-        keep_list,
-        strict,
-        pascal_enum_values,
-        derive_more,
-        feature_group,
-        feature_peripheral,
-        max_cluster_size,
-        output_dir: path.clone(),
-        source_type,
-    };
+    let path = &config.output_dir;
 
     info!("Parsing device from SVD file");
     let device = load_from(input, &config)?;
@@ -229,25 +197,28 @@ fn run() -> Result<()> {
     let items = generate::device::render(&device, &config, &mut device_x)
         .with_context(|| "Error rendering device")?;
 
-    let filename = if make_mod { "mod.rs" } else { "lib.rs" };
+    let filename = if config.make_mod { "mod.rs" } else { "lib.rs" };
     let mut file = File::create(path.join(filename)).expect("Couldn't create output file");
 
     let data = items.to_string().replace("] ", "]\n");
     file.write_all(data.as_ref())
         .expect("Could not write code to lib.rs");
 
-    if target == Target::CortexM
-        || target == Target::Msp430
-        || target == Target::XtensaLX
-        || target == Target::RISCV
+    if [
+        Target::CortexM,
+        Target::Msp430,
+        Target::XtensaLX,
+        Target::RISCV,
+    ]
+    .contains(&config.target)
     {
         writeln!(File::create(path.join("device.x"))?, "{}", device_x)?;
         writeln!(File::create(path.join("build.rs"))?, "{}", build_rs())?;
     }
 
-    if feature_group || feature_peripheral {
+    if config.feature_group || config.feature_peripheral {
         let mut features = Vec::new();
-        if feature_group {
+        if config.feature_group {
             features.extend(
                 util::group_names(&device)
                     .iter()
@@ -259,7 +230,7 @@ fn run() -> Result<()> {
                 .collect();
             features.push(format!("all-groups = [{}]\n", add_groups.join(",")))
         }
-        if feature_peripheral {
+        if config.feature_peripheral {
             features.extend(
                 util::peripheral_names(&device)
                     .iter()
@@ -287,7 +258,7 @@ fn run() -> Result<()> {
     Ok(())
 }
 
-fn setup_logging<'a>(getter: &'a impl clap_conf::Getter<'a, String>) {
+fn setup_logging(log_level: &Option<String>) {
     // * Log at info by default.
     // * Allow users the option of setting complex logging filters using
     //   env_logger's `RUST_LOG` environment variable.
@@ -302,7 +273,7 @@ fn setup_logging<'a>(getter: &'a impl clap_conf::Getter<'a, String>) {
     if log_lvl_from_env {
         log::set_max_level(log::LevelFilter::Trace);
     } else {
-        let level = match getter.grab().arg("log_level").conf("log_level").done() {
+        let level = match log_level {
             Some(lvl) => lvl.parse().unwrap(),
             None => log::LevelFilter::Info,
         };
