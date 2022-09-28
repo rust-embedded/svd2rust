@@ -114,7 +114,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 out.extend(quote! {
                     #[doc = #description]
                     #feature_any_attribute
-                    pub use #base as #name_snake_case;
+                    pub use self::#base as #name_snake_case;
                 });
                 return Ok(out);
             }
@@ -170,7 +170,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 out.extend(quote! {
                     #[doc = #description]
                     #feature_attribute
-                    pub use #base as #name_snake_case;
+                    pub use self::#base as #name_snake_case;
                 });
                 return Ok(out);
             }
@@ -1014,8 +1014,8 @@ fn cluster_block(
 
         Ok(quote! {
             #[doc = #description]
-            pub use #derived as #name_constant_case;
-            pub use #mod_derived as #name_snake_case;
+            pub use self::#derived as #name_constant_case;
+            pub use self::#mod_derived as #name_snake_case;
         })
     } else {
         let cpath = path.new_cluster(&c.name);
@@ -1032,7 +1032,7 @@ fn cluster_block(
 
         Ok(quote! {
             #[doc = #description]
-            pub use #name_snake_case::#name_constant_case;
+            pub use self::#name_snake_case::#name_constant_case;
 
             ///Cluster
             #[doc = #description]
