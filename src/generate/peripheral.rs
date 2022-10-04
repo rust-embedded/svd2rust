@@ -243,7 +243,7 @@ impl ArrayAccessor {
             #[doc = #doc]
             #[inline(always)]
             pub fn #name(&self) -> &#ty {
-                &self.#basename#parens[#i]
+                &self.#basename #parens[#i]
             }
         }
     }
