@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- `fields` fn refactoring
 - Test patched STM32
 - simplify ci strategy
 

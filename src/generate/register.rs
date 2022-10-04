@@ -56,7 +56,7 @@ pub fn render(
             pub use #mod_derived as #name_snake_case;
         })
     } else {
-        let name_constant_case_spec = format!("{name}_SPEC").to_constant_case_ident(span);
+        let regspec_ident = format!("{name}_SPEC").to_constant_case_ident(span);
         let access = util::access_of(&register.properties, register.fields.as_deref());
         let accs = if access.can_read() && access.can_write() {
             "rw"
@@ -67,13 +67,12 @@ pub fn render(
         } else {
             return Err(anyhow!("Incorrect access of register {}", register.name));
         };
-        let alias_doc = format!(
-            "{name} ({accs}) register accessor: an alias for `Reg<{name_constant_case_spec}>`"
-        );
+        let alias_doc =
+            format!("{name} ({accs}) register accessor: an alias for `Reg<{regspec_ident}>`");
         let mut out = TokenStream::new();
         out.extend(quote! {
             #[doc = #alias_doc]
-            pub type #name_constant_case = crate::Reg<#name_snake_case::#name_constant_case_spec>;
+            pub type #name_constant_case = crate::Reg<#name_snake_case::#regspec_ident>;
         });
         let mod_items = render_register_mod(
             register,
@@ -104,7 +103,7 @@ pub fn render_register_mod(
     let properties = &register.properties;
     let name = util::name_of(register, config.ignore_groups);
     let span = Span::call_site();
-    let name_constant_case_spec = format!("{name}_SPEC").to_constant_case_ident(span);
+    let regspec_ident = format!("{name}_SPEC").to_constant_case_ident(span);
     let name_snake_case = name.to_snake_case_ident(span);
     let rsize = properties
         .size
@@ -126,8 +125,6 @@ pub fn render_register_mod(
     );
 
     let mut mod_items = TokenStream::new();
-    let mut r_impl_items = TokenStream::new();
-    let mut w_impl_items = TokenStream::new();
     let mut methods = vec![];
 
     let can_read = access.can_read();
@@ -144,13 +141,13 @@ pub fn render_register_mod(
         mod_items.extend(quote! {
             #[doc = #desc]
             #derive
-            pub struct R(crate::R<#name_constant_case_spec>);
+            pub struct R(crate::R<#regspec_ident>);
         });
 
         if !config.derive_more {
             mod_items.extend(quote! {
                 impl core::ops::Deref for R {
-                    type Target = crate::R<#name_constant_case_spec>;
+                    type Target = crate::R<#regspec_ident>;
 
                     #[inline(always)]
                     fn deref(&self) -> &Self::Target {
@@ -158,9 +155,9 @@ pub fn render_register_mod(
                     }
                 }
 
-                impl From<crate::R<#name_constant_case_spec>> for R {
+                impl From<crate::R<#regspec_ident>> for R {
                     #[inline(always)]
-                    fn from(reader: crate::R<#name_constant_case_spec>) -> Self {
+                    fn from(reader: crate::R<#regspec_ident>) -> Self {
                         R(reader)
                     }
                 }
@@ -179,13 +176,13 @@ pub fn render_register_mod(
         mod_items.extend(quote! {
             #[doc = #desc]
             #derive
-            pub struct W(crate::W<#name_constant_case_spec>);
+            pub struct W(crate::W<#regspec_ident>);
         });
 
         if !config.derive_more {
             mod_items.extend(quote! {
                 impl core::ops::Deref for W {
-                    type Target = crate::W<#name_constant_case_spec>;
+                    type Target = crate::W<#regspec_ident>;
 
                     #[inline(always)]
                     fn deref(&self) -> &Self::Target {
@@ -200,9 +197,9 @@ pub fn render_register_mod(
                     }
                 }
 
-                impl From<crate::W<#name_constant_case_spec>> for W {
+                impl From<crate::W<#regspec_ident>> for W {
                     #[inline(always)]
-                    fn from(writer: crate::W<#name_constant_case_spec>) -> Self {
+                    fn from(writer: crate::W<#regspec_ident>) -> Self {
                         W(writer)
                     }
                 }
@@ -219,8 +216,10 @@ pub fn render_register_mod(
         methods.push("modify");
     }
 
-    let mut zero_to_modify_fields_bitmap: u64 = 0;
-    let mut one_to_modify_fields_bitmap: u64 = 0;
+    let mut r_impl_items = TokenStream::new();
+    let mut w_impl_items = TokenStream::new();
+    let mut zero_to_modify_fields_bitmap = 0;
+    let mut one_to_modify_fields_bitmap = 0;
 
     if let Some(cur_fields) = register.fields.as_ref() {
         // filter out all reserved fields, as we should not generate code for
@@ -231,20 +230,21 @@ pub fn render_register_mod(
             .collect();
 
         if !cur_fields.is_empty() {
-            fields(
+            (
+                r_impl_items,
+                w_impl_items,
+                zero_to_modify_fields_bitmap,
+                one_to_modify_fields_bitmap,
+            ) = fields(
                 cur_fields,
-                register,
-                path,
-                index,
-                &name_constant_case_spec,
+                &regspec_ident,
                 &rty,
+                register.modified_write_values,
                 access,
                 properties,
                 &mut mod_items,
-                &mut r_impl_items,
-                &mut w_impl_items,
-                &mut zero_to_modify_fields_bitmap,
-                &mut one_to_modify_fields_bitmap,
+                path,
+                index,
                 config,
             )?;
         }
@@ -329,9 +329,9 @@ pub fn render_register_mod(
 
     mod_items.extend(quote! {
         #[doc = #doc]
-        pub struct #name_constant_case_spec;
+        pub struct #regspec_ident;
 
-        impl crate::RegisterSpec for #name_constant_case_spec {
+        impl crate::RegisterSpec for #regspec_ident {
             type Ux = #rty;
         }
     });
@@ -340,7 +340,7 @@ pub fn render_register_mod(
         let doc = format!("`read()` method returns [{name_snake_case}::R](R) reader structure",);
         mod_items.extend(quote! {
             #[doc = #doc]
-            impl crate::Readable for #name_constant_case_spec {
+            impl crate::Readable for #regspec_ident {
                 type Reader = R;
             }
         });
@@ -354,7 +354,7 @@ pub fn render_register_mod(
 
         mod_items.extend(quote! {
             #[doc = #doc]
-            impl crate::Writable for #name_constant_case_spec {
+            impl crate::Writable for #regspec_ident {
                 type Writer = W;
                 const ZERO_TO_MODIFY_FIELDS_BITMAP: Self::Ux = #zero_to_modify_fields_bitmap;
                 const ONE_TO_MODIFY_FIELDS_BITMAP: Self::Ux = #one_to_modify_fields_bitmap;
@@ -365,7 +365,7 @@ pub fn render_register_mod(
         let doc = format!("`reset()` method sets {} to value {rv}", register.name);
         mod_items.extend(quote! {
             #[doc = #doc]
-            impl crate::Resettable for #name_constant_case_spec {
+            impl crate::Resettable for #regspec_ident {
                 const RESET_VALUE: Self::Ux = #rv;
             }
         });
@@ -376,20 +376,20 @@ pub fn render_register_mod(
 #[allow(clippy::too_many_arguments)]
 pub fn fields(
     mut fields: Vec<&Field>,
-    register: &Register,
-    rpath: &RegisterPath,
-    index: &Index,
-    name_constant_case_spec: &Ident,
+    regspec_ident: &Ident,
     rty: &Ident,
+    rmwv: Option<ModifiedWriteValues>,
     access: Access,
     properties: &RegisterProperties,
     mod_items: &mut TokenStream,
-    r_impl_items: &mut TokenStream,
-    w_impl_items: &mut TokenStream,
-    zero_to_modify_fields_bitmap: &mut u64,
-    one_to_modify_fields_bitmap: &mut u64,
+    rpath: &RegisterPath,
+    index: &Index,
     config: &Config,
-) -> Result<()> {
+) -> Result<(TokenStream, TokenStream, u64, u64)> {
+    let mut r_impl_items = TokenStream::new();
+    let mut w_impl_items = TokenStream::new();
+    let mut zero_to_modify_fields_bitmap = 0u64;
+    let mut one_to_modify_fields_bitmap = 0u64;
     let span = Span::call_site();
     let can_read = access.can_read();
     let can_write = access.can_write();
@@ -666,14 +666,11 @@ pub fn fields(
                 let base_field = util::replace_suffix(&base.field.name, "");
                 let base_r = (base_field + "_R").to_constant_case_ident(span);
                 if !reader_derives.contains(&reader_ty) {
-                    derive_from_base(
-                        mod_items,
-                        base,
-                        &fpath,
-                        &reader_ty,
-                        &base_r,
-                        &field_reader_brief,
-                    )?;
+                    let base_path = base_syn_path(base, &fpath, &base_r)?;
+                    mod_items.extend(quote! {
+                        #[doc = #field_reader_brief]
+                        pub use #base_path as #reader_ty;
+                    });
                     reader_derives.insert(reader_ty.clone());
                 }
                 // only pub use enum when base.register != None. if base.register == None, it emits
@@ -681,14 +678,11 @@ pub fn fields(
                 if base.register() != fpath.register() {
                     // use the same enum structure name
                     if !enum_derives.contains(&value_read_ty) {
-                        derive_from_base(
-                            mod_items,
-                            base,
-                            &fpath,
-                            &value_read_ty,
-                            &value_read_ty,
-                            &description,
-                        )?;
+                        let base_path = base_syn_path(base, &fpath, &value_read_ty)?;
+                        mod_items.extend(quote! {
+                            #[doc = #description]
+                            pub use #base_path as #value_read_ty;
+                        });
                         enum_derives.insert(value_read_ty.clone());
                     }
                 }
@@ -763,10 +757,7 @@ pub fn fields(
         // If this field can be written, generate write proxy. Generate write value if it differs from
         // the read value, or else we reuse read value.
         if can_write {
-            let mwv = f
-                .modified_write_values
-                .or(register.modified_write_values)
-                .unwrap_or_default();
+            let mwv = f.modified_write_values.or(rmwv).unwrap_or_default();
             // gets a brief of write proxy
             let field_writer_brief = format!("Field `{name}{brief_suffix}` writer - {description}");
 
@@ -864,7 +855,7 @@ pub fn fields(
                         },
                         span,
                     );
-                    quote! { crate::#wproxy<'a, #rty, #name_constant_case_spec, #value_write_ty, O> }
+                    quote! { crate::#wproxy<'a, #rty, #regspec_ident, #value_write_ty, O> }
                 } else {
                     let wproxy = Ident::new(
                         if unsafety {
@@ -875,7 +866,7 @@ pub fn fields(
                         span,
                     );
                     let width = &util::unsuffixed(width as _);
-                    quote! { crate::#wproxy<'a, #rty, #name_constant_case_spec, #fty, #value_write_ty, #width, O> }
+                    quote! { crate::#wproxy<'a, #rty, #regspec_ident, #fty, #value_write_ty, #width, O> }
                 };
                 mod_items.extend(quote! {
                     #[doc = #field_writer_brief]
@@ -899,14 +890,11 @@ pub fn fields(
                     if writer_reader_different_enum {
                         // use the same enum structure name
                         if !writer_enum_derives.contains(&value_write_ty) {
-                            derive_from_base(
-                                mod_items,
-                                base,
-                                &fpath,
-                                &value_write_ty,
-                                &value_write_ty,
-                                &description,
-                            )?;
+                            let base_path = base_syn_path(base, &fpath, &value_write_ty)?;
+                            mod_items.extend(quote! {
+                                #[doc = #description]
+                                pub use #base_path as #value_write_ty;
+                            });
                             writer_enum_derives.insert(value_write_ty.clone());
                         }
                     }
@@ -920,14 +908,11 @@ pub fn fields(
                     let base_field = util::replace_suffix(&base.field.name, "");
                     let base_w = (base_field + "_W").to_constant_case_ident(span);
                     if !writer_derives.contains(&writer_ty) {
-                        derive_from_base(
-                            mod_items,
-                            base,
-                            &fpath,
-                            &writer_ty,
-                            &base_w,
-                            &field_writer_brief,
-                        )?;
+                        let base_path = base_syn_path(base, &fpath, &base_w)?;
+                        mod_items.extend(quote! {
+                            #[doc = #field_writer_brief]
+                            pub use #base_path as #writer_ty;
+                        });
                         writer_derives.insert(writer_ty.clone());
                     }
                 }
@@ -981,16 +966,21 @@ pub fn fields(
             match mwv {
                 Modify | Set | Clear => {}
                 OneToSet | OneToClear | OneToToggle => {
-                    *one_to_modify_fields_bitmap |= bitmask;
+                    one_to_modify_fields_bitmap |= bitmask;
                 }
                 ZeroToClear | ZeroToSet | ZeroToToggle => {
-                    *zero_to_modify_fields_bitmap |= bitmask;
+                    zero_to_modify_fields_bitmap |= bitmask;
                 }
             }
         }
     }
 
-    Ok(())
+    Ok((
+        r_impl_items,
+        w_impl_items,
+        zero_to_modify_fields_bitmap,
+        one_to_modify_fields_bitmap,
+    ))
 }
 
 fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> bool {
@@ -1180,33 +1170,26 @@ fn description_with_bits(description: &str, offset: u64, width: u32) -> String {
     res
 }
 
-fn derive_from_base(
-    mod_items: &mut TokenStream,
+fn base_syn_path(
     base: &EnumPath,
-    field: &FieldPath,
-    pc: &Ident,
-    base_pc: &Ident,
-    desc: &str,
-) -> Result<(), syn::Error> {
+    fpath: &FieldPath,
+    base_ident: &Ident,
+) -> Result<syn::TypePath, syn::Error> {
     let span = Span::call_site();
-    let path = if base.register() == field.register() {
-        ident_to_path(base_pc.clone())
-    } else if base.register().block == field.register().block {
+    let path = if base.register() == fpath.register() {
+        ident_to_path(base_ident.clone())
+    } else if base.register().block == fpath.register().block {
         let mut segments = Punctuated::new();
         segments.push(path_segment(Ident::new("super", span)));
         segments.push(path_segment(base.register().name.to_snake_case_ident(span)));
-        segments.push(path_segment(base_pc.clone()));
+        segments.push(path_segment(base_ident.clone()));
         type_path(segments)
     } else {
         let mut rmod_ = crate::util::register_path_to_ty(base.register(), span);
-        rmod_.path.segments.push(path_segment(base_pc.clone()));
+        rmod_.path.segments.push(path_segment(base_ident.clone()));
         rmod_
     };
-    mod_items.extend(quote! {
-        #[doc = #desc]
-        pub use #path as #pc;
-    });
-    Ok(())
+    Ok(path)
 }
 
 fn lookup_filter(
