@@ -1,5 +1,7 @@
+use regex::Regex;
 use std::borrow::Cow;
 use std::cmp::Ordering;
+use std::fmt;
 use svd_parser::expand::{derive_cluster, derive_peripheral, derive_register, BlockPath, Index};
 
 use crate::svd::{array::names, Cluster, ClusterInfo, Peripheral, Register, RegisterCluster};
@@ -15,6 +17,31 @@ use crate::util::{
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::generate::register;
+
+/// An enum defining how to represent registers in the rendered outputs, binding a bool
+/// which describes whether or not renderers should include type information,
+/// which allows for disjoint arrays to share the same type.
+#[derive(Debug)]
+enum Repr {
+    Array { include_info: bool },
+    Expand { include_info: bool },
+    // String to store the common type when the erc is part of a disjoint array
+    Single { include_info: bool, common: String },
+}
+
+impl Default for Repr {
+    fn default() -> Self {
+        Repr::Expand {
+            include_info: false,
+        }
+    }
+}
+
+impl fmt::Display for Repr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
 
 pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result<TokenStream> {
     let mut out = TokenStream::new();
@@ -191,17 +218,20 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         return Ok(TokenStream::new());
     }
 
+    debug!("Checking array representation information");
+    let reprs = check_erc_reprs(&ercs, config)?;
+
     debug!("Pushing cluster & register information into output");
     // Push all cluster & register related information into the peripheral module
 
-    let mod_items = render_ercs(&mut ercs, &path, index, config)?;
+    let mod_items = render_ercs(&mut ercs, &reprs, &path, index, config)?;
 
     // Push any register or cluster blocks into the output
     debug!(
         "Pushing {} register or cluster blocks into output",
         ercs.len()
     );
-    let reg_block = register_or_cluster_block(&ercs, None, None, config)?;
+    let reg_block = register_or_cluster_block(&ercs, &reprs, None, None, config)?;
 
     let open = Punct::new('{', Spacing::Alone);
     let close = Punct::new('}', Spacing::Alone);
@@ -484,6 +514,7 @@ fn make_comment(size: u32, offset: u32, description: &str) -> String {
 
 fn register_or_cluster_block(
     ercs: &[RegisterCluster],
+    reprs: &[Repr],
     name: Option<&str>,
     size: Option<u32>,
     config: &Config,
@@ -491,8 +522,8 @@ fn register_or_cluster_block(
     let mut rbfs = TokenStream::new();
     let mut accessors = TokenStream::new();
 
-    let ercs_expanded =
-        expand(ercs, config).with_context(|| "Could not expand register or cluster block")?;
+    let ercs_expanded = expand(ercs, reprs, config)
+        .with_context(|| "Could not expand register or cluster block")?;
 
     // Locate conflicting regions; we'll need to use unions to represent them.
     let mut regions = FieldRegions::default();
@@ -631,15 +662,20 @@ fn register_or_cluster_block(
 
 /// Expand a list of parsed `Register`s or `Cluster`s, and render them to
 /// `RegisterBlockField`s containing `Field`s.
-fn expand(ercs: &[RegisterCluster], config: &Config) -> Result<Vec<RegisterBlockField>> {
+fn expand(
+    ercs: &[RegisterCluster],
+    reprs: &[Repr],
+    config: &Config,
+) -> Result<Vec<RegisterBlockField>> {
     let mut ercs_expanded = vec![];
-
     debug!("Expanding registers or clusters into Register Block Fields");
-    for erc in ercs {
-        match &erc {
+    let zipped = ercs.iter().zip(reprs.iter());
+
+    for (erc, repr) in zipped {
+        match erc {
             RegisterCluster::Register(register) => {
                 let reg_name = &register.name;
-                let expanded_reg = expand_register(register, config).with_context(|| {
+                let expanded_reg = expand_register(register, repr, config).with_context(|| {
                     let descrip = register.description.as_deref().unwrap_or("No description");
                     format!("Error expanding register\nName: {reg_name}\nDescription: {descrip}")
                 })?;
@@ -648,10 +684,13 @@ fn expand(ercs: &[RegisterCluster], config: &Config) -> Result<Vec<RegisterBlock
             }
             RegisterCluster::Cluster(cluster) => {
                 let cluster_name = &cluster.name;
-                let expanded_cluster = expand_cluster(cluster, config).with_context(|| {
-                    let descrip = cluster.description.as_deref().unwrap_or("No description");
-                    format!("Error expanding cluster\nName: {cluster_name}\nDescription: {descrip}")
-                })?;
+                let expanded_cluster =
+                    expand_cluster(cluster, repr, config).with_context(|| {
+                        let descrip = cluster.description.as_deref().unwrap_or("No description");
+                        format!(
+                            "Error expanding cluster\nName: {cluster_name}\nDescription: {descrip}"
+                        )
+                    })?;
                 trace!("Cluster: {cluster_name}");
                 ercs_expanded.extend(expanded_cluster);
             }
@@ -663,12 +702,251 @@ fn expand(ercs: &[RegisterCluster], config: &Config) -> Result<Vec<RegisterBlock
     Ok(ercs_expanded)
 }
 
+/// Gathers type information and decides how ercs (arrays in particular) should be
+/// represented in the output. Returns a vector of `Repr` which should
+/// be `zip`ped with ercs when rendering.
+fn check_erc_reprs(ercs: &[RegisterCluster], config: &Config) -> Result<Vec<Repr>> {
+    let mut ercs_type_info: Vec<(String, Option<Regex>, &RegisterCluster, &mut Repr)> = vec![];
+    let mut reprs: Vec<Repr> = vec![];
+    // fill the array so we can slice it (without implementing Clone)
+    for _i in 0..ercs.len() {
+        reprs.push(Repr::default());
+    }
+    let reprs_slice = &mut reprs[0..ercs.len()];
+    let zipped = ercs.iter().zip(reprs_slice.iter_mut());
+    for (erc, repr) in zipped {
+        match erc {
+            RegisterCluster::Register(register) => {
+                let info_name = register.fullname(config.ignore_groups);
+                match register {
+                    Register::Single(_) => {
+                        let mut ty_name = info_name.to_string();
+                        let mut prev_match = false;
+                        if ercs_type_info.len() > 0 {
+                            // Check this type against previous regexs
+                            for prev in &ercs_type_info {
+                                let (prev_name, prev_regex, prev_erc, _prev_repr) = prev;
+                                if let RegisterCluster::Register(_) = prev_erc {
+                                    if let Some(prev_re) = prev_regex {
+                                        // if matched adopt the previous type name
+                                        if prev_re.is_match(&ty_name) {
+                                            ty_name = prev_name.to_string();
+                                            prev_match = true;
+                                            debug!(
+                                                "Register {} matched to array {}, expanding array",
+                                                register.name, prev_name
+                                            );
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // don't render info if we matched a previous erc
+                        *repr = Repr::Single {
+                            include_info: !prev_match,
+                            common: ty_name.clone(),
+                        };
+                        ercs_type_info.push((ty_name, None, erc, repr));
+                    }
+
+                    Register::Array(info, array_info) => {
+                        // Only match integer indeces when searching for disjoint arrays
+                        let re_string = util::replace_suffix(&info_name, "([0-9]+|%s)");
+                        let re = Regex::new(format!("^{re_string}$").as_str()).or_else(|_| {
+                            Err(anyhow!(
+                                "Error creating regex for register {}",
+                                register.name
+                            ))
+                        })?;
+                        let ty_name = info_name.to_string(); // keep suffix for regex matching
+                        let mut prev_match = None;
+                        if ercs_type_info.len() > 0 {
+                            // Check this type regex against previous names
+                            for prev in &mut ercs_type_info {
+                                let (prev_name, _prev_regex, prev_erc, prev_repr) = prev;
+                                if let RegisterCluster::Register(_) = prev_erc {
+                                    // if matched force this cluster and the previous one to expand
+                                    if re.is_match(&prev_name) {
+                                        debug!(
+                                            "Array {} matched to register {}, expanding array",
+                                            register.name, prev_name
+                                        );
+                                        (**prev_repr, prev_match) =
+                                            redo_prev_repr(*prev_repr, &prev_match, &ty_name);
+                                    }
+                                }
+                            }
+                        }
+                        *repr = if prev_match.is_some() {
+                            Repr::Expand {
+                                // don't duplicate info if another array was matched
+                                include_info: !prev_match.unwrap(),
+                            }
+                        } else {
+                            // Check if the array itself requires expansion
+                            let register_size = register.properties.size.ok_or_else(|| {
+                                anyhow!("Register {} has no `size` field", register.name)
+                            })?;
+                            let sequential_addresses = (array_info.dim == 1)
+                                || (register_size == array_info.dim_increment * BITS_PER_BYTE);
+                            let convert_list = match config.keep_list {
+                                true => match &array_info.dim_name {
+                                    Some(dim_name) => dim_name.contains("[%s]"),
+                                    None => info.name.contains("[%s]"),
+                                },
+                                false => true,
+                            };
+                            let r = if sequential_addresses && convert_list {
+                                Repr::Array { include_info: true }
+                            } else {
+                                Repr::Expand { include_info: true }
+                            };
+                            r
+                        };
+                        ercs_type_info.push((ty_name, Some(re), erc, repr));
+                    }
+                };
+            }
+
+            RegisterCluster::Cluster(cluster) => {
+                match cluster {
+                    Cluster::Single(_) => {
+                        let mut ty_name = cluster.name.to_string();
+                        let mut prev_match = false;
+                        if ercs_type_info.len() > 0 {
+                            // Check this type against previous regexs
+                            for prev in &ercs_type_info {
+                                let (prev_name, prev_regex, prev_erc, _prev_repr) = prev;
+                                if let RegisterCluster::Cluster(_) = prev_erc {
+                                    if let Some(prev_re) = prev_regex {
+                                        // if matched adopt the previous type name
+                                        if prev_re.is_match(&ty_name) {
+                                            debug!(
+                                                "Cluster {} matched to array {}, expanding array",
+                                                cluster.name, prev_name
+                                            );
+                                            ty_name = prev_name.to_string();
+                                            prev_match = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // don't render info if we matched a previous erc
+                        *repr = Repr::Single {
+                            include_info: !prev_match,
+                            common: ty_name.clone(),
+                        };
+                        ercs_type_info.push((ty_name, None, erc, repr));
+                    }
+
+                    Cluster::Array(info, array_info) => {
+                        // Only match integer indeces when searching for disjoint arrays
+                        let re_string = util::replace_suffix(&cluster.name, "([0-9]+|%s)");
+                        let re = Regex::new(format!("^{re_string}$").as_str()).or_else(|_| {
+                            Err(anyhow!(
+                                "creating regex for register {} failed",
+                                cluster.name
+                            ))
+                        })?;
+                        let ty_name = cluster.name.to_string(); // keep suffix for regex matching
+                        let mut prev_match = None;
+                        if ercs_type_info.len() > 0 {
+                            // Check this type regex against previous names
+                            for prev in &mut ercs_type_info {
+                                let (prev_name, _prev_regex, prev_erc, prev_repr) = prev;
+                                if let RegisterCluster::Cluster(_) = prev_erc {
+                                    // if matched force this cluster and the previous one to expand
+                                    if re.is_match(&prev_name) {
+                                        debug!(
+                                            "array {} matched to cluster {}, expanding array",
+                                            cluster.name, prev_name
+                                        );
+                                        (**prev_repr, prev_match) =
+                                            redo_prev_repr(*prev_repr, &prev_match, &ty_name);
+                                    }
+                                }
+                            }
+                        }
+                        *repr = if prev_match.is_some() {
+                            Repr::Expand {
+                                // don't duplicate info if another array was matched
+                                include_info: !prev_match.unwrap(),
+                            }
+                        } else {
+                            // Check if the array itself requires expansion
+                            let cluster_size = cluster_info_size_in_bits(cluster, repr, config)
+                                .with_context(|| {
+                                    format!("Can't calculate cluster {} size", cluster.name)
+                                })?;
+                            let increment_bits = array_info.dim_increment * BITS_PER_BYTE;
+                            let sequential_addresses =
+                                (array_info.dim == 1) || (cluster_size == increment_bits);
+                            let convert_list = match config.keep_list {
+                                true => match &array_info.dim_name {
+                                    Some(dim_name) => dim_name.contains("[%s]"),
+                                    None => info.name.contains("[%s]"),
+                                },
+                                false => true,
+                            };
+                            if sequential_addresses && convert_list {
+                                Repr::Array { include_info: true }
+                            } else {
+                                Repr::Expand { include_info: true }
+                            }
+                        };
+                        ercs_type_info.push((ty_name, Some(re), erc, repr))
+                    }
+                };
+            }
+        };
+    }
+    Ok(reprs)
+}
+
+/// Called when a previous `Repr`esentation needs to be updated because it matches the regex of a
+/// disjoint array. Returns a tuple of the updated `Repr` and match status.
+fn redo_prev_repr(
+    prev_repr: &Repr,
+    prev_match: &Option<bool>,
+    ty_name: &String,
+) -> (Repr, Option<bool>) {
+    match prev_repr {
+        Repr::Array { .. } => (
+            // include info only if there wasn't a previous array match
+            Repr::Expand {
+                include_info: if let Some(b) = prev_match { !b } else { true },
+            },
+            Some(true), // found a match and it is an array
+        ),
+        Repr::Expand { .. } => (
+            Repr::Expand {
+                include_info: if let Some(b) = prev_match { !b } else { true },
+            },
+            Some(true), // found a match and it is an array
+        ),
+        Repr::Single { .. } => (
+            Repr::Single {
+                include_info: false,
+                common: ty_name.clone(),
+            },
+            if prev_match.is_none() {
+                Some(false) // found a match and it isn't an array
+            } else {
+                *prev_match // don't overwrite a previous match when this is a single
+            },
+        ),
+    }
+}
+
 /// Calculate the size of a Cluster.  If it is an array, then the dimensions
 /// tell us the size of the array.  Otherwise, inspect the contents using
 /// [cluster_info_size_in_bits].
-fn cluster_size_in_bits(cluster: &Cluster, config: &Config) -> Result<u32> {
+fn cluster_size_in_bits(cluster: &Cluster, repr: &Repr, config: &Config) -> Result<u32> {
     match cluster {
-        Cluster::Single(info) => cluster_info_size_in_bits(info, config),
+        Cluster::Single(info) => cluster_info_size_in_bits(info, repr, config),
         // If the contained array cluster has a mismatch between the
         // dimIncrement and the size of the array items, then the array
         // will get expanded in expand_cluster below.  The overall size
@@ -678,7 +956,7 @@ fn cluster_size_in_bits(cluster: &Cluster, config: &Config) -> Result<u32> {
                 return Ok(0); // Special case!
             }
             let last_offset = (dim.dim - 1) * dim.dim_increment * BITS_PER_BYTE;
-            let last_size = cluster_info_size_in_bits(info, config);
+            let last_size = cluster_info_size_in_bits(info, repr, config);
             Ok(last_offset + last_size?)
         }
     }
@@ -686,13 +964,13 @@ fn cluster_size_in_bits(cluster: &Cluster, config: &Config) -> Result<u32> {
 
 /// Recursively calculate the size of a ClusterInfo. A cluster's size is the
 /// maximum end position of its recursive children.
-fn cluster_info_size_in_bits(info: &ClusterInfo, config: &Config) -> Result<u32> {
+fn cluster_info_size_in_bits(info: &ClusterInfo, repr: &Repr, config: &Config) -> Result<u32> {
     let mut size = 0;
 
     for c in &info.children {
         let end = match c {
             RegisterCluster::Register(reg) => {
-                let reg_size: u32 = expand_register(reg, config)?
+                let reg_size: u32 = expand_register(reg, repr, config)?
                     .iter()
                     .map(|rbf| rbf.size)
                     .sum();
@@ -700,7 +978,7 @@ fn cluster_info_size_in_bits(info: &ClusterInfo, config: &Config) -> Result<u32>
                 (reg.address_offset * BITS_PER_BYTE) + reg_size
             }
             RegisterCluster::Cluster(clust) => {
-                (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, config)?
+                (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, repr, config)?
             }
         };
 
@@ -710,10 +988,16 @@ fn cluster_info_size_in_bits(info: &ClusterInfo, config: &Config) -> Result<u32>
 }
 
 /// Render a given cluster (and any children) into `RegisterBlockField`s
-fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBlockField>> {
+/// `Option`al bool parameter set to `Some(false)` will force an array to be expanded
+/// while `None` or `Some(true)` will follow the conversion check.
+fn expand_cluster(
+    cluster: &Cluster,
+    repr: &Repr,
+    config: &Config,
+) -> Result<Vec<RegisterBlockField>> {
     let mut cluster_expanded = vec![];
 
-    let cluster_size = cluster_info_size_in_bits(cluster, config)
+    let cluster_size = cluster_info_size_in_bits(cluster, repr, config)
         .with_context(|| format!("Can't calculate cluster {} size", cluster.name))?;
     let description = cluster
         .description
@@ -722,7 +1006,19 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
         .to_string();
 
     let ty_name = if cluster.is_single() {
-        cluster.name.to_string()
+        match repr {
+            Repr::Single {
+                include_info: _,
+                common,
+            } => util::replace_suffix(&common, ""),
+            _ => {
+                bail!(
+                    "Cluster {} is a single, but was given a {}",
+                    cluster.name,
+                    repr
+                );
+            }
+        }
     } else {
         util::replace_suffix(&cluster.name, "")
     };
@@ -750,7 +1046,6 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
             } else {
                 cluster_size
             };
-            let sequential_addresses = (array_info.dim == 1) || (cluster_size == increment_bits);
 
             // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
             let sequential_indexes_from0 = array_info
@@ -758,79 +1053,84 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 .filter(|r| *r.start() == 0)
                 .is_some();
 
-            let convert_list = match config.keep_list {
-                true => match &array_info.dim_name {
-                    Some(dim_name) => dim_name.contains("[%s]"),
-                    None => info.name.contains("[%s]"),
-                },
-                false => true,
-            };
-
-            let array_convertible = sequential_addresses && convert_list;
-
-            if array_convertible {
-                let accessors = if sequential_indexes_from0 {
-                    Vec::new()
-                } else {
-                    let span = Span::call_site();
-                    let mut accessors = Vec::new();
-                    let nb_name_cs = ty_name.to_snake_case_ident(span);
-                    for (i, idx) in array_info.indexes().enumerate() {
-                        let idx_name =
-                            util::replace_suffix(&info.name, &idx).to_snake_case_ident(span);
-                        let comment = make_comment(
-                            cluster_size,
-                            info.address_offset + (i as u32) * cluster_size / 8,
-                            &description,
-                        );
-                        let i = unsuffixed(i as _);
-                        accessors.push(ArrayAccessor {
-                            doc: comment,
-                            name: idx_name,
-                            ty: ty.clone(),
-                            basename: nb_name_cs.clone(),
-                            i,
-                        });
-                    }
-                    accessors
-                };
-                let array_ty = new_syn_array(ty, array_info.dim);
-                cluster_expanded.push(RegisterBlockField {
-                    syn_field: new_syn_field(
-                        ty_name.to_snake_case_ident(Span::call_site()),
-                        array_ty,
-                    ),
-                    description,
-                    offset: info.address_offset,
-                    size: cluster_size * array_info.dim,
-                    accessors,
-                });
-            } else if sequential_indexes_from0 && config.const_generic {
-                // Include a ZST ArrayProxy giving indexed access to the
-                // elements.
-                let ap_path = array_proxy_type(ty, array_info);
-                let syn_field =
-                    new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), ap_path);
-                cluster_expanded.push(RegisterBlockField {
-                    syn_field,
-                    description: info.description.as_ref().unwrap_or(&info.name).into(),
-                    offset: info.address_offset,
-                    size: 0,
-                    accessors: Vec::new(),
-                });
-            } else {
-                for (field_num, idx) in array_info.indexes().enumerate() {
-                    let nb_name = util::replace_suffix(&info.name, &idx);
-                    let syn_field =
-                        new_syn_field(nb_name.to_snake_case_ident(Span::call_site()), ty.clone());
-
+            match repr {
+                Repr::Array { .. } => {
+                    let accessors = if sequential_indexes_from0 {
+                        Vec::new()
+                    } else {
+                        let span = Span::call_site();
+                        let mut accessors = Vec::new();
+                        let nb_name_cs = ty_name.to_snake_case_ident(span);
+                        for (i, idx) in array_info.indexes().enumerate() {
+                            let idx_name =
+                                util::replace_suffix(&info.name, &idx).to_snake_case_ident(span);
+                            let comment = make_comment(
+                                cluster_size,
+                                info.address_offset + (i as u32) * cluster_size / 8,
+                                &description,
+                            );
+                            let i = unsuffixed(i as _);
+                            accessors.push(ArrayAccessor {
+                                doc: comment,
+                                name: idx_name,
+                                ty: ty.clone(),
+                                basename: nb_name_cs.clone(),
+                                i,
+                            });
+                        }
+                        accessors
+                    };
+                    let array_ty = new_syn_array(ty, array_info.dim);
                     cluster_expanded.push(RegisterBlockField {
-                        syn_field,
-                        description: description.clone(),
-                        offset: info.address_offset + field_num as u32 * array_info.dim_increment,
-                        size: cluster_size,
-                        accessors: Vec::new(),
+                        syn_field: new_syn_field(
+                            ty_name.to_snake_case_ident(Span::call_site()),
+                            array_ty,
+                        ),
+                        description,
+                        offset: info.address_offset,
+                        size: cluster_size * array_info.dim,
+                        accessors,
                     });
+                }
+
+                Repr::Expand { .. } => {
+                    if sequential_indexes_from0 && config.const_generic {
+                        // Include a ZST ArrayProxy giving indexed access to the
+                        // elements.
+                        let ap_path = array_proxy_type(ty, array_info);
+                        let syn_field =
+                            new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), ap_path);
+                        cluster_expanded.push(RegisterBlockField {
+                            syn_field,
+                            description: info.description.as_ref().unwrap_or(&info.name).into(),
+                            offset: info.address_offset,
+                            size: 0,
+                            accessors: Vec::new(),
+                        });
+                    } else {
+                        for (field_num, idx) in array_info.indexes().enumerate() {
+                            let nb_name = util::replace_suffix(&info.name, &idx);
+                            let syn_field = new_syn_field(
+                                nb_name.to_snake_case_ident(Span::call_site()),
+                                ty.clone(),
+                            );
+                            cluster_expanded.push(RegisterBlockField {
+                                syn_field,
+                                description: description.clone(),
+                                offset: info.address_offset
+                                    + field_num as u32 * array_info.dim_increment,
+                                size: cluster_size,
+                                accessors: Vec::new(),
+                            });
+                        }
+                    }
+                }
+                _ => {
+                    bail!(
+                        "cluster {} is an array, but was given a {}",
+                        cluster.name,
+                        repr
+                    );
                 }
             }
         }
@@ -840,8 +1140,14 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
 }
 
 /// If svd register arrays can't be converted to rust arrays (non sequential addresses, non
-/// numeral indexes, or not containing all elements from 0 to size) they will be expanded
-fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterBlockField>> {
+/// numeral indexes, or not containing all elements from 0 to size) they will be expanded.
+/// `Option`al bool parameter set to `Some(false)` will force an array to be expanded
+/// while `None` or `Some(true)` will follow the conversion check.
+fn expand_register(
+    register: &Register,
+    repr: &Repr,
+    config: &Config,
+) -> Result<Vec<RegisterBlockField>> {
     let mut register_expanded = vec![];
 
     let register_size = register
@@ -852,7 +1158,19 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
 
     let info_name = register.fullname(config.ignore_groups);
     let ty_name = if register.is_single() {
-        info_name.to_string()
+        match repr {
+            Repr::Single {
+                include_info: _,
+                common,
+            } => util::replace_suffix(&common, ""),
+            _ => {
+                bail!(
+                    "register {} is a single, but was given a {}",
+                    register.name,
+                    repr
+                );
+            }
+        }
     } else {
         util::replace_suffix(&info_name, "")
     };
@@ -860,7 +1178,7 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
 
     match register {
         Register::Single(info) => {
-            let syn_field = new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), ty);
+            let syn_field = new_syn_field(info_name.to_snake_case_ident(Span::call_site()), ty);
             register_expanded.push(RegisterBlockField {
                 syn_field,
                 description,
@@ -870,74 +1188,74 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
             })
         }
         Register::Array(info, array_info) => {
-            let sequential_addresses = (array_info.dim == 1)
-                || (register_size == array_info.dim_increment * BITS_PER_BYTE);
+            match repr {
+                Repr::Array { .. } => {
+                    // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
+                    let sequential_indexes_from0 = array_info
+                        .indexes_as_range()
+                        .filter(|r| *r.start() == 0)
+                        .is_some();
 
-            let convert_list = match config.keep_list {
-                true => match &array_info.dim_name {
-                    Some(dim_name) => dim_name.contains("[%s]"),
-                    None => info.name.contains("[%s]"),
-                },
-                false => true,
-            };
-
-            let array_convertible = sequential_addresses && convert_list;
-
-            if array_convertible {
-                // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
-                let sequential_indexes_from0 = array_info
-                    .indexes_as_range()
-                    .filter(|r| *r.start() == 0)
-                    .is_some();
-
-                let accessors = if sequential_indexes_from0 {
-                    Vec::new()
-                } else {
-                    let span = Span::call_site();
-                    let mut accessors = Vec::new();
-                    let nb_name_cs = ty_name.to_snake_case_ident(span);
-                    for (i, idx) in array_info.indexes().enumerate() {
-                        let idx_name =
-                            util::replace_suffix(&info_name, &idx).to_snake_case_ident(span);
-                        let comment = make_comment(
-                            register_size,
-                            info.address_offset + (i as u32) * register_size / 8,
-                            &description,
-                        );
-                        let i = unsuffixed(i as _);
-                        accessors.push(ArrayAccessor {
-                            doc: comment,
-                            name: idx_name,
-                            ty: ty.clone(),
-                            basename: nb_name_cs.clone(),
-                            i,
-                        });
-                    }
-                    accessors
-                };
-                let array_ty = new_syn_array(ty, array_info.dim);
-                let syn_field =
-                    new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), array_ty);
-                register_expanded.push(RegisterBlockField {
-                    syn_field,
-                    description,
-                    offset: info.address_offset,
-                    size: register_size * array_info.dim,
-                    accessors,
-                });
-            } else {
-                for (field_num, idx) in array_info.indexes().enumerate() {
-                    let nb_name = util::replace_suffix(&info_name, &idx);
+                    let accessors = if sequential_indexes_from0 {
+                        Vec::new()
+                    } else {
+                        let span = Span::call_site();
+                        let mut accessors = Vec::new();
+                        let nb_name_cs = ty_name.to_snake_case_ident(span);
+                        for (i, idx) in array_info.indexes().enumerate() {
+                            let idx_name =
+                                util::replace_suffix(&info_name, &idx).to_snake_case_ident(span);
+                            let comment = make_comment(
+                                register_size,
+                                info.address_offset + (i as u32) * register_size / 8,
+                                &description,
+                            );
+                            let i = unsuffixed(i as _);
+                            accessors.push(ArrayAccessor {
+                                doc: comment,
+                                name: idx_name,
+                                ty: ty.clone(),
+                                basename: nb_name_cs.clone(),
+                                i,
+                            });
+                        }
+                        accessors
+                    };
+                    let array_ty = new_syn_array(ty, array_info.dim);
                     let syn_field =
-                        new_syn_field(nb_name.to_snake_case_ident(Span::call_site()), ty.clone());
-
+                        new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), array_ty);
                     register_expanded.push(RegisterBlockField {
                         syn_field,
-                        description: description.clone(),
-                        offset: info.address_offset + field_num as u32 * array_info.dim_increment,
-                        size: register_size,
-                        accessors: Vec::new(),
+                        description,
+                        offset: info.address_offset,
+                        size: register_size * array_info.dim,
+                        accessors,
                     });
+                }
+                Repr::Expand { .. } => {
+                    for (field_num, idx) in array_info.indexes().enumerate() {
+                        let nb_name = util::replace_suffix(&info_name, &idx);
+                        let syn_field = new_syn_field(
+                            nb_name.to_snake_case_ident(Span::call_site()),
+                            ty.clone(),
+                        );
+
+                        register_expanded.push(RegisterBlockField {
+                            syn_field,
+                            description: description.clone(),
+                            offset: info.address_offset
+                                + field_num as u32 * array_info.dim_increment,
+                            size: register_size,
+                            accessors: Vec::new(),
+                        });
+                    }
+                }
+                _ => {
+                    bail!(
+                        "register {} is an array, but was given a {}",
+                        register.name,
+                        repr
+                    );
                 }
             }
         }
@@ -948,13 +1266,15 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
 
 fn render_ercs(
     ercs: &mut [RegisterCluster],
+    reprs: &[Repr],
     path: &BlockPath,
     index: &Index,
     config: &Config,
 ) -> Result<TokenStream> {
     let mut mod_items = TokenStream::new();
+    let zipped = ercs.iter_mut().zip(reprs.iter());
 
-    for erc in ercs {
+    for (erc, repr) in zipped {
         match erc {
             // Generate the sub-cluster blocks.
             RegisterCluster::Cluster(c) => {
@@ -969,6 +1289,27 @@ fn render_ercs(
 
             // Generate definition for each of the registers.
             RegisterCluster::Register(reg) => {
+                // continue if the type is labeled for `NoInfo`
+                match repr {
+                    Repr::Array { include_info } => {
+                        if !include_info {
+                            continue;
+                        }
+                    }
+                    Repr::Expand { include_info } => {
+                        if !include_info {
+                            continue;
+                        }
+                    }
+                    Repr::Single {
+                        include_info,
+                        common: _,
+                    } => {
+                        if !include_info {
+                            continue;
+                        }
+                    }
+                }
                 trace!("Register: {}", reg.name);
                 let mut rpath = None;
                 let dpath = reg.derived_from.take();
@@ -980,9 +1321,7 @@ fn render_ercs(
                 let rendered_reg =
                     register::render(reg, path, rpath, index, config).with_context(|| {
                         let descrip = reg.description.as_deref().unwrap_or("No description");
-                        format!(
-                            "Error rendering register\nName: {reg_name}\nDescription: {descrip}"
-                        )
+                        format!("Erro rendering register\nName: {reg_name}\nDescription: {descrip}")
                     })?;
                 mod_items.extend(rendered_reg)
             }
@@ -1033,7 +1372,8 @@ fn cluster_block(
         })
     } else {
         let cpath = path.new_cluster(&c.name);
-        let mod_items = render_ercs(&mut c.children, &cpath, index, config)?;
+        let mod_reprs = check_erc_reprs(&c.children, config)?;
+        let mod_items = render_ercs(&mut c.children, &mod_reprs, &cpath, index, config)?;
 
         // Generate the register block.
         let cluster_size = match c {
@@ -1042,8 +1382,13 @@ fn cluster_block(
             }
             _ => None,
         };
-        let reg_block =
-            register_or_cluster_block(&c.children, Some(&mod_name), cluster_size, config)?;
+        let reg_block = register_or_cluster_block(
+            &c.children,
+            &mod_reprs,
+            Some(&mod_name),
+            cluster_size,
+            config,
+        )?;
 
         let mod_items = quote! {
             #reg_block

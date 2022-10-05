@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Bring documentation on how to generate MSP430 PACs up to date (in line with
   [msp430_svd](https://github.com/pftbest/msp430_svd)).
 - Prefix submodule path with self:: when reexporting submodules to avoid ambiguity in crate path.
+- Add handling for disjoint arrays
 
 ## [v0.25.1] - 2022-08-22
 
