@@ -201,7 +201,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         "Pushing {} register or cluster blocks into output",
         ercs.len()
     );
-    let reg_block = register_or_cluster_block(&ercs, None, config)?;
+    let reg_block = register_or_cluster_block(&ercs, None, None, config)?;
 
     let open = Punct::new('{', Spacing::Alone);
     let close = Punct::new('}', Spacing::Alone);
@@ -485,6 +485,7 @@ fn make_comment(size: u32, offset: u32, description: &str) -> String {
 fn register_or_cluster_block(
     ercs: &[RegisterCluster],
     name: Option<&str>,
+    size: Option<u32>,
     config: &Config,
 ) -> Result<TokenStream> {
     let mut rbfs = TokenStream::new();
@@ -586,6 +587,19 @@ fn register_or_cluster_block(
             })
         }
         last_end = region.end;
+    }
+
+    if let Some(size) = size {
+        let pad = size
+            .checked_sub(last_end)
+            .ok_or_else(|| anyhow!("Incorrect block size"))?;
+        if pad > 0 {
+            let name = Ident::new("_reserved_end", span);
+            let pad = util::hex(pad as u64);
+            rbfs.extend(quote! {
+                #name : [u8; #pad],
+            });
+        }
     }
 
     let name = if let Some(name) = name {
@@ -1022,7 +1036,14 @@ fn cluster_block(
         let mod_items = render_ercs(&mut c.children, &cpath, index, config)?;
 
         // Generate the register block.
-        let reg_block = register_or_cluster_block(&c.children, Some(&mod_name), config)?;
+        let cluster_size = match c {
+            Cluster::Array(_, array_info) if config.max_cluster_size => {
+                Some(array_info.dim_increment)
+            }
+            _ => None,
+        };
+        let reg_block =
+            register_or_cluster_block(&c.children, Some(&mod_name), cluster_size, config)?;
 
         let mod_items = quote! {
             #reg_block
