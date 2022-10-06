@@ -7,7 +7,7 @@ use std::io::Write;
 use std::process;
 
 use anyhow::{Context, Result};
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 
 use svd2rust::{
     generate, load_from,
@@ -18,11 +18,7 @@ fn parse_configs(app: Command) -> Result<Config> {
     use irx_config::parsers::{cmd, toml};
     use irx_config::ConfigBuilder;
     let irxconfig = ConfigBuilder::default()
-        .append_parser(
-            cmd::ParserBuilder::new(app)
-                .single_flags_as_bool(true)
-                .build()?,
-        )
+        .append_parser(cmd::ParserBuilder::new(app).build()?)
         .append_parser(
             toml::ParserBuilder::default()
                 .default_path("svd2rust.toml")
@@ -38,116 +34,131 @@ fn parse_configs(app: Command) -> Result<Config> {
 fn run() -> Result<()> {
     use std::io::Read;
 
-    let log_help = format!(
-        "Choose which messages to log (overrides {})",
-        env_logger::DEFAULT_FILTER_ENV
-    );
-
     let app = Command::new("svd2rust")
         .about("Generate a Rust API from SVD files")
         .arg(
-            Arg::with_name("input")
+            Arg::new("input")
                 .help("Input SVD file")
                 .short('i')
-                .takes_value(true)
+                .action(ArgAction::Set)
                 .value_name("FILE"),
         )
         .arg(
-            Arg::with_name("output_dir")
+            Arg::new("output_dir")
                 .long("output-dir")
                 .help("Directory to place generated files")
                 .short('o')
-                .takes_value(true)
+                .action(ArgAction::Set)
                 .value_name("PATH"),
         )
         .arg(
-            Arg::with_name("config")
+            Arg::new("config")
                 .long("config")
                 .help("Config TOML file")
                 .short('c')
-                .takes_value(true)
+                .action(ArgAction::Set)
                 .value_name("TOML_FILE"),
         )
         .arg(
-            Arg::with_name("target")
+            Arg::new("target")
                 .long("target")
                 .help("Target architecture")
-                .takes_value(true)
+                .action(ArgAction::Set)
                 .value_name("ARCH"),
         )
         .arg(
-            Arg::with_name("nightly")
+            Arg::new("nightly")
                 .long("nightly")
+                .action(ArgAction::SetTrue)
                 .help("Enable features only available to nightly rustc"),
         )
         .arg(
-            Arg::with_name("const_generic").long("const_generic").help(
+            Arg::new("const_generic")
+            .long("const_generic")
+            .action(ArgAction::SetTrue)
+            .help(
                 "Use const generics to generate writers for same fields with different offsets",
             ),
         )
         .arg(
-            Arg::with_name("ignore_groups")
+            Arg::new("ignore_groups")
                 .long("ignore_groups")
+                .action(ArgAction::SetTrue)
                 .help("Don't add alternateGroup name as prefix to register name"),
         )
-        .arg(Arg::with_name("keep_list").long("keep_list").help(
+        .arg(
+            Arg::new("keep_list")
+            .long("keep_list")
+            .action(ArgAction::SetTrue)
+            .help(
             "Keep lists when generating code of dimElement, instead of trying to generate arrays",
         ))
         .arg(
-            Arg::with_name("generic_mod")
+            Arg::new("generic_mod")
                 .long("generic_mod")
                 .short('g')
+                .action(ArgAction::SetTrue)
                 .help("Push generic mod in separate file"),
         )
         .arg(
-            Arg::with_name("feature_group")
+            Arg::new("feature_group")
                 .long("feature_group")
+                .action(ArgAction::SetTrue)
                 .help("Use group_name of peripherals as feature"),
         )
         .arg(
-            Arg::with_name("feature_peripheral")
+            Arg::new("feature_peripheral")
                 .long("feature_peripheral")
+                .action(ArgAction::SetTrue)
                 .help("Use independent cfg feature flags for each peripheral"),
         )
         .arg(
-            Arg::with_name("max_cluster_size")
+            Arg::new("max_cluster_size")
                 .long("max_cluster_size")
+                .action(ArgAction::SetTrue)
                 .help("Use array increment for cluster size"),
         )
         .arg(
-            Arg::with_name("make_mod")
+            Arg::new("make_mod")
                 .long("make_mod")
                 .short('m')
+                .action(ArgAction::SetTrue)
                 .help("Create mod.rs instead of lib.rs, without inner attributes"),
         )
         .arg(
-            Arg::with_name("strict")
+            Arg::new("strict")
                 .long("strict")
                 .short('s')
+                .action(ArgAction::SetTrue)
                 .help("Make advanced checks due to parsing SVD"),
         )
         .arg(
-            Arg::with_name("pascal_enum_values")
+            Arg::new("pascal_enum_values")
                 .long("pascal_enum_values")
+                .action(ArgAction::SetTrue)
                 .help("Use PascalCase in stead of UPPER_CASE for enumerated values"),
         )
         .arg(
-            Arg::with_name("derive_more")
+            Arg::new("derive_more")
                 .long("derive_more")
+                .action(ArgAction::SetTrue)
                 .help("Use derive_more procedural macros to implement Deref and From"),
         )
         .arg(
-            Arg::with_name("source_type")
+            Arg::new("source_type")
                 .long("source_type")
                 .help("Specify file/stream format"),
         )
         .arg(
-            Arg::with_name("log_level")
+            Arg::new("log_level")
                 .long("log")
                 .short('l')
-                .help(log_help.as_ref())
-                .takes_value(true)
-                .possible_values(&["off", "error", "warn", "info", "debug", "trace"]),
+                .help(format!(
+                    "Choose which messages to log (overrides {})",
+                    env_logger::DEFAULT_FILTER_ENV
+                ))
+                .action(ArgAction::Set)
+                .value_parser(["off", "error", "warn", "info", "debug", "trace"]),
         )
         .version(concat!(
             env!("CARGO_PKG_VERSION"),

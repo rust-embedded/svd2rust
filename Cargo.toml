@@ -43,8 +43,8 @@ json = ["dep:serde_json"]
 yaml = ["dep:serde_yaml"]
 
 [dependencies]
-clap = { version = "3.2", optional = true }
-irx-config = { version = "2.3.1", features = ["cmd", "toml-parser"], optional = true }
+clap = { version = "4.0", optional = true }
+irx-config = { version = "3.1", features = ["cmd", "toml-parser"], optional = true }
 env_logger = { version = "0.9", optional = true }
 inflections = "1.1"
 log = { version = "~0.4", features = ["std"] }

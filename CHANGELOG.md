@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-- Update `clap` to 3.2, use `irx-config` instead of `clap_conf`
+- Update `clap` to 4.0, use `irx-config` instead of `clap_conf`
 - Add #[must_use] to prevent hanging field writers
 
 ## [v0.26.0] - 2022-10-07
