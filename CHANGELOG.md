@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.26.0] - 2022-10-07
+
 - Use edition 2021
 - Fix adding ending reserved field when `max_cluster_size` option enabled
 - Add `Eq` autoimplementation for enums
@@ -745,7 +747,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.25.1...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.26.0...HEAD
+[v0.26.0]: https://github.com/rust-embedded/svd2rust/compare/v0.25.1...v0.26.0
 [v0.25.1]: https://github.com/rust-embedded/svd2rust/compare/v0.25.0...v0.25.1
 [v0.25.0]: https://github.com/rust-embedded/svd2rust/compare/v0.24.1...v0.25.0
 [v0.24.1]: https://github.com/rust-embedded/svd2rust/compare/v0.24.0...v0.24.1
