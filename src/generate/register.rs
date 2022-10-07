@@ -545,7 +545,7 @@ pub fn fields(
             if let Some((evs, None)) = lookup_filter(&lookup_results, Usage::Read) {
                 // we have enumeration for read, record this. If the enumeration for write operation
                 // later on is the same as the read enumeration, we reuse and do not generate again.
-                evs_r = Some(evs.clone());
+                evs_r = Some(evs);
 
                 // do we have finite definition of this enumeration in svd? If not, the later code would
                 // return an Option when the value read from field does not match any defined values.
@@ -647,7 +647,7 @@ pub fn fields(
             // if necessary.
             if let Some((evs, Some(base))) = lookup_filter(&lookup_results, Usage::Read) {
                 // preserve value; if read type equals write type, writer would not generate value type again
-                evs_r = Some(evs.clone());
+                evs_r = Some(evs);
                 // generate pub use field_1 reader as field_2 reader
                 let base_field = util::replace_suffix(&base.field.name, "");
                 let base_r = (base_field + "_R").to_constant_case_ident(span);
@@ -759,7 +759,7 @@ pub fn fields(
 
             let value_write_ty =
                 if let Some((evs, _)) = lookup_filter(&lookup_results, Usage::Write) {
-                    let writer_reader_different_enum = evs_r.as_ref() != Some(evs);
+                    let writer_reader_different_enum = evs_r != Some(evs);
                     let ty_suffix = if writer_reader_different_enum {
                         "AW"
                     } else {
@@ -794,7 +794,7 @@ pub fn fields(
 
                 // does the read and the write value has the same name? If we have the same,
                 // we can reuse read value type other than generating a new one.
-                let writer_reader_different_enum = evs_r.as_ref() != Some(evs);
+                let writer_reader_different_enum = evs_r != Some(evs);
 
                 // generate write value structure and From conversation if we can't reuse read value structure.
                 if writer_reader_different_enum {
@@ -816,7 +816,7 @@ pub fn fields(
                 for v in &variants {
                     let pc = &v.pc;
                     let sc = &v.sc;
-                    let doc = util::escape_brackets(util::respace(&v.doc).as_ref());
+                    let doc = util::escape_brackets(&util::respace(&v.doc));
                     proxy_items.extend(quote! {
                         #[doc = #doc]
                         #inline
@@ -885,7 +885,7 @@ pub fn fields(
             if let Some((evs, Some(base))) = lookup_filter(&lookup_results, Usage::Write) {
                 // if base.register == None, it emits pub use structure from same module.
                 if base.register() != fpath.register() {
-                    let writer_reader_different_enum = evs_r.as_ref() != Some(evs);
+                    let writer_reader_different_enum = evs_r != Some(evs);
                     if writer_reader_different_enum {
                         // use the same enum structure name
                         if !writer_enum_derives.contains(&value_write_ty) {

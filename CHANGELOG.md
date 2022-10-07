@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Use edition 2021
 - Fix adding ending reserved field when `max_cluster_size` option enabled
 - Add `Eq` autoimplementation for enums
 - Use `critical_section::with` instead of `interrupt::free` for `Peripherals::take`.
