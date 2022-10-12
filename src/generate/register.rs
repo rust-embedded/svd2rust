@@ -929,6 +929,7 @@ pub fn fields(
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
+                    #[must_use]
                     pub unsafe fn #name_snake_case<const O: u8>(&mut self) -> #writer_ty<O> {
                         #writer_ty::new(self)
                     }
@@ -947,6 +948,7 @@ pub fn fields(
                     w_impl_items.extend(quote! {
                         #[doc = #doc]
                         #inline
+                        #[must_use]
                         pub fn #name_snake_case_n(&mut self) -> #writer_ty<#sub_offset> {
                             #writer_ty::new(self)
                         }
@@ -958,6 +960,7 @@ pub fn fields(
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
+                    #[must_use]
                     pub fn #name_snake_case(&mut self) -> #writer_ty<#offset> {
                         #writer_ty::new(self)
                     }
