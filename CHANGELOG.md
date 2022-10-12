@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Add #[must_use] to prevent hanging field writers
+
 ## [v0.26.0] - 2022-10-07
 
 - Use edition 2021
