@@ -41,9 +41,9 @@ main() {
 
     case $OPTIONS in
         all)
-            const_generic="--const_generic"
+            const_generic="--const-generic"
             strict="--strict"
-            derive_more="--derive_more"
+            derive_more="--derive-more"
             ;;
         strict)
             const_generic=""
@@ -51,14 +51,14 @@ main() {
             derive_more=""
             ;;
         const)
-            const_generic="--const_generic"
+            const_generic="--const-generic"
             strict=""
             derive_more=""
             ;;
         derive_more)
             const_generic=""
             strict=""
-            derive_more="--derive_more"
+            derive_more="--derive-more"
             ;;
         *)
             const_generic=""

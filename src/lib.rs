@@ -509,6 +509,7 @@ use quote::quote;
 use svd_parser::svd;
 
 pub mod generate;
+mod serde;
 pub mod util;
 
 pub use crate::util::{Config, Target};

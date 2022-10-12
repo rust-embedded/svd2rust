@@ -38,16 +38,18 @@ required-features = ["bin"]
 
 [features]
 default = ["bin", "json", "yaml"]
-bin = ["dep:clap", "dep:clap_conf", "dep:env_logger"]
+bin = ["dep:clap", "dep:clap-verbosity-flag", "dep:env_logger", "serde", "dep:toml"]
 json = ["dep:serde_json"]
 yaml = ["dep:serde_yaml"]
 
 [dependencies]
-clap = { version = "2.34", optional = true }
-clap_conf = { version = "0.1.5", optional = true }
+clap = { version = "4.0", features = ["derive"], optional = true }
+clap-verbosity-flag = { version = "2.0", optional = true }
 env_logger = { version = "0.9", optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+toml = { version = "0.5", optional = true }
 inflections = "1.1"
-log = { version = "~0.4", features = ["std"] }
+log = { version = "~0.4", features = ["std", "serde"] }
 quote = "1.0"
 proc-macro2 = "1.0"
 anyhow = "1.0"

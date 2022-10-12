@@ -63,6 +63,9 @@ impl Default for Config {
     }
 }
 
+pub(crate) const TARGET_NAMES: [&'static str; 6] =
+    ["cortex-m", "msp430", "riscv", "xtensa-lx", "mips", "none"];
+
 #[allow(clippy::upper_case_acronyms)]
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -94,6 +97,22 @@ impl Default for Target {
         Self::CortexM
     }
 }
+
+impl ToString for Target {
+    fn to_string(&self) -> String {
+        match self {
+            Target::CortexM => "cortex-m",
+            Target::Msp430 => "msp430",
+            Target::RISCV => "riscv",
+            Target::XtensaLX => "xtensa-lx",
+            Target::Mips => "mips",
+            Target::None => "none",
+        }
+        .to_string()
+    }
+}
+
+pub(crate) const SOURCE_TYPE_NAMES: [&'static str; 3] = ["xml", "yaml", "json"];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SourceType {
@@ -127,6 +146,19 @@ impl SourceType {
             .and_then(|e| e.to_str())
             .and_then(Self::from_extension)
             .unwrap_or_default()
+    }
+}
+
+impl ToString for SourceType {
+    fn to_string(&self) -> String {
+        match self {
+            SourceType::Xml => "xml",
+            #[cfg(feature = "yaml")]
+            SourceType::Yaml => "yaml",
+            #[cfg(feature = "json")]
+            SourceType::Json => "json",
+        }
+        .to_string()
     }
 }
 
