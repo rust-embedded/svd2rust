@@ -264,17 +264,16 @@ pub fn render_register_mod(
         // the writer can be safe if:
         // * there is a single field that covers the entire register
         // * that field can represent all values
-        let can_write_safe = match register
-            .fields
-            .as_ref()
-            .and_then(|fields| fields.iter().next())
-            .and_then(|field| field.write_constraint)
-        {
-            Some(WriteConstraint::Range(range)) => {
-                range.min == 0 && range.max == u64::MAX >> (64 - rsize)
-            }
-            _ => false,
-        };
+        // * the write constraints of the register allow full range of values
+        let can_write_safe = !unsafety(
+            register
+                .fields
+                .as_ref()
+                .and_then(|fields| fields.first())
+                .and_then(|field| field.write_constraint)
+                .as_ref(),
+            rsize,
+        ) || !unsafety(register.write_constraint.as_ref(), rsize);
 
         if can_write_safe {
             mod_items.extend(quote! {
