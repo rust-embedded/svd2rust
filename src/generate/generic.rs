@@ -140,10 +140,10 @@ where
         F: FnOnce(&mut REG::Writer) -> &mut W<REG>
     {
         self.register.set(
-            (*f(&mut REG::Writer::from(W {
+            f(&mut REG::Writer::from(W {
                 bits: REG::Ux::default(),
                 _reg: marker::PhantomData,
-            })))
+            }))
             .bits,
         );
     }
