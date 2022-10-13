@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Update `clap` to 4.0, use `irx-config` instead of `clap_conf`
 - Add #[must_use] to prevent hanging field writers
+- remove explicit deref in `generic.rs` since it's done by auto-deref
 
 ## [v0.26.0] - 2022-10-07
 
