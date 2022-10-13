@@ -22,23 +22,47 @@ pub const BITS_PER_BYTE: u32 = 8;
 /// that are not valid in Rust ident
 const BLACKLIST_CHARS: &[char] = &['(', ')', '[', ']', '/', ' ', '-'];
 
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Config {
+    #[cfg_attr(feature = "serde", serde(default))]
     pub target: Target,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub nightly: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub generic_mod: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub make_mod: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub const_generic: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub ignore_groups: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub keep_list: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub strict: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub pascal_enum_values: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub derive_more: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub feature_group: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub feature_peripheral: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub max_cluster_size: bool,
+    #[cfg_attr(feature = "serde", serde(default = "current_dir"))]
     pub output_dir: PathBuf,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub input: Option<PathBuf>,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub source_type: SourceType,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub log_level: Option<String>,
+}
+
+fn current_dir() -> PathBuf {
+    PathBuf::from(".")
 }
 
 impl Default for Config {
@@ -57,21 +81,30 @@ impl Default for Config {
             feature_group: false,
             feature_peripheral: false,
             max_cluster_size: false,
-            output_dir: PathBuf::from("."),
+            output_dir: current_dir(),
+            input: None,
             source_type: SourceType::default(),
+            log_level: None,
         }
     }
 }
 
 #[allow(clippy::upper_case_acronyms)]
 #[allow(non_camel_case_types)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Target {
+    #[cfg_attr(feature = "serde", serde(rename = "cortex-m"))]
     CortexM,
+    #[cfg_attr(feature = "serde", serde(rename = "msp430"))]
     Msp430,
+    #[cfg_attr(feature = "serde", serde(rename = "riscv"))]
     RISCV,
+    #[cfg_attr(feature = "serde", serde(rename = "xtensa-lx"))]
     XtensaLX,
+    #[cfg_attr(feature = "serde", serde(rename = "mips"))]
     Mips,
+    #[cfg_attr(feature = "serde", serde(rename = "none"))]
     None,
 }
 
@@ -95,6 +128,11 @@ impl Default for Target {
     }
 }
 
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize),
+    serde(rename_all = "lowercase")
+)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SourceType {
     Xml,
