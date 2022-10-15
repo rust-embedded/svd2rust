@@ -52,7 +52,6 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     if !config.make_mod {
         out.extend(quote! {
             // Deny a subset of warnings
-            #![deny(const_err)]
             #![deny(dead_code)]
             #![deny(improper_ctypes)]
             #![deny(missing_docs)]
