@@ -3,7 +3,7 @@ use core::marker;
 /// Raw register type
 pub trait RegisterSpec {
     /// Raw register type (`u8`, `u16`, `u32`, ...).
-    type Ux: Copy;
+    type Ux: Copy + Default + core::ops::BitOr<Output=Self::Ux> + core::ops::BitAnd<Output=Self::Ux> + core::ops::Not<Output=Self::Ux>;
 }
 
 /// Trait implemented by readable registers to enable the `read` method.
@@ -22,6 +22,12 @@ pub trait Readable: RegisterSpec {
 pub trait Writable: RegisterSpec {
     /// Writer type argument to `write`, et al.
     type Writer: From<W<Self>> + core::ops::DerefMut<Target = W<Self>>;
+
+    /// Specifies the register bits that are not changed if you pass `1` and are changed if you pass `0`
+    const ZERO_TO_MODIFY_FIELDS_BITMAP: Self::Ux;
+
+    /// Specifies the register bits that are not changed if you pass `0` and are changed if you pass `1`
+    const ONE_TO_MODIFY_FIELDS_BITMAP: Self::Ux;
 }
 
 /// Reset value of the register.
@@ -30,7 +36,13 @@ pub trait Writable: RegisterSpec {
 /// register by using the `reset` method.
 pub trait Resettable: RegisterSpec {
     /// Reset value of the register.
-    fn reset_value() -> Self::Ux;
+    const RESET_VALUE: Self::Ux;
+
+    /// Reset value of the register.
+    #[inline(always)]
+    fn reset_value() -> Self::Ux {
+        Self::RESET_VALUE
+    }
 }
 
 /// This structure provides volatile access to registers.
@@ -82,7 +94,7 @@ impl<REG: Resettable + Writable> Reg<REG> {
     /// Resets the register to its initial state.
     #[inline(always)]
     pub fn reset(&self) {
-        self.register.set(REG::reset_value())
+        self.register.set(REG::RESET_VALUE)
     }
 
     /// Writes bits to a `Writable` register.
@@ -115,7 +127,7 @@ impl<REG: Resettable + Writable> Reg<REG> {
     {
         self.register.set(
             f(&mut REG::Writer::from(W {
-                bits: REG::reset_value(),
+                bits: REG::RESET_VALUE & !REG::ONE_TO_MODIFY_FIELDS_BITMAP | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
                 _reg: marker::PhantomData,
             }))
             .bits,
@@ -123,16 +135,13 @@ impl<REG: Resettable + Writable> Reg<REG> {
     }
 }
 
-impl<REG: Writable> Reg<REG>
-where
-    REG::Ux: Default,
-{
+impl<REG: Writable> Reg<REG> {
     /// Writes 0 to a `Writable` register.
     ///
     /// Similar to `write`, but unused bits will contain 0.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// Unsafe to use with registers which don't allow to write 0.
     #[inline(always)]
     pub unsafe fn write_with_zero<F>(&self, f: F)
@@ -188,7 +197,7 @@ impl<REG: Readable + Writable> Reg<REG> {
                     _reg: marker::PhantomData,
                 }),
                 &mut REG::Writer::from(W {
-                    bits,
+                    bits: bits & !REG::ONE_TO_MODIFY_FIELDS_BITMAP | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
                     _reg: marker::PhantomData,
                 }),
             )
@@ -236,9 +245,9 @@ pub struct W<REG: RegisterSpec + ?Sized> {
 
 impl<REG: RegisterSpec> W<REG> {
     /// Writes raw bits to the register.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// Read datasheet or reference manual to find what values are allowed to pass.
     #[inline(always)]
     pub unsafe fn bits(&mut self, bits: REG::Ux) -> &mut Self {
