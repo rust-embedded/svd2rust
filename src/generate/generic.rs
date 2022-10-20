@@ -1,5 +1,6 @@
 use core::marker;
 
+/// Raw register type (`u8`, `u16`, `u32`, ...)
 pub trait RawReg:
     Copy
     + Default
@@ -8,7 +9,9 @@ pub trait RawReg:
     + core::ops::Not<Output = Self>
     + core::ops::Shl<u8, Output = Self>
 {
+    /// Mask for bits of width `WI`
     fn mask<const WI: u8>() -> Self;
+    /// Mask for bits of width 1
     fn one() -> Self;
 }
 
@@ -549,6 +552,7 @@ where
         unsafe { self.bits(variant.into()) }
     }
 }
+
 impl<'a, U, REG, N, FI, const WI: u8, const OF: u8> FieldWriterSafe<'a, U, REG, N, FI, WI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
@@ -569,6 +573,7 @@ where
         self.bits(variant.into())
     }
 }
+
 impl_bit_proxy!(BitWriter);
 impl_bit_proxy!(BitWriter1S);
 impl_bit_proxy!(BitWriter0C);
@@ -576,6 +581,7 @@ impl_bit_proxy!(BitWriter1C);
 impl_bit_proxy!(BitWriter0S);
 impl_bit_proxy!(BitWriter1T);
 impl_bit_proxy!(BitWriter0T);
+
 impl<'a, U, REG, FI, const OF: u8> BitWriter<'a, U, REG, FI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
@@ -594,6 +600,7 @@ where
         self.bit(false)
     }
 }
+
 impl<'a, U, REG, FI, const OF: u8> BitWriter1S<'a, U, REG, FI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
@@ -607,6 +614,7 @@ where
         self.bit(true)
     }
 }
+
 impl<'a, U, REG, FI, const OF: u8> BitWriter0C<'a, U, REG, FI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
@@ -620,6 +628,7 @@ where
         self.bit(false)
     }
 }
+
 impl<'a, U, REG, FI, const OF: u8> BitWriter1C<'a, U, REG, FI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
@@ -633,6 +642,7 @@ where
         self.bit(true)
     }
 }
+
 impl<'a, U, REG, FI, const OF: u8> BitWriter0S<'a, U, REG, FI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
@@ -646,6 +656,7 @@ where
         self.bit(false)
     }
 }
+
 impl<'a, U, REG, FI, const OF: u8> BitWriter1T<'a, U, REG, FI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
@@ -659,6 +670,7 @@ where
         self.bit(true)
     }
 }
+
 impl<'a, U, REG, FI, const OF: u8> BitWriter0T<'a, U, REG, FI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,

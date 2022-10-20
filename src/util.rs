@@ -545,20 +545,6 @@ pub fn build_rs() -> TokenStream {
     }
 }
 
-pub fn get_register_sizes(d: &Device) -> Vec<u32> {
-    let mut reg_sizes = HashSet::new();
-    for p in &d.peripherals {
-        for r in p.all_registers() {
-            if let Some(size) = r.properties.size {
-                reg_sizes.insert(size);
-            }
-        }
-    }
-    let mut reg_sizes: Vec<_> = reg_sizes.into_iter().collect();
-    reg_sizes.sort();
-    reg_sizes
-}
-
 pub trait FullName {
     fn fullname(&self, ignore_group: bool) -> Cow<str>;
 }
