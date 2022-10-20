@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Change initial write value for registers with modifiedWriteValues
 - Update `clap` to 4.0, use `irx-config` instead of `clap_conf`
 - Add #[must_use] to prevent hanging field writers
 - Remove explicit deref in `generic.rs` since it's done by auto-deref
