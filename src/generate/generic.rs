@@ -6,6 +6,8 @@ pub trait RawReg:
     + Default
     + core::ops::BitOr<Output = Self>
     + core::ops::BitAnd<Output = Self>
+    + core::ops::BitOrAssign
+    + core::ops::BitAndAssign
     + core::ops::Not<Output = Self>
     + core::ops::Shl<u8, Output = Self>
 {
@@ -30,7 +32,7 @@ macro_rules! raw_reg {
         const fn $mask<const WI: u8>() -> $U {
             <$U>::MAX >> ($size - WI)
         }
-    }
+    };
 }
 
 raw_reg!(u8, 8, mask_u8);
@@ -507,8 +509,8 @@ macro_rules! impl_bit_proxy {
             /// Writes bit to the field
             #[inline(always)]
             pub fn bit(self, value: bool) -> &'a mut REG::Writer {
-                self.w.bits = (self.w.bits & !(U::one() << { OF }))
-                    | ((U::from(value) & U::one()) << { OF });
+                self.w.bits &= !(U::one() << { OF });
+                self.w.bits |= (U::from(value) & U::one()) << { OF };
                 self.w
             }
             /// Writes `variant` to the field
@@ -542,8 +544,8 @@ where
     /// Passing incorrect value can cause undefined behaviour. See reference manual
     #[inline(always)]
     pub unsafe fn bits(self, value: N) -> &'a mut REG::Writer {
-        self.w.bits = (self.w.bits & !(U::mask::<WI>() << { OF }))
-            | ((value.into() & U::mask::<WI>()) << { OF });
+        self.w.bits &= !(U::mask::<WI>() << { OF });
+        self.w.bits |= (value.into() & U::mask::<WI>()) << { OF };
         self.w
     }
     /// Writes `variant` to the field
@@ -552,7 +554,6 @@ where
         unsafe { self.bits(variant.into()) }
     }
 }
-
 impl<'a, U, REG, N, FI, const WI: u8, const OF: u8> FieldWriterSafe<'a, U, REG, N, FI, WI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
@@ -563,8 +564,8 @@ where
     /// Writes raw bits to the field
     #[inline(always)]
     pub fn bits(self, value: N) -> &'a mut REG::Writer {
-        self.w.bits = (self.w.bits & !(U::mask::<WI>() << { OF }))
-            | ((value.into() & U::mask::<WI>()) << { OF });
+        self.w.bits &= !(U::mask::<WI>() << { OF });
+        self.w.bits |= (value.into() & U::mask::<WI>()) << { OF };
         self.w
     }
     /// Writes `variant` to the field
