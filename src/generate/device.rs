@@ -7,7 +7,7 @@ use std::borrow::Cow;
 use std::fs::File;
 use std::io::Write;
 
-use crate::util::{self, Config, ToSanitizedCase, U32Ext};
+use crate::util::{self, Config, ToSanitizedCase};
 use crate::Target;
 use anyhow::{Context, Result};
 
@@ -146,15 +146,10 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         });
     }
 
-    let reg_sizes = util::get_register_sizes(d);
-
     let generic_file = std::str::from_utf8(include_bytes!("generic.rs"))?;
     if config.generic_mod {
         let mut file = File::create(config.output_dir.join("generic.rs"))?;
         writeln!(file, "{}", generic_file)?;
-        for ty in reg_sizes {
-            writeln!(file, "impl_proxy!({});", ty.size_to_str()?)?;
-        }
         if config.target == Target::Msp430 && config.nightly {
             let msp430_atomic_file =
                 std::str::from_utf8(include_bytes!("generic_msp430_atomic.rs"))?;
@@ -175,10 +170,6 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
     } else {
         let mut tokens = syn::parse_file(generic_file)?.into_token_stream();
-        for ty in reg_sizes {
-            let ty = Ident::new(ty.size_to_str()?, Span::call_site());
-            tokens.extend(quote! { impl_proxy!(#ty); });
-        }
         if config.target == Target::Msp430 && config.nightly {
             let msp430_atomic_file =
                 std::str::from_utf8(include_bytes!("generic_msp430_atomic.rs"))?;
