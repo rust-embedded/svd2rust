@@ -436,10 +436,15 @@ pub fn fields(
         let rv = properties.reset_value.map(|rv| (rv >> offset) & mask);
         let fty = width.to_ty()?;
 
-        let use_mask = if let Some(size) = properties.size {
-            size != width
+        let use_mask;
+        let use_cast;
+        if let Some(size) = properties.size {
+            let size = size.to_ty_width()?;
+            use_cast = size != width.to_ty_width()?;
+            use_mask = size != width;
         } else {
-            true
+            use_cast = true;
+            use_mask = true;
         };
 
         let mut lookup_results = Vec::new();
@@ -481,9 +486,13 @@ pub fn fields(
                 quote! {
                     ((self.bits >> #offset) & #hexmask) #cast
                 }
-            } else if use_mask {
+            } else if use_cast {
                 quote! {
                     (self.bits & #hexmask) #cast
+                }
+            } else if use_mask {
+                quote! {
+                    self.bits & #hexmask
                 }
             } else {
                 quote! {
@@ -713,9 +722,13 @@ pub fn fields(
                         quote! {
                             ((self.bits >> #sub_offset) & #hexmask) #cast
                         }
-                    } else if use_mask {
+                    } else if use_cast {
                         quote! {
                             (self.bits & #hexmask) #cast
+                        }
+                    } else if use_mask {
+                        quote! {
+                            self.bits & #hexmask
                         }
                     } else {
                         quote! {

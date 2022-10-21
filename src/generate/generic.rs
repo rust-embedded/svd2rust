@@ -4,6 +4,7 @@ use core::marker;
 pub trait RawReg:
     Copy
     + Default
+    + From<bool>
     + core::ops::BitOr<Output = Self>
     + core::ops::BitAnd<Output = Self>
     + core::ops::BitOrAssign
@@ -503,7 +504,6 @@ macro_rules! impl_bit_proxy {
         where
             REG: Writable + RegisterSpec<Ux = U>,
             U: RawReg,
-            U: From<bool>,
             FI: Into<bool>,
         {
             /// Writes bit to the field
@@ -533,8 +533,7 @@ bit_proxy!(BitWriter0T, Bit0T);
 impl<'a, U, REG, N, FI, const WI: u8, const OF: u8> FieldWriter<'a, U, REG, N, FI, WI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
-    U: RawReg,
-    N: Into<U>,
+    U: RawReg + From<N>,
     FI: Into<N>,
 {
     /// Writes raw bits to the field
@@ -545,7 +544,7 @@ where
     #[inline(always)]
     pub unsafe fn bits(self, value: N) -> &'a mut REG::Writer {
         self.w.bits &= !(U::mask::<WI>() << { OF });
-        self.w.bits |= (value.into() & U::mask::<WI>()) << { OF };
+        self.w.bits |= (U::from(value) & U::mask::<WI>()) << { OF };
         self.w
     }
     /// Writes `variant` to the field
@@ -557,15 +556,14 @@ where
 impl<'a, U, REG, N, FI, const WI: u8, const OF: u8> FieldWriterSafe<'a, U, REG, N, FI, WI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
-    U: RawReg,
-    N: Into<U>,
+    U: RawReg + From<N>,
     FI: Into<N>,
 {
     /// Writes raw bits to the field
     #[inline(always)]
     pub fn bits(self, value: N) -> &'a mut REG::Writer {
         self.w.bits &= !(U::mask::<WI>() << { OF });
-        self.w.bits |= (value.into() & U::mask::<WI>()) << { OF };
+        self.w.bits |= (U::from(value) & U::mask::<WI>()) << { OF };
         self.w
     }
     /// Writes `variant` to the field
@@ -587,7 +585,6 @@ impl<'a, U, REG, FI, const OF: u8> BitWriter<'a, U, REG, FI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg,
-    U: From<bool>,
     FI: Into<bool>,
 {
     /// Sets the field bit
@@ -606,7 +603,6 @@ impl<'a, U, REG, FI, const OF: u8> BitWriter1S<'a, U, REG, FI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg,
-    U: From<bool>,
     FI: Into<bool>,
 {
     /// Sets the field bit
@@ -620,7 +616,6 @@ impl<'a, U, REG, FI, const OF: u8> BitWriter0C<'a, U, REG, FI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg,
-    U: From<bool>,
     FI: Into<bool>,
 {
     /// Clears the field bit
@@ -634,7 +629,6 @@ impl<'a, U, REG, FI, const OF: u8> BitWriter1C<'a, U, REG, FI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg,
-    U: From<bool>,
     FI: Into<bool>,
 {
     ///Clears the field bit by passing one
@@ -648,7 +642,6 @@ impl<'a, U, REG, FI, const OF: u8> BitWriter0S<'a, U, REG, FI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg,
-    U: From<bool>,
     FI: Into<bool>,
 {
     ///Sets the field bit by passing zero
@@ -662,7 +655,6 @@ impl<'a, U, REG, FI, const OF: u8> BitWriter1T<'a, U, REG, FI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg,
-    U: From<bool>,
     FI: Into<bool>,
 {
     ///Toggle the field bit by passing one
@@ -676,7 +668,6 @@ impl<'a, U, REG, FI, const OF: u8> BitWriter0T<'a, U, REG, FI, OF>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg,
-    U: From<bool>,
     FI: Into<bool>,
 {
     ///Toggle the field bit by passing zero
