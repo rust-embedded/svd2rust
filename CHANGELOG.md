@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Don't cast fields with width 17-31
 - Make `generic.rs` generic
 - Change initial write value for registers with modifiedWriteValues
 - Update `clap` to 4.0, use `irx-config` instead of `clap_conf`
