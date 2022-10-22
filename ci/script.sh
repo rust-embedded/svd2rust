@@ -18,6 +18,22 @@ test_svd() {
     cargo $COMMAND --manifest-path $td/Cargo.toml
 }
 
+test_patched_stm32() {
+    (
+        cd $td && curl -L https://stm32-rs.github.io/stm32-rs/${1}.svd.patched -o ${1}.svd
+    )
+
+    # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
+    pushd $td
+    RUST_BACKTRACE=1 svd2rust $options -i ${1}.svd
+
+    mv lib.rs src/lib.rs
+
+    popd
+
+    cargo $COMMAND --manifest-path $td/Cargo.toml
+}
+
 test_svd_for_target() {
     curl -L --output $td/input.svd $2
 
@@ -556,6 +572,25 @@ main() {
             # test_svd STM32L053x
             # test_svd STM32L062x
             # test_svd STM32L063x
+        ;;
+
+        STM32-patched)
+            # OK
+            test_patched_stm32 stm32f0x2
+            test_patched_stm32 stm32f103
+            test_patched_stm32 stm32f411
+            test_patched_stm32 stm32f469
+            test_patched_stm32 stm32f7x3
+            test_patched_stm32 stm32g070
+            test_patched_stm32 stm32g473
+            test_patched_stm32 stm32h743
+            test_patched_stm32 stm32l0x3
+            test_patched_stm32 stm32l162
+            test_patched_stm32 stm32l4x6
+            test_patched_stm32 stm32l562
+            test_patched_stm32 stm32mp157
+            test_patched_stm32 stm32wb55
+            test_patched_stm32 stm32wle5
         ;;
 
         Toshiba)
