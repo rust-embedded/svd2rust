@@ -270,7 +270,7 @@ impl<REG: RegisterSpec, FI> PartialEq<FI> for R<REG>
 where
     REG::Ux: PartialEq,
     FI: Copy,
-    REG::Ux: From<FI>
+    REG::Ux: From<FI>,
 {
     #[inline(always)]
     fn eq(&self, other: &FI) -> bool {
@@ -512,8 +512,8 @@ macro_rules! impl_bit_proxy {
             /// Writes bit to the field
             #[inline(always)]
             pub fn bit(self, value: bool) -> &'a mut REG::Writer {
-                self.w.bits &= !(U::one() << { OF });
-                self.w.bits |= (U::from(value) & U::one()) << { OF };
+                self.w.bits &= !(U::one() << OF);
+                self.w.bits |= (U::from(value) & U::one()) << OF;
                 self.w
             }
             /// Writes `variant` to the field
@@ -546,8 +546,8 @@ where
     /// Passing incorrect value can cause undefined behaviour. See reference manual
     #[inline(always)]
     pub unsafe fn bits(self, value: N) -> &'a mut REG::Writer {
-        self.w.bits &= !(U::mask::<WI>() << { OF });
-        self.w.bits |= (U::from(value) & U::mask::<WI>()) << { OF };
+        self.w.bits &= !(U::mask::<WI>() << OF);
+        self.w.bits |= (U::from(value) & U::mask::<WI>()) << OF;
         self.w
     }
     /// Writes `variant` to the field
@@ -565,8 +565,8 @@ where
     /// Writes raw bits to the field
     #[inline(always)]
     pub fn bits(self, value: N) -> &'a mut REG::Writer {
-        self.w.bits &= !(U::mask::<WI>() << { OF });
-        self.w.bits |= (U::from(value) & U::mask::<WI>()) << { OF };
+        self.w.bits &= !(U::mask::<WI>() << OF);
+        self.w.bits |= (U::from(value) & U::mask::<WI>()) << OF;
         self.w
     }
     /// Writes `variant` to the field
@@ -593,12 +593,14 @@ where
     /// Sets the field bit
     #[inline(always)]
     pub fn set_bit(self) -> &'a mut REG::Writer {
-        self.bit(true)
+        self.w.bits |= U::one() << OF;
+        self.w
     }
     /// Clears the field bit
     #[inline(always)]
     pub fn clear_bit(self) -> &'a mut REG::Writer {
-        self.bit(false)
+        self.w.bits &= !(U::one() << OF);
+        self.w
     }
 }
 
@@ -611,7 +613,8 @@ where
     /// Sets the field bit
     #[inline(always)]
     pub fn set_bit(self) -> &'a mut REG::Writer {
-        self.bit(true)
+        self.w.bits |= U::one() << OF;
+        self.w
     }
 }
 
@@ -624,7 +627,8 @@ where
     /// Clears the field bit
     #[inline(always)]
     pub fn clear_bit(self) -> &'a mut REG::Writer {
-        self.bit(false)
+        self.w.bits &= !(U::one() << OF);
+        self.w
     }
 }
 
@@ -637,7 +641,8 @@ where
     ///Clears the field bit by passing one
     #[inline(always)]
     pub fn clear_bit_by_one(self) -> &'a mut REG::Writer {
-        self.bit(true)
+        self.w.bits |= U::one() << OF;
+        self.w
     }
 }
 
@@ -650,7 +655,8 @@ where
     ///Sets the field bit by passing zero
     #[inline(always)]
     pub fn set_bit_by_zero(self) -> &'a mut REG::Writer {
-        self.bit(false)
+        self.w.bits &= !(U::one() << OF);
+        self.w
     }
 }
 
@@ -663,7 +669,8 @@ where
     ///Toggle the field bit by passing one
     #[inline(always)]
     pub fn toggle_bit(self) -> &'a mut REG::Writer {
-        self.bit(true)
+        self.w.bits |= U::one() << OF;
+        self.w
     }
 }
 
@@ -676,6 +683,7 @@ where
     ///Toggle the field bit by passing zero
     #[inline(always)]
     pub fn toggle_bit(self) -> &'a mut REG::Writer {
-        self.bit(false)
+        self.w.bits &= !(U::one() << OF);
+        self.w
     }
 }
