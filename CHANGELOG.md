@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Manually inline set/clear_bit
 - Don't cast fields with width 17-31
 - Make `generic.rs` generic
 - Change initial write value for registers with modifiedWriteValues
