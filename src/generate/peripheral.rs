@@ -1009,7 +1009,7 @@ fn cluster_block(
     let name_constant_case = mod_name.to_constant_case_ident(span);
 
     if let Some(dpath) = dpath {
-        let dparent = util::parent(&dpath).unwrap();
+        let dparent = dpath.parent().unwrap();
         let mut derived = if &dparent == path {
             type_path(Punctuated::new())
         } else {

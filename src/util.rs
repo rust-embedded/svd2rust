@@ -6,7 +6,6 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use svd_parser::expand::BlockPath;
 use svd_rs::{MaybeArray, Peripheral, PeripheralInfo};
 
 use syn::{
@@ -455,12 +454,6 @@ pub fn path_segment(ident: Ident) -> PathSegment {
         ident,
         arguments: PathArguments::None,
     }
-}
-
-pub fn parent(p: &BlockPath) -> Option<BlockPath> {
-    let mut p = p.clone();
-    p.path.pop()?;
-    Some(p)
 }
 
 pub trait U32Ext {

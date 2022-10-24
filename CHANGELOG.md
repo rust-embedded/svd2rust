@@ -7,14 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.27.0] - 2022-10-24
+
 - Manually inline set/clear_bit
 - Don't cast fields with width 17-31
 - Make `generic.rs` generic
-- Change initial write value for registers with modifiedWriteValues
+- [breaking-change] Change initial write value for registers with modifiedWriteValues
 - Update `clap` to 4.0, use `irx-config` instead of `clap_conf`
 - Add #[must_use] to prevent hanging field writers
 - Remove explicit deref in `generic.rs` since it's done by auto-deref
-- Make writing raw bits to a whole register safe if the SVD indicates
+- [breaking-change] Make writing raw bits to a whole register safe if the SVD indicates
   so through the <WriteConstraint> element (see [v0.7.1] too).
 - Remove lint #![deny(const_err)] as it is a hard error in Rust now
 - Add doc of using `critical-section`
@@ -759,7 +761,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.27.0...HEAD
+[v0.27.0]: https://github.com/rust-embedded/svd2rust/compare/v0.26.0...v0.27.0
 [v0.26.0]: https://github.com/rust-embedded/svd2rust/compare/v0.25.1...v0.26.0
 [v0.25.1]: https://github.com/rust-embedded/svd2rust/compare/v0.25.0...v0.25.1
 [v0.25.0]: https://github.com/rust-embedded/svd2rust/compare/v0.24.1...v0.25.0
