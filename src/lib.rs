@@ -185,6 +185,10 @@
 //! let panics = stm32f30x::Peripherals::take().unwrap();
 //! ```
 //!
+//! This method needs an implementation of `critical-section`. You can implement it yourself or
+//! use the implementation provided by the target crate like `cortex-m`, `riscv` and `*-hal` crates.
+//! See more details in the [`critical-section`](https://crates.io/crates/critical-section) crate documentation.
+//!
 //! The singleton property can be *unsafely* bypassed using the `ptr` static method which is
 //! available on all the peripheral types. This method is useful for implementing safe higher
 //! level abstractions.
