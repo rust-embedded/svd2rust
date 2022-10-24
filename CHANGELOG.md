@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Make writing raw bits to a whole register safe if the SVD indicates
   so through the <WriteConstraint> element (see [v0.7.1] too).
 - Remove lint #![deny(const_err)] as it is a hard error in Rust now
+- Add doc of using `critical-section`
 
 ## [v0.26.0] - 2022-10-07
 
