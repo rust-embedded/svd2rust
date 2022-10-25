@@ -483,21 +483,16 @@ pub fn fields(
             };
             let value = if offset != 0 {
                 let offset = &util::unsuffixed(offset);
-                quote! {
-                    ((self.bits >> #offset) & #hexmask) #cast
-                }
-            } else if use_cast {
-                quote! {
-                    (self.bits & #hexmask) #cast
-                }
-            } else if use_mask {
-                quote! {
-                    self.bits & #hexmask
-                }
+                quote! { (self.bits >> #offset) }
             } else {
-                quote! {
-                    self.bits
-                }
+                quote! { self.bits }
+            };
+            let value = if use_mask && use_cast {
+                quote! { (#value & #hexmask) #cast }
+            } else if use_mask {
+                quote! { #value & #hexmask }
+            } else {
+                value
             };
 
             // get a brief description for this field
@@ -719,21 +714,16 @@ pub fn fields(
                     let sub_offset = offset + (i as u64) * (increment as u64);
                     let value = if sub_offset != 0 {
                         let sub_offset = &util::unsuffixed(sub_offset);
-                        quote! {
-                            ((self.bits >> #sub_offset) & #hexmask) #cast
-                        }
-                    } else if use_cast {
-                        quote! {
-                            (self.bits & #hexmask) #cast
-                        }
-                    } else if use_mask {
-                        quote! {
-                            self.bits & #hexmask
-                        }
+                        quote! { (self.bits >> #sub_offset) }
                     } else {
-                        quote! {
-                            self.bits
-                        }
+                        quote! { self.bits }
+                    };
+                    let value = if use_mask && use_cast {
+                        quote! { (#value & #hexmask) #cast }
+                    } else if use_mask {
+                        quote! { #value & #hexmask }
+                    } else {
+                        value
                     };
                     let name_snake_case_n = util::replace_suffix(&f.name, &suffix)
                         .to_snake_case_ident(Span::call_site());
@@ -963,7 +953,7 @@ pub fn fields(
                         &description_with_bits(description_raw, sub_offset, width),
                         &suffix,
                     );
-                    let sub_offset = util::unsuffixed(sub_offset as u64);
+                    let sub_offset = util::unsuffixed(sub_offset);
 
                     w_impl_items.extend(quote! {
                         #[doc = #doc]
@@ -976,7 +966,7 @@ pub fn fields(
                 }
             } else {
                 let doc = description_with_bits(description_raw, offset, width);
-                let offset = util::unsuffixed(offset as u64);
+                let offset = util::unsuffixed(offset);
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
@@ -1037,7 +1027,7 @@ impl Variant {
             .iter()
             // filter out all reserved variants, as we should not
             // generate code for them
-            .filter(|field| field.name.to_lowercase() != "reserved" && field.is_default == None)
+            .filter(|field| field.name.to_lowercase() != "reserved" && field.is_default.is_none())
             .map(|ev| {
                 let value = ev
                     .value
