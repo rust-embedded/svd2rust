@@ -18,7 +18,7 @@ fn parse_configs(app: Command) -> Result<Config> {
     use irx_config::parsers::{cmd, toml};
     use irx_config::ConfigBuilder;
     let irxconfig = ConfigBuilder::default()
-        .append_parser(cmd::ParserBuilder::new(app).build()?)
+        .append_parser(cmd::ParserBuilder::new(app).exit_on_error(true).build()?)
         .append_parser(
             toml::ParserBuilder::default()
                 .default_path("svd2rust.toml")
