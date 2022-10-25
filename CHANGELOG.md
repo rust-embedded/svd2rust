@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.27.1] - 2022-10-25
+
 - fix cli error with --help/version
 - Don't cast fields with width 17-31 and non-zero offset.
 
@@ -764,7 +766,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.27.1...HEAD
+[v0.27.1]: https://github.com/rust-embedded/svd2rust/compare/v0.27.0...v0.27.1
 [v0.27.0]: https://github.com/rust-embedded/svd2rust/compare/v0.26.0...v0.27.0
 [v0.26.0]: https://github.com/rust-embedded/svd2rust/compare/v0.25.1...v0.26.0
 [v0.25.1]: https://github.com/rust-embedded/svd2rust/compare/v0.25.0...v0.25.1
