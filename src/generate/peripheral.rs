@@ -30,7 +30,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
     let span = Span::call_site();
     let name_str = name.to_sanitized_constant_case();
     let name_constant_case = Ident::new(&name_str, span);
-    let address = util::hex(p.base_address as u64);
+    let address = util::hex(p.base_address);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
     let name_snake_case = name.to_snake_case_ident(span);

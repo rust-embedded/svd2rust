@@ -33,7 +33,7 @@ pub fn render(
         .map(|i| (i.0.value, (i.0, i.1, i.2)))
         .collect::<HashMap<_, _>>();
 
-    let mut interrupts = interrupts.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
+    let mut interrupts = interrupts.into_values().collect::<Vec<_>>();
     interrupts.sort_by_key(|i| i.0.value);
 
     let mut root = TokenStream::new();
