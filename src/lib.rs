@@ -504,8 +504,8 @@
 //! ```ignore
 //! // These can be called from different contexts even though they are modifying the same register
 //! P1.p1out.set_bits(|w| unsafe { w.bits(1 << 1) });
-//! P1.p1out.clear(|w| unsafe { w.bits(!(1 << 2)) });
-//! P1.p1out.toggle(|w| unsafe { w.bits(1 << 4) });
+//! P1.p1out.clear_bits(|w| unsafe { w.bits(!(1 << 2)) });
+//! P1.p1out.toggle_bits(|w| unsafe { w.bits(1 << 4) });
 //! ```
 #![recursion_limit = "128"]
 
