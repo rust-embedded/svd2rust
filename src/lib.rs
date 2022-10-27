@@ -122,7 +122,7 @@
 //! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.4.x
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
 //!
-//! If the `--nightly` flag is provided to `svd2rust`, then `msp430-atomic` v0.1.4 is also needed.
+//! If the `--nightly` flag is provided to `svd2rust`, then `portable-atomic` v0.3.15 is also needed.
 //! Furthermore the "device" feature of `msp430-rt` must be enabled when the `rt` feature is
 //! enabled. The `Cargo.toml` of the device crate will look like this:
 //!
@@ -130,13 +130,13 @@
 //! [dependencies]
 //! critical-section = { version = "1.0", optional = true }
 //! msp430 = "0.4.0"
-//! msp430-atomic = "0.1.4" # Only when using the --nightly flag
+//! portable-atomic = "0.3.15" # Only when using the --nightly flag
 //! msp430-rt = { version = "0.4.0", optional = true }
 //! vcell = "0.1.0"
 //!
 //! [features]
 //! rt = ["msp430-rt/device"]
-//! unstable = ["msp430-atomic"]
+//! unstable = ["portable-atomic"]
 //! ```
 //!
 //! ## Other targets
@@ -504,8 +504,8 @@
 //! ```ignore
 //! // These can be called from different contexts even though they are modifying the same register
 //! P1.p1out.set_bits(|w| unsafe { w.bits(1 << 1) });
-//! P1.p1out.clear(|w| unsafe { w.bits(!(1 << 2)) });
-//! P1.p1out.toggle(|w| unsafe { w.bits(1 << 4) });
+//! P1.p1out.clear_bits(|w| unsafe { w.bits(!(1 << 2)) });
+//! P1.p1out.toggle_bits(|w| unsafe { w.bits(1 << 4) });
 //! ```
 #![recursion_limit = "128"]
 

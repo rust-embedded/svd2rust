@@ -460,13 +460,17 @@ main() {
             # test_svd LPC5410x_v0.4
         ;;
 
-        # test other targets (architectures)
-        OTHER)
+        # MSP430
+        MSP430)
             echo '[dependencies.msp430]' >> $td/Cargo.toml
-            echo 'version = "0.3.0"' >> $td/Cargo.toml
+            echo 'version = "0.4.0"' >> $td/Cargo.toml
+
+            echo '[dependencies.portable-atomic]' >> $td/Cargo.toml
+            echo 'version = "0.3.15"' >> $td/Cargo.toml
 
             # Test MSP430
             test_svd_for_target msp430 https://raw.githubusercontent.com/pftbest/msp430g2553/v0.3.0-svd/msp430g2553.svd
+            test_svd_for_target msp430 https://raw.githubusercontent.com/YuhanLiin/msp430fr2355/rt-up/msp430fr2355.svd
         ;;
 
         # Community-provided RISC-V SVDs
