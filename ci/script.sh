@@ -15,7 +15,7 @@ test_svd() {
 
     popd
 
-    cargo $COMMAND --manifest-path $td/Cargo.toml
+    cargo $COMMAND --manifest-path $td/Cargo.toml --target $TARGET
 }
 
 test_svd_for_target() {
@@ -23,13 +23,13 @@ test_svd_for_target() {
 
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
     pushd $td
-    RUST_BACKTRACE=1 svd2rust $strict $const_generic $derive_more $nightly --target $1 -i input.svd
+    RUST_BACKTRACE=1 svd2rust $const_generic $derive_more $nightly --target $1 -i input.svd
 
     mv lib.rs src/lib.rs
 
     popd
 
-    cargo $COMMAND --manifest-path $td/Cargo.toml
+    cargo $COMMAND --manifest-path $td/Cargo.toml --target $TARGET
 }
 
 main() {

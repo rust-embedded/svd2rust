@@ -49,6 +49,9 @@ jobs:
         # All generated code should be running on stable now
         rust: [stable]
 
+        # By default, target x86
+        target: [x86_64-unknown-linux-gnu]
+
         # All vendor files we want to test on stable
         vendor: [Atmel, Freescale, Fujitsu, GD32, Holtek, Microchip, Nordic, Nuvoton, NXP, RISC-V, SiliconLabs, Spansion, STMicro, Toshiba]
 
@@ -76,10 +79,12 @@ jobs:
           - rust: nightly
             vendor: MSP430
             options: all-nightly
+            target: msp430-none-elf
 
           - rust: nightly
             vendor: MSP430
             options: none
+            target: msp430-none-elf
 
           # Use nightly for architectures which don't support stable
           - rust: nightly
@@ -93,6 +98,7 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
+          target: ${{ matrix.target }}
 
       - name: Cache
         uses: Swatinem/rust-cache@v2
@@ -105,6 +111,7 @@ jobs:
         env:
           VENDOR: ${{ matrix.vendor }}
           OPTIONS: ${{ matrix.options }}
+          TARGET: ${{ matrix.target }}
           COMMAND: check
         run: bash ci/script.sh
 
