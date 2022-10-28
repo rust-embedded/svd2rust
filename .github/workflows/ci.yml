@@ -74,6 +74,7 @@ jobs:
           # Test MSRV
           - rust: 1.60.0
             vendor: Nordic
+            target: x86_64-unknown-linux-gnu
 
           # Use nightly for architectures which don't support stable
           - rust: nightly
@@ -89,6 +90,7 @@ jobs:
           # Use nightly for architectures which don't support stable
           - rust: nightly
             vendor: Espressif
+            target: x86_64-unknown-linux-gnu
 
     steps:
       - uses: actions/checkout@v3
@@ -139,6 +141,7 @@ jobs:
           VENDOR: RISC-V
           OPTIONS: all
           COMMAND: clippy
+          TARGET: x86_64-unknown-linux-gnu
         run: bash ci/script.sh
 
   ci-serde:
