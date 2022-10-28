@@ -98,7 +98,7 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
-          target: ${{ matrix.target }}
+          components: rust-src
 
       - name: Cache
         uses: Swatinem/rust-cache@v2
