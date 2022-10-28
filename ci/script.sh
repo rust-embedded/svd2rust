@@ -9,7 +9,7 @@ test_svd() {
 
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
     pushd $td
-    RUST_BACKTRACE=1 svd2rust $strict $const_generic $derive_more -i ${1}.svd
+    RUST_BACKTRACE=1 svd2rust $strict $const_generic $derive_more $nightly -i ${1}.svd
 
     mv lib.rs src/lib.rs
 
@@ -23,7 +23,7 @@ test_svd_for_target() {
 
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
     pushd $td
-    RUST_BACKTRACE=1 svd2rust --target $1 -i input.svd
+    RUST_BACKTRACE=1 svd2rust $strict $const_generic $derive_more $nightly --target $1 -i input.svd
 
     mv lib.rs src/lib.rs
 
@@ -40,30 +40,41 @@ main() {
     td=$(mktemp -d)
 
     case $OPTIONS in
+        all-nightly)
+            const_generic="--const_generic"
+            strict="--strict"
+            derive_more="--derive_more"
+            nightly="--nightly"
+            ;;
         all)
             const_generic="--const_generic"
             strict="--strict"
             derive_more="--derive_more"
+            nightly=""
             ;;
         strict)
             const_generic=""
             strict="--strict"
             derive_more=""
+            nightly=""
             ;;
         const)
             const_generic="--const_generic"
             strict=""
             derive_more=""
+            nightly=""
             ;;
         derive_more)
             const_generic=""
             strict=""
             derive_more="--derive_more"
+            nightly=""
             ;;
         *)
             const_generic=""
             strict=""
             derive_more=""
+            nightly=""
             ;;
     esac
 
@@ -489,13 +500,17 @@ main() {
             # test_svd LPC5410x_v0.4
         ;;
 
-        # test other targets (architectures)
-        OTHER)
+        # MSP430
+        MSP430)
             echo '[dependencies.msp430]' >> $td/Cargo.toml
-            echo 'version = "0.3.0"' >> $td/Cargo.toml
+            echo 'version = "0.4.0"' >> $td/Cargo.toml
+
+            echo '[dependencies.msp430-atomic]' >> $td/Cargo.toml
+            echo 'version = "0.1.4"' >> $td/Cargo.toml
 
             # Test MSP430
             test_svd_for_target msp430 https://raw.githubusercontent.com/pftbest/msp430g2553/v0.3.0-svd/msp430g2553.svd
+            test_svd_for_target msp430 https://raw.githubusercontent.com/YuhanLiin/msp430fr2355/rt-up/msp430fr2355.svd
         ;;
 
         # Community-provided RISC-V SVDs

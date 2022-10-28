@@ -74,7 +74,12 @@ jobs:
 
           # Use nightly for architectures which don't support stable
           - rust: nightly
-            vendor: OTHER
+            vendor: MSP430
+            options: all-nightly
+
+          - rust: nightly
+            vendor: MSP430
+            options: none
 
           # Use nightly for architectures which don't support stable
           - rust: nightly
