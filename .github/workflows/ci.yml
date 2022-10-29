@@ -49,32 +49,32 @@ jobs:
         # Options are all, none, strict and const
         include:
           - { rust: stable, vendor: Atmel, options: all }
-          - { rust: stable, vendor: Atmel, options: none }
+          - { rust: stable, vendor: Atmel, options: "" }
           - { rust: stable, vendor: Freescale, options: all }
-          - { rust: stable, vendor: Freescale, options: none }
-          - { rust: stable, vendor: Fujitsu, options: none }
+          - { rust: stable, vendor: Freescale, options: "" }
+          - { rust: stable, vendor: Fujitsu, options: "" }
           - { rust: stable, vendor: GD32, options: all }
-          - { rust: stable, vendor: GD32, options: none }
+          - { rust: stable, vendor: GD32, options: "" }
           - { rust: stable, vendor: Holtek, options: all }
-          - { rust: stable, vendor: Holtek, options: none }
-          - { rust: stable, vendor: Microchip, options: none }
+          - { rust: stable, vendor: Holtek, options: "" }
+          - { rust: stable, vendor: Microchip, options: "" }
           - { rust: stable, vendor: Nordic, options: all }
-          - { rust: stable, vendor: Nordic, options: none }
-          - { rust: stable, vendor: Nuvoton, options: none }
+          - { rust: stable, vendor: Nordic, options: "" }
+          - { rust: stable, vendor: Nuvoton, options: "" }
           - { rust: stable, vendor: NXP, options: all }
-          - { rust: stable, vendor: NXP, options: none }
-          - { rust: stable, vendor: RISC-V, options: none }
+          - { rust: stable, vendor: NXP, options: "" }
+          - { rust: stable, vendor: RISC-V, options: "" }
           - { rust: stable, vendor: SiliconLabs, options: all }
-          - { rust: stable, vendor: SiliconLabs, options: none }
-          - { rust: stable, vendor: Spansion, options: none }
-          - { rust: stable, vendor: STMicro, options: none }
+          - { rust: stable, vendor: SiliconLabs, options: "" }
+          - { rust: stable, vendor: Spansion, options: "" }
+          - { rust: stable, vendor: STMicro, options: "" }
           - { rust: stable, vendor: Toshiba, options: all }
-          - { rust: stable, vendor: Toshiba, options: none }
+          - { rust: stable, vendor: Toshiba, options: "" }
           # Test MSRV
-          - { rust: 1.60.0, vendor: Nordic, options: none }
+          - { rust: 1.60.0, vendor: Nordic, options: "" }
           # Use nightly for architectures which don't support stable
-          - { rust: nightly, vendor: OTHER, options: none }
-          - { rust: nightly, vendor: Espressif, options: none }
+          - { rust: nightly, vendor: OTHER, options: "" }
+          - { rust: nightly, vendor: Espressif, options: "" }
 
     steps:
       - uses: actions/checkout@v3
@@ -121,7 +121,7 @@ jobs:
       - name: Run CI script
         env:
           VENDOR: RISC-V
-          OPTIONS: all
+          OPTIONS: ""
           COMMAND: clippy
         run: bash ci/script.sh
 
