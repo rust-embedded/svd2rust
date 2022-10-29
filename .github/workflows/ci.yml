@@ -68,6 +68,7 @@ jobs:
           - { rust: stable, vendor: SiliconLabs, options: "" }
           - { rust: stable, vendor: Spansion, options: "" }
           - { rust: stable, vendor: STMicro, options: "" }
+          - { rust: stable, vendor: STM32-patched, options: "--strict --const_generic --derive_more --pascal_enum_values --max_cluster_size" }
           - { rust: stable, vendor: Toshiba, options: all }
           - { rust: stable, vendor: Toshiba, options: "" }
           # Test MSRV

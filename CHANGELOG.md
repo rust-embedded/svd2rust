@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Test patched STM32
 - simplify ci strategy
 
 ## [v0.27.1] - 2022-10-25
