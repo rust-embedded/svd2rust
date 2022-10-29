@@ -75,6 +75,7 @@ jobs:
           - { rust: 1.60.0, vendor: Nordic, options: "" }
           # Use nightly for architectures which don't support stable
           - { rust: nightly, vendor: MSP430, options: "--nightly" }
+          - { rust: nightly, vendor: MSP430, options: "" }
           - { rust: nightly, vendor: Espressif, options: "" }
 
     steps:
