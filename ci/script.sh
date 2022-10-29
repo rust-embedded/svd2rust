@@ -9,7 +9,7 @@ test_svd() {
 
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
     pushd $td
-    RUST_BACKTRACE=1 svd2rust $strict $const_generic $derive_more -i ${1}.svd
+    RUST_BACKTRACE=1 svd2rust $options -i ${1}.svd
 
     mv lib.rs src/lib.rs
 
@@ -23,7 +23,7 @@ test_svd_for_target() {
 
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
     pushd $td
-    RUST_BACKTRACE=1 svd2rust --target $1 -i input.svd
+    RUST_BACKTRACE=1 svd2rust $options --target $1 -i input.svd
 
     mv lib.rs src/lib.rs
 
@@ -41,29 +41,10 @@ main() {
 
     case $OPTIONS in
         all)
-            const_generic="--const_generic"
-            strict="--strict"
-            derive_more="--derive_more"
-            ;;
-        strict)
-            const_generic=""
-            strict="--strict"
-            derive_more=""
-            ;;
-        const)
-            const_generic="--const_generic"
-            strict=""
-            derive_more=""
-            ;;
-        derive_more)
-            const_generic=""
-            strict=""
-            derive_more="--derive_more"
+            options="--const_generic --strict --derive_more"
             ;;
         *)
-            const_generic=""
-            strict=""
-            derive_more=""
+            options=$OPTIONS
             ;;
     esac
 
@@ -72,7 +53,7 @@ main() {
     echo 'cortex-m = "0.7.4"' >> $td/Cargo.toml
     echo 'cortex-m-rt = "0.7.1"' >> $td/Cargo.toml
     echo 'vcell = "0.1.3"' >> $td/Cargo.toml
-    if [ $derive_more ]; then
+    if [[ "$options" == *"--derive_more"* ]]; then
         echo 'derive_more = "0.99"' >> $td/Cargo.toml
     fi
     echo '[profile.dev]' >> $td/Cargo.toml

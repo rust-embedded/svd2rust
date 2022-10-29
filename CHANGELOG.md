@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- simplify ci strategy
+
 ## [v0.27.1] - 2022-10-25
 
 - fix cli error with --help/version

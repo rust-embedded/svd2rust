@@ -46,39 +46,35 @@ jobs:
     needs: [check]
     strategy:
       matrix:
-        # All generated code should be running on stable now
-        rust: [stable]
-
-        # All vendor files we want to test on stable
-        vendor: [Atmel, Freescale, Fujitsu, GD32, Holtek, Microchip, Nordic, Nuvoton, NXP, RISC-V, SiliconLabs, Spansion, STMicro, Toshiba]
-
         # Options are all, none, strict and const
-        options: [all, none]
-        exclude:
-          - vendor: Fujitsu
-            options: all
-          - vendor: Spansion
-            options: all
-          - vendor: STMicro
-            options: all
-          - vendor: Nuvoton
-            options: all
-          - vendor: Microchip
-            options: all
-          - vendor: RISC-V
-            options: all
         include:
+          - { rust: stable, vendor: Atmel, options: all }
+          - { rust: stable, vendor: Atmel, options: "" }
+          - { rust: stable, vendor: Freescale, options: all }
+          - { rust: stable, vendor: Freescale, options: "" }
+          - { rust: stable, vendor: Fujitsu, options: "" }
+          - { rust: stable, vendor: GD32, options: all }
+          - { rust: stable, vendor: GD32, options: "" }
+          - { rust: stable, vendor: Holtek, options: all }
+          - { rust: stable, vendor: Holtek, options: "" }
+          - { rust: stable, vendor: Microchip, options: "" }
+          - { rust: stable, vendor: Nordic, options: all }
+          - { rust: stable, vendor: Nordic, options: "" }
+          - { rust: stable, vendor: Nuvoton, options: "" }
+          - { rust: stable, vendor: NXP, options: all }
+          - { rust: stable, vendor: NXP, options: "" }
+          - { rust: stable, vendor: RISC-V, options: "" }
+          - { rust: stable, vendor: SiliconLabs, options: all }
+          - { rust: stable, vendor: SiliconLabs, options: "" }
+          - { rust: stable, vendor: Spansion, options: "" }
+          - { rust: stable, vendor: STMicro, options: "" }
+          - { rust: stable, vendor: Toshiba, options: all }
+          - { rust: stable, vendor: Toshiba, options: "" }
           # Test MSRV
-          - rust: 1.60.0
-            vendor: Nordic
-
+          - { rust: 1.60.0, vendor: Nordic, options: "" }
           # Use nightly for architectures which don't support stable
-          - rust: nightly
-            vendor: OTHER
-
-          # Use nightly for architectures which don't support stable
-          - rust: nightly
-            vendor: Espressif
+          - { rust: nightly, vendor: OTHER, options: "" }
+          - { rust: nightly, vendor: Espressif, options: "" }
 
     steps:
       - uses: actions/checkout@v3
@@ -125,7 +121,7 @@ jobs:
       - name: Run CI script
         env:
           VENDOR: RISC-V
-          OPTIONS: all
+          OPTIONS: ""
           COMMAND: clippy
         run: bash ci/script.sh
 
