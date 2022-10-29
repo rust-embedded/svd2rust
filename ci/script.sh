@@ -1,37 +1,11 @@
 set -euxo pipefail
 
 test_svd() {
-    (
-        cd $td &&
-            curl -LO \
-                 https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/$VENDOR/${1}.svd
-    )
-
-    # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
-    pushd $td
-    RUST_BACKTRACE=1 svd2rust $options -i ${1}.svd
-
-    mv lib.rs src/lib.rs
-
-    popd
-
-    cargo $COMMAND --manifest-path $td/Cargo.toml
+    test_svd_for_target cortex-m https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/$VENDOR/${1}.svd
 }
 
 test_patched_stm32() {
-    (
-        cd $td && curl -L https://stm32-rs.github.io/stm32-rs/${1}.svd.patched -o ${1}.svd
-    )
-
-    # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
-    pushd $td
-    RUST_BACKTRACE=1 svd2rust $options -i ${1}.svd
-
-    mv lib.rs src/lib.rs
-
-    popd
-
-    cargo $COMMAND --manifest-path $td/Cargo.toml
+    test_svd_for_target cortex-m https://stm32-rs.github.io/stm32-rs/${1}.svd.patched
 }
 
 test_svd_for_target() {
@@ -39,7 +13,7 @@ test_svd_for_target() {
 
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
     pushd $td
-    RUST_BACKTRACE=1 svd2rust $options --target $1 -i input.svd
+    RUST_BACKTRACE=1 svd2rust $options --target $1 --source_type xml -i input.svd
 
     mv lib.rs src/lib.rs
 
