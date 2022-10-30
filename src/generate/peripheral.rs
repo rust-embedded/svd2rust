@@ -287,9 +287,8 @@ pub struct ArrayAccessor {
     pub i: syn::LitInt,
 }
 
-impl ArrayAccessor {
-    pub fn to_tokens(&self, method: bool) -> TokenStream {
-        let parens = method.then(|| quote! {()});
+impl ToTokens for ArrayAccessor {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let doc = &self.doc;
         let name = &self.name;
         let ty = &self.ty;
@@ -299,9 +298,10 @@ impl ArrayAccessor {
             #[doc = #doc]
             #[inline(always)]
             pub fn #name(&self) -> &#ty {
-                &self.#basename #parens[#i]
+                &self.#basename()[#i]
             }
         }
+        .to_tokens(tokens);
     }
 }
 
@@ -592,11 +592,11 @@ fn register_or_cluster_block(
                 reg_block_field.offset,
                 &reg_block_field.description,
             );
+            let name = &reg_block_field.syn_field.ident;
+            let ty = &reg_block_field.syn_field.ty;
+            let offset = reg_block_field.offset as usize;
 
             if is_region_a_union {
-                let name = &reg_block_field.syn_field.ident;
-                let ty = &reg_block_field.syn_field.ty;
-                let offset = reg_block_field.offset as usize;
                 accessors.extend(quote! {
                     #[doc = #comment]
                     #[inline(always)]
@@ -611,13 +611,17 @@ fn register_or_cluster_block(
 
                 reg_block_field.syn_field.to_tokens(&mut region_rbfs);
                 Punct::new(',', Spacing::Alone).to_tokens(&mut region_rbfs);
+                accessors.extend(quote! {
+                    #[doc = #comment]
+                    #[inline(always)]
+                    pub fn #name(&self) -> &#ty {
+                        &self.#name
+                    }
+                });
             }
-            accessors.extend(
-                reg_block_field
-                    .accessors
-                    .iter()
-                    .map(|a| a.to_tokens(is_region_a_union)),
-            );
+            for a in &reg_block_field.accessors {
+                a.to_tokens(&mut accessors);
+            }
         }
 
         if !is_region_a_union {
@@ -1421,9 +1425,20 @@ fn cluster_block(
 
 fn new_syn_field(ident: Ident, ty: syn::Type) -> syn::Field {
     let span = Span::call_site();
+    let mut segments = Punctuated::new();
+    segments.push(path_segment(Ident::new("crate", span)));
+    let crate_path = syn::Path {
+        leading_colon: None,
+        segments,
+    };
     syn::Field {
         ident: Some(ident),
-        vis: syn::Visibility::Public(Token![pub](span)),
+        vis: syn::Visibility::Restricted(syn::VisRestricted {
+            pub_token: Token![pub](span),
+            paren_token: Default::default(),
+            in_token: None,
+            path: Box::new(crate_path),
+        }),
         attrs: vec![],
         colon_token: Some(Token![:](span)),
         ty,
