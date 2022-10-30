@@ -170,12 +170,10 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     } else {
         let mut tokens = syn::parse_file(generic_file)?.into_token_stream();
         if config.target == Target::Msp430 && config.nightly {
-            let generic_msp430_atomic = syn::parse_file(msp430_atomic_file)?.into_token_stream();
-            tokens.extend(generic_msp430_atomic);
+            syn::parse_file(msp430_atomic_file)?.to_tokens(&mut tokens);
         }
         if config.const_generic {
-            let generic_array_proxy = syn::parse_file(array_proxy)?.into_token_stream();
-            tokens.extend(generic_array_proxy);
+            syn::parse_file(array_proxy)?.to_tokens(&mut tokens);
         }
 
         out.extend(quote! {
