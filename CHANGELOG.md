@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Test patched STM32
 - simplify ci strategy
+- Fix generated code for MSP430 atomics
 
 ## [v0.27.1] - 2022-10-25
 
 - Fix cli error with --help/version
 - Don't cast fields with width 17-31 and non-zero offset.
-- Fix generated code for MSP430 atomics
 
 ## [v0.27.0] - 2022-10-24
 
