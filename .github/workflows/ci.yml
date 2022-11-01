@@ -53,22 +53,28 @@ jobs:
           - { rust: stable, vendor: Freescale, options: all }
           - { rust: stable, vendor: Freescale, options: "" }
           - { rust: stable, vendor: Fujitsu, options: "" }
+          - { rust: stable, vendor: Fujitsu, options: "--nightly" }
           - { rust: stable, vendor: GD32, options: all }
           - { rust: stable, vendor: GD32, options: "" }
           - { rust: stable, vendor: Holtek, options: all }
           - { rust: stable, vendor: Holtek, options: "" }
           - { rust: stable, vendor: Microchip, options: "" }
+          - { rust: stable, vendor: Microchip, options: "--nightly" }
           - { rust: stable, vendor: Nordic, options: all }
           - { rust: stable, vendor: Nordic, options: "" }
           - { rust: stable, vendor: Nuvoton, options: "" }
+          - { rust: stable, vendor: Nuvoton, options: "--nightly" }
           - { rust: stable, vendor: NXP, options: all }
           - { rust: stable, vendor: NXP, options: "" }
           - { rust: stable, vendor: RISC-V, options: "" }
+          - { rust: stable, vendor: RISC-V, options: "--nightly" }
           - { rust: stable, vendor: SiliconLabs, options: all }
           - { rust: stable, vendor: SiliconLabs, options: "" }
           - { rust: stable, vendor: Spansion, options: "" }
+          - { rust: stable, vendor: Spansion, options: "--nightly" }
           - { rust: stable, vendor: STMicro, options: "" }
-          - { rust: stable, vendor: STM32-patched, options: "--strict --const_generic --derive_more --pascal_enum_values --max_cluster_size" }
+          - { rust: stable, vendor: STMicro, options: "--nightly" }
+          - { rust: stable, vendor: STM32-patched, options: "--strict --const_generic --derive_more --pascal_enum_values --max_cluster_size --nightly" }
           - { rust: stable, vendor: Toshiba, options: all }
           - { rust: stable, vendor: Toshiba, options: "" }
           # Test MSRV
@@ -76,6 +82,7 @@ jobs:
           # Use nightly for architectures which don't support stable
           - { rust: nightly, vendor: MSP430, options: "--nightly" }
           - { rust: nightly, vendor: MSP430, options: "" }
+          - { rust: nightly, vendor: Espressif, options: "--nightly" }
           - { rust: nightly, vendor: Espressif, options: "" }
 
     steps:

@@ -31,7 +31,7 @@ main() {
 
     case $OPTIONS in
         all)
-            options="--const_generic --strict --derive_more"
+            options="--const_generic --strict --derive_more --nightly"
             ;;
         *)
             options=$OPTIONS
@@ -45,6 +45,9 @@ main() {
     echo 'vcell = "0.1.3"' >> $td/Cargo.toml
     if [[ "$options" == *"--derive_more"* ]]; then
         echo 'derive_more = "0.99"' >> $td/Cargo.toml
+    fi
+    if [[ "$options" == *"--nightly"* ]]; then
+        echo 'portable-atomic = { version = "0.3.15", default-features = false }' >> $td/Cargo.toml
     fi
     echo '[profile.dev]' >> $td/Cargo.toml
     echo 'incremental = false' >> $td/Cargo.toml
@@ -464,9 +467,6 @@ main() {
         MSP430)
             echo '[dependencies.msp430]' >> $td/Cargo.toml
             echo 'version = "0.4.0"' >> $td/Cargo.toml
-
-            echo '[dependencies.portable-atomic]' >> $td/Cargo.toml
-            echo 'version = "0.3.15"' >> $td/Cargo.toml
 
             # Test MSP430
             test_svd_for_target msp430 https://raw.githubusercontent.com/pftbest/msp430g2553/v0.3.0-svd/msp430g2553.svd
