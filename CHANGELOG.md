@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Test patched STM32
 - simplify ci strategy
 - Fix generated code for MSP430 atomics
+- Generate atomic register code for non-MSP430 targets
 
 ## [v0.27.1] - 2022-10-25
 
