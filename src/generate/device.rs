@@ -152,7 +152,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     if config.generic_mod {
         let mut file = File::create(config.output_dir.join("generic.rs"))?;
         writeln!(file, "{}", generic_file)?;
-        if config.target == config.nightly {
+        if config.nightly {
             writeln!(file, "\n{}", generic_atomic_file)?;
         }
         if config.const_generic {
@@ -169,7 +169,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
     } else {
         let mut tokens = syn::parse_file(generic_file)?.into_token_stream();
-        if config.target == config.nightly {
+        if config.nightly {
             syn::parse_file(generic_atomic_file)?.to_tokens(&mut tokens);
         }
         if config.const_generic {
