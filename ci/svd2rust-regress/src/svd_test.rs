@@ -7,7 +7,8 @@ use std::process::{Command, Output};
 
 const CRATES_ALL: &[&str] = &["critical-section = \"1.0\"", "vcell = \"0.1.2\""];
 const CRATES_MSP430: &[&str] = &["msp430 = \"0.4.0\"", "msp430-rt = \"0.4.0\""];
-const CRATES_MSP430_NIGHTLY: &[&str] = &["portable-atomic = \"0.3.15\""];
+const CRATES_NIGHTLY: &[&str] =
+    &["portable-atomic = { version = \"0.3.15\", default-features = false }"];
 const CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.7.6\"", "cortex-m-rt = \"0.6.13\""];
 const CRATES_RISCV: &[&str] = &["riscv = \"0.9.0\"", "riscv-rt = \"0.9.0\""];
 const CRATES_XTENSALX: &[&str] = &["xtensa-lx-rt = \"0.9.0\"", "xtensa-lx = \"0.6.0\""];
@@ -137,10 +138,7 @@ pub fn test(
             XtensaLX => CRATES_XTENSALX.iter(),
         })
         .chain(if nightly {
-            match &t.arch {
-                Msp430 => CRATES_MSP430_NIGHTLY.iter(),
-                _ => [].iter(),
-            }
+            CRATES_NIGHTLY.iter()
         } else {
             [].iter()
         })
