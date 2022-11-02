@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - simplify ci strategy
 - Fix generated code for MSP430 atomics
 - Generate atomic register code for non-MSP430 targets
+- Change --nightly flag to --atomics
 
 ## [v0.27.1] - 2022-10-25
 

@@ -67,10 +67,10 @@ fn run() -> Result<()> {
                 .value_name("ARCH"),
         )
         .arg(
-            Arg::new("nightly")
-                .long("nightly")
+            Arg::new("atomics")
+                .long("atomics")
                 .action(ArgAction::SetTrue)
-                .help("Enable features only available to nightly rustc"),
+                .help("Generate atomic register modification API"),
         )
         .arg(
             Arg::new("const_generic")

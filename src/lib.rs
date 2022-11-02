@@ -484,17 +484,12 @@
 //!
 //! [`interrupt`]: https://docs.rs/cortex-m-rt-macros/0.1/cortex_m_rt_macros/attr.interrupt.html
 //!
-//! ## the `--nightly` flag
+//! ## the `--atomics` flag
 //!
-//! The `--nightly` flag can be passed to `svd2rust` to enable features in the generated api that are only available to a nightly
-//! compiler. The following features are gated by the `--nightly` flag:
-//!
-//! ### Atomics
-//!
-//! Extends the register API with operations to atomically set, clear, and toggle specific bits.
-//! The atomic operations allow limited modification of register bits without read-modify-write
-//! sequences. As such, they can be concurrently called on different bits in the same register
-//! without data races.
+//! The `--atomics` flag can be passed to `svd2rust` to extends the register API with operations to
+//! atomically set, clear, and toggle specific bits.  The atomic operations allow limited
+//! modification of register bits without read-modify-write sequences. As such, they can be
+//! concurrently called on different bits in the same register without data races.
 //!
 //! `portable-atomic` v0.3.15 must be added to the dependencies, with default features off if
 //! possible to disable the `fallback` feature.

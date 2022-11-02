@@ -7,7 +7,7 @@ use std::process::{Command, Output};
 
 const CRATES_ALL: &[&str] = &["critical-section = \"1.0\"", "vcell = \"0.1.2\""];
 const CRATES_MSP430: &[&str] = &["msp430 = \"0.4.0\"", "msp430-rt = \"0.4.0\""];
-const CRATES_NIGHTLY: &[&str] =
+const CRATES_ATOMICS: &[&str] =
     &["portable-atomic = { version = \"0.3.15\", default-features = false }"];
 const CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.7.6\"", "cortex-m-rt = \"0.6.13\""];
 const CRATES_RISCV: &[&str] = &["riscv = \"0.9.0\"", "riscv-rt = \"0.9.0\""];
@@ -85,7 +85,7 @@ pub fn test(
     t: &TestCase,
     bin_path: &PathBuf,
     rustfmt_bin_path: Option<&PathBuf>,
-    nightly: bool,
+    atomics: bool,
     verbosity: u8,
 ) -> Result<Option<Vec<PathBuf>>> {
     let user = match std::env::var("USER") {
@@ -137,8 +137,8 @@ pub fn test(
             Msp430 => CRATES_MSP430.iter(),
             XtensaLX => CRATES_XTENSALX.iter(),
         })
-        .chain(if nightly {
-            CRATES_NIGHTLY.iter()
+        .chain(if atomics {
+            CRATES_ATOMICS.iter()
         } else {
             [].iter()
         })
@@ -177,8 +177,8 @@ pub fn test(
         XtensaLX => "xtensa-lx",
     };
     let mut svd2rust_bin = Command::new(bin_path);
-    if nightly {
-        svd2rust_bin.arg("--nightly");
+    if atomics {
+        svd2rust_bin.arg("--atomics");
     }
 
     let output = svd2rust_bin
