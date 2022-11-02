@@ -1,5 +1,5 @@
 mod atomic {
-    use portable_atomic::{AtomicU16, AtomicU8, Ordering};
+    use portable_atomic::Ordering;
 
     pub trait AtomicOperations {
         unsafe fn atomic_or(ptr: *mut Self, val: Self);
@@ -24,8 +24,17 @@ mod atomic {
             }
         };
     }
-    impl_atomics!(u8, AtomicU8);
-    impl_atomics!(u16, AtomicU16);
+
+    impl_atomics!(u8, portable_atomic::AtomicU8);
+    impl_atomics!(i8, portable_atomic::AtomicI8);
+    impl_atomics!(u16, portable_atomic::AtomicU16);
+    impl_atomics!(i16, portable_atomic::AtomicI16);
+
+    // Exclude 16-bit archs from 32-bit atomics
+    #[cfg(not(target_pointer_width = "16"))]
+    impl_atomics!(u32, portable_atomic::AtomicU32);
+    #[cfg(not(target_pointer_width = "16"))]
+    impl_atomics!(i32, portable_atomic::AtomicI32);
 }
 use atomic::AtomicOperations;
 
