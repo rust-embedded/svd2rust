@@ -26,15 +26,15 @@ mod atomic {
     }
 
     impl_atomics!(u8, portable_atomic::AtomicU8);
-    impl_atomics!(i8, portable_atomic::AtomicI8);
     impl_atomics!(u16, portable_atomic::AtomicU16);
-    impl_atomics!(i16, portable_atomic::AtomicI16);
 
     // Exclude 16-bit archs from 32-bit atomics
     #[cfg(not(target_pointer_width = "16"))]
     impl_atomics!(u32, portable_atomic::AtomicU32);
-    #[cfg(not(target_pointer_width = "16"))]
-    impl_atomics!(i32, portable_atomic::AtomicI32);
+
+    // Enable 64-bit atomics for 64-bit RISCV
+    #[cfg(any(target_pointer_width = "64", target_has_atomic = "64"))]
+    impl_atomics!(u64, portable_atomic::AtomicU64);
 }
 use atomic::AtomicOperations;
 
