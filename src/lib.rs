@@ -489,10 +489,11 @@
 //! The `--atomics` flag can be passed to `svd2rust` to extends the register API with operations to
 //! atomically set, clear, and toggle specific bits.  The atomic operations allow limited
 //! modification of register bits without read-modify-write sequences. As such, they can be
-//! concurrently called on different bits in the same register without data races.
+//! concurrently called on different bits in the same register without data races. This flag won't
+//! work for RISCV chips without the atomic extension.
 //!
-//! `portable-atomic` v0.3.15 must be added to the dependencies, with default features off if
-//! possible to disable the `fallback` feature.
+//! `portable-atomic` v0.3.15 must be added to the dependencies, with default features off to
+//! disable the `fallback` feature.
 //!
 //! Usage examples:
 //!
