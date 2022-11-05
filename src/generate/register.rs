@@ -1,17 +1,21 @@
 use crate::svd::{
-    Access, BitRange, EnumeratedValues, Field, ModifiedWriteValues, ReadAction, Register,
-    RegisterProperties, Usage, WriteConstraint,
+    Access, BitRange, EnumeratedValues, Field, MaybeArray, ModifiedWriteValues, ReadAction,
+    Register, RegisterProperties, Usage, WriteConstraint,
 };
 use core::u64;
 use log::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
+use std::borrow::Cow;
 use std::collections::HashSet;
 use svd_parser::expand::{
     derive_enumerated_values, derive_field, BlockPath, EnumPath, FieldPath, Index, RegisterPath,
 };
 
-use crate::util::{self, ident_to_path, path_segment, type_path, Config, ToSanitizedCase, U32Ext};
+use crate::util::{
+    self, ident_to_path, path_segment, replace_suffix, type_path, Config, FullName,
+    ToSanitizedCase, U32Ext,
+};
 use anyhow::{anyhow, Result};
 use syn::punctuated::Punctuated;
 
@@ -22,7 +26,17 @@ pub fn render(
     index: &Index,
     config: &Config,
 ) -> Result<TokenStream> {
-    let name = util::name_of(register, config.ignore_groups);
+    let mut name = util::name_of(register, config.ignore_groups);
+    // Rename if this is a derived array
+    if dpath.is_some() {
+        if let MaybeArray::Array(info, array_info) = register {
+            if let Some(dim_index) = &array_info.dim_index {
+                let index: Cow<str> = dim_index.first().unwrap().into();
+                name =
+                    replace_suffix(&info.fullname(config.ignore_groups), &index.to_string()).into()
+            }
+        }
+    }
     let span = Span::call_site();
     let name_constant_case = name.to_constant_case_ident(span);
     let name_snake_case = name.to_snake_case_ident(span);

@@ -539,7 +539,7 @@ fn register_or_cluster_block(
     let ercs_expanded = expand(ercs, derive_infos, config)
         .with_context(|| "Could not expand register or cluster block")?;
 
-    // Locate conflicting regions; we'll need to use unions to derive_infoesent them.
+    // Locate conflicting regions; we'll need to use unions to represent them.
     let mut regions = FieldRegions::default();
 
     for reg_block_field in &ercs_expanded {
@@ -1084,15 +1084,15 @@ fn expand_register(
     let description = register.description.clone().unwrap_or_default();
 
     let info_name = register.fullname(config.ignore_groups);
-    let ty_name = if register.is_single() {
+    let mut ty_name = if register.is_single() {
         info_name.to_string()
     } else {
         util::replace_suffix(&info_name, "")
     };
-    let ty = name_to_ty(&ty_name);
 
     match register {
         Register::Single(info) => {
+            let ty = name_to_ty(&ty_name);
             let syn_field = new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), ty);
             register_expanded.push(RegisterBlockField {
                 syn_field,
@@ -1114,20 +1114,36 @@ fn expand_register(
                 false => true,
             };
 
-            // force expansion if we're implicitly deriving so we don't get name collisions
-            let array_convertible = if let DeriveInfo::Implicit(_) = derive_info {
-                false
+            // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
+            let sequential_indexes_from0 = array_info
+                .indexes_as_range()
+                .filter(|r| *r.start() == 0)
+                .is_some();
+
+            // force expansion and rename if we're deriving an array that doesnt start at 0 so we don't get name collisions
+            let index: Cow<str> = if let Some(dim_index) = &array_info.dim_index {
+                dim_index.first().unwrap().into()
             } else {
-                sequential_addresses && convert_list
+                if sequential_indexes_from0 {
+                    "0".into()
+                } else {
+                    "".into()
+                }
             };
+            let array_convertible = match derive_info {
+                DeriveInfo::Implicit(_) => {
+                    ty_name = util::replace_suffix(&info_name, &index);
+                    sequential_addresses && convert_list && sequential_indexes_from0
+                }
+                DeriveInfo::Explicit(_) => {
+                    ty_name = util::replace_suffix(&info_name, &index);
+                    sequential_addresses && convert_list && sequential_indexes_from0
+                }
+                _ => sequential_addresses && convert_list,
+            };
+            let ty = name_to_ty(&ty_name);
 
             if array_convertible {
-                // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
-                let sequential_indexes_from0 = array_info
-                    .indexes_as_range()
-                    .filter(|r| *r.start() == 0)
-                    .is_some();
-
                 let accessors = if sequential_indexes_from0 {
                     Vec::new()
                 } else {
@@ -1211,18 +1227,7 @@ fn render_ercs(
             RegisterCluster::Register(reg) => {
                 trace!("Register: {}, DeriveInfo: {}", reg.name, derive_info);
                 let mut rpath = None;
-                let before_name = reg.name.to_string();
                 if let DeriveInfo::Implicit(rp) = derive_info {
-                    let mut idx_name = None;
-                    let info_name = reg.fullname(config.ignore_groups).to_string();
-                    if let Register::Array(_, array_info) = reg {
-                        for (_, i) in array_info.indexes().enumerate() {
-                            idx_name = Some(util::replace_suffix(&info_name, &i).to_string());
-                        }
-                    }
-                    if let Some(name) = idx_name {
-                        reg.name = name;
-                    }
                     rpath = Some(rp.clone());
                 } else {
                     let dpath = reg.derived_from.take();
@@ -1230,14 +1235,14 @@ fn render_ercs(
                         rpath = derive_register(reg, &dpath, path, index)?;
                     }
                 }
+                let reg_name = &reg.name;
                 let rendered_reg =
                     register::render(reg, path, rpath, index, config).with_context(|| {
                         let descrip = reg.description.as_deref().unwrap_or("No description");
                         format!(
-                            "Error rendering register\nName: {before_name}\nDescription: {descrip}"
+                            "Error rendering register\nName: {reg_name}\nDescription: {descrip}"
                         )
                     })?;
-                reg.name = before_name;
                 mod_items.extend(rendered_reg)
             }
         }
