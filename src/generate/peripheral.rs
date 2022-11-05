@@ -535,10 +535,8 @@ fn register_or_cluster_block(
                 accessors.extend(quote! {
                     #[doc = #comment]
                     #[inline(always)]
-                    pub fn #name(&self) -> &#ty {
-                        unsafe {
-                            &*(((self as *const Self) as *const u8).add(#offset) as *const #ty)
-                        }
+                    pub const fn #name(&self) -> &#ty {
+                        unsafe { &*(self as *const Self).cast::<u8>().add(#offset).cast() }
                     }
                 });
             } else {
