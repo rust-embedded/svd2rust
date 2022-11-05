@@ -13,9 +13,9 @@ This project is developed and maintained by the [Tools team][team].
 
 ## Minimum Supported Rust Version (MSRV)
 
-The **generated code** is guaranteed to compile on stable Rust 1.60.0 and up.
+The **generated code** is guaranteed to compile on stable Rust 1.61.0 and up.
 
-If you encounter compilation errors on any stable version newer than 1.60.0, please open an issue.
+If you encounter compilation errors on any stable version newer than 1.61.0, please open an issue.
 
 # Testing Locally
 

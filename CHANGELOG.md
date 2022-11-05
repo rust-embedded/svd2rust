@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- mark alternate register accessors with `const`, bump `pac` MSRV to 1.61
 - `fields` fn refactoring
 - Test patched STM32
 - simplify ci strategy
