@@ -1,6 +1,10 @@
+use regex::Regex;
 use std::borrow::Cow;
 use std::cmp::Ordering;
-use svd_parser::expand::{derive_cluster, derive_peripheral, derive_register, BlockPath, Index};
+use std::fmt;
+use svd_parser::expand::{
+    derive_cluster, derive_peripheral, derive_register, BlockPath, Index, RegisterPath,
+};
 
 use crate::svd::{array::names, Cluster, ClusterInfo, Peripheral, Register, RegisterCluster};
 use log::{debug, trace, warn};
@@ -191,17 +195,35 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         return Ok(TokenStream::new());
     }
 
+    debug!("Checking derivation information");
+    let derive_infos = check_erc_derive_infos(&mut ercs, &path, index, config)?;
+    let zipped = ercs.iter_mut().zip(derive_infos.iter());
+    for (mut erc, derive_info) in zipped {
+        match &mut erc {
+            &mut RegisterCluster::Register(register) => match derive_info {
+                DeriveInfo::Implicit(rpath) => {
+                    debug!(
+                        "register {} implicitly derives from {}",
+                        register.name, rpath.name
+                    );
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+
     debug!("Pushing cluster & register information into output");
     // Push all cluster & register related information into the peripheral module
 
-    let mod_items = render_ercs(&mut ercs, &path, index, config)?;
+    let mod_items = render_ercs(&mut ercs, &derive_infos, &path, index, config)?;
 
     // Push any register or cluster blocks into the output
     debug!(
         "Pushing {} register or cluster blocks into output",
         ercs.len()
     );
-    let reg_block = register_or_cluster_block(&ercs, None, None, config)?;
+    let reg_block = register_or_cluster_block(&ercs, &derive_infos, None, None, config)?;
 
     let open = Punct::new('{', Spacing::Alone);
     let close = Punct::new('}', Spacing::Alone);
@@ -220,6 +242,28 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
     p.registers = Some(ercs);
 
     Ok(out)
+}
+
+/// An enum describing the derivation status of an erc, which allows for disjoint arrays to be
+/// implicitly derived from a common type.
+#[derive(Debug, PartialEq)]
+enum DeriveInfo {
+    Root,
+    Explicit(RegisterPath),
+    Implicit(RegisterPath),
+    Cluster, // don't do anything different for clusters
+}
+
+impl Default for DeriveInfo {
+    fn default() -> Self {
+        DeriveInfo::Root
+    }
+}
+
+impl fmt::Display for DeriveInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self:?}")
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -484,6 +528,7 @@ fn make_comment(size: u32, offset: u32, description: &str) -> String {
 
 fn register_or_cluster_block(
     ercs: &[RegisterCluster],
+    derive_infos: &[DeriveInfo],
     name: Option<&str>,
     size: Option<u32>,
     config: &Config,
@@ -491,8 +536,8 @@ fn register_or_cluster_block(
     let mut rbfs = TokenStream::new();
     let mut accessors = TokenStream::new();
 
-    let ercs_expanded =
-        expand(ercs, config).with_context(|| "Could not expand register or cluster block")?;
+    let ercs_expanded = expand(ercs, derive_infos, config)
+        .with_context(|| "Could not expand register or cluster block")?;
 
     // Locate conflicting regions; we'll need to use unions to represent them.
     let mut regions = FieldRegions::default();
@@ -629,18 +674,26 @@ fn register_or_cluster_block(
 
 /// Expand a list of parsed `Register`s or `Cluster`s, and render them to
 /// `RegisterBlockField`s containing `Field`s.
-fn expand(ercs: &[RegisterCluster], config: &Config) -> Result<Vec<RegisterBlockField>> {
+fn expand(
+    ercs: &[RegisterCluster],
+    derive_infos: &[DeriveInfo],
+    config: &Config,
+) -> Result<Vec<RegisterBlockField>> {
     let mut ercs_expanded = vec![];
-
     debug!("Expanding registers or clusters into Register Block Fields");
-    for erc in ercs {
+    let zipped = ercs.iter().zip(derive_infos.iter());
+
+    for (erc, derive_info) in zipped {
         match &erc {
             RegisterCluster::Register(register) => {
                 let reg_name = &register.name;
-                let expanded_reg = expand_register(register, config).with_context(|| {
-                    let descrip = register.description.as_deref().unwrap_or("No description");
-                    format!("Error expanding register\nName: {reg_name}\nDescription: {descrip}")
-                })?;
+                let expanded_reg =
+                    expand_register(register, derive_info, config).with_context(|| {
+                        let descrip = register.description.as_deref().unwrap_or("No description");
+                        format!(
+                            "Error expanding register\nName: {reg_name}\nDescription: {descrip}"
+                        )
+                    })?;
                 trace!("Register: {reg_name}");
                 ercs_expanded.extend(expanded_reg);
             }
@@ -659,6 +712,181 @@ fn expand(ercs: &[RegisterCluster], config: &Config) -> Result<Vec<RegisterBlock
     ercs_expanded.sort_by_key(|x| x.offset);
 
     Ok(ercs_expanded)
+}
+
+/// Searches types using regex to find disjoint arrays which should implicitly derive from
+/// another register. Returns a vector of `DeriveInfo` which should be `zip`ped with ercs when rendering.
+fn check_erc_derive_infos(
+    ercs: &mut [RegisterCluster],
+    path: &BlockPath,
+    index: &Index,
+    config: &Config,
+) -> Result<Vec<DeriveInfo>> {
+    let mut ercs_type_info: Vec<(String, Option<Regex>, &RegisterCluster, &mut DeriveInfo)> =
+        vec![];
+    let mut derive_infos: Vec<DeriveInfo> = vec![];
+    // fill the array so we can slice it (without implementing clone)
+    for _i in 0..ercs.len() {
+        derive_infos.push(DeriveInfo::default());
+    }
+    let derive_infos_slice = &mut derive_infos[0..ercs.len()];
+    let zipped = ercs.iter_mut().zip(derive_infos_slice.iter_mut());
+    for (mut erc, derive_info) in zipped {
+        match &mut erc {
+            &mut RegisterCluster::Register(register) => {
+                let info_name = register.fullname(config.ignore_groups).to_string();
+                let explicit_rpath = match &mut register.derived_from.clone() {
+                    Some(dpath) => Some(find_root(&dpath, path, index)?),
+                    None => None,
+                };
+                match register {
+                    Register::Single(_) => {
+                        let ty_name = info_name.to_string();
+                        *derive_info = match explicit_rpath {
+                            None => {
+                                match regex_against_prev(&ty_name, &ercs_type_info) {
+                                    Some(prev_name) => {
+                                        // make sure the matched register isn't already deriving from this register
+                                        let root = find_root(&prev_name, path, index)?;
+                                        if ty_name == root.name {
+                                            DeriveInfo::Root
+                                        } else {
+                                            DeriveInfo::Implicit(root)
+                                        }
+                                    }
+                                    None => DeriveInfo::Root,
+                                }
+                            }
+                            Some(rpath) => DeriveInfo::Explicit(rpath),
+                        };
+                        ercs_type_info.push((ty_name, None, erc, derive_info));
+                    }
+
+                    Register::Array(..) => {
+                        // Only match integer indeces when searching for disjoint arrays
+                        let re_string = util::replace_suffix(&info_name, "([0-9]+|%s)");
+                        let re = Regex::new(format!("^{re_string}$").as_str()).or_else(|_| {
+                            Err(anyhow!(
+                                "Error creating regex for register {}",
+                                register.name
+                            ))
+                        })?;
+                        let ty_name = info_name.to_string(); // keep suffix for regex matching
+                        *derive_info = match explicit_rpath {
+                            None => {
+                                match regex_against_prev(&ty_name, &ercs_type_info) {
+                                    Some(prev_name) => {
+                                        let root = find_root(&prev_name, path, index)?;
+                                        DeriveInfo::Implicit(root)
+                                    }
+                                    None => {
+                                        let mut my_derive_info = DeriveInfo::Root;
+                                        // Check this type regex against previous names
+                                        for prev in &mut ercs_type_info {
+                                            let (
+                                                prev_name,
+                                                _prev_regex,
+                                                prev_erc,
+                                                prev_derive_info,
+                                            ) = prev;
+                                            if let RegisterCluster::Register(prev_reg) = prev_erc {
+                                                if let Register::Array(..) = prev_reg {
+                                                    // Arrays had a chance to match above
+                                                    continue;
+                                                }
+                                                if re.is_match(&prev_name) {
+                                                    let loop_derive_info = match prev_derive_info {
+                                                        DeriveInfo::Root => {
+                                                            let implicit_rpath =
+                                                                find_root(&ty_name, path, index)?;
+                                                            **prev_derive_info =
+                                                                DeriveInfo::Implicit(implicit_rpath);
+                                                            DeriveInfo::Root
+                                                        }
+                                                        DeriveInfo::Explicit(rpath) => {
+                                                            let implicit_rpath = find_root(
+                                                                &rpath.name,
+                                                                path,
+                                                                index,
+                                                            )?;
+                                                            DeriveInfo::Implicit(implicit_rpath)
+                                                        }
+                                                        DeriveInfo::Implicit(rpath) => {
+                                                            DeriveInfo::Implicit(rpath.clone())
+                                                        }
+                                                        DeriveInfo::Cluster => {
+                                                            return Err(anyhow!(
+                                                            "register {} derive_infoesented as cluster",
+                                                            register.name
+                                                        ))
+                                                        }
+                                                    };
+                                                    if let DeriveInfo::Root = my_derive_info {
+                                                        if my_derive_info != loop_derive_info {
+                                                            my_derive_info = loop_derive_info;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        my_derive_info
+                                    }
+                                }
+                            }
+                            Some(rpath) => DeriveInfo::Explicit(rpath),
+                        };
+                        ercs_type_info.push((ty_name, Some(re), erc, derive_info));
+                    }
+                };
+            }
+            &mut RegisterCluster::Cluster(cluster) => {
+                *derive_info = DeriveInfo::Cluster;
+                ercs_type_info.push((cluster.name.to_string(), None, erc, derive_info));
+            }
+        };
+    }
+    Ok(derive_infos)
+}
+
+fn find_root(dpath: &str, path: &BlockPath, index: &Index) -> Result<RegisterPath> {
+    let (dblock, dname) = RegisterPath::parse_str(dpath);
+    let rdpath;
+    let reg_path;
+    let d = (if let Some(dblock) = dblock {
+        reg_path = dblock.new_register(dname);
+        rdpath = dblock;
+        index.registers.get(&reg_path)
+    } else {
+        reg_path = path.new_register(dname);
+        rdpath = path.clone();
+        index.registers.get(&reg_path)
+    })
+    .ok_or_else(|| anyhow!("register {} not found", dpath))?;
+    match d.derived_from.as_ref() {
+        Some(dp) => find_root(dp, &rdpath, index),
+        None => Ok(reg_path),
+    }
+}
+
+fn regex_against_prev(
+    ty_name: &str,
+    ercs_type_info: &Vec<(String, Option<Regex>, &RegisterCluster, &mut DeriveInfo)>,
+) -> Option<String> {
+    let mut prev_match = None;
+    // Check this type name against previous regexs
+    for prev in ercs_type_info {
+        let (prev_name, prev_regex, prev_erc, _prev_derive_info) = prev;
+        if let RegisterCluster::Register(_) = prev_erc {
+            if let Some(prev_re) = prev_regex {
+                // if matched adopt the previous type name
+                if prev_re.is_match(&ty_name) {
+                    prev_match = Some(prev_name.to_string());
+                    break;
+                }
+            }
+        }
+    }
+    prev_match
 }
 
 /// Calculate the size of a Cluster.  If it is an array, then the dimensions
@@ -690,7 +918,7 @@ fn cluster_info_size_in_bits(info: &ClusterInfo, config: &Config) -> Result<u32>
     for c in &info.children {
         let end = match c {
             RegisterCluster::Register(reg) => {
-                let reg_size: u32 = expand_register(reg, config)?
+                let reg_size: u32 = expand_register(reg, &DeriveInfo::Root, config)?
                     .iter()
                     .map(|rbf| rbf.size)
                     .sum();
@@ -838,8 +1066,13 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
 }
 
 /// If svd register arrays can't be converted to rust arrays (non sequential addresses, non
-/// numeral indexes, or not containing all elements from 0 to size) they will be expanded
-fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterBlockField>> {
+/// numeral indexes, or not containing all elements from 0 to size) they will be expanded.
+/// A `DeriveInfo::Implicit(_)` will also cause an array to be expanded.
+fn expand_register(
+    register: &Register,
+    derive_info: &DeriveInfo,
+    config: &Config,
+) -> Result<Vec<RegisterBlockField>> {
     let mut register_expanded = vec![];
 
     let register_size = register
@@ -849,15 +1082,15 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
     let description = register.description.clone().unwrap_or_default();
 
     let info_name = register.fullname(config.ignore_groups);
-    let ty_name = if register.is_single() {
+    let mut ty_name = if register.is_single() {
         info_name.to_string()
     } else {
         util::replace_suffix(&info_name, "")
     };
-    let ty = name_to_ty(&ty_name);
 
     match register {
         Register::Single(info) => {
+            let ty = name_to_ty(&ty_name);
             let syn_field = new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), ty);
             register_expanded.push(RegisterBlockField {
                 syn_field,
@@ -879,15 +1112,36 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
                 false => true,
             };
 
-            let array_convertible = sequential_addresses && convert_list;
+            // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
+            let sequential_indexes_from0 = array_info
+                .indexes_as_range()
+                .filter(|r| *r.start() == 0)
+                .is_some();
+
+            // force expansion and rename if we're deriving an array that doesnt start at 0 so we don't get name collisions
+            let index: Cow<str> = if let Some(dim_index) = &array_info.dim_index {
+                dim_index.first().unwrap().into()
+            } else {
+                if sequential_indexes_from0 {
+                    "0".into()
+                } else {
+                    "".into()
+                }
+            };
+            let array_convertible = match derive_info {
+                DeriveInfo::Implicit(_) => {
+                    ty_name = util::replace_suffix(&info_name, &index);
+                    sequential_addresses && convert_list && sequential_indexes_from0
+                }
+                DeriveInfo::Explicit(_) => {
+                    ty_name = util::replace_suffix(&info_name, &index);
+                    sequential_addresses && convert_list && sequential_indexes_from0
+                }
+                _ => sequential_addresses && convert_list,
+            };
+            let ty = name_to_ty(&ty_name);
 
             if array_convertible {
-                // if dimIndex exists, test if it is a sequence of numbers from 0 to dim
-                let sequential_indexes_from0 = array_info
-                    .indexes_as_range()
-                    .filter(|r| *r.start() == 0)
-                    .is_some();
-
                 let accessors = if sequential_indexes_from0 {
                     Vec::new()
                 } else {
@@ -946,13 +1200,15 @@ fn expand_register(register: &Register, config: &Config) -> Result<Vec<RegisterB
 
 fn render_ercs(
     ercs: &mut [RegisterCluster],
+    derive_infos: &[DeriveInfo],
     path: &BlockPath,
     index: &Index,
     config: &Config,
 ) -> Result<TokenStream> {
     let mut mod_items = TokenStream::new();
 
-    for erc in ercs {
+    let zipped = ercs.iter_mut().zip(derive_infos.iter());
+    for (erc, derive_info) in zipped {
         match erc {
             // Generate the sub-cluster blocks.
             RegisterCluster::Cluster(c) => {
@@ -967,14 +1223,17 @@ fn render_ercs(
 
             // Generate definition for each of the registers.
             RegisterCluster::Register(reg) => {
-                trace!("Register: {}", reg.name);
+                trace!("Register: {}, DeriveInfo: {}", reg.name, derive_info);
                 let mut rpath = None;
-                let dpath = reg.derived_from.take();
-                if let Some(dpath) = dpath {
-                    rpath = derive_register(reg, &dpath, path, index)?;
+                if let DeriveInfo::Implicit(rp) = derive_info {
+                    rpath = Some(rp.clone());
+                } else {
+                    let dpath = reg.derived_from.take();
+                    if let Some(dpath) = dpath {
+                        rpath = derive_register(reg, &dpath, path, index)?;
+                    }
                 }
                 let reg_name = &reg.name;
-
                 let rendered_reg =
                     register::render(reg, path, rpath, index, config).with_context(|| {
                         let descrip = reg.description.as_deref().unwrap_or("No description");
@@ -1031,7 +1290,8 @@ fn cluster_block(
         })
     } else {
         let cpath = path.new_cluster(&c.name);
-        let mod_items = render_ercs(&mut c.children, &cpath, index, config)?;
+        let mod_derive_infos = check_erc_derive_infos(&mut c.children, &cpath, index, config)?;
+        let mod_items = render_ercs(&mut c.children, &mod_derive_infos, &cpath, index, config)?;
 
         // Generate the register block.
         let cluster_size = match c {
@@ -1040,8 +1300,13 @@ fn cluster_block(
             }
             _ => None,
         };
-        let reg_block =
-            register_or_cluster_block(&c.children, Some(&mod_name), cluster_size, config)?;
+        let reg_block = register_or_cluster_block(
+            &c.children,
+            &mod_derive_infos,
+            Some(&mod_name),
+            cluster_size,
+            config,
+        )?;
 
         let mod_items = quote! {
             #reg_block
