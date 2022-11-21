@@ -32,6 +32,6 @@ And if someone takes issue with something you said or did, resist the urge to be
 
 The enforcement policies listed above apply to all official embedded WG venues; including official IRC channels (#rust-embedded); GitHub repositories under rust-embedded; and all forums under rust-embedded.org (forum.rust-embedded.org).
 
-*Adapted from the [Node.js Policy on Trolling](http://blog.izs.me/post/30036893703/policy-on-trolling) as well as the [Contributor Covenant v1.3.0](https://www.contributor-covenant.org/version/1/3/0/).*
+*Adapted from the [Node.js Policy on Trolling](https://blog.izs.me/2012/08/policy-on-trolling/) as well as the [Contributor Covenant v1.3.0](https://www.contributor-covenant.org/version/1/3/0/).*
 
 [team]: https://github.com/rust-embedded/wg#the-tools-team
