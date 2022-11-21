@@ -1,6 +1,6 @@
 //! Peripheral API generator from [CMSIS-SVD] files
 //!
-//! [CMSIS-SVD]: http://www.keil.com/pack/doc/CMSIS/SVD/html/index.html
+//! [CMSIS-SVD]: https://www.keil.com/pack/doc/CMSIS/SVD/html/index.html
 //!
 //! An SVD file is an XML file that describes the hardware features of a
 //! microcontroller. In particular, it lists all the peripherals available to the
