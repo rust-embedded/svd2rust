@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Test patched STM32
 - simplify ci strategy
 - Fix generated code for MSP430 atomics
-- Add handling for disjoint arrays
+- Add handling for disjoint register arrays and validation of derives
 
 ## [v0.27.1] - 2022-10-25
 
