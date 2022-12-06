@@ -6,7 +6,10 @@ use svd_parser::expand::{
     derive_cluster, derive_peripheral, derive_register, BlockPath, Index, RegisterPath,
 };
 
-use crate::svd::{array::names, Cluster, ClusterInfo, Peripheral, Register, RegisterCluster};
+use crate::svd::{
+    array::names, Cluster, ClusterInfo, MaybeArray, Peripheral, Register, RegisterCluster,
+    RegisterInfo,
+};
 use log::{debug, trace, warn};
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
@@ -736,7 +739,10 @@ fn check_erc_derive_infos(
             &mut RegisterCluster::Register(register) => {
                 let info_name = register.fullname(config.ignore_groups).to_string();
                 let explicit_rpath = match &mut register.derived_from.clone() {
-                    Some(dpath) => Some(find_root(&dpath, path, index)?),
+                    Some(dpath) => {
+                        let (_, root) = find_root(&dpath, path, index)?;
+                        Some(root)
+                    }
                     None => None,
                 };
                 match register {
@@ -744,10 +750,15 @@ fn check_erc_derive_infos(
                         let ty_name = info_name.to_string();
                         *derive_info = match explicit_rpath {
                             None => {
-                                match regex_against_prev(&ty_name, &ercs_type_info) {
-                                    Some(prev_name) => {
+                                match compare_this_against_prev(
+                                    &register,
+                                    &ty_name,
+                                    path,
+                                    index,
+                                    &ercs_type_info,
+                                )? {
+                                    Some(root) => {
                                         // make sure the matched register isn't already deriving from this register
-                                        let root = find_root(&prev_name, path, index)?;
                                         if ty_name == root.name {
                                             DeriveInfo::Root
                                         } else {
@@ -774,63 +785,22 @@ fn check_erc_derive_infos(
                         let ty_name = info_name.to_string(); // keep suffix for regex matching
                         *derive_info = match explicit_rpath {
                             None => {
-                                match regex_against_prev(&ty_name, &ercs_type_info) {
-                                    Some(prev_name) => {
-                                        let root = find_root(&prev_name, path, index)?;
-                                        DeriveInfo::Implicit(root)
-                                    }
-                                    None => {
-                                        let mut my_derive_info = DeriveInfo::Root;
-                                        // Check this type regex against previous names
-                                        for prev in &mut ercs_type_info {
-                                            let (
-                                                prev_name,
-                                                _prev_regex,
-                                                prev_erc,
-                                                prev_derive_info,
-                                            ) = prev;
-                                            if let RegisterCluster::Register(prev_reg) = prev_erc {
-                                                if let Register::Array(..) = prev_reg {
-                                                    // Arrays had a chance to match above
-                                                    continue;
-                                                }
-                                                if re.is_match(&prev_name) {
-                                                    let loop_derive_info = match prev_derive_info {
-                                                        DeriveInfo::Root => {
-                                                            let implicit_rpath =
-                                                                find_root(&ty_name, path, index)?;
-                                                            **prev_derive_info =
-                                                                DeriveInfo::Implicit(implicit_rpath);
-                                                            DeriveInfo::Root
-                                                        }
-                                                        DeriveInfo::Explicit(rpath) => {
-                                                            let implicit_rpath = find_root(
-                                                                &rpath.name,
-                                                                path,
-                                                                index,
-                                                            )?;
-                                                            DeriveInfo::Implicit(implicit_rpath)
-                                                        }
-                                                        DeriveInfo::Implicit(rpath) => {
-                                                            DeriveInfo::Implicit(rpath.clone())
-                                                        }
-                                                        DeriveInfo::Cluster => {
-                                                            return Err(anyhow!(
-                                                            "register {} derive_infoesented as cluster",
-                                                            register.name
-                                                        ))
-                                                        }
-                                                    };
-                                                    if let DeriveInfo::Root = my_derive_info {
-                                                        if my_derive_info != loop_derive_info {
-                                                            my_derive_info = loop_derive_info;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        my_derive_info
-                                    }
+                                match compare_this_against_prev(
+                                    &register,
+                                    &ty_name,
+                                    path,
+                                    index,
+                                    &ercs_type_info,
+                                )? {
+                                    Some(root) => DeriveInfo::Implicit(root),
+                                    None => compare_prev_against_this(
+                                        &register,
+                                        &ty_name,
+                                        &re,
+                                        path,
+                                        index,
+                                        &mut ercs_type_info,
+                                    )?,
                                 }
                             }
                             Some(rpath) => DeriveInfo::Explicit(rpath),
@@ -848,7 +818,11 @@ fn check_erc_derive_infos(
     Ok(derive_infos)
 }
 
-fn find_root(dpath: &str, path: &BlockPath, index: &Index) -> Result<RegisterPath> {
+fn find_root(
+    dpath: &str,
+    path: &BlockPath,
+    index: &Index,
+) -> Result<(MaybeArray<RegisterInfo>, RegisterPath)> {
     let (dblock, dname) = RegisterPath::parse_str(dpath);
     let rdpath;
     let reg_path;
@@ -864,29 +838,98 @@ fn find_root(dpath: &str, path: &BlockPath, index: &Index) -> Result<RegisterPat
     .ok_or_else(|| anyhow!("register {} not found", dpath))?;
     match d.derived_from.as_ref() {
         Some(dp) => find_root(dp, &rdpath, index),
-        None => Ok(reg_path),
+        None => Ok(((*d).clone(), reg_path)),
     }
 }
 
-fn regex_against_prev(
+/// Compare the given type name against previous regexs, then inspect fields
+fn compare_this_against_prev(
+    reg: &MaybeArray<RegisterInfo>,
     ty_name: &str,
+    path: &BlockPath,
+    index: &Index,
     ercs_type_info: &Vec<(String, Option<Regex>, &RegisterCluster, &mut DeriveInfo)>,
-) -> Option<String> {
-    let mut prev_match = None;
-    // Check this type name against previous regexs
+) -> Result<Option<RegisterPath>> {
     for prev in ercs_type_info {
         let (prev_name, prev_regex, prev_erc, _prev_derive_info) = prev;
         if let RegisterCluster::Register(_) = prev_erc {
             if let Some(prev_re) = prev_regex {
-                // if matched adopt the previous type name
                 if prev_re.is_match(&ty_name) {
-                    prev_match = Some(prev_name.to_string());
-                    break;
+                    let (source_reg, rpath) = find_root(&prev_name, path, index)?;
+                    if is_derivable(&source_reg, &reg) {
+                        return Ok(Some(rpath));
+                    }
                 }
             }
         }
     }
-    prev_match
+    Ok(None)
+}
+
+/// Compare the given type name against previous regexs, then inspect fields
+fn compare_prev_against_this(
+    reg: &MaybeArray<RegisterInfo>,
+    ty_name: &String,
+    re: &regex::Regex,
+    path: &BlockPath,
+    index: &Index,
+    ercs_type_info: &mut Vec<(String, Option<Regex>, &RegisterCluster, &mut DeriveInfo)>,
+) -> Result<DeriveInfo> {
+    let mut my_derive_info = DeriveInfo::Root;
+    // Check this type regex against previous names
+    for prev in ercs_type_info {
+        let (prev_name, _prev_regex, prev_erc, prev_derive_info) = prev;
+        if let RegisterCluster::Register(prev_reg) = prev_erc {
+            if let Register::Array(..) = prev_reg {
+                // Arrays are covered with compare_this_against_prev
+                continue;
+            }
+            if re.is_match(&prev_name) {
+                let loop_derive_info = match prev_derive_info {
+                    DeriveInfo::Root => {
+                        // Get the RegisterPath for reg
+                        let (_, implicit_rpath) = find_root(&ty_name, path, index)?;
+                        if is_derivable(&prev_reg, &reg) {
+                            **prev_derive_info = DeriveInfo::Implicit(implicit_rpath);
+                        }
+                        DeriveInfo::Root
+                    }
+                    DeriveInfo::Explicit(rpath) => {
+                        let (source_reg, implicit_rpath) = find_root(&rpath.name, path, index)?;
+                        if is_derivable(&source_reg, reg) {
+                            DeriveInfo::Implicit(implicit_rpath)
+                        } else {
+                            DeriveInfo::Root
+                        }
+                    }
+                    DeriveInfo::Implicit(rpath) => {
+                        let (source_reg, _) = find_root(&rpath.name, path, index)?;
+                        if is_derivable(&source_reg, reg) {
+                            DeriveInfo::Implicit(rpath.clone())
+                        } else {
+                            DeriveInfo::Root
+                        }
+                    }
+                    DeriveInfo::Cluster => {
+                        return Err(anyhow!("register {} represented as cluster", prev_reg.name))
+                    }
+                };
+                if let DeriveInfo::Root = my_derive_info {
+                    if my_derive_info != loop_derive_info {
+                        my_derive_info = loop_derive_info;
+                    }
+                }
+            }
+        }
+    }
+    Ok(my_derive_info)
+}
+
+fn is_derivable(
+    source_reg: &MaybeArray<RegisterInfo>,
+    target_reg: &MaybeArray<RegisterInfo>,
+) -> bool {
+    (source_reg.properties == target_reg.properties) && (source_reg.fields == target_reg.fields)
 }
 
 /// Calculate the size of a Cluster.  If it is an array, then the dimensions
