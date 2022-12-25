@@ -32,8 +32,7 @@ pub fn render(
         if let MaybeArray::Array(info, array_info) = register {
             if let Some(dim_index) = &array_info.dim_index {
                 let index: Cow<str> = dim_index.first().unwrap().into();
-                name =
-                    replace_suffix(&info.fullname(config.ignore_groups), &index.to_string()).into()
+                name = replace_suffix(&info.fullname(config.ignore_groups), &index).into()
             }
         }
     }

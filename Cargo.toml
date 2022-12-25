@@ -23,7 +23,7 @@ keywords = [
 license = "MIT OR Apache-2.0"
 name = "svd2rust"
 repository = "https://github.com/rust-embedded/svd2rust/"
-version = "0.27.2"
+version = "0.28.0"
 readme = "README.md"
 rust-version = "1.60"
 
@@ -45,7 +45,7 @@ yaml = ["dep:serde_yaml"]
 [dependencies]
 clap = { version = "4.0", optional = true }
 irx-config = { version = "3.1", features = ["cmd", "toml-parser"], optional = true }
-env_logger = { version = "0.9", optional = true }
+env_logger = { version = "0.10", optional = true }
 inflections = "1.1"
 log = { version = "~0.4", features = ["std"] }
 quote = "1.0"
@@ -55,7 +55,7 @@ thiserror = "1.0"
 serde = { version = "1.0", optional = true }
 serde_json = { version = "1.0.85", optional = true }
 serde_yaml = { version = "0.9.11", optional = true }
-regex = "1.6.0"
+regex = "1.7.0"
 
 [dependencies.svd-parser]
 features = ["expand"]
