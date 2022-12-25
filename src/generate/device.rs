@@ -147,13 +147,13 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     }
 
     let generic_file = include_str!("generic.rs");
-    let msp430_atomic_file = include_str!("generic_msp430_atomic.rs");
+    let generic_atomic_file = include_str!("generic_atomic.rs");
     let array_proxy = include_str!("array_proxy.rs");
     if config.generic_mod {
         let mut file = File::create(config.output_dir.join("generic.rs"))?;
         writeln!(file, "{}", generic_file)?;
-        if config.target == Target::Msp430 && config.nightly {
-            writeln!(file, "\n{}", msp430_atomic_file)?;
+        if config.atomics {
+            writeln!(file, "\n{}", generic_atomic_file)?;
         }
         if config.const_generic {
             writeln!(file, "{}", array_proxy)?;
@@ -169,8 +169,8 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
     } else {
         let mut tokens = syn::parse_file(generic_file)?.into_token_stream();
-        if config.target == Target::Msp430 && config.nightly {
-            syn::parse_file(msp430_atomic_file)?.to_tokens(&mut tokens);
+        if config.atomics {
+            syn::parse_file(generic_atomic_file)?.to_tokens(&mut tokens);
         }
         if config.const_generic {
             syn::parse_file(array_proxy)?.to_tokens(&mut tokens);

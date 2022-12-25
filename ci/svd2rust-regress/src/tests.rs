@@ -4195,7 +4195,7 @@ pub const TESTS: &[&TestCase] = &[
         mfgr: TexasInstruments,
         chip: "msp430fr2355",
         svd_url: Some(
-            "https://raw.githubusercontent.com/YuhanLiin/msp430fr2355/rt-up/msp430fr2355.svd",
+            "https://raw.githubusercontent.com/YuhanLiin/msp430fr2355/master/msp430fr2355.svd",
         ),
         should_pass: true,
         run_when: Always,

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Generate atomic register code for non-MSP430 targets
+- Change --nightly flag to --atomics
+
 ## [v0.27.2] - 2022-11-06
 
 - mark alternate register accessors with `const`, bump `pac` MSRV to 1.61

@@ -29,9 +29,9 @@ struct Opt {
     bin_path: Option<PathBuf>,
 
     // TODO: Consider using the same strategy cargo uses for passing args to rustc via `--`
-    /// Run svd2rust with `--nightly`
-    #[structopt(long = "nightly")]
-    nightly: bool,
+    /// Run svd2rust with `--atomics`
+    #[structopt(long = "atomics")]
+    atomics: bool,
 
     /// Filter by chip name, case sensitive, may be combined with other filters
     #[structopt(short = "c", long = "chip", raw(validator = "validate_chips"))]
@@ -240,7 +240,7 @@ fn main() {
     tests.par_iter().for_each(|t| {
         let start = Instant::now();
 
-        match svd_test::test(t, &bin_path, rustfmt_bin_path, opt.nightly, opt.verbose) {
+        match svd_test::test(t, &bin_path, rustfmt_bin_path, opt.atomics, opt.verbose) {
             Ok(s) => {
                 if let Some(stderrs) = s {
                     let mut buf = String::new();

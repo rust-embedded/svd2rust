@@ -122,21 +122,18 @@
 //! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.4.x
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
 //!
-//! If the `--nightly` flag is provided to `svd2rust`, then `portable-atomic` v0.3.15 is also needed.
-//! Furthermore the "device" feature of `msp430-rt` must be enabled when the `rt` feature is
+//! The "device" feature of `msp430-rt` must be enabled when the `rt` feature is
 //! enabled. The `Cargo.toml` of the device crate will look like this:
 //!
 //! ``` toml
 //! [dependencies]
 //! critical-section = { version = "1.0", optional = true }
 //! msp430 = "0.4.0"
-//! portable-atomic = "0.3.15" # Only when using the --nightly flag
 //! msp430-rt = { version = "0.4.0", optional = true }
 //! vcell = "0.1.0"
 //!
 //! [features]
 //! rt = ["msp430-rt/device"]
-//! unstable = ["portable-atomic"]
 //! ```
 //!
 //! ## Other targets
@@ -487,17 +484,16 @@
 //!
 //! [`interrupt`]: https://docs.rs/cortex-m-rt-macros/0.1/cortex_m_rt_macros/attr.interrupt.html
 //!
-//! ## the `--nightly` flag
+//! ## the `--atomics` flag
 //!
-//! The `--nightly` flag can be passed to `svd2rust` to enable features in the generated api that are only available to a nightly
-//! compiler. The following features are gated by the `--nightly` flag:
+//! The `--atomics` flag can be passed to `svd2rust` to extends the register API with operations to
+//! atomically set, clear, and toggle specific bits.  The atomic operations allow limited
+//! modification of register bits without read-modify-write sequences. As such, they can be
+//! concurrently called on different bits in the same register without data races. This flag won't
+//! work for RISCV chips without the atomic extension.
 //!
-//! ### MSP430
-//!
-//! Extends the register API with operations to atomically set, clear, and toggle specific bits.
-//! The atomic operations allow limited modification of register bits without read-modify-write
-//! sequences. As such, they can be concurrently called on different bits in the same register
-//! without data races.
+//! `portable-atomic` v0.3.16 must be added to the dependencies, with default features off to
+//! disable the `fallback` feature.
 //!
 //! Usage examples:
 //!

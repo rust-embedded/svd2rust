@@ -27,7 +27,7 @@ pub struct Config {
     #[cfg_attr(feature = "serde", serde(default))]
     pub target: Target,
     #[cfg_attr(feature = "serde", serde(default))]
-    pub nightly: bool,
+    pub atomics: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub generic_mod: bool,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -68,7 +68,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             target: Target::default(),
-            nightly: false,
+            atomics: false,
             generic_mod: false,
             make_mod: false,
             const_generic: false,
