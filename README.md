@@ -13,9 +13,9 @@ This project is developed and maintained by the [Tools team][team].
 
 ## Minimum Supported Rust Version (MSRV)
 
-The **generated code** is guaranteed to compile on stable Rust 1.60.0 and up.
+The **generated code** is guaranteed to compile on stable Rust 1.61.0 and up.
 
-If you encounter compilation errors on any stable version newer than 1.60.0, please open an issue.
+If you encounter compilation errors on any stable version newer than 1.61.0, please open an issue.
 
 # Testing Locally
 
@@ -28,8 +28,8 @@ Check out the [svd2rust-regress README](ci/svd2rust-regress/README.md) for infor
 Licensed under either of
 
 - Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or
-  http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+  https://www.apache.org/licenses/LICENSE-2.0)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or https://opensource.org/licenses/MIT)
 
 at your option.
 

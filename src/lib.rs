@@ -1,6 +1,6 @@
 //! Peripheral API generator from [CMSIS-SVD] files
 //!
-//! [CMSIS-SVD]: http://www.keil.com/pack/doc/CMSIS/SVD/html/index.html
+//! [CMSIS-SVD]: https://www.keil.com/pack/doc/CMSIS/SVD/html/index.html
 //!
 //! An SVD file is an XML file that describes the hardware features of a
 //! microcontroller. In particular, it lists all the peripherals available to the
@@ -167,7 +167,7 @@
 //! To use a peripheral first you must get an *instance* of the peripheral. All the device
 //! peripherals are modeled as singletons (there can only ever be, at most, one instance of any
 //! one of them) and the only way to get an instance of them is through the `Peripherals::take`
-//! method.
+//! method, enabled via the `critical-section` feature on the generated crate.
 //!
 //! ```ignore
 //! let mut peripherals = stm32f30x::Peripherals::take().unwrap();

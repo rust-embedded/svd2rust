@@ -2,17 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](http://keepachangelog.com/)
-and this project adheres to [Semantic Versioning](http://semver.org/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/)
+and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Generate atomic register code for non-MSP430 targets
+- Change --nightly flag to --atomics
+
+## [v0.27.2] - 2022-11-06
+
+- mark alternate register accessors with `const`, bump `pac` MSRV to 1.61
 - `fields` fn refactoring
 - Test patched STM32
 - simplify ci strategy
 - Fix generated code for MSP430 atomics
-- Generate atomic register code for non-MSP430 targets
-- Change --nightly flag to --atomics
+- Add handling for disjoint register arrays and validation of derives
 
 ## [v0.27.1] - 2022-10-25
 
@@ -773,7 +778,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.27.1...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.27.2...HEAD
+[v0.27.2]: https://github.com/rust-embedded/svd2rust/compare/v0.27.1...v0.27.2
 [v0.27.1]: https://github.com/rust-embedded/svd2rust/compare/v0.27.0...v0.27.1
 [v0.27.0]: https://github.com/rust-embedded/svd2rust/compare/v0.26.0...v0.27.0
 [v0.26.0]: https://github.com/rust-embedded/svd2rust/compare/v0.25.1...v0.26.0
