@@ -11,15 +11,15 @@ mod atomic {
         ($U:ty, $Atomic:ty) => {
             impl AtomicOperations for $U {
                 unsafe fn atomic_or(ptr: *mut Self, val: Self) {
-                    (*(ptr as *const $Atomic)).fetch_or(val, Ordering::SeqCst);
+                    (*(ptr as *const $Atomic)).or(val, Ordering::SeqCst);
                 }
 
                 unsafe fn atomic_and(ptr: *mut Self, val: Self) {
-                    (*(ptr as *const $Atomic)).fetch_and(val, Ordering::SeqCst);
+                    (*(ptr as *const $Atomic)).and(val, Ordering::SeqCst);
                 }
 
                 unsafe fn atomic_xor(ptr: *mut Self, val: Self) {
-                    (*(ptr as *const $Atomic)).fetch_xor(val, Ordering::SeqCst);
+                    (*(ptr as *const $Atomic)).xor(val, Ordering::SeqCst);
                 }
             }
         };

@@ -47,7 +47,7 @@ main() {
         echo 'derive_more = "0.99"' >> $td/Cargo.toml
     fi
     if [[ "$options" == *"--atomics"* ]]; then
-        echo 'portable-atomic = { version = "0.3.15", default-features = false }' >> $td/Cargo.toml
+        echo 'portable-atomic = { version = "0.3.16", default-features = false }' >> $td/Cargo.toml
     fi
     echo '[profile.dev]' >> $td/Cargo.toml
     echo 'incremental = false' >> $td/Cargo.toml

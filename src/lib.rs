@@ -492,7 +492,7 @@
 //! concurrently called on different bits in the same register without data races. This flag won't
 //! work for RISCV chips without the atomic extension.
 //!
-//! `portable-atomic` v0.3.15 must be added to the dependencies, with default features off to
+//! `portable-atomic` v0.3.16 must be added to the dependencies, with default features off to
 //! disable the `fallback` feature.
 //!
 //! Usage examples:
