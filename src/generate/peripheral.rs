@@ -202,17 +202,13 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
     let derive_infos = check_erc_derive_infos(&mut ercs, &path, index, config)?;
     let zipped = ercs.iter_mut().zip(derive_infos.iter());
     for (mut erc, derive_info) in zipped {
-        match &mut erc {
-            &mut RegisterCluster::Register(register) => match derive_info {
-                DeriveInfo::Implicit(rpath) => {
-                    debug!(
-                        "register {} implicitly derives from {}",
-                        register.name, rpath.name
-                    );
-                }
-                _ => {}
-            },
-            _ => {}
+        if let RegisterCluster::Register(register) = &mut erc {
+            if let DeriveInfo::Implicit(rpath) = derive_info {
+                debug!(
+                    "register {} implicitly derives from {}",
+                    register.name, rpath.name
+                );
+            }
         }
     }
 
@@ -736,11 +732,11 @@ fn check_erc_derive_infos(
     let zipped = ercs.iter_mut().zip(derive_infos_slice.iter_mut());
     for (mut erc, derive_info) in zipped {
         match &mut erc {
-            &mut RegisterCluster::Register(register) => {
+            RegisterCluster::Register(register) => {
                 let info_name = register.fullname(config.ignore_groups).to_string();
                 let explicit_rpath = match &mut register.derived_from.clone() {
                     Some(dpath) => {
-                        let (_, root) = find_root(&dpath, path, index)?;
+                        let (_, root) = find_root(dpath, path, index)?;
                         Some(root)
                     }
                     None => None,
@@ -751,7 +747,7 @@ fn check_erc_derive_infos(
                         *derive_info = match explicit_rpath {
                             None => {
                                 match compare_this_against_prev(
-                                    &register,
+                                    register,
                                     &ty_name,
                                     path,
                                     index,
@@ -776,17 +772,14 @@ fn check_erc_derive_infos(
                     Register::Array(..) => {
                         // Only match integer indeces when searching for disjoint arrays
                         let re_string = util::replace_suffix(&info_name, "([0-9]+|%s)");
-                        let re = Regex::new(format!("^{re_string}$").as_str()).or_else(|_| {
-                            Err(anyhow!(
-                                "Error creating regex for register {}",
-                                register.name
-                            ))
+                        let re = Regex::new(format!("^{re_string}$").as_str()).map_err(|_| {
+                            anyhow!("Error creating regex for register {}", register.name)
                         })?;
                         let ty_name = info_name.to_string(); // keep suffix for regex matching
                         *derive_info = match explicit_rpath {
                             None => {
                                 match compare_this_against_prev(
-                                    &register,
+                                    register,
                                     &ty_name,
                                     path,
                                     index,
@@ -794,7 +787,7 @@ fn check_erc_derive_infos(
                                 )? {
                                     Some(root) => DeriveInfo::Implicit(root),
                                     None => compare_prev_against_this(
-                                        &register,
+                                        register,
                                         &ty_name,
                                         &re,
                                         path,
@@ -809,7 +802,7 @@ fn check_erc_derive_infos(
                     }
                 };
             }
-            &mut RegisterCluster::Cluster(cluster) => {
+            RegisterCluster::Cluster(cluster) => {
                 *derive_info = DeriveInfo::Cluster;
                 ercs_type_info.push((cluster.name.to_string(), None, erc, derive_info));
             }
@@ -854,9 +847,9 @@ fn compare_this_against_prev(
         let (prev_name, prev_regex, prev_erc, _prev_derive_info) = prev;
         if let RegisterCluster::Register(_) = prev_erc {
             if let Some(prev_re) = prev_regex {
-                if prev_re.is_match(&ty_name) {
-                    let (source_reg, rpath) = find_root(&prev_name, path, index)?;
-                    if is_derivable(&source_reg, &reg) {
+                if prev_re.is_match(ty_name) {
+                    let (source_reg, rpath) = find_root(prev_name, path, index)?;
+                    if is_derivable(&source_reg, reg) {
                         return Ok(Some(rpath));
                     }
                 }
@@ -869,7 +862,7 @@ fn compare_this_against_prev(
 /// Compare the given type name against previous regexs, then inspect fields
 fn compare_prev_against_this(
     reg: &MaybeArray<RegisterInfo>,
-    ty_name: &String,
+    ty_name: &str,
     re: &regex::Regex,
     path: &BlockPath,
     index: &Index,
@@ -884,12 +877,12 @@ fn compare_prev_against_this(
                 // Arrays are covered with compare_this_against_prev
                 continue;
             }
-            if re.is_match(&prev_name) {
+            if re.is_match(prev_name) {
                 let loop_derive_info = match prev_derive_info {
                     DeriveInfo::Root => {
                         // Get the RegisterPath for reg
-                        let (_, implicit_rpath) = find_root(&ty_name, path, index)?;
-                        if is_derivable(&prev_reg, &reg) {
+                        let (_, implicit_rpath) = find_root(ty_name, path, index)?;
+                        if is_derivable(prev_reg, reg) {
                             **prev_derive_info = DeriveInfo::Implicit(implicit_rpath);
                         }
                         DeriveInfo::Root
@@ -1164,12 +1157,10 @@ fn expand_register(
             // force expansion and rename if we're deriving an array that doesnt start at 0 so we don't get name collisions
             let index: Cow<str> = if let Some(dim_index) = &array_info.dim_index {
                 dim_index.first().unwrap().into()
+            } else if sequential_indexes_from0 {
+                "0".into()
             } else {
-                if sequential_indexes_from0 {
-                    "0".into()
-                } else {
-                    "".into()
-                }
+                "".into()
             };
             let array_convertible = match derive_info {
                 DeriveInfo::Implicit(_) => {
