@@ -859,7 +859,7 @@ fn compare_this_against_prev(
     Ok(None)
 }
 
-/// Compare the given type name against previous regexs, then inspect fields
+/// Compare previous type names against the given regex, then inspect fields
 fn compare_prev_against_this(
     reg: &MaybeArray<RegisterInfo>,
     ty_name: &str,
@@ -911,6 +911,21 @@ fn compare_prev_against_this(
                     if my_derive_info != loop_derive_info {
                         my_derive_info = loop_derive_info;
                     }
+                }
+            }
+            if let DeriveInfo::Implicit(my_rpath) = &my_derive_info {
+                match prev_derive_info {
+                    DeriveInfo::Implicit(their_rpath) => {
+                        if their_rpath.name == ty_name {
+                            (_, *their_rpath) = find_root(&my_rpath.name, path, index)?;
+                        }
+                    }
+                    DeriveInfo::Explicit(their_rpath) => {
+                        if their_rpath.name == ty_name {
+                            (_, *their_rpath) = find_root(&my_rpath.name, path, index)?;
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
