@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+- Bump MSRV to 1.64
 - Fix dangling implicit derives
 
 ## [v0.28.0] - 2022-12-25

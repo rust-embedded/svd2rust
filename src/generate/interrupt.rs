@@ -115,7 +115,7 @@ pub fn render(
     match target {
         Target::CortexM => {
             for name in &names {
-                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name)?;
+                writeln!(device_x, "PROVIDE({name} = DefaultHandler);")?;
             }
 
             root.extend(quote! {
@@ -141,7 +141,7 @@ pub fn render(
         }
         Target::Msp430 => {
             for name in &names {
-                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name).unwrap();
+                writeln!(device_x, "PROVIDE({name} = DefaultHandler);").unwrap();
             }
 
             root.extend(quote! {
@@ -169,7 +169,7 @@ pub fn render(
         }
         Target::RISCV => {
             for name in &names {
-                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name)?;
+                writeln!(device_x, "PROVIDE({name} = DefaultHandler);")?;
             }
 
             root.extend(quote! {
@@ -194,7 +194,7 @@ pub fn render(
         }
         Target::XtensaLX => {
             for name in &names {
-                writeln!(device_x, "PROVIDE({} = DefaultHandler);", name)?;
+                writeln!(device_x, "PROVIDE({name} = DefaultHandler);")?;
             }
 
             root.extend(quote! {

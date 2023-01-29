@@ -318,7 +318,7 @@ pub fn render_register_mod(
 
     let methods = methods
         .iter()
-        .map(|s| format!("[`{0}`](crate::generic::Reg::{0})", s))
+        .map(|s| format!("[`{s}`](crate::generic::Reg::{s})"))
         .collect::<Vec<_>>();
     let mut doc = format!("{description}\n\nThis register you can {}. See [API](https://docs.rs/svd2rust/#read--modify--write-api).", methods.join(", "));
 
