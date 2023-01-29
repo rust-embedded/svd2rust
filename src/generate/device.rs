@@ -151,12 +151,12 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     let array_proxy = include_str!("array_proxy.rs");
     if config.generic_mod {
         let mut file = File::create(config.output_dir.join("generic.rs"))?;
-        writeln!(file, "{}", generic_file)?;
+        writeln!(file, "{generic_file}")?;
         if config.atomics {
-            writeln!(file, "\n{}", generic_atomic_file)?;
+            writeln!(file, "\n{generic_atomic_file}")?;
         }
         if config.const_generic {
-            writeln!(file, "{}", array_proxy)?;
+            writeln!(file, "{array_proxy}")?;
         }
 
         if !config.make_mod {

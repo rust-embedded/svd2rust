@@ -223,7 +223,7 @@ fn run() -> Result<()> {
     ]
     .contains(&config.target)
     {
-        writeln!(File::create(path.join("device.x"))?, "{}", device_x)?;
+        writeln!(File::create(path.join("device.x"))?, "{device_x}")?;
         writeln!(File::create(path.join("build.rs"))?, "{}", build_rs())?;
     }
 
