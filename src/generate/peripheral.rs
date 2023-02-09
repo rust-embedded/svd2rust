@@ -184,7 +184,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         }
     }
 
-    let description = util::escape_brackets(
+    let description = util::escape_special_chars(
         util::respace(p.description.as_ref().unwrap_or(&name.as_ref().to_owned())).as_ref(),
     );
 
@@ -516,7 +516,7 @@ impl FieldRegions {
 }
 
 fn make_comment(size: u32, offset: u32, description: &str) -> String {
-    let desc = util::escape_brackets(&util::respace(description));
+    let desc = util::escape_special_chars(&util::respace(description));
     if size > 32 {
         let end = offset + size / 8;
         format!("0x{offset:02x}..0x{end:02x} - {desc}")
@@ -1306,7 +1306,7 @@ fn cluster_block(
     config: &Config,
 ) -> Result<TokenStream> {
     let description =
-        util::escape_brackets(&util::respace(c.description.as_ref().unwrap_or(&c.name)));
+        util::escape_special_chars(&util::respace(c.description.as_ref().unwrap_or(&c.name)));
     let mod_name = util::replace_suffix(&c.name, "");
 
     // name_snake_case needs to take into account array type.

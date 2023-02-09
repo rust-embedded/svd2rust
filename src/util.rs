@@ -7,6 +7,7 @@ use quote::quote;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use svd_rs::{MaybeArray, Peripheral, PeripheralInfo};
+use html_escape::encode_text_minimal;
 
 use syn::{
     punctuated::Punctuated, token::Colon2, AngleBracketedGenericArguments, GenericArgument, Lit,
@@ -285,6 +286,12 @@ pub fn escape_brackets(s: &str) -> String {
                 acc + "\\]" + x
             }
         })
+}
+
+/// Escape basic html tags and brackets
+pub fn escape_special_chars(s: &str) -> String {
+    let html_escaped = encode_text_minimal(s);
+    escape_brackets(&html_escaped)
 }
 
 pub fn name_of<T: FullName>(maybe_array: &MaybeArray<T>, ignore_group: bool) -> Cow<str> {
