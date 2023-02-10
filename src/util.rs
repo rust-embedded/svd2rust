@@ -1,13 +1,13 @@
 use std::borrow::Cow;
 
 use crate::svd::{Access, Device, DimElement, Field, RegisterInfo, RegisterProperties};
+use html_escape::encode_text_minimal;
 use inflections::Inflect;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use svd_rs::{MaybeArray, Peripheral, PeripheralInfo};
-use html_escape::encode_text_minimal;
 
 use syn::{
     punctuated::Punctuated, token::Colon2, AngleBracketedGenericArguments, GenericArgument, Lit,
