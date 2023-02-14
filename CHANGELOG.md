@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Bump MSRV to 1.64
+- Bump MSRV to 1.65
 - Fix dangling implicit derives
 - Fix escaping <> and & characters in doc attributes
 
