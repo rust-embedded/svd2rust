@@ -63,7 +63,7 @@ pub fn render(
                 .as_ref()
                 .map(|s| util::respace(s))
                 .as_ref()
-                .map(|s| util::escape_brackets(s))
+                .map(|s| util::escape_special_chars(s))
                 .unwrap_or_else(|| interrupt.0.name.clone())
         );
 

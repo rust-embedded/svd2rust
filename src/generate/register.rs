@@ -39,7 +39,7 @@ pub fn render(
     let span = Span::call_site();
     let name_constant_case = name.to_constant_case_ident(span);
     let name_snake_case = name.to_snake_case_ident(span);
-    let description = util::escape_brackets(
+    let description = util::escape_special_chars(
         util::respace(&register.description.clone().unwrap_or_else(|| {
             warn!("Missing description for register {}", register.name);
             Default::default()
@@ -129,7 +129,7 @@ pub fn render_register_mod(
         rsize.next_power_of_two()
     };
     let rty = rsize.to_ty()?;
-    let description = util::escape_brackets(
+    let description = util::escape_special_chars(
         util::respace(&register.description.clone().unwrap_or_else(|| {
             warn!("Missing description for register {}", register.name);
             Default::default()
@@ -436,7 +436,7 @@ pub fn fields(
         let name_snake_case = name.to_snake_case_ident(span);
         let name_constant_case = name.to_sanitized_constant_case();
         let description_raw = f.description.as_deref().unwrap_or(""); // raw description, if absent using empty string
-        let description = util::respace(&util::escape_brackets(description_raw));
+        let description = util::respace(&util::escape_special_chars(description_raw));
 
         let can_read = can_read
             && (f.access != Some(Access::WriteOnly))
@@ -833,7 +833,7 @@ pub fn fields(
                 for v in &variants {
                     let pc = &v.pc;
                     let sc = &v.sc;
-                    let doc = util::escape_brackets(&util::respace(&v.doc));
+                    let doc = util::escape_special_chars(&util::respace(&v.doc));
                     proxy_items.extend(quote! {
                         #[doc = #doc]
                         #inline
@@ -1105,7 +1105,7 @@ fn add_from_variants(
 
     let mut vars = TokenStream::new();
     for v in variants.iter().map(|v| {
-        let desc = util::escape_brackets(&util::respace(&format!("{}: {}", v.value, v.doc)));
+        let desc = util::escape_special_chars(&util::respace(&format!("{}: {}", v.value, v.doc)));
         let pcv = &v.pc;
         let pcval = &util::unsuffixed(v.value);
         quote! {
@@ -1178,7 +1178,7 @@ fn description_with_bits(description: &str, offset: u64, width: u32) -> String {
     };
     if !description.is_empty() {
         res.push_str(" - ");
-        res.push_str(&util::respace(&util::escape_brackets(description)));
+        res.push_str(&util::respace(&util::escape_special_chars(description)));
     }
     res
 }
