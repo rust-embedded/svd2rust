@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Bump MSRV to 1.65
 - Fix dangling implicit derives
 - Fix escaping <> and & characters in doc attributes
+- Replace cluster suffixes with _
 
 ## [v0.28.0] - 2022-12-25
 

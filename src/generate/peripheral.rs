@@ -1001,7 +1001,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
     let ty_name = if cluster.is_single() {
         cluster.name.to_string()
     } else {
-        util::replace_suffix(&cluster.name, "")
+        util::replace_suffix(&cluster.name, "_")
     };
     let ty = name_to_ty(&ty_name);
 
@@ -1307,7 +1307,7 @@ fn cluster_block(
 ) -> Result<TokenStream> {
     let description =
         util::escape_special_chars(&util::respace(c.description.as_ref().unwrap_or(&c.name)));
-    let mod_name = util::replace_suffix(&c.name, "");
+    let mod_name = util::replace_suffix(&c.name, "_");
 
     // name_snake_case needs to take into account array type.
     let span = Span::call_site();
@@ -1321,7 +1321,7 @@ fn cluster_block(
         } else {
             util::block_path_to_ty(&dparent, span)
         };
-        let dname = util::replace_suffix(&index.clusters.get(&dpath).unwrap().name, "");
+        let dname = util::replace_suffix(&index.clusters.get(&dpath).unwrap().name, "_");
         let mut mod_derived = derived.clone();
         derived
             .path
