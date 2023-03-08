@@ -59,6 +59,52 @@ pub struct Config {
     pub source_type: SourceType,
     #[cfg_attr(feature = "serde", serde(default))]
     pub log_level: Option<String>,
+
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub names: NamesConfig,
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct NamesConfig {
+    #[cfg_attr(feature = "serde", serde(default))]
+    peripheral_name: NameConfig,
+    #[cfg_attr(feature = "serde", serde(default))]
+    cluster_name: NameConfig,
+    #[cfg_attr(feature = "serde", serde(default))]
+    register_name: NameConfig,
+    #[cfg_attr(feature = "serde", serde(default))]
+    enum_name: NameConfig,
+    #[cfg_attr(feature = "serde", serde(default))]
+    enum_value: NameConfig,
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct NameConfig {
+    #[cfg_attr(feature = "serde", serde(default))]
+    case: Case,
+    #[cfg_attr(feature = "serde", serde(default))]
+    prefix: String,
+    #[cfg_attr(feature = "serde", serde(default))]
+    suffix: String,
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Case {
+    #[cfg_attr(feature = "serde", serde(rename = "constant"))]
+    Constant,
+    #[cfg_attr(feature = "serde", serde(rename = "upper"))]
+    Upper,
+    #[cfg_attr(feature = "serde", serde(rename = "pascal"))]
+    Pascal,
+}
+
+impl Default for Case {
+    fn default() -> Self {
+        Self::Constant
+    }
 }
 
 fn current_dir() -> PathBuf {
@@ -85,6 +131,7 @@ impl Default for Config {
             input: None,
             source_type: SourceType::default(),
             log_level: None,
+            names: NamesConfig::default(),
         }
     }
 }
