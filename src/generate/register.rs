@@ -1,7 +1,7 @@
-use crate::svd::{
+use crate::{svd::{
     Access, BitRange, EnumeratedValues, Field, MaybeArray, ModifiedWriteValues, ReadAction,
     Register, RegisterProperties, Usage, WriteConstraint,
-};
+}, util::Case};
 use core::u64;
 use log::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
@@ -578,7 +578,7 @@ pub fn fields(
                 // return an Option when the value read from field does not match any defined values.
                 let has_reserved_variant = evs.values.len() != (1 << width);
                 // parse enum variants from enumeratedValues svd record
-                let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
+                let variants = Variant::from_enumerated_values(evs, config.names.enum_value.case == Case::Pascal)?;
 
                 // if there's no variant defined in enumeratedValues, generate enumeratedValues with new-type
                 // wrapper struct, and generate From conversation only.
@@ -802,7 +802,7 @@ pub fn fields(
             // if we writes to enumeratedValues, generate its structure if it differs from read structure.
             if let Some((evs, None)) = lookup_filter(&lookup_results, Usage::Write) {
                 // parse variants from enumeratedValues svd record
-                let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
+                let variants = Variant::from_enumerated_values(evs, config.names.enum_value.case == Case::Pascal)?;
 
                 // if the write structure is finite, it can be safely written.
                 if variants.len() == 1 << width {

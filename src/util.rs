@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use crate::svd::{Access, Device, DimElement, Field, RegisterInfo, RegisterProperties};
 use html_escape::encode_text_minimal;
-use inflections::Inflect;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use std::collections::HashSet;
@@ -42,8 +41,6 @@ pub struct Config {
     #[cfg_attr(feature = "serde", serde(default))]
     pub strict: bool,
     #[cfg_attr(feature = "serde", serde(default))]
-    pub pascal_enum_values: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub derive_more: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub feature_group: bool,
@@ -65,45 +62,158 @@ pub struct Config {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NamesConfig {
     #[cfg_attr(feature = "serde", serde(default))]
-    peripheral_name: NameConfig,
+    pub peripheral_name: NameConfig,
     #[cfg_attr(feature = "serde", serde(default))]
-    cluster_name: NameConfig,
+    pub cluster_name: NameConfig,
     #[cfg_attr(feature = "serde", serde(default))]
-    register_name: NameConfig,
+    pub register_name: NameConfig,
     #[cfg_attr(feature = "serde", serde(default))]
-    enum_name: NameConfig,
+    pub enum_rw_name: NameConfig,
     #[cfg_attr(feature = "serde", serde(default))]
-    enum_value: NameConfig,
+    pub enum_ro_name: NameConfig,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub enum_wo_name: NameConfig,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub enum_value: NameConfig,
+}
+
+impl Default for NamesConfig {
+    fn default() -> Self {
+        Self {
+            peripheral_name: NameConfig::default(),
+            cluster_name: NameConfig::default(),
+            register_name: NameConfig::default(),
+            enum_rw_name: NameConfig {
+                case: Case::Constant,
+                prefix: String::new(),
+                suffix: "_A".to_string(),
+            },
+            enum_ro_name: NameConfig {
+                case: Case::Constant,
+                prefix: String::new(),
+                suffix: "_A".to_string(),
+            },
+            enum_wo_name: NameConfig {
+                case: Case::Constant,
+                prefix: String::new(),
+                suffix: "_AW".to_string(),
+            },
+            enum_value: NameConfig::default(),
+        }
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct NameConfig {
     #[cfg_attr(feature = "serde", serde(default))]
-    case: Case,
+    pub case: Case,
     #[cfg_attr(feature = "serde", serde(default))]
-    prefix: String,
+    pub prefix: String,
     #[cfg_attr(feature = "serde", serde(default))]
-    suffix: String,
+    pub suffix: String,
+}
+
+impl NameConfig {
+    pub fn sanitize<'a>(&self, s: &'a str) -> Cow<'a, str> {
+        let cased = self.case.to_case(s);
+        if self.prefix.is_empty() {
+            if s.as_bytes()[0].is_ascii_digit() {
+                Cow::from(format!("_{}{}", cased, self.suffix))
+            } else if self.suffix.is_empty() {
+                cased
+            } else {
+                Cow::from(format!("{}{}", cased, self.suffix))
+            }
+        } else {
+            Cow::from(format!("{}{}{}", self.prefix, cased, self.suffix))
+        }
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum Case {
     #[cfg_attr(feature = "serde", serde(rename = "constant"))]
+    #[default]
     Constant,
     #[cfg_attr(feature = "serde", serde(rename = "upper"))]
     Upper,
     #[cfg_attr(feature = "serde", serde(rename = "pascal"))]
     Pascal,
+    #[cfg_attr(feature = "serde", serde(rename = "snake"))]
+    Snake,
+    #[cfg_attr(feature = "serde", serde(rename = "unchanged"))]
+    Unchanged,
 }
 
-impl Default for Case {
-    fn default() -> Self {
-        Self::Constant
+impl Case {
+    pub fn to_case<'a>(&self, s: &'a str) -> Cow<'a, str> {
+        use convert_case::{Case as CCase, Casing};
+        match self {
+            Self::Unchanged => s.into(),
+            Self::Constant => {
+                if s.is_case(CCase::UpperSnake) {
+                    s.into()
+                } else {
+                    Cow::Owned(s.to_case(CCase::UpperSnake))
+                }
+            }
+            Self::Upper => {
+                if s.is_case(CCase::Upper) {
+                    s.into()
+                } else {
+                    Cow::Owned(s.to_case(CCase::Upper))
+                }
+            }
+            Self::Pascal => {
+                if s.is_case(CCase::Pascal) {
+                    s.into()
+                } else {
+                    Cow::Owned(s.to_case(CCase::Pascal))
+                }
+            }
+            Self::Snake => {
+                if s.is_case(CCase::Snake) {
+                    s.into()
+                } else {
+                    Cow::Owned(s.to_case(CCase::Snake))
+                }
+            }
+        }
+    }
+    pub fn cow_to_case<'a>(&self, cow: Cow<'a, str>) -> Cow<'a, str> {
+        use convert_case::{Case as CCase, Casing};
+        match self {
+            Self::Unchanged => cow,
+            Self::Constant => {
+                match cow {
+                    Cow::Borrowed(s) if s.is_case(CCase::UpperSnake) => cow,
+                    _ => Cow::Owned(cow.to_case(CCase::UpperSnake)),
+                }
+            }
+            Self::Upper => {
+                match cow {
+                    Cow::Borrowed(s) if s.is_case(CCase::Snake) => cow,
+                    _ => Cow::Owned(cow.to_case(CCase::Upper)),
+                }
+            }
+            Self::Pascal => {
+                match cow {
+                    Cow::Borrowed(s) if s.is_case(CCase::Pascal) => cow,
+                    _ => Cow::Owned(cow.to_case(CCase::Pascal)),
+                }
+            }
+            Self::Snake => {
+                match cow {
+                    Cow::Borrowed(s) if s.is_case(CCase::Snake) => cow,
+                    _ => Cow::Owned(cow.to_case(CCase::Snake)),
+                }
+            }
+        }
     }
 }
 
@@ -122,7 +232,6 @@ impl Default for Config {
             ignore_groups: false,
             keep_list: false,
             strict: false,
-            pascal_enum_values: false,
             derive_more: false,
             feature_group: false,
             feature_peripheral: false,
@@ -139,9 +248,10 @@ impl Default for Config {
 #[allow(clippy::upper_case_acronyms)]
 #[allow(non_camel_case_types)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum Target {
     #[cfg_attr(feature = "serde", serde(rename = "cortex-m"))]
+    #[default]
     CortexM,
     #[cfg_attr(feature = "serde", serde(rename = "msp430"))]
     Msp430,
@@ -169,30 +279,19 @@ impl Target {
     }
 }
 
-impl Default for Target {
-    fn default() -> Self {
-        Self::CortexM
-    }
-}
-
 #[cfg_attr(
     feature = "serde",
     derive(serde::Deserialize),
     serde(rename_all = "lowercase")
 )]
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum SourceType {
+    #[default]
     Xml,
     #[cfg(feature = "yaml")]
     Yaml,
     #[cfg(feature = "json")]
     Json,
-}
-
-impl Default for SourceType {
-    fn default() -> Self {
-        Self::Xml
-    }
 }
 
 impl SourceType {
@@ -250,35 +349,47 @@ pub trait ToSanitizedCase {
 
 impl ToSanitizedCase for str {
     fn to_sanitized_pascal_case(&self) -> Cow<str> {
-        let s = self.replace(BLACKLIST_CHARS, "");
+        let s = if self.contains(BLACKLIST_CHARS) {
+            Cow::Owned(self.replace(BLACKLIST_CHARS, ""))
+        } else {
+            self.into()
+        };
 
         match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_pascal_case()))
+                Cow::from(format!("_{}", Case::Pascal.to_case(&s)))
             }
-            _ => Cow::from(s.to_pascal_case()),
+            _ => Case::Pascal.cow_to_case(s)
         }
     }
     fn to_sanitized_constant_case(&self) -> Cow<str> {
-        let s = self.replace(BLACKLIST_CHARS, "");
+        let s = if self.contains(BLACKLIST_CHARS) {
+            Cow::Owned(self.replace(BLACKLIST_CHARS, ""))
+        } else {
+            self.into()
+        };
 
         match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_constant_case()))
+                Cow::from(format!("_{}", Case::Constant.to_case(&s)))
             }
-            _ => Cow::from(s.to_constant_case()),
+            _ => Case::Constant.cow_to_case(s)
         }
     }
     fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str> {
         const INTERNALS: [&str; 4] = ["set_bit", "clear_bit", "bit", "bits"];
 
-        let s = self.replace(BLACKLIST_CHARS, "");
+        let s = if self.contains(BLACKLIST_CHARS) {
+            Cow::Owned(self.replace(BLACKLIST_CHARS, ""))
+        } else {
+            self.into()
+        };
         match s.chars().next().unwrap_or('\0') {
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                format!("_{}", s.to_snake_case()).into()
+                format!("_{}", Case::Snake.to_case(&s)).into()
             }
             _ => {
-                let s = Cow::from(s.to_snake_case());
+                let s = Case::Snake.cow_to_case(s);
                 if INTERNALS.contains(&s.as_ref()) {
                     s + "_"
                 } else {

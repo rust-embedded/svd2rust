@@ -46,7 +46,7 @@ yaml = ["dep:serde_yaml"]
 clap = { version = "4.0", optional = true }
 irx-config = { version = "3.1", features = ["cmd", "toml-parser"], optional = true }
 env_logger = { version = "0.10", optional = true }
-inflections = "1.1"
+convert_case = "0.6"
 log = { version = "~0.4", features = ["std"] }
 quote = "1.0"
 proc-macro2 = "1.0"
