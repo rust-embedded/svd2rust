@@ -127,15 +127,16 @@ pub fn test(
         .open(svd_toml)
         .chain_err(|| "Failed to open Cargo.toml for appending")?;
 
-    use crate::tests::Architecture::*;
+    use crate::tests::Target;
     let crates = CRATES_ALL
         .iter()
         .chain(match &t.arch {
-            CortexM => CRATES_CORTEX_M.iter(),
-            RiscV => CRATES_RISCV.iter(),
-            Mips => CRATES_MIPS.iter(),
-            Msp430 => CRATES_MSP430.iter(),
-            XtensaLX => CRATES_XTENSALX.iter(),
+            Target::CortexM => CRATES_CORTEX_M.iter(),
+            Target::RISCV => CRATES_RISCV.iter(),
+            Target::Mips => CRATES_MIPS.iter(),
+            Target::Msp430 => CRATES_MSP430.iter(),
+            Target::XtensaLX => CRATES_XTENSALX.iter(),
+            Target::None => unreachable!(),
         })
         .chain(if atomics {
             CRATES_ATOMICS.iter()
@@ -145,7 +146,7 @@ pub fn test(
         .chain(PROFILE_ALL.iter())
         .chain(FEATURES_ALL.iter())
         .chain(match &t.arch {
-            XtensaLX => FEATURES_XTENSALX.iter(),
+            Target::XtensaLX => FEATURES_XTENSALX.iter(),
             _ => [].iter(),
         });
 
@@ -170,11 +171,12 @@ pub fn test(
     let lib_rs_file = path_helper_base(&chip_dir, &["src", "lib.rs"]);
     let svd2rust_err_file = path_helper_base(&chip_dir, &["svd2rust.err.log"]);
     let target = match t.arch {
-        CortexM => "cortex-m",
-        Msp430 => "msp430",
-        Mips => "mips",
-        RiscV => "riscv",
-        XtensaLX => "xtensa-lx",
+        Target::CortexM => "cortex-m",
+        Target::Msp430 => "msp430",
+        Target::Mips => "mips",
+        Target::RISCV => "riscv",
+        Target::XtensaLX => "xtensa-lx",
+        Target::None => unreachable!(),
     };
     let mut svd2rust_bin = Command::new(bin_path);
     if atomics {
@@ -190,15 +192,18 @@ pub fn test(
     output.capture_outputs(
         true,
         "svd2rust",
-        Some(&lib_rs_file)
-            .filter(|_| (t.arch != CortexM) && (t.arch != Msp430) && (t.arch != XtensaLX)),
+        Some(&lib_rs_file).filter(|_| {
+            (t.arch != Target::CortexM)
+                && (t.arch != Target::Msp430)
+                && (t.arch != Target::XtensaLX)
+        }),
         Some(&svd2rust_err_file),
         &[],
     )?;
     process_stderr_paths.push(svd2rust_err_file);
 
     match t.arch {
-        CortexM | Mips | Msp430 | XtensaLX => {
+        Target::CortexM | Target::Mips | Target::Msp430 | Target::XtensaLX => {
             // TODO: Give error the path to stderr
             fs::rename(path_helper_base(&chip_dir, &["lib.rs"]), &lib_rs_file)
                 .chain_err(|| "While moving lib.rs file")?
