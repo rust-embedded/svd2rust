@@ -61,6 +61,41 @@ pub struct Config {
     pub log_level: Option<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Case {
+    Constant,
+    Pascal,
+    Snake,
+}
+
+impl Case {
+    pub fn cow_to_case<'a>(&self, cow: Cow<'a, str>) -> Cow<'a, str> {
+        match self {
+            Self::Constant => match cow {
+                Cow::Borrowed(s) if s.is_constant_case() => cow,
+                _ => cow.to_constant_case().into(),
+            },
+            Self::Pascal => match cow {
+                Cow::Borrowed(s) if s.is_pascal_case() => cow,
+                _ => cow.to_pascal_case().into(),
+            },
+            Self::Snake => match cow {
+                Cow::Borrowed(s) if s.is_snake_case() => cow,
+                _ => cow.to_snake_case().into(),
+            },
+        }
+    }
+    pub fn sanitize<'a>(&self, s: &'a str) -> Cow<'a, str> {
+        let s = if s.contains(BLACKLIST_CHARS) {
+            Cow::Owned(s.replace(BLACKLIST_CHARS, ""))
+        } else {
+            s.into()
+        };
+
+        self.cow_to_case(s)
+    }
+}
+
 fn current_dir() -> PathBuf {
     PathBuf::from(".")
 }
@@ -92,9 +127,10 @@ impl Default for Config {
 #[allow(clippy::upper_case_acronyms)]
 #[allow(non_camel_case_types)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum Target {
     #[cfg_attr(feature = "serde", serde(rename = "cortex-m"))]
+    #[default]
     CortexM,
     #[cfg_attr(feature = "serde", serde(rename = "msp430"))]
     Msp430,
@@ -122,30 +158,19 @@ impl Target {
     }
 }
 
-impl Default for Target {
-    fn default() -> Self {
-        Self::CortexM
-    }
-}
-
 #[cfg_attr(
     feature = "serde",
     derive(serde::Deserialize),
     serde(rename_all = "lowercase")
 )]
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum SourceType {
+    #[default]
     Xml,
     #[cfg(feature = "yaml")]
     Yaml,
     #[cfg(feature = "json")]
     Json,
-}
-
-impl Default for SourceType {
-    fn default() -> Self {
-        Self::Xml
-    }
 }
 
 impl SourceType {
@@ -203,41 +228,31 @@ pub trait ToSanitizedCase {
 
 impl ToSanitizedCase for str {
     fn to_sanitized_pascal_case(&self) -> Cow<str> {
-        let s = self.replace(BLACKLIST_CHARS, "");
-
-        match s.chars().next().unwrap_or('\0') {
-            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_pascal_case()))
-            }
-            _ => Cow::from(s.to_pascal_case()),
+        let s = Case::Pascal.sanitize(self);
+        if s.as_bytes().get(0).unwrap_or(&0).is_ascii_digit() {
+            Cow::from(format!("_{}", s))
+        } else {
+            s
         }
     }
     fn to_sanitized_constant_case(&self) -> Cow<str> {
-        let s = self.replace(BLACKLIST_CHARS, "");
-
-        match s.chars().next().unwrap_or('\0') {
-            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                Cow::from(format!("_{}", s.to_constant_case()))
-            }
-            _ => Cow::from(s.to_constant_case()),
+        let s = Case::Constant.sanitize(self);
+        if s.as_bytes().get(0).unwrap_or(&0).is_ascii_digit() {
+            Cow::from(format!("_{}", s))
+        } else {
+            s
         }
     }
     fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str> {
         const INTERNALS: [&str; 4] = ["set_bit", "clear_bit", "bit", "bits"];
 
-        let s = self.replace(BLACKLIST_CHARS, "");
-        match s.chars().next().unwrap_or('\0') {
-            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                format!("_{}", s.to_snake_case()).into()
-            }
-            _ => {
-                let s = Cow::from(s.to_snake_case());
-                if INTERNALS.contains(&s.as_ref()) {
-                    s + "_"
-                } else {
-                    s
-                }
-            }
+        let s = Case::Snake.sanitize(self);
+        if s.as_bytes().get(0).unwrap_or(&0).is_ascii_digit() {
+            format!("_{}", s).into()
+        } else if INTERNALS.contains(&s.as_ref()) {
+            s + "_"
+        } else {
+            s
         }
     }
 }

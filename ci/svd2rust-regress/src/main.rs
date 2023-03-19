@@ -5,6 +5,7 @@ mod errors;
 mod svd_test;
 mod tests;
 
+use clap::Parser;
 use error_chain::ChainedError;
 use rayon::prelude::*;
 use std::fs::File;
@@ -13,76 +14,75 @@ use std::path::PathBuf;
 use std::process::{exit, Command};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "svd2rust-regress")]
+#[derive(Parser, Debug)]
+#[command(name = "svd2rust-regress")]
 struct Opt {
     /// Run a long test (it's very long)
-    #[structopt(short = "l", long = "long-test")]
+    #[clap(short = 'l', long)]
     long_test: bool,
 
     /// Path to an `svd2rust` binary, relative or absolute.
     /// Defaults to `target/release/svd2rust[.exe]` of this repository
     /// (which must be already built)
-    #[structopt(short = "p", long = "svd2rust-path", parse(from_os_str))]
+    #[clap(short = 'p', long = "svd2rust-path")]
     bin_path: Option<PathBuf>,
 
     // TODO: Consider using the same strategy cargo uses for passing args to rustc via `--`
     /// Run svd2rust with `--atomics`
-    #[structopt(long = "atomics")]
+    #[clap(long)]
     atomics: bool,
 
     /// Filter by chip name, case sensitive, may be combined with other filters
-    #[structopt(short = "c", long = "chip", raw(validator = "validate_chips"))]
+    #[clap(short = 'c', long, value_parser = validate_chips)]
     chip: Vec<String>,
 
     /// Filter by manufacturer, case sensitive, may be combined with other filters
-    #[structopt(
-        short = "m",
+    #[clap(
+        short = 'm',
         long = "manufacturer",
-        raw(validator = "validate_manufacturer")
+        value_parser = validate_manufacturer,
     )]
     mfgr: Option<String>,
 
     /// Filter by architecture, case sensitive, may be combined with other filters
     /// Options are: "CortexM", "RiscV", "Msp430", "Mips" and "XtensaLX"
-    #[structopt(
-        short = "a",
+    #[clap(
+        short = 'a',
         long = "architecture",
-        raw(validator = "validate_architecture")
+        value_parser = validate_architecture,
     )]
     arch: Option<String>,
 
     /// Include tests expected to fail (will cause a non-zero return code)
-    #[structopt(short = "b", long = "bad-tests")]
+    #[clap(short = 'b', long)]
     bad_tests: bool,
 
     /// Enable formatting with `rustfmt`
-    #[structopt(short = "f", long = "format")]
+    #[clap(short = 'f', long)]
     format: bool,
 
     /// Print all available test using the specified filters
-    #[structopt(long = "list")]
+    #[clap(long)]
     list: bool,
 
     /// Path to an `rustfmt` binary, relative or absolute.
     /// Defaults to `$(rustup which rustfmt)`
-    #[structopt(long = "rustfmt_bin_path", parse(from_os_str))]
+    #[clap(long)]
     rustfmt_bin_path: Option<PathBuf>,
 
     /// Specify what rustup toolchain to use when compiling chip(s)
-    #[structopt(long = "toolchain", env = "RUSTUP_TOOLCHAIN")]
+    #[clap(long = "toolchain")] // , env = "RUSTUP_TOOLCHAIN"
     rustup_toolchain: Option<String>,
 
     /// Use verbose output
-    #[structopt(long = "verbose", short = "v", parse(from_occurrences))]
+    #[clap(long, short = 'v', action = clap::ArgAction::Count)]
     verbose: u8,
     // TODO: Specify smaller subset of tests? Maybe with tags?
     // TODO: Compile svd2rust?
 }
 
-fn validate_chips(s: String) -> Result<(), String> {
+fn validate_chips(s: &str) -> Result<(), String> {
     if tests::TESTS.iter().any(|t| t.chip == s) {
         Ok(())
     } else {
@@ -90,7 +90,7 @@ fn validate_chips(s: String) -> Result<(), String> {
     }
 }
 
-fn validate_architecture(s: String) -> Result<(), String> {
+fn validate_architecture(s: &str) -> Result<(), String> {
     if tests::TESTS.iter().any(|t| format!("{:?}", t.arch) == s) {
         Ok(())
     } else {
@@ -98,7 +98,7 @@ fn validate_architecture(s: String) -> Result<(), String> {
     }
 }
 
-fn validate_manufacturer(s: String) -> Result<(), String> {
+fn validate_manufacturer(s: &str) -> Result<(), String> {
     if tests::TESTS.iter().any(|t| format!("{:?}", t.mfgr) == s) {
         Ok(())
     } else {
@@ -140,7 +140,7 @@ fn read_file(path: &PathBuf, buf: &mut String) {
 }
 
 fn main() {
-    let opt = Opt::from_args();
+    let opt = Opt::parse();
 
     // Validate all test pre-conditions
     validate_tests(tests::TESTS);

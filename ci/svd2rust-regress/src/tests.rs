@@ -1,16 +1,5 @@
-use inflections::Inflect;
-use std::borrow::Cow;
-
-#[derive(Debug, PartialEq)]
-pub enum Architecture {
-    // TODO: Coming soon!
-    // Avr,
-    CortexM,
-    Mips,
-    Msp430,
-    RiscV,
-    XtensaLX,
-}
+pub use svd2rust::util::Target;
+use svd2rust::util::ToSanitizedCase;
 
 #[derive(Debug)]
 pub enum Manufacturer {
@@ -41,7 +30,7 @@ pub enum RunWhen {
 }
 
 pub struct TestCase {
-    pub arch: Architecture,
+    pub arch: Target,
     pub mfgr: Manufacturer,
     pub chip: &'static str,
     svd_url: Option<&'static str>,
@@ -75,59 +64,9 @@ impl TestCase {
     }
 }
 
-use self::Architecture::*;
 use self::Manufacturer::*;
 use self::RunWhen::*;
-
-/// List of chars that some vendors use in their peripheral/field names but
-/// that are not valid in Rust ident
-const BLACKLIST_CHARS: &[char] = &['(', ')', '[', ']'];
-
-/// Lovingly stolen from `svd2rust`
-pub trait ToSanitizedCase {
-    fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str>;
-    fn to_sanitized_snake_case(&self) -> Cow<str> {
-        let s = self.to_sanitized_not_keyword_snake_case();
-        sanitize_keyword(s)
-    }
-}
-
-impl ToSanitizedCase for str {
-    fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str> {
-        const INTERNALS: [&str; 4] = ["set_bit", "clear_bit", "bit", "bits"];
-
-        let s = self.replace(BLACKLIST_CHARS, "");
-        match s.chars().next().unwrap_or('\0') {
-            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                format!("_{}", s.to_snake_case()).into()
-            }
-            _ => {
-                let s = Cow::from(s.to_snake_case());
-                if INTERNALS.contains(&s.as_ref()) {
-                    s + "_"
-                } else {
-                    s
-                }
-            }
-        }
-    }
-}
-
-pub fn sanitize_keyword(sc: Cow<str>) -> Cow<str> {
-    const KEYWORDS: [&str; 55] = [
-        "abstract", "alignof", "as", "async", "await", "become", "box", "break", "const",
-        "continue", "crate", "do", "dyn", "else", "enum", "extern", "false", "final", "fn", "for",
-        "if", "impl", "in", "let", "loop", "macro", "match", "mod", "move", "mut", "offsetof",
-        "override", "priv", "proc", "pub", "pure", "ref", "return", "self", "sizeof", "static",
-        "struct", "super", "trait", "true", "try", "type", "typeof", "unsafe", "unsized", "use",
-        "virtual", "where", "while", "yield",
-    ];
-    if KEYWORDS.contains(&sc.as_ref()) {
-        sc + "_"
-    } else {
-        sc
-    }
-}
+use self::Target::{CortexM, Mips, Msp430, XtensaLX, RISCV};
 
 // NOTE: All chip names must be unique!
 pub const TESTS: &[&TestCase] = &[
@@ -4175,7 +4114,7 @@ pub const TESTS: &[&TestCase] = &[
         run_when: Always,
     },
     &TestCase {
-        arch: RiscV,
+        arch: RISCV,
         mfgr: SiFive,
         chip: "E310x",
         svd_url: Some("https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd"),
@@ -4231,7 +4170,7 @@ pub const TESTS: &[&TestCase] = &[
         run_when: Always,
     },
     &TestCase {
-        arch: RiscV,
+        arch: RISCV,
         mfgr: Espressif,
         chip: "esp32c3",
         svd_url: Some(
