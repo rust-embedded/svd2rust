@@ -119,6 +119,19 @@ fn run() -> Result<()> {
                 .help("Use array increment for cluster size"),
         )
         .arg(
+            Arg::new("impl_debug")
+                .long("impl_debug")
+                .action(ArgAction::SetTrue)
+                .help("implement Debug for readable blocks and registers"),
+        )
+        .arg(
+            Arg::new("impl_debug_feature")
+                .long("impl_debug_feature")
+                .help("add feature gating for block and register debug implementation")
+                .action(ArgAction::Set)
+                .value_name("FEATURE"),
+        )
+        .arg(
             Arg::new("make_mod")
                 .long("make_mod")
                 .short('m')
