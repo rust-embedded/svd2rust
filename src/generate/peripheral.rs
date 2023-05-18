@@ -91,6 +91,10 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                         pub const fn ptr() -> *const #base::RegisterBlock {
                             Self::PTR
                         }
+
+                        pub unsafe fn steal(&self) -> Self {
+                            Self { _marker: PhantomData }
+                        }
                     }
 
                     #feature_attribute_n
@@ -149,6 +153,10 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                     #[inline(always)]
                     pub const fn ptr() -> *const #base::RegisterBlock {
                         Self::PTR
+                    }
+
+                    pub unsafe fn steal(&self) -> Self {
+                        Self { _marker: PhantomData }
                     }
                 }
 
