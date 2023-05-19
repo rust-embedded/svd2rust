@@ -188,13 +188,11 @@ pub fn render(
                 writeln!(device_x, "PROVIDE({name} = DefaultHandler);")?;
             }
 
-            let link_section_attr = if let Some(section) = &config.interrupt_link_section {
+            let link_section_attr = config.interrupt_link_section.as_ref().map(|section| {
                 quote! {
                     #[link_section = #section]
                 }
-            } else {
-                quote! {}
-            };
+            });
 
             root.extend(quote! {
                 #[cfg(feature = "rt")]
@@ -222,13 +220,11 @@ pub fn render(
                 writeln!(device_x, "PROVIDE({name} = DefaultHandler);")?;
             }
 
-            let link_section_attr = if let Some(section) = &config.interrupt_link_section {
+            let link_section_attr = config.interrupt_link_section.as_ref().map(|section| {
                 quote! {
                     #[link_section = #section]
                 }
-            } else {
-                quote! {}
-            };
+            });
 
             root.extend(quote! {
                 #[cfg(feature = "rt")]
