@@ -59,6 +59,8 @@ pub struct Config {
     pub source_type: SourceType,
     #[cfg_attr(feature = "serde", serde(default))]
     pub log_level: Option<String>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub interrupt_link_section: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -120,6 +122,7 @@ impl Default for Config {
             input: None,
             source_type: SourceType::default(),
             log_level: None,
+            interrupt_link_section: None,
         }
     }
 }
@@ -229,7 +232,7 @@ pub trait ToSanitizedCase {
 impl ToSanitizedCase for str {
     fn to_sanitized_pascal_case(&self) -> Cow<str> {
         let s = Case::Pascal.sanitize(self);
-        if s.as_bytes().get(0).unwrap_or(&0).is_ascii_digit() {
+        if s.as_bytes().first().unwrap_or(&0).is_ascii_digit() {
             Cow::from(format!("_{}", s))
         } else {
             s
@@ -237,7 +240,7 @@ impl ToSanitizedCase for str {
     }
     fn to_sanitized_constant_case(&self) -> Cow<str> {
         let s = Case::Constant.sanitize(self);
-        if s.as_bytes().get(0).unwrap_or(&0).is_ascii_digit() {
+        if s.as_bytes().first().unwrap_or(&0).is_ascii_digit() {
             Cow::from(format!("_{}", s))
         } else {
             s
@@ -247,7 +250,7 @@ impl ToSanitizedCase for str {
         const INTERNALS: [&str; 4] = ["set_bit", "clear_bit", "bit", "bits"];
 
         let s = Case::Snake.sanitize(self);
-        if s.as_bytes().get(0).unwrap_or(&0).is_ascii_digit() {
+        if s.as_bytes().first().unwrap_or(&0).is_ascii_digit() {
             format!("_{}", s).into()
         } else if INTERNALS.contains(&s.as_ref()) {
             s + "_"
