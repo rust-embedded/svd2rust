@@ -118,6 +118,14 @@ pub fn render(
                 writeln!(device_x, "PROVIDE({name} = DefaultHandler);")?;
             }
 
+            let link_section_name = config
+                .interrupt_link_section
+                .as_deref()
+                .unwrap_or(".vector_table.interrupts");
+            let link_section_attr = quote! {
+                #[link_section = #link_section_name]
+            };
+
             root.extend(quote! {
                 #[cfg(feature = "rt")]
                 extern "C" {
@@ -132,7 +140,7 @@ pub fn render(
 
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
-                #[link_section = ".vector_table.interrupts"]
+                #link_section_attr
                 #[no_mangle]
                 pub static __INTERRUPTS: [Vector; #n] = [
                     #elements
@@ -143,6 +151,14 @@ pub fn render(
             for name in &names {
                 writeln!(device_x, "PROVIDE({name} = DefaultHandler);").unwrap();
             }
+
+            let link_section_name = config
+                .interrupt_link_section
+                .as_deref()
+                .unwrap_or(".vector_table.interrupts");
+            let link_section_attr = quote! {
+                #[link_section = #link_section_name]
+            };
 
             root.extend(quote! {
                 #[cfg(feature = "rt")]
@@ -158,7 +174,7 @@ pub fn render(
 
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
-                #[link_section = ".vector_table.interrupts"]
+                #link_section_attr
                 #[no_mangle]
                 #[used]
                 pub static __INTERRUPTS:
@@ -171,6 +187,14 @@ pub fn render(
             for name in &names {
                 writeln!(device_x, "PROVIDE({name} = DefaultHandler);")?;
             }
+
+            let link_section_attr = if let Some(section) = &config.interrupt_link_section {
+                quote! {
+                    #[link_section = #section]
+                }
+            } else {
+                quote! {}
+            };
 
             root.extend(quote! {
                 #[cfg(feature = "rt")]
@@ -186,6 +210,7 @@ pub fn render(
 
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
+                #link_section_attr
                 #[no_mangle]
                 pub static __EXTERNAL_INTERRUPTS: [Vector; #n] = [
                     #elements
@@ -196,6 +221,14 @@ pub fn render(
             for name in &names {
                 writeln!(device_x, "PROVIDE({name} = DefaultHandler);")?;
             }
+
+            let link_section_attr = if let Some(section) = &config.interrupt_link_section {
+                quote! {
+                    #[link_section = #section]
+                }
+            } else {
+                quote! {}
+            };
 
             root.extend(quote! {
                 #[cfg(feature = "rt")]
@@ -210,6 +243,7 @@ pub fn render(
                 }
 
                 #[cfg(feature = "rt")]
+                #link_section_attr
                 #[doc(hidden)]
                 pub static __INTERRUPTS: [Vector; #n] = [
                     #elements

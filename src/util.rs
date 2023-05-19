@@ -59,6 +59,8 @@ pub struct Config {
     pub source_type: SourceType,
     #[cfg_attr(feature = "serde", serde(default))]
     pub log_level: Option<String>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub interrupt_link_section: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -120,6 +122,7 @@ impl Default for Config {
             input: None,
             source_type: SourceType::default(),
             log_level: None,
+            interrupt_link_section: None,
         }
     }
 }
