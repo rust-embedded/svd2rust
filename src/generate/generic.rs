@@ -342,31 +342,30 @@ impl<FI> BitReaderRaw<FI> {
 /// Field reader.
 ///
 /// Result of the `read` methods of fields.
-pub type FieldReader<U = u8, FI = u8> = FieldReaderRaw<U, FI>;
+pub type FieldReader<N = u8, FI = u8> = FieldReaderRaw<N, FI>;
 
 /// Bit-wise field reader
 pub type BitReader<FI = bool> = BitReaderRaw<FI>;
 
-impl<U, FI> FieldReader<U, FI>
+impl<N, FI> FieldReader<N, FI>
 where
-    U: Copy,
+    N: Copy,
 {
     /// Reads raw bits from field.
     #[inline(always)]
-    pub fn bits(&self) -> U {
+    pub fn bits(&self) -> N {
         self.bits
     }
 }
 
-impl<U, FI> PartialEq<FI> for FieldReader<U, FI>
+impl<N, FI> PartialEq<FI> for FieldReader<N, FI>
 where
-    U: PartialEq,
     FI: Copy,
-    U: From<FI>,
+    N: PartialEq + From<FI>,
 {
     #[inline(always)]
     fn eq(&self, other: &FI) -> bool {
-        self.bits.eq(&U::from(*other))
+        self.bits.eq(&N::from(*other))
     }
 }
 
@@ -405,19 +404,19 @@ pub struct Safe;
 pub struct Unsafe;
 
 #[doc(hidden)]
-pub struct FieldWriterRaw<'a, U, REG, const WI: u8, const O: u8, N, FI, Safety>
+pub struct FieldWriterRaw<'a, REG, const WI: u8, const O: u8, N, FI, Safety>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
+    REG: Writable + RegisterSpec,
     N: From<FI>,
 {
     pub(crate) w: &'a mut REG::Writer,
     _field: marker::PhantomData<(N, FI, Safety)>,
 }
 
-impl<'a, U, REG, const WI: u8, const O: u8, N, FI, Safety>
-    FieldWriterRaw<'a, U, REG, WI, O, N, FI, Safety>
+impl<'a, REG, const WI: u8, const O: u8, N, FI, Safety>
+    FieldWriterRaw<'a, REG, WI, O, N, FI, Safety>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
+    REG: Writable + RegisterSpec,
     N: From<FI>,
 {
     /// Creates a new instance of the writer
@@ -432,18 +431,18 @@ where
 }
 
 #[doc(hidden)]
-pub struct BitWriterRaw<'a, U, REG, const O: u8, FI, M>
+pub struct BitWriterRaw<'a, REG, const O: u8, FI, M>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
+    REG: Writable + RegisterSpec,
     bool: From<FI>,
 {
     pub(crate) w: &'a mut REG::Writer,
     _field: marker::PhantomData<(FI, M)>,
 }
 
-impl<'a, U, REG, const O: u8, FI, M> BitWriterRaw<'a, U, REG, O, FI, M>
+impl<'a, REG, const O: u8, FI, M> BitWriterRaw<'a, REG, O, FI, M>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
+    REG: Writable + RegisterSpec,
     bool: From<FI>,
 {
     /// Creates a new instance of the writer
@@ -458,24 +457,24 @@ where
 }
 
 /// Write field Proxy with unsafe `bits`
-pub type FieldWriter<'a, U, REG, const WI: u8, const O: u8, N = u8, FI = u8> =
-    FieldWriterRaw<'a, U, REG, WI, O, N, FI, Unsafe>;
+pub type FieldWriter<'a, REG, const WI: u8, const O: u8, N = u8, FI = u8> =
+    FieldWriterRaw<'a, REG, WI, O, N, FI, Unsafe>;
 /// Write field Proxy with safe `bits`
-pub type FieldWriterSafe<'a, U, REG, const WI: u8, const O: u8, N = u8, FI = u8> =
-    FieldWriterRaw<'a, U, REG, WI, O, N, FI, Safe>;
+pub type FieldWriterSafe<'a, REG, const WI: u8, const O: u8, N = u8, FI = u8> =
+    FieldWriterRaw<'a, REG, WI, O, N, FI, Safe>;
 
-impl<'a, U, REG, const WI: u8, const OF: u8, N, FI> FieldWriter<'a, U, REG, WI, OF, N, FI>
+impl<'a, REG, const WI: u8, const OF: u8, N, FI> FieldWriter<'a, REG, WI, OF, N, FI>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
+    REG: Writable + RegisterSpec,
     N: From<FI>,
 {
     /// Field width
     pub const WIDTH: u8 = WI;
 }
 
-impl<'a, U, REG, const WI: u8, const OF: u8, N, FI> FieldWriterSafe<'a, U, REG, WI, OF, N, FI>
+impl<'a, REG, const WI: u8, const OF: u8, N, FI> FieldWriterSafe<'a, REG, WI, OF, N, FI>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
+    REG: Writable + RegisterSpec,
     N: From<FI>,
 {
     /// Field width
@@ -488,11 +487,11 @@ macro_rules! bit_proxy {
         pub struct $mwv;
 
         /// Bit-wise write field proxy
-        pub type $writer<'a, U, REG, const O: u8, FI = bool> = BitWriterRaw<'a, U, REG, O, FI, $mwv>;
+        pub type $writer<'a, REG, const O: u8, FI = bool> = BitWriterRaw<'a, REG, O, FI, $mwv>;
 
-        impl<'a, U, REG, const OF: u8, FI> $writer<'a, U, REG, OF, FI>
+        impl<'a, REG, const OF: u8, FI> $writer<'a, REG, OF, FI>
         where
-            REG: Writable + RegisterSpec<Ux = U>,
+            REG: Writable + RegisterSpec,
             bool: From<FI>,
         {
             /// Field width
@@ -503,17 +502,16 @@ macro_rules! bit_proxy {
 
 macro_rules! impl_bit_proxy {
     ($writer:ident) => {
-        impl<'a, U, REG, const OF: u8, FI> $writer<'a, U, REG, OF, FI>
+        impl<'a, REG, const OF: u8, FI> $writer<'a, REG, OF, FI>
         where
-            REG: Writable + RegisterSpec<Ux = U>,
-            U: RawReg,
+            REG: Writable + RegisterSpec,
             bool: From<FI>,
         {
             /// Writes bit to the field
             #[inline(always)]
             pub fn bit(self, value: bool) -> &'a mut REG::Writer {
-                self.w.bits &= !(U::one() << OF);
-                self.w.bits |= (U::from(value) & U::one()) << OF;
+                self.w.bits &= !(REG::Ux::one() << OF);
+                self.w.bits |= (REG::Ux::from(value) & REG::Ux::one()) << OF;
                 self.w
             }
             /// Writes `variant` to the field
@@ -533,10 +531,10 @@ bit_proxy!(BitWriter0S, Bit0S);
 bit_proxy!(BitWriter1T, Bit1T);
 bit_proxy!(BitWriter0T, Bit0T);
 
-impl<'a, U, REG, const WI: u8, const OF: u8, N, FI> FieldWriter<'a, U, REG, WI, OF, N, FI>
+impl<'a, REG, const WI: u8, const OF: u8, N, FI> FieldWriter<'a, REG, WI, OF, N, FI>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
-    U: RawReg + From<N>,
+    REG: Writable + RegisterSpec,
+    REG::Ux: From<N>,
     N: From<FI>,
 {
     /// Writes raw bits to the field
@@ -546,8 +544,8 @@ where
     /// Passing incorrect value can cause undefined behaviour. See reference manual
     #[inline(always)]
     pub unsafe fn bits(self, value: N) -> &'a mut REG::Writer {
-        self.w.bits &= !(U::mask::<WI>() << OF);
-        self.w.bits |= (U::from(value) & U::mask::<WI>()) << OF;
+        self.w.bits &= !(REG::Ux::mask::<WI>() << OF);
+        self.w.bits |= (REG::Ux::from(value) & REG::Ux::mask::<WI>()) << OF;
         self.w
     }
     /// Writes `variant` to the field
@@ -556,17 +554,17 @@ where
         unsafe { self.bits(N::from(variant)) }
     }
 }
-impl<'a, U, REG, const WI: u8, const OF: u8, N, FI> FieldWriterSafe<'a, U, REG, WI, OF, N, FI>
+impl<'a, REG, const WI: u8, const OF: u8, N, FI> FieldWriterSafe<'a, REG, WI, OF, N, FI>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
-    U: RawReg + From<N>,
+    REG: Writable + RegisterSpec,
+    REG::Ux: From<N>,
     N: From<FI>,
 {
     /// Writes raw bits to the field
     #[inline(always)]
     pub fn bits(self, value: N) -> &'a mut REG::Writer {
-        self.w.bits &= !(U::mask::<WI>() << OF);
-        self.w.bits |= (U::from(value) & U::mask::<WI>()) << OF;
+        self.w.bits &= !(REG::Ux::mask::<WI>() << OF);
+        self.w.bits |= (REG::Ux::from(value) & REG::Ux::mask::<WI>()) << OF;
         self.w
     }
     /// Writes `variant` to the field
@@ -584,106 +582,99 @@ impl_bit_proxy!(BitWriter0S);
 impl_bit_proxy!(BitWriter1T);
 impl_bit_proxy!(BitWriter0T);
 
-impl<'a, U, REG, const OF: u8, FI> BitWriter<'a, U, REG, OF, FI>
+impl<'a, REG, const OF: u8, FI> BitWriter<'a, REG, OF, FI>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
-    U: RawReg,
+    REG: Writable + RegisterSpec,
     bool: From<FI>,
 {
     /// Sets the field bit
     #[inline(always)]
     pub fn set_bit(self) -> &'a mut REG::Writer {
-        self.w.bits |= U::one() << OF;
+        self.w.bits |= REG::Ux::one() << OF;
         self.w
     }
     /// Clears the field bit
     #[inline(always)]
     pub fn clear_bit(self) -> &'a mut REG::Writer {
-        self.w.bits &= !(U::one() << OF);
+        self.w.bits &= !(REG::Ux::one() << OF);
         self.w
     }
 }
 
-impl<'a, U, REG, const OF: u8, FI> BitWriter1S<'a, U, REG, OF, FI>
+impl<'a, REG, const OF: u8, FI> BitWriter1S<'a, REG, OF, FI>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
-    U: RawReg,
+    REG: Writable + RegisterSpec,
     bool: From<FI>,
 {
     /// Sets the field bit
     #[inline(always)]
     pub fn set_bit(self) -> &'a mut REG::Writer {
-        self.w.bits |= U::one() << OF;
+        self.w.bits |= REG::Ux::one() << OF;
         self.w
     }
 }
 
-impl<'a, U, REG, const OF: u8, FI> BitWriter0C<'a, U, REG, OF, FI>
+impl<'a, REG, const OF: u8, FI> BitWriter0C<'a, REG, OF, FI>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
-    U: RawReg,
+    REG: Writable + RegisterSpec,
     bool: From<FI>,
 {
     /// Clears the field bit
     #[inline(always)]
     pub fn clear_bit(self) -> &'a mut REG::Writer {
-        self.w.bits &= !(U::one() << OF);
+        self.w.bits &= !(REG::Ux::one() << OF);
         self.w
     }
 }
 
-impl<'a, U, REG, const OF: u8, FI> BitWriter1C<'a, U, REG, OF, FI>
+impl<'a, REG, const OF: u8, FI> BitWriter1C<'a, REG, OF, FI>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
-    U: RawReg,
+    REG: Writable + RegisterSpec,
     bool: From<FI>,
 {
     ///Clears the field bit by passing one
     #[inline(always)]
     pub fn clear_bit_by_one(self) -> &'a mut REG::Writer {
-        self.w.bits |= U::one() << OF;
+        self.w.bits |= REG::Ux::one() << OF;
         self.w
     }
 }
 
-impl<'a, U, REG, const OF: u8, FI> BitWriter0S<'a, U, REG, OF, FI>
+impl<'a, REG, const OF: u8, FI> BitWriter0S<'a, REG, OF, FI>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
-    U: RawReg,
+    REG: Writable + RegisterSpec,
     bool: From<FI>,
 {
     ///Sets the field bit by passing zero
     #[inline(always)]
     pub fn set_bit_by_zero(self) -> &'a mut REG::Writer {
-        self.w.bits &= !(U::one() << OF);
+        self.w.bits &= !(REG::Ux::one() << OF);
         self.w
     }
 }
 
-impl<'a, U, REG, const OF: u8, FI> BitWriter1T<'a, U, REG, OF, FI>
+impl<'a, REG, const OF: u8, FI> BitWriter1T<'a, REG, OF, FI>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
-    U: RawReg,
+    REG: Writable + RegisterSpec,
     bool: From<FI>,
 {
     ///Toggle the field bit by passing one
     #[inline(always)]
     pub fn toggle_bit(self) -> &'a mut REG::Writer {
-        self.w.bits |= U::one() << OF;
+        self.w.bits |= REG::Ux::one() << OF;
         self.w
     }
 }
 
-impl<'a, U, REG, const OF: u8, FI> BitWriter0T<'a, U, REG, OF, FI>
+impl<'a, REG, const OF: u8, FI> BitWriter0T<'a, REG, OF, FI>
 where
-    REG: Writable + RegisterSpec<Ux = U>,
-    U: RawReg,
+    REG: Writable + RegisterSpec,
     bool: From<FI>,
 {
     ///Toggle the field bit by passing zero
     #[inline(always)]
     pub fn toggle_bit(self) -> &'a mut REG::Writer {
-        self.w.bits &= !(U::one() << OF);
+        self.w.bits &= !(REG::Ux::one() << OF);
         self.w
     }
 }
