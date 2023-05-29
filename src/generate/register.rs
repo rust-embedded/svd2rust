@@ -251,7 +251,6 @@ pub fn render_register_mod(
             ) = fields(
                 cur_fields,
                 &regspec_ident,
-                &rty,
                 register.modified_write_values,
                 access,
                 properties,
@@ -390,7 +389,6 @@ pub fn render_register_mod(
 pub fn fields(
     mut fields: Vec<&Field>,
     regspec_ident: &Ident,
-    rty: &Ident,
     rmwv: Option<ModifiedWriteValues>,
     access: Access,
     properties: &RegisterProperties,
@@ -877,9 +875,9 @@ pub fn fields(
                         span,
                     );
                     if value_write_ty == "bool" {
-                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, O> }
+                        quote! { crate::#wproxy<'a, #regspec_ident, O> }
                     } else {
-                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, O, #value_write_ty> }
+                        quote! { crate::#wproxy<'a, #regspec_ident, O, #value_write_ty> }
                     }
                 } else {
                     let wproxy = Ident::new(
@@ -892,11 +890,11 @@ pub fn fields(
                     );
                     let width = &util::unsuffixed(width as _);
                     if fty == "u8" && value_write_ty == "u8" {
-                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, #width, O> }
+                        quote! { crate::#wproxy<'a, #regspec_ident, #width, O> }
                     } else if value_write_ty == "u8" {
-                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, #width, O, #fty> }
+                        quote! { crate::#wproxy<'a, #regspec_ident, #width, O, #fty> }
                     } else {
-                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, #width, O, #fty, #value_write_ty> }
+                        quote! { crate::#wproxy<'a, #regspec_ident, #width, O, #fty, #value_write_ty> }
                     }
                 };
                 mod_items.extend(quote! {
