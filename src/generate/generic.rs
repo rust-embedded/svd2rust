@@ -342,7 +342,7 @@ impl<FI> BitReaderRaw<FI> {
 /// Field reader.
 ///
 /// Result of the `read` methods of fields.
-pub type FieldReader<U, FI = u8> = FieldReaderRaw<U, FI>;
+pub type FieldReader<U = u8, FI = u8> = FieldReaderRaw<U, FI>;
 
 /// Bit-wise field reader
 pub type BitReader<FI = bool> = BitReaderRaw<FI>;

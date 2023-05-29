@@ -550,6 +550,8 @@ pub fn fields(
                     } else {
                         quote! { crate::BitReader<#value_read_ty> }
                     }
+                } else if fty == "u8" && value_read_ty == "u8" {
+                    quote! { crate::FieldReader }
                 } else if value_read_ty == "u8" {
                     quote! { crate::FieldReader<#fty> }
                 } else {
