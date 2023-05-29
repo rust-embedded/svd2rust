@@ -301,9 +301,9 @@ impl<REG: RegisterSpec> W<REG> {
 }
 
 #[doc(hidden)]
-pub struct FieldReaderRaw<U, T> {
+pub struct FieldReaderRaw<U, FI> {
     pub(crate) bits: U,
-    _reg: marker::PhantomData<T>,
+    _reg: marker::PhantomData<FI>,
 }
 
 impl<U, FI> FieldReaderRaw<U, FI>
@@ -322,9 +322,9 @@ where
 }
 
 #[doc(hidden)]
-pub struct BitReaderRaw<T> {
+pub struct BitReaderRaw<FI> {
     pub(crate) bits: bool,
-    _reg: marker::PhantomData<T>,
+    _reg: marker::PhantomData<FI>,
 }
 
 impl<FI> BitReaderRaw<FI> {
@@ -342,10 +342,10 @@ impl<FI> BitReaderRaw<FI> {
 /// Field reader.
 ///
 /// Result of the `read` methods of fields.
-pub type FieldReader<U, FI> = FieldReaderRaw<U, FI>;
+pub type FieldReader<U, FI = u8> = FieldReaderRaw<U, FI>;
 
 /// Bit-wise field reader
-pub type BitReader<FI> = BitReaderRaw<FI>;
+pub type BitReader<FI = bool> = BitReaderRaw<FI>;
 
 impl<U, FI> FieldReader<U, FI>
 where

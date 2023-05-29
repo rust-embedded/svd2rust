@@ -545,7 +545,13 @@ pub fn fields(
             // derive the read proxy structure if necessary.
             if should_derive_reader {
                 let reader = if width == 1 {
-                    quote! { crate::BitReader<#value_read_ty> }
+                    if value_read_ty == "bool" {
+                        quote! { crate::BitReader }
+                    } else {
+                        quote! { crate::BitReader<#value_read_ty> }
+                    }
+                } else if value_read_ty == "u8" {
+                    quote! { crate::FieldReader<#fty> }
                 } else {
                     quote! { crate::FieldReader<#fty, #value_read_ty> }
                 };
