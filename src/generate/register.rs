@@ -874,7 +874,11 @@ pub fn fields(
                         },
                         span,
                     );
-                    quote! { crate::#wproxy<'a, #rty, #regspec_ident, #value_write_ty, O> }
+                    if value_write_ty == "bool" {
+                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, O> }
+                    } else {
+                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, O, #value_write_ty> }
+                    }
                 } else {
                     let wproxy = Ident::new(
                         if unsafety {
@@ -885,7 +889,13 @@ pub fn fields(
                         span,
                     );
                     let width = &util::unsuffixed(width as _);
-                    quote! { crate::#wproxy<'a, #rty, #regspec_ident, #fty, #value_write_ty, #width, O> }
+                    if fty == "u8" && value_write_ty == "u8" {
+                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, #width, O> }
+                    } else if value_write_ty == "u8" {
+                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, #width, O, #fty> }
+                    } else {
+                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, #width, O, #fty, #value_write_ty> }
+                    }
                 };
                 mod_items.extend(quote! {
                     #[doc = #field_writer_brief]
