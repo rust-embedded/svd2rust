@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- `bool` and `u8` as default generics for `BitReader/Writer` and `FieldReader/Writer`
 - Bump MSRV to 1.65
 - Optimize case change/sanitize
 - Fix dangling implicit derives

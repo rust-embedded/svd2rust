@@ -545,7 +545,15 @@ pub fn fields(
             // derive the read proxy structure if necessary.
             if should_derive_reader {
                 let reader = if width == 1 {
-                    quote! { crate::BitReader<#value_read_ty> }
+                    if value_read_ty == "bool" {
+                        quote! { crate::BitReader }
+                    } else {
+                        quote! { crate::BitReader<#value_read_ty> }
+                    }
+                } else if fty == "u8" && value_read_ty == "u8" {
+                    quote! { crate::FieldReader }
+                } else if value_read_ty == "u8" {
+                    quote! { crate::FieldReader<#fty> }
                 } else {
                     quote! { crate::FieldReader<#fty, #value_read_ty> }
                 };
@@ -868,7 +876,11 @@ pub fn fields(
                         },
                         span,
                     );
-                    quote! { crate::#wproxy<'a, #rty, #regspec_ident, #value_write_ty, O> }
+                    if value_write_ty == "bool" {
+                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, O> }
+                    } else {
+                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, O, #value_write_ty> }
+                    }
                 } else {
                     let wproxy = Ident::new(
                         if unsafety {
@@ -879,7 +891,13 @@ pub fn fields(
                         span,
                     );
                     let width = &util::unsuffixed(width as _);
-                    quote! { crate::#wproxy<'a, #rty, #regspec_ident, #fty, #value_write_ty, #width, O> }
+                    if fty == "u8" && value_write_ty == "u8" {
+                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, #width, O> }
+                    } else if value_write_ty == "u8" {
+                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, #width, O, #fty> }
+                    } else {
+                        quote! { crate::#wproxy<'a, #rty, #regspec_ident, #width, O, #fty, #value_write_ty> }
+                    }
                 };
                 mod_items.extend(quote! {
                     #[doc = #field_writer_brief]

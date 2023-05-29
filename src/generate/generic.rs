@@ -301,9 +301,9 @@ impl<REG: RegisterSpec> W<REG> {
 }
 
 #[doc(hidden)]
-pub struct FieldReaderRaw<U, T> {
+pub struct FieldReaderRaw<U, FI> {
     pub(crate) bits: U,
-    _reg: marker::PhantomData<T>,
+    _reg: marker::PhantomData<FI>,
 }
 
 impl<U, FI> FieldReaderRaw<U, FI>
@@ -322,9 +322,9 @@ where
 }
 
 #[doc(hidden)]
-pub struct BitReaderRaw<T> {
+pub struct BitReaderRaw<FI> {
     pub(crate) bits: bool,
-    _reg: marker::PhantomData<T>,
+    _reg: marker::PhantomData<FI>,
 }
 
 impl<FI> BitReaderRaw<FI> {
@@ -342,10 +342,10 @@ impl<FI> BitReaderRaw<FI> {
 /// Field reader.
 ///
 /// Result of the `read` methods of fields.
-pub type FieldReader<U, FI> = FieldReaderRaw<U, FI>;
+pub type FieldReader<U = u8, FI = u8> = FieldReaderRaw<U, FI>;
 
 /// Bit-wise field reader
-pub type BitReader<FI> = BitReaderRaw<FI>;
+pub type BitReader<FI = bool> = BitReaderRaw<FI>;
 
 impl<U, FI> FieldReader<U, FI>
 where
@@ -405,7 +405,7 @@ pub struct Safe;
 pub struct Unsafe;
 
 #[doc(hidden)]
-pub struct FieldWriterRaw<'a, U, REG, N, FI, Safety, const WI: u8, const O: u8>
+pub struct FieldWriterRaw<'a, U, REG, const WI: u8, const O: u8, N, FI, Safety>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     N: From<FI>,
@@ -414,8 +414,8 @@ where
     _field: marker::PhantomData<(N, FI, Safety)>,
 }
 
-impl<'a, U, REG, N, FI, Safety, const WI: u8, const O: u8>
-    FieldWriterRaw<'a, U, REG, N, FI, Safety, WI, O>
+impl<'a, U, REG, const WI: u8, const O: u8, N, FI, Safety>
+    FieldWriterRaw<'a, U, REG, WI, O, N, FI, Safety>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     N: From<FI>,
@@ -432,7 +432,7 @@ where
 }
 
 #[doc(hidden)]
-pub struct BitWriterRaw<'a, U, REG, FI, M, const O: u8>
+pub struct BitWriterRaw<'a, U, REG, const O: u8, FI, M>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     bool: From<FI>,
@@ -441,7 +441,7 @@ where
     _field: marker::PhantomData<(FI, M)>,
 }
 
-impl<'a, U, REG, FI, M, const O: u8> BitWriterRaw<'a, U, REG, FI, M, O>
+impl<'a, U, REG, const O: u8, FI, M> BitWriterRaw<'a, U, REG, O, FI, M>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     bool: From<FI>,
@@ -458,13 +458,13 @@ where
 }
 
 /// Write field Proxy with unsafe `bits`
-pub type FieldWriter<'a, U, REG, N, FI, const WI: u8, const O: u8> =
-    FieldWriterRaw<'a, U, REG, N, FI, Unsafe, WI, O>;
+pub type FieldWriter<'a, U, REG, const WI: u8, const O: u8, N = u8, FI = u8> =
+    FieldWriterRaw<'a, U, REG, WI, O, N, FI, Unsafe>;
 /// Write field Proxy with safe `bits`
-pub type FieldWriterSafe<'a, U, REG, N, FI, const WI: u8, const O: u8> =
-    FieldWriterRaw<'a, U, REG, N, FI, Safe, WI, O>;
+pub type FieldWriterSafe<'a, U, REG, const WI: u8, const O: u8, N = u8, FI = u8> =
+    FieldWriterRaw<'a, U, REG, WI, O, N, FI, Safe>;
 
-impl<'a, U, REG, N, FI, const WI: u8, const OF: u8> FieldWriter<'a, U, REG, N, FI, WI, OF>
+impl<'a, U, REG, const WI: u8, const OF: u8, N, FI> FieldWriter<'a, U, REG, WI, OF, N, FI>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     N: From<FI>,
@@ -473,7 +473,7 @@ where
     pub const WIDTH: u8 = WI;
 }
 
-impl<'a, U, REG, N, FI, const WI: u8, const OF: u8> FieldWriterSafe<'a, U, REG, N, FI, WI, OF>
+impl<'a, U, REG, const WI: u8, const OF: u8, N, FI> FieldWriterSafe<'a, U, REG, WI, OF, N, FI>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     N: From<FI>,
@@ -488,9 +488,9 @@ macro_rules! bit_proxy {
         pub struct $mwv;
 
         /// Bit-wise write field proxy
-        pub type $writer<'a, U, REG, FI, const O: u8> = BitWriterRaw<'a, U, REG, FI, $mwv, O>;
+        pub type $writer<'a, U, REG, const O: u8, FI = bool> = BitWriterRaw<'a, U, REG, O, FI, $mwv>;
 
-        impl<'a, U, REG, FI, const OF: u8> $writer<'a, U, REG, FI, OF>
+        impl<'a, U, REG, const OF: u8, FI> $writer<'a, U, REG, OF, FI>
         where
             REG: Writable + RegisterSpec<Ux = U>,
             bool: From<FI>,
@@ -503,7 +503,7 @@ macro_rules! bit_proxy {
 
 macro_rules! impl_bit_proxy {
     ($writer:ident) => {
-        impl<'a, U, REG, FI, const OF: u8> $writer<'a, U, REG, FI, OF>
+        impl<'a, U, REG, const OF: u8, FI> $writer<'a, U, REG, OF, FI>
         where
             REG: Writable + RegisterSpec<Ux = U>,
             U: RawReg,
@@ -533,7 +533,7 @@ bit_proxy!(BitWriter0S, Bit0S);
 bit_proxy!(BitWriter1T, Bit1T);
 bit_proxy!(BitWriter0T, Bit0T);
 
-impl<'a, U, REG, N, FI, const WI: u8, const OF: u8> FieldWriter<'a, U, REG, N, FI, WI, OF>
+impl<'a, U, REG, const WI: u8, const OF: u8, N, FI> FieldWriter<'a, U, REG, WI, OF, N, FI>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg + From<N>,
@@ -556,7 +556,7 @@ where
         unsafe { self.bits(N::from(variant)) }
     }
 }
-impl<'a, U, REG, N, FI, const WI: u8, const OF: u8> FieldWriterSafe<'a, U, REG, N, FI, WI, OF>
+impl<'a, U, REG, const WI: u8, const OF: u8, N, FI> FieldWriterSafe<'a, U, REG, WI, OF, N, FI>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg + From<N>,
@@ -584,7 +584,7 @@ impl_bit_proxy!(BitWriter0S);
 impl_bit_proxy!(BitWriter1T);
 impl_bit_proxy!(BitWriter0T);
 
-impl<'a, U, REG, FI, const OF: u8> BitWriter<'a, U, REG, FI, OF>
+impl<'a, U, REG, const OF: u8, FI> BitWriter<'a, U, REG, OF, FI>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg,
@@ -604,7 +604,7 @@ where
     }
 }
 
-impl<'a, U, REG, FI, const OF: u8> BitWriter1S<'a, U, REG, FI, OF>
+impl<'a, U, REG, const OF: u8, FI> BitWriter1S<'a, U, REG, OF, FI>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg,
@@ -618,7 +618,7 @@ where
     }
 }
 
-impl<'a, U, REG, FI, const OF: u8> BitWriter0C<'a, U, REG, FI, OF>
+impl<'a, U, REG, const OF: u8, FI> BitWriter0C<'a, U, REG, OF, FI>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg,
@@ -632,7 +632,7 @@ where
     }
 }
 
-impl<'a, U, REG, FI, const OF: u8> BitWriter1C<'a, U, REG, FI, OF>
+impl<'a, U, REG, const OF: u8, FI> BitWriter1C<'a, U, REG, OF, FI>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg,
@@ -646,7 +646,7 @@ where
     }
 }
 
-impl<'a, U, REG, FI, const OF: u8> BitWriter0S<'a, U, REG, FI, OF>
+impl<'a, U, REG, const OF: u8, FI> BitWriter0S<'a, U, REG, OF, FI>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg,
@@ -660,7 +660,7 @@ where
     }
 }
 
-impl<'a, U, REG, FI, const OF: u8> BitWriter1T<'a, U, REG, FI, OF>
+impl<'a, U, REG, const OF: u8, FI> BitWriter1T<'a, U, REG, OF, FI>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg,
@@ -674,7 +674,7 @@ where
     }
 }
 
-impl<'a, U, REG, FI, const OF: u8> BitWriter0T<'a, U, REG, FI, OF>
+impl<'a, U, REG, const OF: u8, FI> BitWriter0T<'a, U, REG, OF, FI>
 where
     REG: Writable + RegisterSpec<Ux = U>,
     U: RawReg,
