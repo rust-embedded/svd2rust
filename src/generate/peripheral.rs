@@ -92,6 +92,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                             Self::PTR
                         }
 
+                        ///Steal an instance of this peripheral
                         pub unsafe fn steal(&self) -> Self {
                             Self { _marker: PhantomData }
                         }
@@ -155,6 +156,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                         Self::PTR
                     }
 
+                    ///Steal an instance of this peripheral
                     pub unsafe fn steal(&self) -> Self {
                         Self { _marker: PhantomData }
                     }
