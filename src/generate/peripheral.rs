@@ -644,6 +644,18 @@ fn register_or_cluster_block(
         }
     }
 
+    let mut derive_debug = TokenStream::new();
+    if config.impl_debug {
+        if let Some(feature_name) = &config.impl_debug_feature {
+            derive_debug.extend(quote! {
+                #[cfg_attr(feature = #feature_name, derive(Debug))]
+            });
+        } else {
+            derive_debug.extend(quote! {
+                #[derive(Debug)]
+            });
+        }
+    }
     let name = if let Some(name) = name {
         name.to_constant_case_ident(span)
     } else {
@@ -663,6 +675,7 @@ fn register_or_cluster_block(
     Ok(quote! {
         ///Register block
         #[repr(C)]
+        #derive_debug
         pub struct #name {
             #rbfs
         }

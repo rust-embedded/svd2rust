@@ -51,6 +51,10 @@ pub struct Config {
     pub feature_peripheral: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub max_cluster_size: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub impl_debug: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub impl_debug_feature: Option<String>,
     #[cfg_attr(feature = "serde", serde(default = "current_dir"))]
     pub output_dir: PathBuf,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -118,6 +122,8 @@ impl Default for Config {
             feature_group: false,
             feature_peripheral: false,
             max_cluster_size: false,
+            impl_debug: false,
+            impl_debug_feature: None,
             output_dir: current_dir(),
             input: None,
             source_type: SourceType::default(),

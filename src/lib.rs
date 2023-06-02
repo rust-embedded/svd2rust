@@ -495,6 +495,17 @@
 //! `portable-atomic` v0.3.16 must be added to the dependencies, with default features off to
 //! disable the `fallback` feature.
 //!
+//! ## the `--impl_debug` flag
+//!
+//! The `--impl_debug` option will cause svd2rust to generate `core::fmt::Debug` implementations for
+//! all registers and blocks.  If a register is readable and has fields defined then each field value
+//! will be printed - if no fields are defined then the value of the register will be printed. Any
+//! register that has read actions will not be read and printed as `(not read/has read action!)`.
+//! Registers that are not readable will have `(write only register)` printed as the value.
+//!
+//! The `--impl_debug_feature` flad can also be specified to include debug implementations conditionally
+//! behind the supplied feature name.
+//!
 //! Usage examples:
 //!
 //! ```ignore
@@ -502,6 +513,11 @@
 //! P1.p1out.set_bits(|w| unsafe { w.bits(1 << 1) });
 //! P1.p1out.clear_bits(|w| unsafe { w.bits(!(1 << 2)) });
 //! P1.p1out.toggle_bits(|w| unsafe { w.bits(1 << 4) });
+//! // if impl_debug was used one can print Registers or RegisterBlocks
+//! // print single register
+//! println!("RTC_CNT {:#?}", unsafe { &*esp32s3::RTC_CNTL::ptr() }.options0);
+//! // print all registers for peripheral
+//! println!("RTC_CNT {:#?}", unsafe { &*esp32s3::RTC_CNTL::ptr() });
 //! ```
 #![recursion_limit = "128"]
 

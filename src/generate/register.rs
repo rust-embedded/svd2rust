@@ -230,9 +230,13 @@ pub fn render_register_mod(
     }
 
     let mut r_impl_items = TokenStream::new();
+    let mut r_debug_impl = TokenStream::new();
     let mut w_impl_items = TokenStream::new();
     let mut zero_to_modify_fields_bitmap = 0;
     let mut one_to_modify_fields_bitmap = 0;
+
+    let open = Punct::new('{', Spacing::Alone);
+    let close = Punct::new('}', Spacing::Alone);
 
     if let Some(cur_fields) = register.fields.as_ref() {
         // filter out all reserved fields, as we should not generate code for
@@ -243,6 +247,15 @@ pub fn render_register_mod(
             .collect();
 
         if !cur_fields.is_empty() {
+            if config.impl_debug {
+                r_debug_impl.extend(render_register_mod_debug(
+                    register,
+                    &access,
+                    &cur_fields,
+                    config,
+                ))
+            }
+
             (
                 r_impl_items,
                 w_impl_items,
@@ -260,14 +273,55 @@ pub fn render_register_mod(
                 config,
             )?;
         }
+    } else if !access.can_read() || register.read_action.is_some() {
+        if let Some(feature) = &config.impl_debug_feature {
+            r_debug_impl.extend(quote! {
+                #[cfg(feature=#feature)]
+            });
+        }
+        r_debug_impl.extend(quote! {
+            impl core::fmt::Debug for crate::generic::Reg<#regspec_ident> {
+                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                    write!(f, "(not readable)")
+                }
+            }
+        });
+    } else {
+        // no register fields are defined so implement Debug to get entire register value
+        if let Some(feature) = &config.impl_debug_feature {
+            r_debug_impl.extend(quote! {
+                #[cfg(feature=#feature)]
+            });
+        }
+        r_debug_impl.extend(quote! {
+            impl core::fmt::Debug for R {
+                fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                    write!(f, "{}", self.bits())
+                }
+            }
+        });
+        if let Some(feature) = &config.impl_debug_feature {
+            r_debug_impl.extend(quote! {
+                #[cfg(feature=#feature)]
+            });
+        }
+        r_debug_impl.extend(quote! {
+            impl core::fmt::Debug for crate::generic::Reg<#regspec_ident> {
+                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                    self.read().fmt(f)
+                }
+            }
+        });
     }
-
-    let open = Punct::new('{', Spacing::Alone);
-    let close = Punct::new('}', Spacing::Alone);
 
     if can_read && !r_impl_items.is_empty() {
         mod_items.extend(quote! {
             impl R #open #r_impl_items #close
+        });
+    }
+    if !r_debug_impl.is_empty() {
+        mod_items.extend(quote! {
+            #r_debug_impl
         });
     }
 
@@ -383,6 +437,95 @@ pub fn render_register_mod(
         });
     }
     Ok(mod_items)
+}
+
+fn render_register_mod_debug(
+    register: &Register,
+    access: &Access,
+    cur_fields: &[&Field],
+    config: &Config,
+) -> Result<TokenStream> {
+    let name = util::name_of(register, config.ignore_groups);
+    let span = Span::call_site();
+    let regspec_ident = format!("{name}_SPEC").to_constant_case_ident(span);
+    let open = Punct::new('{', Spacing::Alone);
+    let close = Punct::new('}', Spacing::Alone);
+    let mut r_debug_impl = TokenStream::new();
+
+    // implement Debug for register readable fields that have no read side effects
+    if access.can_read() && register.read_action.is_none() {
+        if let Some(feature) = &config.impl_debug_feature {
+            r_debug_impl.extend(quote! {
+                #[cfg(feature=#feature)]
+            });
+        }
+        r_debug_impl.extend(quote! {
+            impl core::fmt::Debug for R #open
+            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result #open
+                f.debug_struct(#name)
+        });
+        for &f in cur_fields.iter() {
+            let field_access = match &f.access {
+                Some(a) => a,
+                None => access,
+            };
+            let bit_or_bits = if f.bit_width() > 1 { "bits" } else { "bit" };
+            let bit_or_bits = syn::Ident::new(bit_or_bits, span);
+            log::debug!("register={} field={}", name, f.name);
+            if field_access.can_read() && f.read_action.is_none() {
+                if let Field::Array(_, de) = &f {
+                    for (_, suffix) in de.indexes().enumerate() {
+                        let f_name_n = util::replace_suffix(&f.name, &suffix)
+                            .to_snake_case_ident(Span::call_site());
+                        let f_name_n_s = format!("{f_name_n}");
+                        r_debug_impl.extend(quote! {
+                            .field(#f_name_n_s, &format_args!("{}", self.#f_name_n().#bit_or_bits()))
+                        });
+                    }
+                } else {
+                    let f_name = util::replace_suffix(&f.name, "");
+                    let f_name = f_name.to_snake_case_ident(span);
+                    let f_name_s = format!("{f_name}");
+                    r_debug_impl.extend(quote! {
+                        .field(#f_name_s, &format_args!("{}", self.#f_name().#bit_or_bits()))
+                    });
+                }
+            }
+        }
+        r_debug_impl.extend(quote! {
+                    .finish()
+                #close
+            #close
+        });
+        if let Some(feature) = &config.impl_debug_feature {
+            r_debug_impl.extend(quote! {
+                #[cfg(feature=#feature)]
+            });
+        }
+        r_debug_impl.extend(quote! {
+            impl core::fmt::Debug for crate::generic::Reg<#regspec_ident> {
+                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                    self.read().fmt(f)
+                }
+            }
+        });
+    } else if !access.can_read() || register.read_action.is_some() {
+        if let Some(feature) = &config.impl_debug_feature {
+            r_debug_impl.extend(quote! {
+                #[cfg(feature=#feature)]
+            });
+        }
+        r_debug_impl.extend(quote! {
+            impl core::fmt::Debug for crate::generic::Reg<#regspec_ident> {
+                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                    write!(f, "(not readable)")
+                }
+            }
+        });
+    } else {
+        warn!("not implementing debug for {name}");
+    }
+    Ok(r_debug_impl)
 }
 
 #[allow(clippy::too_many_arguments)]
