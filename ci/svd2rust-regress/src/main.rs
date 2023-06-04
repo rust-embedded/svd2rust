@@ -12,7 +12,7 @@ use std::time::Instant;
 
 #[derive(Parser, Debug)]
 #[command(name = "svd2rust-regress")]
-struct Opt {
+pub struct Opt {
     /// Run a long test (it's very long)
     #[clap(short = 'l', long)]
     long_test: bool,
@@ -73,36 +73,50 @@ struct Opt {
     /// Use verbose output
     #[clap(long, short = 'v', action = clap::ArgAction::Count)]
     verbose: u8,
+
+    /// Test cases to run, defaults to `tests.json`
+    #[clap(long, default_value = default_test_cases())]
+    test_cases: std::path::PathBuf,
     // TODO: Specify smaller subset of tests? Maybe with tags?
     // TODO: Compile svd2rust?
 }
 
-fn validate_chips(s: &str) -> Result<(), String> {
-    if tests::TESTS.iter().any(|t| t.chip == s) {
+/// Hack to use ci/svd2rust-regress/tests.json as default value when running as `cargo run`
+fn default_test_cases() -> std::ffi::OsString {
+    std::env::var_os("CARGO_MANIFEST_DIR")
+        .map(|mut e| {
+            e.extend([std::ffi::OsStr::new("/tests.json")]);
+            std::path::PathBuf::from(e).strip_prefix(std::env::current_dir().unwrap()).unwrap().to_owned().into_os_string()
+        })
+        .unwrap_or_else(|| std::ffi::OsString::from("tests.json".to_owned()))
+}
+
+fn validate_chips(s: &str) -> Result<(), anyhow::Error> {
+    if tests::tests(None)?.iter().any(|t| t.chip == s) {
         Ok(())
     } else {
-        Err(format!("Chip `{}` is not a valid value", s))
+        anyhow::bail!("Chip `{}` is not a valid value", s)
     }
 }
 
-fn validate_architecture(s: &str) -> Result<(), String> {
-    if tests::TESTS.iter().any(|t| format!("{:?}", t.arch) == s) {
+fn validate_architecture(s: &str) -> Result<(), anyhow::Error> {
+    if tests::tests(None)?.iter().any(|t| format!("{:?}", t.arch) == s) {
         Ok(())
     } else {
-        Err(format!("Architecture `{s}` is not a valid value"))
+        anyhow::bail!("Architecture `{s}` is not a valid value")
     }
 }
 
-fn validate_manufacturer(s: &str) -> Result<(), String> {
-    if tests::TESTS.iter().any(|t| format!("{:?}", t.mfgr) == s) {
+fn validate_manufacturer(s: &str) -> Result<(), anyhow::Error> {
+    if tests::tests(None)?.iter().any(|t| format!("{:?}", t.mfgr) == s) {
         Ok(())
     } else {
-        Err(format!("Manufacturer `{s}` is not a valid value"))
+        anyhow::bail!("Manufacturer `{s}` is not a valid value")
     }
 }
 
 /// Validate any assumptions made by this program
-fn validate_tests(tests: &[&tests::TestCase]) {
+fn validate_tests(tests: &[tests::TestCase]) {
     use std::collections::HashSet;
 
     let mut fail = false;
@@ -134,11 +148,11 @@ fn read_file(path: &PathBuf, buf: &mut String) {
         .expect("Couldn't read file to string");
 }
 
-fn main() {
+fn main() -> Result<(), anyhow::Error> {
     let opt = Opt::parse();
 
     // Validate all test pre-conditions
-    validate_tests(tests::TESTS);
+    validate_tests(tests::tests(Some(&opt))?);
 
     // Determine default svd2rust path
     let default_svd2rust_iter = ["..", "..", "..", "..", "target", "release"];
@@ -187,7 +201,7 @@ fn main() {
     }
 
     // collect enabled tests
-    let tests = tests::TESTS
+    let tests = tests::tests(None)?
         .iter()
         // Short test?
         .filter(|t| t.should_run(!opt.long_test))
@@ -210,7 +224,7 @@ fn main() {
         // Specify chip - note: may match multiple
         .filter(|t| {
             if !opt.chip.is_empty() {
-                opt.chip.iter().any(|c| c == t.chip)
+                opt.chip.iter().any(|c| c == &t.chip)
             } else {
                 true
             }
