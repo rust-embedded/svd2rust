@@ -9,7 +9,7 @@ test_patched_stm32() {
 }
 
 test_svd_for_target() {
-    curl -L --output $td/input.svd $2
+    curl -fL --output $td/input.svd $2
 
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
     pushd $td
