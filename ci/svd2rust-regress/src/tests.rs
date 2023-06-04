@@ -3,6 +3,7 @@ use anyhow::Context;
 pub use svd2rust::util::Target;
 use svd2rust::util::ToSanitizedCase;
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Manufacturer {
     Atmel,
@@ -61,7 +62,7 @@ impl TestCase {
     }
 
     pub fn name(&self) -> String {
-        format!("{:?}-{}", self.mfgr, self.chip.replace(".", "_"))
+        format!("{:?}-{}", self.mfgr, self.chip.replace('.', "_"))
             .to_sanitized_snake_case()
             .into()
     }

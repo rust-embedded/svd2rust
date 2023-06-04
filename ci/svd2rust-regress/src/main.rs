@@ -170,7 +170,7 @@ fn main() -> Result<(), anyhow::Error> {
     };
 
     let default_rustfmt: Option<PathBuf> = if let Some((v, true)) = Command::new("rustup")
-        .args(&["which", "rustfmt"])
+        .args(["which", "rustfmt"])
         .output()
         .ok()
         .map(|o| (o.stdout, o.status.success()))
@@ -185,10 +185,10 @@ fn main() -> Result<(), anyhow::Error> {
 
     let rustfmt_bin_path = match (&opt.rustfmt_bin_path, opt.format) {
         (_, false) => None,
-        (&Some(ref path), true) => Some(path),
+        (Some(path), true) => Some(path),
         (&None, true) => {
             // FIXME: Use Option::filter instead when stable, rust-lang/rust#45860
-            if default_rustfmt.iter().find(|p| p.is_file()).is_none() {
+            if !default_rustfmt.iter().any(|p| p.is_file()) {
                 panic!("No rustfmt found");
             }
             default_rustfmt.as_ref()
@@ -249,7 +249,7 @@ fn main() -> Result<(), anyhow::Error> {
     tests.par_iter().for_each(|t| {
         let start = Instant::now();
 
-        match svd_test::test(t, &bin_path, rustfmt_bin_path, opt.atomics, opt.verbose) {
+        match svd_test::test(t, bin_path, rustfmt_bin_path, opt.atomics, opt.verbose) {
             Ok(s) => {
                 if let Some(stderrs) = s {
                     let mut buf = String::new();
@@ -282,10 +282,10 @@ fn main() -> Result<(), anyhow::Error> {
                             let mut buf = String::new();
                             if opt.verbose > 1 {
                                 for stderr in previous_processes_stderr {
-                                    read_file(&stderr, &mut buf);
+                                    read_file(stderr, &mut buf);
                                 }
                             }
-                            read_file(&stderr, &mut buf);
+                            read_file(stderr, &mut buf);
                             buf
                         }
                         _ => "".into(),

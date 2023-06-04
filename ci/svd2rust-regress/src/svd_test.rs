@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 
 use crate::tests::TestCase;
-use std::fs::{self, File, OpenOptions};
+use std::{fs::{self, File, OpenOptions}, path::Path};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -22,14 +22,12 @@ fn path_helper(input: &[&str]) -> PathBuf {
     input.iter().collect()
 }
 
-fn path_helper_base(base: &PathBuf, input: &[&str]) -> PathBuf {
-    let mut path = base.clone();
-    input.iter().for_each(|p| path.push(p));
-    path
+fn path_helper_base(base: &Path, input: &[&str]) -> PathBuf {
+    input.iter().fold(base.to_owned(), |b: PathBuf, p| b.join(p))
 }
 
 /// Create and write to file
-fn file_helper(payload: &str, path: &PathBuf) -> Result<()> {
+fn file_helper(payload: &str, path: &Path) -> Result<()> {
     let mut f = File::create(path).with_context(|| format!("Failed to create {path:?}"))?;
 
     f.write_all(payload.as_bytes())
@@ -180,7 +178,7 @@ pub fn test(
 
     // Download the SVD as specified in the URL
     // TODO: Check for existing svd files? `--no-cache` flag?
-    let svd = reqwest::blocking::get(&t.svd_url())
+    let svd = reqwest::blocking::get(t.svd_url())
         .with_context(|| "Failed to get svd URL")?
         .text()
         .with_context(|| "SVD is bad text")?;
@@ -208,8 +206,8 @@ pub fn test(
     }
 
     let output = svd2rust_bin
-        .args(&["-i", &chip_svd])
-        .args(&["--target", &target])
+        .args(["-i", &chip_svd])
+        .args(["--target", target])
         .current_dir(&chip_dir)
         .output()
         .with_context(|| "failed to execute process")?;
