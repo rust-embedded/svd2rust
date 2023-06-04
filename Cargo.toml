@@ -69,3 +69,7 @@ version = "0.14.5"
 [dependencies.syn]
 version = "2.0"
 features = ["full","extra-traits"]
+
+[workspace]
+members = ["ci/svd2rust-regress"]
+default-members = ["."]
