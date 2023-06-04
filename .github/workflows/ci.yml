@@ -37,6 +37,9 @@ jobs:
         with:
           key: ${{ matrix.TARGET }}
 
+      - run: cargo check --target ${{ matrix.TARGET }}
+        env:
+          RUSTFLAGS: -D warnings
       - run: cargo clippy --target ${{ matrix.TARGET }}
 
   ci-linux:
