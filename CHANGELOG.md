@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Fix escaping <> and & characters in doc attributes
 - Add `interrupt_link_section` config parameter for controlling the `#[link_section = "..."]` attribute of `__INTERRUPTS`
 - Add option to implement Debug for readable registers (#716)
+- Add `atomics-feature`
 
 ## [v0.28.0] - 2022-12-25
 

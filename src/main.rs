@@ -73,6 +73,13 @@ fn run() -> Result<()> {
                 .help("Generate atomic register modification API"),
         )
         .arg(
+            Arg::new("atomics_feature")
+                .long("atomics_feature")
+                .help("add feature gating for atomic register modification API")
+                .action(ArgAction::Set)
+                .value_name("FEATURE"),
+        )
+        .arg(
             Arg::new("const_generic")
             .long("const_generic")
             .action(ArgAction::SetTrue)

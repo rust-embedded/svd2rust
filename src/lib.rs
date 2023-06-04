@@ -492,6 +492,9 @@
 //! concurrently called on different bits in the same register without data races. This flag won't
 //! work for RISCV chips without the atomic extension.
 //!
+//! The `--atomics_feature` flag can also be specified to include atomics implementations conditionally
+//! behind the supplied feature name.
+//!
 //! `portable-atomic` v0.3.16 must be added to the dependencies, with default features off to
 //! disable the `fallback` feature.
 //!
@@ -503,7 +506,7 @@
 //! register that has read actions will not be read and printed as `(not read/has read action!)`.
 //! Registers that are not readable will have `(write only register)` printed as the value.
 //!
-//! The `--impl_debug_feature` flad can also be specified to include debug implementations conditionally
+//! The `--impl_debug_feature` flag can also be specified to include debug implementations conditionally
 //! behind the supplied feature name.
 //!
 //! Usage examples:
