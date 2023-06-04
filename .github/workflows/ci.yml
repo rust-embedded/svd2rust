@@ -10,12 +10,13 @@ jobs:
     name: CI
     runs-on: ubuntu-latest
     needs: [check, ci-linux, ci-clippy, ci-serde]
+    if: always()
     steps:
       - name: Done
-        run: exit 0
+        run: jq --exit-status 'all(.result == "success")' <<< '${{ toJson(needs) }}'
 
   check:
-    name: Cargo check
+    name: Cargo check / clippy
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -24,22 +25,18 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: stable
-          override: true
-          target: ${{ matrix.TARGET }}
+          targets: ${{ matrix.TARGET }}
+          components: clippy
 
       - name: Cache Dependencies
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.TARGET }}
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --target ${{ matrix.TARGET }}
+      - run: cargo clippy --target ${{ matrix.TARGET }}
 
   ci-linux:
     runs-on: ubuntu-latest
@@ -88,11 +85,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
 
       - name: Cache
         uses: Swatinem/rust-cache@v2
@@ -114,11 +109,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: stable
-          override: true
 
       - name: Cache
         uses: Swatinem/rust-cache@v2
@@ -139,11 +132,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: stable
-          override: true
 
       - name: Cache
         uses: Swatinem/rust-cache@v2
@@ -166,17 +157,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: stable
-          override: true
           components: rustfmt
 
       - name: Cache Dependencies
         uses: Swatinem/rust-cache@v2
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - run: cargo fmt --all -- --check
