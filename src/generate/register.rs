@@ -691,12 +691,10 @@ pub fn fields(
                     } else {
                         quote! { crate::BitReader<#value_read_ty> }
                     }
-                } else if fty == "u8" && value_read_ty == "u8" {
-                    quote! { crate::FieldReader }
                 } else if value_read_ty == "u8" {
-                    quote! { crate::FieldReader<#fty> }
+                    quote! { crate::FieldReader }
                 } else {
-                    quote! { crate::FieldReader<#fty, #value_read_ty> }
+                    quote! { crate::FieldReader<#value_read_ty> }
                 };
                 let mut readerdoc = field_reader_brief.clone();
                 if let Some(action) = f.read_action {
@@ -1032,12 +1030,10 @@ pub fn fields(
                         span,
                     );
                     let width = &util::unsuffixed(width as _);
-                    if fty == "u8" && value_write_ty == "u8" {
+                    if value_write_ty == "u8" {
                         quote! { crate::#wproxy<'a, #regspec_ident, #width, O> }
-                    } else if value_write_ty == "u8" {
-                        quote! { crate::#wproxy<'a, #regspec_ident, #width, O, #fty> }
                     } else {
-                        quote! { crate::#wproxy<'a, #regspec_ident, #width, O, #fty, #value_write_ty> }
+                        quote! { crate::#wproxy<'a, #regspec_ident, #width, O, #value_write_ty> }
                     }
                 };
                 mod_items.extend(quote! {
@@ -1246,6 +1242,13 @@ fn add_with_no_variants(
             }
         }
     });
+    if fty != "bool" {
+        mod_items.extend(quote! {
+            impl crate::FieldSpec for #pc {
+                type Ux = #fty;
+            }
+        });
+    }
 }
 
 fn add_from_variants(
@@ -1295,6 +1298,13 @@ fn add_from_variants(
             }
         }
     });
+    if fty != "bool" {
+        mod_items.extend(quote! {
+            impl crate::FieldSpec for #pc {
+                type Ux = #fty;
+            }
+        });
+    }
 }
 
 fn calculate_offset(

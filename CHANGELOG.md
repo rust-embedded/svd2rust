@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- `FieldFpec` instead or `fty` generic
 - print error on ci `curl` request fail
 - removed `rty` generic in `FieldWriter`
 - `bool` and `u8` as default generics for `BitReader/Writer` and `FieldReader/Writer`
