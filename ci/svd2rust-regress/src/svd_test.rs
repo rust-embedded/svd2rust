@@ -1,4 +1,5 @@
-use crate::errors::*;
+use anyhow::{Context, Result};
+
 use crate::tests::TestCase;
 use std::fs::{self, File, OpenOptions};
 use std::io::prelude::*;
@@ -29,12 +30,35 @@ fn path_helper_base(base: &PathBuf, input: &[&str]) -> PathBuf {
 
 /// Create and write to file
 fn file_helper(payload: &str, path: &PathBuf) -> Result<()> {
-    let mut f = File::create(path).chain_err(|| format!("Failed to create {path:?}"))?;
+    let mut f = File::create(path).with_context(|| format!("Failed to create {path:?}"))?;
 
     f.write_all(payload.as_bytes())
-        .chain_err(|| format!("Failed to write to {path:?}"))?;
+        .with_context(|| format!("Failed to write to {path:?}"))?;
 
     Ok(())
+}
+
+#[derive(thiserror::Error)]
+#[error("Process failed - {command}")]
+pub struct ProcessFailed {
+    pub command: String,
+    pub stderr: Option<PathBuf>,
+    pub stdout: Option<PathBuf>,
+    pub previous_processes_stderr: Vec<PathBuf>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum TestError {
+    #[error(transparent)]
+    Process(#[from] ProcessFailed),
+    #[error("Failed to run test")]
+    Other(#[from] anyhow::Error),
+}
+
+impl std::fmt::Debug for ProcessFailed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Process failed")
+    }
 }
 
 trait CommandHelper {
@@ -45,7 +69,7 @@ trait CommandHelper {
         stdout: Option<&PathBuf>,
         stderr: Option<&PathBuf>,
         previous_processes_stderr: &[PathBuf],
-    ) -> Result<()>;
+    ) -> Result<(), TestError>;
 }
 
 impl CommandHelper for Output {
@@ -56,7 +80,7 @@ impl CommandHelper for Output {
         stdout: Option<&PathBuf>,
         stderr: Option<&PathBuf>,
         previous_processes_stderr: &[PathBuf],
-    ) -> Result<()> {
+    ) -> Result<(), TestError> {
         if let Some(out) = stdout {
             let out_payload = String::from_utf8_lossy(&self.stdout);
             file_helper(&out_payload, out)?;
@@ -68,12 +92,12 @@ impl CommandHelper for Output {
         };
 
         if cant_fail && !self.status.success() {
-            return Err(ErrorKind::ProcessFailed(
-                name.into(),
-                stdout.cloned(),
-                stderr.cloned(),
-                previous_processes_stderr.to_vec(),
-            )
+            return Err(ProcessFailed {
+                command: name.into(),
+                stdout: stdout.cloned(),
+                stderr: stderr.cloned(),
+                previous_processes_stderr: previous_processes_stderr.to_vec(),
+            }
             .into());
         }
 
@@ -87,7 +111,7 @@ pub fn test(
     rustfmt_bin_path: Option<&PathBuf>,
     atomics: bool,
     verbosity: u8,
-) -> Result<Option<Vec<PathBuf>>> {
+) -> Result<Option<Vec<PathBuf>>, TestError> {
     let user = match std::env::var("USER") {
         Ok(val) => val,
         Err(_) => "rusttester".into(),
@@ -98,7 +122,7 @@ pub fn test(
     if let Err(err) = fs::remove_dir_all(&chip_dir) {
         match err.kind() {
             std::io::ErrorKind::NotFound => (),
-            _ => Err(err).chain_err(|| "While removing chip directory")?,
+            _ => Err(err).with_context(|| "While removing chip directory")?,
         }
     }
 
@@ -116,7 +140,7 @@ pub fn test(
         .arg("none")
         .arg(&chip_dir)
         .output()
-        .chain_err(|| "Failed to cargo init")?
+        .with_context(|| "Failed to cargo init")?
         .capture_outputs(true, "cargo init", None, None, &[])?;
 
     // Add some crates to the Cargo.toml of our new project
@@ -125,7 +149,7 @@ pub fn test(
         .write(true)
         .append(true)
         .open(svd_toml)
-        .chain_err(|| "Failed to open Cargo.toml for appending")?;
+        .with_context(|| "Failed to open Cargo.toml for appending")?;
 
     use crate::tests::Target;
     let crates = CRATES_ALL
@@ -151,15 +175,15 @@ pub fn test(
         });
 
     for c in crates {
-        writeln!(file, "{}", c).chain_err(|| "Failed to append to file!")?;
+        writeln!(file, "{}", c).with_context(|| "Failed to append to file!")?;
     }
 
     // Download the SVD as specified in the URL
     // TODO: Check for existing svd files? `--no-cache` flag?
     let svd = reqwest::blocking::get(&t.svd_url())
-        .chain_err(|| "Failed to get svd URL")?
+        .with_context(|| "Failed to get svd URL")?
         .text()
-        .chain_err(|| "SVD is bad text")?;
+        .with_context(|| "SVD is bad text")?;
 
     // Write SVD contents to file
     let chip_svd = format!("{}.svd", &t.chip);
@@ -188,7 +212,7 @@ pub fn test(
         .args(&["--target", &target])
         .current_dir(&chip_dir)
         .output()
-        .chain_err(|| "failed to execute process")?;
+        .with_context(|| "failed to execute process")?;
     output.capture_outputs(
         true,
         "svd2rust",
@@ -206,7 +230,7 @@ pub fn test(
         Target::CortexM | Target::Mips | Target::Msp430 | Target::XtensaLX => {
             // TODO: Give error the path to stderr
             fs::rename(path_helper_base(&chip_dir, &["lib.rs"]), &lib_rs_file)
-                .chain_err(|| "While moving lib.rs file")?
+                .with_context(|| "While moving lib.rs file")?
         }
         _ => {}
     }
@@ -218,7 +242,7 @@ pub fn test(
         let output = Command::new(rustfmt_bin_path)
             .arg(lib_rs_file)
             .output()
-            .chain_err(|| "failed to format")?;
+            .with_context(|| "failed to format")?;
         output.capture_outputs(
             false,
             "rustfmt",
@@ -234,7 +258,7 @@ pub fn test(
         .arg("check")
         .current_dir(&chip_dir)
         .output()
-        .chain_err(|| "failed to check")?;
+        .with_context(|| "failed to check")?;
     output.capture_outputs(
         true,
         "cargo check",

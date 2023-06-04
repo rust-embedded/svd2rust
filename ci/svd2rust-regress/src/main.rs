@@ -1,12 +1,7 @@
-#[macro_use]
-extern crate error_chain;
-
-mod errors;
 mod svd_test;
 mod tests;
 
 use clap::Parser;
-use error_chain::ChainedError;
 use rayon::prelude::*;
 use std::fs::File;
 use std::io::Read;
@@ -264,13 +259,12 @@ fn main() {
             Err(e) => {
                 any_fails.store(true, Ordering::Release);
                 let additional_info = if opt.verbose > 0 {
-                    match *e.kind() {
-                        errors::ErrorKind::ProcessFailed(
-                            _,
-                            _,
-                            Some(ref stderr),
-                            ref previous_processes_stderr,
-                        ) => {
+                    match &e {
+                        svd_test::TestError::Process(svd_test::ProcessFailed {
+                            stderr: Some(ref stderr),
+                            previous_processes_stderr,
+                            ..
+                        }) => {
                             let mut buf = String::new();
                             if opt.verbose > 1 {
                                 for stderr in previous_processes_stderr {
@@ -286,10 +280,10 @@ fn main() {
                     "".into()
                 };
                 eprintln!(
-                    "Failed: {} - {} seconds. {}{}",
+                    "Failed: {} - {} seconds. {:?}{}",
                     t.name(),
                     start.elapsed().as_secs(),
-                    e.display_chain().to_string().trim_end(),
+                    anyhow::Error::new(e),
                     additional_info,
                 );
             }

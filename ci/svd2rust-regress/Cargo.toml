@@ -9,4 +9,5 @@ clap = { version = "4.1", features = ["color", "derive"] }
 svd2rust = { path = "../../" }
 reqwest = { version = "0.11", features= ["blocking"] }
 rayon = "1.4"
-error-chain = "0.12"
+anyhow = "1"
+thiserror = "1"
