@@ -27,20 +27,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          profile: minimal
-          target: ${{ matrix.target }}
-          override: true
+          targets: ${{ matrix.target }}
       - name: Cache Dependencies
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --target ${{ matrix.target }} --release
+      - run: cargo build --target ${{ matrix.target }} --release
 
       - name: Compress and rename executable
         if: ${{ matrix.os != 'windows-latest' }}
@@ -69,7 +64,7 @@ jobs:
         run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
       - id: changelog-reader
-        uses: mindsers/changelog-reader-action@v2.0.0
+        uses: mindsers/changelog-reader-action@v2.2.2
         with:
           version: ${{ (github.ref_type == 'tag' && github.ref_name) || 'Unreleased' }}
 
