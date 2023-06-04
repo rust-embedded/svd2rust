@@ -30,6 +30,8 @@ pub struct Config {
     #[cfg_attr(feature = "serde", serde(default))]
     pub atomics: bool,
     #[cfg_attr(feature = "serde", serde(default))]
+    pub atomics_feature: Option<String>,
+    #[cfg_attr(feature = "serde", serde(default))]
     pub generic_mod: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub make_mod: bool,
@@ -111,6 +113,7 @@ impl Default for Config {
         Self {
             target: Target::default(),
             atomics: false,
+            atomics_feature: None,
             generic_mod: false,
             make_mod: false,
             const_generic: false,

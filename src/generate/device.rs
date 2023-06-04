@@ -153,6 +153,9 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         let mut file = File::create(config.output_dir.join("generic.rs"))?;
         writeln!(file, "{generic_file}")?;
         if config.atomics {
+            if let Some(atomics_feature) = config.atomics_feature.as_ref() {
+                writeln!(file, "#[cfg(feature = \"{atomics_feature}\")]")?;
+            }
             writeln!(file, "\n{generic_atomic_file}")?;
         }
         if config.const_generic {
@@ -170,6 +173,9 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     } else {
         let mut tokens = syn::parse_file(generic_file)?.into_token_stream();
         if config.atomics {
+            if let Some(atomics_feature) = config.atomics_feature.as_ref() {
+                quote!(#[cfg(feature = #atomics_feature)]).to_tokens(&mut tokens);
+            }
             syn::parse_file(generic_atomic_file)?.to_tokens(&mut tokens);
         }
         if config.const_generic {
