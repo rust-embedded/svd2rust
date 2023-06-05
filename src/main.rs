@@ -159,12 +159,6 @@ fn run() -> Result<()> {
                 .help("Use PascalCase in stead of UPPER_CASE for enumerated values"),
         )
         .arg(
-            Arg::new("derive_more")
-                .long("derive_more")
-                .action(ArgAction::SetTrue)
-                .help("Use derive_more procedural macros to implement Deref and From"),
-        )
-        .arg(
             Arg::new("source_type")
                 .long("source_type")
                 .help("Specify file/stream format"),

@@ -31,7 +31,7 @@ main() {
 
     case $OPTIONS in
         all)
-            options="--const_generic --strict --derive_more --atomics"
+            options="--const_generic --strict --atomics"
             ;;
         *)
             options=$OPTIONS
@@ -43,9 +43,6 @@ main() {
     echo 'cortex-m = "0.7.4"' >> $td/Cargo.toml
     echo 'cortex-m-rt = "0.7.1"' >> $td/Cargo.toml
     echo 'vcell = "0.1.3"' >> $td/Cargo.toml
-    if [[ "$options" == *"--derive_more"* ]]; then
-        echo 'derive_more = "0.99"' >> $td/Cargo.toml
-    fi
     if [[ "$options" == *"--atomics"* ]]; then
         echo 'portable-atomic = { version = "0.3.16", default-features = false }' >> $td/Cargo.toml
     fi

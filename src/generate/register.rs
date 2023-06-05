@@ -146,78 +146,19 @@ pub fn render_register_mod(
 
     if can_read {
         let desc = format!("Register `{}` reader", register.name);
-        let derive = if config.derive_more {
-            Some(quote! { #[derive(derive_more::Deref, derive_more::From)] })
-        } else {
-            None
-        };
         mod_items.extend(quote! {
             #[doc = #desc]
-            #derive
-            pub struct R(crate::R<#regspec_ident>);
+            pub type R = crate::R<#regspec_ident>;
         });
-
-        if !config.derive_more {
-            mod_items.extend(quote! {
-                impl core::ops::Deref for R {
-                    type Target = crate::R<#regspec_ident>;
-
-                    #[inline(always)]
-                    fn deref(&self) -> &Self::Target {
-                        &self.0
-                    }
-                }
-
-                impl From<crate::R<#regspec_ident>> for R {
-                    #[inline(always)]
-                    fn from(reader: crate::R<#regspec_ident>) -> Self {
-                        R(reader)
-                    }
-                }
-            });
-        }
         methods.push("read");
     }
 
     if can_write {
         let desc = format!("Register `{}` writer", register.name);
-        let derive = if config.derive_more {
-            Some(quote! { #[derive(derive_more::Deref, derive_more::DerefMut, derive_more::From)] })
-        } else {
-            None
-        };
         mod_items.extend(quote! {
             #[doc = #desc]
-            #derive
-            pub struct W(crate::W<#regspec_ident>);
+            pub type W = crate::W<#regspec_ident>;
         });
-
-        if !config.derive_more {
-            mod_items.extend(quote! {
-                impl core::ops::Deref for W {
-                    type Target = crate::W<#regspec_ident>;
-
-                    #[inline(always)]
-                    fn deref(&self) -> &Self::Target {
-                        &self.0
-                    }
-                }
-
-                impl core::ops::DerefMut for W {
-                    #[inline(always)]
-                    fn deref_mut(&mut self) -> &mut Self::Target {
-                        &mut self.0
-                    }
-                }
-
-                impl From<crate::W<#regspec_ident>> for W {
-                    #[inline(always)]
-                    fn from(writer: crate::W<#regspec_ident>) -> Self {
-                        W(writer)
-                    }
-                }
-            });
-        }
         methods.push("write_with_zero");
         if can_reset {
             methods.push("reset");
@@ -332,6 +273,7 @@ pub fn render_register_mod(
 
         mod_items.extend(w_impl_items);
 
+/*
         // the writer can be safe if:
         // * there is a single field that covers the entire register
         // * that field can represent all values
@@ -364,7 +306,7 @@ pub fn render_register_mod(
                     self
                 }
             });
-        }
+        }*/
 
         close.to_tokens(&mut mod_items);
     }
@@ -406,9 +348,7 @@ pub fn render_register_mod(
         let doc = format!("`read()` method returns [{name_snake_case}::R](R) reader structure",);
         mod_items.extend(quote! {
             #[doc = #doc]
-            impl crate::Readable for #regspec_ident {
-                type Reader = R;
-            }
+            impl crate::Readable for #regspec_ident {}
         });
     }
     if can_write {
@@ -421,7 +361,6 @@ pub fn render_register_mod(
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Writable for #regspec_ident {
-                type Writer = W;
                 const ZERO_TO_MODIFY_FIELDS_BITMAP: Self::Ux = #zero_to_modify_fields_bitmap;
                 const ONE_TO_MODIFY_FIELDS_BITMAP: Self::Ux = #one_to_modify_fields_bitmap;
             }
