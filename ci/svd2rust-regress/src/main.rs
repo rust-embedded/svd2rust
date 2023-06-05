@@ -86,7 +86,11 @@ fn default_test_cases() -> std::ffi::OsString {
     std::env::var_os("CARGO_MANIFEST_DIR")
         .map(|mut e| {
             e.extend([std::ffi::OsStr::new("/tests.json")]);
-            std::path::PathBuf::from(e).strip_prefix(std::env::current_dir().unwrap()).unwrap().to_owned().into_os_string()
+            std::path::PathBuf::from(e)
+                .strip_prefix(std::env::current_dir().unwrap())
+                .unwrap()
+                .to_owned()
+                .into_os_string()
         })
         .unwrap_or_else(|| std::ffi::OsString::from("tests.json".to_owned()))
 }
@@ -100,7 +104,10 @@ fn validate_chips(s: &str) -> Result<(), anyhow::Error> {
 }
 
 fn validate_architecture(s: &str) -> Result<(), anyhow::Error> {
-    if tests::tests(None)?.iter().any(|t| format!("{:?}", t.arch) == s) {
+    if tests::tests(None)?
+        .iter()
+        .any(|t| format!("{:?}", t.arch) == s)
+    {
         Ok(())
     } else {
         anyhow::bail!("Architecture `{s}` is not a valid value")
@@ -108,7 +115,10 @@ fn validate_architecture(s: &str) -> Result<(), anyhow::Error> {
 }
 
 fn validate_manufacturer(s: &str) -> Result<(), anyhow::Error> {
-    if tests::tests(None)?.iter().any(|t| format!("{:?}", t.mfgr) == s) {
+    if tests::tests(None)?
+        .iter()
+        .any(|t| format!("{:?}", t.mfgr) == s)
+    {
         Ok(())
     } else {
         anyhow::bail!("Manufacturer `{s}` is not a valid value")

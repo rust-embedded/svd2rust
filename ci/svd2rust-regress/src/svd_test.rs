@@ -1,10 +1,13 @@
 use anyhow::{Context, Result};
 
 use crate::tests::TestCase;
-use std::{fs::{self, File, OpenOptions}, path::Path};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Output};
+use std::{
+    fs::{self, File, OpenOptions},
+    path::Path,
+};
 
 const CRATES_ALL: &[&str] = &["critical-section = \"1.0\"", "vcell = \"0.1.2\""];
 const CRATES_MSP430: &[&str] = &["msp430 = \"0.4.0\"", "msp430-rt = \"0.4.0\""];
@@ -23,7 +26,9 @@ fn path_helper(input: &[&str]) -> PathBuf {
 }
 
 fn path_helper_base(base: &Path, input: &[&str]) -> PathBuf {
-    input.iter().fold(base.to_owned(), |b: PathBuf, p| b.join(p))
+    input
+        .iter()
+        .fold(base.to_owned(), |b: PathBuf, p| b.join(p))
 }
 
 /// Create and write to file
