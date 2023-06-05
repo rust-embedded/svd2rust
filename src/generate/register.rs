@@ -616,11 +616,10 @@ pub fn fields(
             // information in enumeratedValues;
             // if it's not enumeratedValues, always derive the read proxy as we do not need to re-export
             // it again from BitReader or FieldReader.
-            let should_derive_reader = match lookup_filter(&lookup_results, Usage::Read) {
-                Some((_evs, Some(_base))) => false,
-                Some((_evs, None)) => true,
-                None => true,
-            };
+            let should_derive_reader = matches!(
+                lookup_filter(&lookup_results, Usage::Read),
+                Some((_, None)) | None
+            );
 
             // derive the read proxy structure if necessary.
             if should_derive_reader {
@@ -932,11 +931,10 @@ pub fn fields(
 
             // derive writer. We derive writer if the write proxy is in current register module,
             // or writer in different register have different _SPEC structures
-            let should_derive_writer = match lookup_filter(&lookup_results, Usage::Write) {
-                Some((_evs, Some(base))) => base.register() != fpath.register(),
-                Some((_evs, None)) => true,
-                None => true,
-            };
+            let should_derive_writer = matches!(
+                lookup_filter(&lookup_results, Usage::Write),
+                Some((_, None)) | None
+            );
 
             // derive writer structure by type alias to generic write proxy structure.
             if should_derive_writer {
@@ -1006,6 +1004,22 @@ pub fn fields(
             }
 
             if let Some((evs, Some(base))) = lookup_filter(&lookup_results, Usage::Write) {
+                // if base.register == None, derive write from the same module. This is allowed because both
+                // the generated and source write proxy are in the same module.
+                // we never reuse writer for writer in different module does not have the same _SPEC strcuture,
+                // thus we cannot write to current register using re-exported write proxy.
+
+                // generate pub use field_1 writer as field_2 writer
+                let base_field = util::replace_suffix(&base.field.name, "");
+                let base_w = (base_field + "_W").to_constant_case_ident(span);
+                if !writer_derives.contains(&writer_ty) {
+                    let base_path = base_syn_path(base, &fpath, &base_w)?;
+                    mod_items.extend(quote! {
+                        #[doc = #field_writer_brief]
+                        pub use #base_path as #writer_ty;
+                    });
+                    writer_derives.insert(writer_ty.clone());
+                }
                 // if base.register == None, it emits pub use structure from same module.
                 if base.register() != fpath.register() {
                     let writer_reader_different_enum = evs_r != Some(evs);
@@ -1019,23 +1033,6 @@ pub fn fields(
                             });
                             writer_enum_derives.insert(value_write_ty.clone());
                         }
-                    }
-                } else {
-                    // if base.register == None, derive write from the same module. This is allowed because both
-                    // the generated and source write proxy are in the same module.
-                    // we never reuse writer for writer in different module does not have the same _SPEC strcuture,
-                    // thus we cannot write to current register using re-exported write proxy.
-
-                    // generate pub use field_1 writer as field_2 writer
-                    let base_field = util::replace_suffix(&base.field.name, "");
-                    let base_w = (base_field + "_W").to_constant_case_ident(span);
-                    if !writer_derives.contains(&writer_ty) {
-                        let base_path = base_syn_path(base, &fpath, &base_w)?;
-                        mod_items.extend(quote! {
-                            #[doc = #field_writer_brief]
-                            pub use #base_path as #writer_ty;
-                        });
-                        writer_derives.insert(writer_ty.clone());
                     }
                 }
             }
