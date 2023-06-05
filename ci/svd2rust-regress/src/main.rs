@@ -182,11 +182,11 @@ impl Tests {
                 }
             }
         });
-        Ok(if any_fails.load(Ordering::Acquire) {
+        if any_fails.load(Ordering::Acquire) {
             exit(1);
         } else {
             exit(0);
-        })
+        }
     }
 }
 

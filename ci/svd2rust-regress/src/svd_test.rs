@@ -247,6 +247,16 @@ impl TestCase {
             }
             _ => {}
         }
+        let lib_rs =
+            fs::read_to_string(&lib_rs_file).with_context(|| "Failed to read lib.rs file")?;
+        let file = syn::parse_file(&lib_rs)
+            .with_context(|| format!("couldn't parse {}", lib_rs_file.display()))?;
+        File::options()
+            .write(true)
+            .open(&lib_rs_file)
+            .with_context(|| format!("couldn't open {}", lib_rs_file.display()))?
+            .write(prettyplease::unparse(&file).as_bytes())
+            .with_context(|| format!("couldn't write {}", lib_rs_file.display()))?;
         let rustfmt_err_file = path_helper_base(&chip_dir, &["rustfmt.err.log"]);
         if let Some(rustfmt_bin_path) = rustfmt_bin_path {
             // Run `cargo fmt`, capturing stderr to a log file
