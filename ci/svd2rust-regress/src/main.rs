@@ -10,78 +10,229 @@ use std::process::{exit, Command};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
-#[derive(Parser, Debug)]
+/// Returns the cargo workspace for the manifest
+pub fn get_cargo_workspace() -> &'static std::path::Path {
+    static WORKSPACE: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    #[derive(Debug, serde::Deserialize)]
+    pub struct CargoMetadata {
+        pub workspace_root: PathBuf,
+    }
+    WORKSPACE.get_or_init(|| {
+        std::process::Command::new("cargo")
+            .args(["metadata", "--format-version", "1"])
+            .output()
+            .map(|v| String::from_utf8(v.stdout))
+            .unwrap()
+            .map_err(anyhow::Error::from)
+            .and_then(|s: String| serde_json::from_str::<CargoMetadata>(&s).map_err(Into::into))
+            .unwrap()
+            .workspace_root
+    })
+}
+
+#[derive(clap::Parser, Debug)]
 #[command(name = "svd2rust-regress")]
-pub struct Opt {
+pub struct Tests {
     /// Run a long test (it's very long)
     #[clap(short = 'l', long)]
-    long_test: bool,
-
-    /// Path to an `svd2rust` binary, relative or absolute.
-    /// Defaults to `target/release/svd2rust[.exe]` of this repository
-    /// (which must be already built)
-    #[clap(short = 'p', long = "svd2rust-path")]
-    bin_path: Option<PathBuf>,
+    pub long_test: bool,
 
     // TODO: Consider using the same strategy cargo uses for passing args to rustc via `--`
     /// Run svd2rust with `--atomics`
     #[clap(long)]
-    atomics: bool,
+    pub atomics: bool,
 
     /// Filter by chip name, case sensitive, may be combined with other filters
-    #[clap(short = 'c', long, value_parser = validate_chips)]
-    chip: Vec<String>,
+    #[clap(short = 'c', long)]
+    pub chip: Vec<String>,
 
     /// Filter by manufacturer, case sensitive, may be combined with other filters
     #[clap(
-        short = 'm',
-        long = "manufacturer",
-        value_parser = validate_manufacturer,
-    )]
-    mfgr: Option<String>,
+    short = 'm',
+    long = "manufacturer",
+    value_parser = validate_manufacturer,
+)]
+    pub mfgr: Option<String>,
 
     /// Filter by architecture, case sensitive, may be combined with other filters
     /// Options are: "CortexM", "RiscV", "Msp430", "Mips" and "XtensaLX"
     #[clap(
-        short = 'a',
-        long = "architecture",
-        value_parser = validate_architecture,
-    )]
-    arch: Option<String>,
+    short = 'a',
+    long = "architecture",
+    value_parser = validate_architecture,
+)]
+    pub arch: Option<String>,
 
     /// Include tests expected to fail (will cause a non-zero return code)
     #[clap(short = 'b', long)]
-    bad_tests: bool,
+    pub bad_tests: bool,
 
     /// Enable formatting with `rustfmt`
     #[clap(short = 'f', long)]
-    format: bool,
+    pub format: bool,
 
     /// Print all available test using the specified filters
     #[clap(long)]
-    list: bool,
-
-    /// Path to an `rustfmt` binary, relative or absolute.
-    /// Defaults to `$(rustup which rustfmt)`
-    #[clap(long)]
-    rustfmt_bin_path: Option<PathBuf>,
-
-    /// Specify what rustup toolchain to use when compiling chip(s)
-    #[clap(long = "toolchain")] // , env = "RUSTUP_TOOLCHAIN"
-    rustup_toolchain: Option<String>,
-
-    /// Use verbose output
-    #[clap(long, short = 'v', action = clap::ArgAction::Count)]
-    verbose: u8,
-
-    /// Test cases to run, defaults to `tests.json`
-    #[clap(long, default_value = default_test_cases())]
-    test_cases: std::path::PathBuf,
+    pub list: bool,
     // TODO: Specify smaller subset of tests? Maybe with tags?
     // TODO: Compile svd2rust?
 }
 
-/// Hack to use ci/svd2rust-regress/tests.json as default value when running as `cargo run`
+impl Tests {
+    fn run(
+        &self,
+        opt: &Opts,
+        bin_path: &PathBuf,
+        rustfmt_bin_path: Option<&PathBuf>,
+    ) -> Result<Result<(), anyhow::Error>, anyhow::Error> {
+        let tests = tests::tests(None)?
+            .iter()
+            // Short test?
+            .filter(|t| t.should_run(!self.long_test))
+            // selected architecture?
+            .filter(|t| {
+                if let Some(ref arch) = self.arch {
+                    arch == &format!("{:?}", t.arch)
+                } else {
+                    true
+                }
+            })
+            // selected manufacturer?
+            .filter(|t| {
+                if let Some(ref mfgr) = self.mfgr {
+                    mfgr == &format!("{:?}", t.mfgr)
+                } else {
+                    true
+                }
+            })
+            // Specify chip - note: may match multiple
+            .filter(|t| {
+                if !self.chip.is_empty() {
+                    self.chip.iter().any(|c| c == &t.chip)
+                } else {
+                    true
+                }
+            })
+            // Run failable tests?
+            .filter(|t| self.bad_tests || t.should_pass)
+            .collect::<Vec<_>>();
+        if self.list {
+            // FIXME: Prettier output
+            eprintln!("{:?}", tests.iter().map(|t| t.name()).collect::<Vec<_>>());
+            exit(0);
+        }
+        if tests.is_empty() {
+            eprintln!("No tests run, you might want to use `--bad-tests` and/or `--long-test`");
+        }
+        let any_fails = AtomicBool::new(false);
+        tests.par_iter().for_each(|t| {
+            let start = Instant::now();
+
+            match t.test(bin_path, rustfmt_bin_path, self.atomics, opt.verbose) {
+                Ok(s) => {
+                    if let Some(stderrs) = s {
+                        let mut buf = String::new();
+                        for stderr in stderrs {
+                            read_file(&stderr, &mut buf);
+                        }
+                        eprintln!(
+                            "Passed: {} - {} seconds\n{}",
+                            t.name(),
+                            start.elapsed().as_secs(),
+                            buf
+                        );
+                    } else {
+                        eprintln!(
+                            "Passed: {} - {} seconds",
+                            t.name(),
+                            start.elapsed().as_secs()
+                        );
+                    }
+                }
+                Err(e) => {
+                    any_fails.store(true, Ordering::Release);
+                    let additional_info = if opt.verbose > 0 {
+                        match &e {
+                            svd_test::TestError::Process(svd_test::ProcessFailed {
+                                stderr: Some(ref stderr),
+                                previous_processes_stderr,
+                                ..
+                            }) => {
+                                let mut buf = String::new();
+                                if opt.verbose > 1 {
+                                    for stderr in previous_processes_stderr {
+                                        read_file(stderr, &mut buf);
+                                    }
+                                }
+                                read_file(stderr, &mut buf);
+                                buf
+                            }
+                            _ => "".into(),
+                        }
+                    } else {
+                        "".into()
+                    };
+                    eprintln!(
+                        "Failed: {} - {} seconds. {:?}{}",
+                        t.name(),
+                        start.elapsed().as_secs(),
+                        anyhow::Error::new(e),
+                        additional_info,
+                    );
+                }
+            }
+        });
+        Ok(if any_fails.load(Ordering::Acquire) {
+            exit(1);
+        } else {
+            exit(0);
+        })
+    }
+}
+
+#[derive(clap::Subcommand, Debug)]
+pub enum Subcommand {
+    Tests(Tests),
+}
+
+#[derive(Parser, Debug)]
+#[command(name = "svd2rust-regress")]
+pub struct Opts {
+    /// Use verbose output
+    #[clap(global = true, long, short = 'v', action = clap::ArgAction::Count)]
+    pub verbose: u8,
+
+    /// Path to an `svd2rust` binary, relative or absolute.
+    /// Defaults to `target/release/svd2rust[.exe]` of this repository
+    /// (which must be already built)
+    #[clap(global = true, short = 'p', long = "svd2rust-path", default_value = default_svd2rust())]
+    pub bin_path: PathBuf,
+
+    /// Path to an `rustfmt` binary, relative or absolute.
+    /// Defaults to `$(rustup which rustfmt)`
+    #[clap(global = true, long)]
+    pub rustfmt_bin_path: Option<PathBuf>,
+
+    /// Specify what rustup toolchain to use when compiling chip(s)
+    #[clap(global = true, long = "toolchain")] // , env = "RUSTUP_TOOLCHAIN"
+    pub rustup_toolchain: Option<String>,
+
+    /// Test cases to run, defaults to `tests.json`
+    #[clap(global = true, long, default_value = default_test_cases())]
+    pub test_cases: std::path::PathBuf,
+
+    #[clap(subcommand)]
+    subcommand: Subcommand,
+}
+impl Opts {
+    fn use_rustfmt(&self) -> bool {
+        match self.subcommand {
+            Subcommand::Tests(Tests { format, .. }) => format,
+        }
+    }
+}
+
+/// Hack to use ci/tests.json as default value when running as `cargo run`
 fn default_test_cases() -> std::ffi::OsString {
     std::env::var_os("CARGO_MANIFEST_DIR")
         .map(|mut e| {
@@ -95,12 +246,10 @@ fn default_test_cases() -> std::ffi::OsString {
         .unwrap_or_else(|| std::ffi::OsString::from("tests.json".to_owned()))
 }
 
-fn validate_chips(s: &str) -> Result<(), anyhow::Error> {
-    if tests::tests(None)?.iter().any(|t| t.chip == s) {
-        Ok(())
-    } else {
-        anyhow::bail!("Chip `{}` is not a valid value", s)
-    }
+fn default_svd2rust() -> std::ffi::OsString {
+    get_cargo_workspace()
+        .join("target/release/svd2rust")
+        .into_os_string()
 }
 
 fn validate_architecture(s: &str) -> Result<(), anyhow::Error> {
@@ -159,25 +308,13 @@ fn read_file(path: &PathBuf, buf: &mut String) {
 }
 
 fn main() -> Result<(), anyhow::Error> {
-    let opt = Opt::parse();
+    let opt = Opts::parse();
 
     // Validate all test pre-conditions
     validate_tests(tests::tests(Some(&opt))?);
 
-    // Determine default svd2rust path
-    let default_svd2rust_iter = ["..", "..", "..", "..", "target", "release"];
-
-    let default_svd2rust = if cfg!(windows) {
-        default_svd2rust_iter.iter().chain(["svd2rust.exe"].iter())
-    } else {
-        default_svd2rust_iter.iter().chain(["svd2rust"].iter())
-    }
-    .collect();
-
-    let bin_path = match opt.bin_path {
-        Some(ref bp) => bp,
-        None => &default_svd2rust,
-    };
+    let bin_path = &opt.bin_path;
+    anyhow::ensure!(bin_path.exists(), "svd2rust binary does not exist");
 
     let default_rustfmt: Option<PathBuf> = if let Some((v, true)) = Command::new("rustup")
         .args(["which", "rustfmt"])
@@ -187,13 +324,10 @@ fn main() -> Result<(), anyhow::Error> {
     {
         Some(String::from_utf8_lossy(&v).into_owned().trim().into())
     } else {
-        if opt.format && opt.rustfmt_bin_path.is_none() {
-            panic!("rustfmt binary not found, is rustup and rustfmt-preview installed?");
-        }
         None
     };
 
-    let rustfmt_bin_path = match (&opt.rustfmt_bin_path, opt.format) {
+    let rustfmt_bin_path = match (&opt.rustfmt_bin_path, opt.use_rustfmt()) {
         (_, false) => None,
         (Some(path), true) => Some(path),
         (&None, true) => {
@@ -210,113 +344,7 @@ fn main() -> Result<(), anyhow::Error> {
         std::env::set_var("RUSTUP_TOOLCHAIN", toolchain);
     }
 
-    // collect enabled tests
-    let tests = tests::tests(None)?
-        .iter()
-        // Short test?
-        .filter(|t| t.should_run(!opt.long_test))
-        // selected architecture?
-        .filter(|t| {
-            if let Some(ref arch) = opt.arch {
-                arch == &format!("{:?}", t.arch)
-            } else {
-                true
-            }
-        })
-        // selected manufacturer?
-        .filter(|t| {
-            if let Some(ref mfgr) = opt.mfgr {
-                mfgr == &format!("{:?}", t.mfgr)
-            } else {
-                true
-            }
-        })
-        // Specify chip - note: may match multiple
-        .filter(|t| {
-            if !opt.chip.is_empty() {
-                opt.chip.iter().any(|c| c == &t.chip)
-            } else {
-                true
-            }
-        })
-        // Run failable tests?
-        .filter(|t| opt.bad_tests || t.should_pass)
-        .collect::<Vec<_>>();
-
-    if opt.list {
-        // FIXME: Prettier output
-        eprintln!("{:?}", tests.iter().map(|t| t.name()).collect::<Vec<_>>());
-        exit(0);
-    }
-    if tests.is_empty() {
-        eprintln!("No tests run, you might want to use `--bad-tests` and/or `--long-test`");
-    }
-
-    let any_fails = AtomicBool::new(false);
-
-    // TODO: It would be more efficient to reuse directories, so we don't
-    // have to rebuild all the deps crates
-    tests.par_iter().for_each(|t| {
-        let start = Instant::now();
-
-        match svd_test::test(t, bin_path, rustfmt_bin_path, opt.atomics, opt.verbose) {
-            Ok(s) => {
-                if let Some(stderrs) = s {
-                    let mut buf = String::new();
-                    for stderr in stderrs {
-                        read_file(&stderr, &mut buf);
-                    }
-                    eprintln!(
-                        "Passed: {} - {} seconds\n{}",
-                        t.name(),
-                        start.elapsed().as_secs(),
-                        buf
-                    );
-                } else {
-                    eprintln!(
-                        "Passed: {} - {} seconds",
-                        t.name(),
-                        start.elapsed().as_secs()
-                    );
-                }
-            }
-            Err(e) => {
-                any_fails.store(true, Ordering::Release);
-                let additional_info = if opt.verbose > 0 {
-                    match &e {
-                        svd_test::TestError::Process(svd_test::ProcessFailed {
-                            stderr: Some(ref stderr),
-                            previous_processes_stderr,
-                            ..
-                        }) => {
-                            let mut buf = String::new();
-                            if opt.verbose > 1 {
-                                for stderr in previous_processes_stderr {
-                                    read_file(stderr, &mut buf);
-                                }
-                            }
-                            read_file(stderr, &mut buf);
-                            buf
-                        }
-                        _ => "".into(),
-                    }
-                } else {
-                    "".into()
-                };
-                eprintln!(
-                    "Failed: {} - {} seconds. {:?}{}",
-                    t.name(),
-                    start.elapsed().as_secs(),
-                    anyhow::Error::new(e),
-                    additional_info,
-                );
-            }
-        }
-    });
-
-    if any_fails.load(Ordering::Acquire) {
-        exit(1);
-    } else {
-        exit(0);
+    match &opt.subcommand {
+        Subcommand::Tests(tests_opts) => tests_opts.run(&opt, bin_path, rustfmt_bin_path)?,
     }
 }

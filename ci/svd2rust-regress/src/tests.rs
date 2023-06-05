@@ -68,7 +68,7 @@ impl TestCase {
     }
 }
 
-pub fn tests(opts: Option<&crate::Opt>) -> Result<&'static [TestCase], anyhow::Error> {
+pub fn tests(opts: Option<&crate::Opts>) -> Result<&'static [TestCase], anyhow::Error> {
     pub static TESTS: std::sync::OnceLock<Vec<TestCase>> = std::sync::OnceLock::new();
 
     if let Some(cases) = TESTS.get() {
