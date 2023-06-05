@@ -948,7 +948,7 @@ pub fn fields(
 
             // if we writes to enumeratedValues, generate its structure if it differs from read structure.
             if let Some((evs, epath)) = lookup_filter(&lookup_results, Usage::Write) {
-                if epath.as_ref().filter(|base| base.register() == fpath.register()).is_none() {
+                if epath.as_ref().filter(|base| base.register() == fpath.register() || writer_enum_derives.contains(&value_write_ty)).is_none() {
                     // parse variants from enumeratedValues svd record
                     let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
 
