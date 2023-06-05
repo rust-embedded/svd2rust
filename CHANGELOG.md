@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- removed register writer & reader wrappers, generic `REG` in field writers (#731)
 - Updated syn to version 2 (#732)
 
 ## [v0.29.0] - 2023-06-05

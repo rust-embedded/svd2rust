@@ -273,7 +273,6 @@ pub fn render_register_mod(
 
         mod_items.extend(w_impl_items);
 
-        /*
         // the writer can be safe if:
         // * there is a single field that covers the entire register
         // * that field can represent all values
@@ -293,7 +292,7 @@ pub fn render_register_mod(
                 #[doc = "Writes raw bits to the register."]
                 #[inline(always)]
                 pub fn bits(&mut self, bits: #rty) -> &mut Self {
-                    unsafe { self.0.bits(bits) };
+                    self.bits = bits;
                     self
                 }
             });
@@ -302,11 +301,11 @@ pub fn render_register_mod(
                 #[doc = "Writes raw bits to the register."]
                 #[inline(always)]
                 pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
-                    self.0.bits(bits);
+                    self.bits = bits;
                     self
                 }
             });
-        }*/
+        }
 
         close.to_tokens(&mut mod_items);
     }

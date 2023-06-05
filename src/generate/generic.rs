@@ -256,7 +256,10 @@ impl<REG: Readable + Writable> Reg<REG> {
 ///
 /// Result of the `read` methods of registers. Also used as a closure argument in the `modify`
 /// method.
-pub struct R<REG: RegisterSpec + ?Sized> {
+pub type R<REG> = RRaw<REG>;
+
+#[doc(hidden)]
+pub struct RRaw<REG: RegisterSpec> {
     pub(crate) bits: REG::Ux,
     _reg: marker::PhantomData<REG>,
 }
@@ -284,23 +287,13 @@ where
 /// Register writer.
 ///
 /// Used as an argument to the closures in the `write` and `modify` methods of the register.
-pub struct W<REG: RegisterSpec + ?Sized> {
+pub type W<REG> = WRaw<REG>;
+
+#[doc(hidden)]
+pub struct WRaw<REG: RegisterSpec> {
     ///Writable bits
     pub(crate) bits: REG::Ux,
     _reg: marker::PhantomData<REG>,
-}
-
-impl<REG: RegisterSpec> W<REG> {
-    /// Writes raw bits to the register.
-    ///
-    /// # Safety
-    ///
-    /// Read datasheet or reference manual to find what values are allowed to pass.
-    #[inline(always)]
-    pub unsafe fn bits(&mut self, bits: REG::Ux) -> &mut Self {
-        self.bits = bits;
-        self
-    }
 }
 
 #[doc(hidden)]
