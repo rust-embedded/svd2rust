@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
-use svd2rust::Target;
+use svd2rust::{util::ToSanitizedCase, Target};
 
-use crate::tests::TestCase;
+use crate::{command::CommandExt, tests::TestCase, Opts, TestOpts};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -22,10 +22,6 @@ const PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
 const FEATURES_ALL: &[&str] = &["[features]"];
 const FEATURES_XTENSALX: &[&str] = &["default = [\"xtensa-lx/esp32\", \"xtensa-lx-rt/esp32\"]"];
 
-fn path_helper(input: &[&str]) -> PathBuf {
-    input.iter().collect()
-}
-
 fn path_helper_base(base: &Path, input: &[&str]) -> PathBuf {
     input
         .iter()
@@ -34,7 +30,11 @@ fn path_helper_base(base: &Path, input: &[&str]) -> PathBuf {
 
 /// Create and write to file
 fn file_helper(payload: &str, path: &Path) -> Result<()> {
-    let mut f = File::create(path).with_context(|| format!("Failed to create {path:?}"))?;
+    let mut f = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .with_context(|| format!("Failed to create {path:?}"))?;
 
     f.write_all(payload.as_bytes())
         .with_context(|| format!("Failed to write to {path:?}"))?;
@@ -53,7 +53,7 @@ pub struct ProcessFailed {
 
 #[derive(Debug, thiserror::Error)]
 pub enum TestError {
-    #[error(transparent)]
+    #[error("test case failed")]
     Process(#[from] ProcessFailed),
     #[error("Failed to run test")]
     Other(#[from] anyhow::Error),
@@ -110,15 +110,17 @@ impl CommandHelper for Output {
 }
 
 impl TestCase {
+    #[tracing::instrument(skip(self, opts, test_opts), fields(name = %self.name()))]
     pub fn test(
         &self,
-        bin_path: &PathBuf,
-        rustfmt_bin_path: Option<&PathBuf>,
-        atomics: bool,
-        verbosity: u8,
+        opts: &Opts,
+        test_opts: &TestOpts,
     ) -> Result<Option<Vec<PathBuf>>, TestError> {
-        let (chip_dir, mut process_stderr_paths) =
-            self.setup_case(atomics, bin_path, rustfmt_bin_path)?;
+        let (chip_dir, mut process_stderr_paths) = self.setup_case(
+            &opts.output_dir,
+            &test_opts.current_bin_path,
+            test_opts.command.as_deref(),
+        )?;
         // Run `cargo check`, capturing stderr to a log file
         let cargo_check_err_file = path_helper_base(&chip_dir, &["cargo-check.err.log"]);
         let output = Command::new("cargo")
@@ -134,24 +136,28 @@ impl TestCase {
             &process_stderr_paths,
         )?;
         process_stderr_paths.push(cargo_check_err_file);
-        Ok(if verbosity > 1 {
+        Ok(if opts.verbose > 1 {
             Some(process_stderr_paths)
         } else {
             None
         })
     }
 
+    #[tracing::instrument(skip(self, output_dir, command), fields(name = %self.name(), chip_dir = tracing::field::Empty))]
+
     pub fn setup_case(
         &self,
-        atomics: bool,
-        bin_path: &PathBuf,
-        rustfmt_bin_path: Option<&PathBuf>,
+        output_dir: &Path,
+        svd2rust_bin_path: &Path,
+        command: Option<&str>,
     ) -> Result<(PathBuf, Vec<PathBuf>), TestError> {
         let user = match std::env::var("USER") {
             Ok(val) => val,
             Err(_) => "rusttester".into(),
         };
-        let chip_dir = path_helper(&["output", &self.name()]);
+        let chip_dir = output_dir.join(self.name().to_sanitized_snake_case().as_ref());
+        tracing::span::Span::current()
+            .record("chip_dir", tracing::field::display(chip_dir.display()));
         if let Err(err) = fs::remove_dir_all(&chip_dir) {
             match err.kind() {
                 std::io::ErrorKind::NotFound => (),
@@ -159,11 +165,16 @@ impl TestCase {
             }
         }
         let mut process_stderr_paths: Vec<PathBuf> = vec![];
+        tracing::info!(
+            "Initializing cargo package for `{}` in {}",
+            self.name(),
+            chip_dir.display()
+        );
         Command::new("cargo")
             .env("USER", user)
             .arg("init")
             .arg("--name")
-            .arg(&self.name())
+            .arg(self.name().to_sanitized_snake_case().as_ref())
             .arg("--vcs")
             .arg("none")
             .arg(&chip_dir)
@@ -186,7 +197,7 @@ impl TestCase {
                 Target::XtensaLX => CRATES_XTENSALX.iter(),
                 Target::None => unreachable!(),
             })
-            .chain(if atomics {
+            .chain(if command.unwrap_or_default().contains("--atomics") {
                 CRATES_ATOMICS.iter()
             } else {
                 [].iter()
@@ -200,6 +211,8 @@ impl TestCase {
         for c in crates {
             writeln!(file, "{}", c).with_context(|| "Failed to append to file!")?;
         }
+        tracing::info!("Downloading SVD");
+        // FIXME: Avoid downloading multiple times, especially if we're using the diff command
         let svd = reqwest::blocking::get(self.svd_url())
             .with_context(|| "Failed to get svd URL")?
             .text()
@@ -208,6 +221,7 @@ impl TestCase {
         let svd_file = path_helper_base(&chip_dir, &[&chip_svd]);
         file_helper(&svd, &svd_file)?;
         let lib_rs_file = path_helper_base(&chip_dir, &["src", "lib.rs"]);
+        let src_dir = path_helper_base(&chip_dir, &["src"]);
         let svd2rust_err_file = path_helper_base(&chip_dir, &["svd2rust.err.log"]);
         let target = match self.arch {
             Target::CortexM => "cortex-m",
@@ -217,16 +231,16 @@ impl TestCase {
             Target::XtensaLX => "xtensa-lx",
             Target::None => unreachable!(),
         };
-        let mut svd2rust_bin = Command::new(bin_path);
-        if atomics {
-            svd2rust_bin.arg("--atomics");
+        tracing::info!("Running svd2rust");
+        let mut svd2rust_bin = Command::new(svd2rust_bin_path);
+        if let Some(command) = command {
+            svd2rust_bin.arg(command);
         }
         let output = svd2rust_bin
             .args(["-i", &chip_svd])
             .args(["--target", target])
             .current_dir(&chip_dir)
-            .output()
-            .with_context(|| "failed to execute process")?;
+            .get_output()?;
         output.capture_outputs(
             true,
             "svd2rust",
@@ -258,22 +272,78 @@ impl TestCase {
             .write(prettyplease::unparse(&file).as_bytes())
             .with_context(|| format!("couldn't write {}", lib_rs_file.display()))?;
         let rustfmt_err_file = path_helper_base(&chip_dir, &["rustfmt.err.log"]);
-        if let Some(rustfmt_bin_path) = rustfmt_bin_path {
-            // Run `cargo fmt`, capturing stderr to a log file
+        let form_err_file = path_helper_base(&chip_dir, &["form.err.log"]);
+        if let Some(form_bin_path) = crate::FORM.get() {
+            tracing::info!("Running form");
 
-            let output = Command::new(rustfmt_bin_path)
-                .arg(lib_rs_file)
+            // move the lib.rs file to src, then split with form.
+            let new_lib_rs_file = path_helper_base(&chip_dir, &["lib.rs"]);
+            std::fs::rename(lib_rs_file, &new_lib_rs_file)
+                .with_context(|| "While moving lib.rs file")?;
+            let output = Command::new(form_bin_path)
+                .arg("--input")
+                .arg(&new_lib_rs_file)
+                .arg("--outdir")
+                .arg(&src_dir)
                 .output()
-                .with_context(|| "failed to format")?;
+                .with_context(|| "failed to form")?;
             output.capture_outputs(
-                false,
-                "rustfmt",
+                true,
+                "form",
                 None,
-                Some(&rustfmt_err_file),
+                Some(&form_err_file),
                 &process_stderr_paths,
             )?;
+            std::fs::remove_file(&new_lib_rs_file)
+                .with_context(|| "While removing lib.rs file after form")?;
+        }
+        if let Some(rustfmt_bin_path) = crate::RUSTFMT.get() {
+            tracing::info!("Running rustfmt");
+            // Run `rusfmt`, capturing stderr to a log file
+
+            // find all .rs files in src_dir and it's subdirectories
+            let mut src_files = vec![];
+            visit_dirs(&src_dir, &mut |e: &fs::DirEntry| {
+                if e.path().extension().unwrap_or_default() == "rs" {
+                    src_files.push(e.path());
+                }
+            })
+            .context("couldn't visit")?;
+            src_files.sort();
+
+            for entry in src_files {
+                let output = Command::new(rustfmt_bin_path)
+                    .arg(entry)
+                    .args(["--edition", "2021"])
+                    .output()
+                    .with_context(|| "failed to format")?;
+                output.capture_outputs(
+                    false,
+                    "rustfmt",
+                    None,
+                    Some(&rustfmt_err_file),
+                    &process_stderr_paths,
+                )?;
+            }
+
             process_stderr_paths.push(rustfmt_err_file);
         }
+        tracing::info!("Done processing");
         Ok((chip_dir, process_stderr_paths))
     }
+}
+
+fn visit_dirs(dir: &Path, cb: &mut dyn FnMut(&fs::DirEntry)) -> std::io::Result<()> {
+    if dir.is_dir() {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                visit_dirs(&path, cb)?;
+            } else {
+                cb(&entry);
+            }
+        }
+    }
+    Ok(())
 }

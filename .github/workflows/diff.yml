@@ -1,0 +1,73 @@
+name: Diff
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    outputs:
+      diffs: ${{ steps.regress-ci.outputs.diffs }}
+    if: ${{ github.event.issue.pull_request }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - run: cargo regress ci
+        id: regress-ci
+        env:
+          GITHUB_COMMENT: ${{ github.event.comment.body }}
+          GITHUB_COMMENT_PR: ${{ github.event.comment.issue_url }}
+  diff:
+    runs-on: ubuntu-latest
+    needs: [generate]
+    if: needs.generate.outputs.diffs != '{}' && needs.generate.outputs.diffs != '[]' && needs.generate.outputs.diffs != ''
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.generate.outputs.diffs) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - uses: taiki-e/install-action@v2
+        if: matrix.needs_semver_checks
+        with:
+          tool: cargo-semver-checks
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: git-delta
+
+      - run: cargo regress diff ${{ matrix.command }} --use-pager-directly
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_PR: ${{ matrix.pr }}
+          GIT_PAGER: delta --hunk-header-style omit
+  summary:
+    runs-on: ubuntu-latest
+    needs: [diff]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: |
+          PR_ID=$(echo "${{ github.event.comment.issue_url }}" | grep -o '[0-9]\+$')
+          gh run view ${{ github.run_id }} --json jobs | \
+          jq -r '"Diff for [comment]("+$comment+")\n\n" + ([.jobs[] | select(.name | startswith("diff")) | "- [" + (.name | capture("\\((?<name>[^,]+),.*") | .name) + "](" + .url + "?pr=" + $pr_id + "#step:7:45)"] | join("\n"))' --arg pr_id "$PR_ID" --arg comment "${{ github.event.comment.url }}"| \
+          gh pr comment "$PR_ID" --body "$(< /dev/stdin)"
+        env:
+          GH_TOKEN: ${{ github.token }}
