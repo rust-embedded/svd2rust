@@ -273,7 +273,7 @@ pub fn render_register_mod(
 
         mod_items.extend(w_impl_items);
 
-/*
+        /*
         // the writer can be safe if:
         // * there is a single field that covers the entire register
         // * that field can represent all values
@@ -923,7 +923,7 @@ pub fn fields(
                     proxy_items.extend(quote! {
                         #[doc = #doc]
                         #inline
-                        pub fn #sc(self) -> &'a mut W {
+                        pub fn #sc(self) -> &'a mut crate::W<REG> {
                             self.variant(#value_write_ty::#pc)
                         }
                     });
@@ -955,9 +955,9 @@ pub fn fields(
                         span,
                     );
                     if value_write_ty == "bool" {
-                        quote! { crate::#wproxy<'a, #regspec_ident, O> }
+                        quote! { crate::#wproxy<'a, REG, O> }
                     } else {
-                        quote! { crate::#wproxy<'a, #regspec_ident, O, #value_write_ty> }
+                        quote! { crate::#wproxy<'a, REG, O, #value_write_ty> }
                     }
                 } else {
                     let wproxy = Ident::new(
@@ -970,22 +970,37 @@ pub fn fields(
                     );
                     let width = &util::unsuffixed(width as _);
                     if value_write_ty == "u8" {
-                        quote! { crate::#wproxy<'a, #regspec_ident, #width, O> }
+                        quote! { crate::#wproxy<'a, REG, #width, O> }
                     } else {
-                        quote! { crate::#wproxy<'a, #regspec_ident, #width, O, #value_write_ty> }
+                        quote! { crate::#wproxy<'a, REG, #width, O, #value_write_ty> }
                     }
                 };
                 mod_items.extend(quote! {
                     #[doc = #field_writer_brief]
-                    pub type #writer_ty<'a, const O: u8> = #proxy;
+                    pub type #writer_ty<'a, REG, const O: u8> = #proxy;
                 });
             }
 
             // generate proxy items from collected information
             if !proxy_items.is_empty() {
-                mod_items.extend(quote! {
-                    impl<'a, const O: u8> #writer_ty<'a, O> {
-                        #proxy_items
+                mod_items.extend(if width == 1 {
+                    quote! {
+                        impl<'a, REG, const O: u8> #writer_ty<'a, REG, O>
+                        where
+                            REG: crate::Writable + crate::RegisterSpec,
+                        {
+                            #proxy_items
+                        }
+                    }
+                } else {
+                    quote! {
+                        impl<'a, REG, const O: u8> #writer_ty<'a, REG, O>
+                        where
+                            REG: crate::Writable + crate::RegisterSpec,
+                            REG::Ux: From<#fty>
+                        {
+                            #proxy_items
+                        }
                     }
                 });
             }
@@ -1032,7 +1047,7 @@ pub fn fields(
                     #[doc = #doc]
                     #inline
                     #[must_use]
-                    pub unsafe fn #name_snake_case<const O: u8>(&mut self) -> #writer_ty<O> {
+                    pub unsafe fn #name_snake_case<const O: u8>(&mut self) -> #writer_ty<#regspec_ident, O> {
                         #writer_ty::new(self)
                     }
                 });
@@ -1051,7 +1066,7 @@ pub fn fields(
                         #[doc = #doc]
                         #inline
                         #[must_use]
-                        pub fn #name_snake_case_n(&mut self) -> #writer_ty<#sub_offset> {
+                        pub fn #name_snake_case_n(&mut self) -> #writer_ty<#regspec_ident, #sub_offset> {
                             #writer_ty::new(self)
                         }
                     });
@@ -1063,7 +1078,7 @@ pub fn fields(
                     #[doc = #doc]
                     #inline
                     #[must_use]
-                    pub fn #name_snake_case(&mut self) -> #writer_ty<#offset> {
+                    pub fn #name_snake_case(&mut self) -> #writer_ty<#regspec_ident, #offset> {
                         #writer_ty::new(self)
                     }
                 });
