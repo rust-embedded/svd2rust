@@ -947,47 +947,51 @@ pub fn fields(
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
 
             // if we writes to enumeratedValues, generate its structure if it differs from read structure.
-            if let Some((evs, None)) = lookup_filter(&lookup_results, Usage::Write) {
-                // parse variants from enumeratedValues svd record
-                let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
+            if let Some((evs, epath)) = lookup_filter(&lookup_results, Usage::Write) {
+                if epath.as_ref().filter(|base| base.register() == fpath.register()).is_none() {
+                    // parse variants from enumeratedValues svd record
+                    let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
 
-                // if the write structure is finite, it can be safely written.
-                if variants.len() == 1 << width {
-                    unsafety = false;
-                }
-
-                // does the read and the write value has the same name? If we have the same,
-                // we can reuse read value type other than generating a new one.
-                let writer_reader_different_enum = evs_r != Some(evs);
-
-                // generate write value structure and From conversation if we can't reuse read value structure.
-                if writer_reader_different_enum {
-                    if variants.is_empty() {
-                        add_with_no_variants(mod_items, &value_write_ty, &fty, &description, rv);
-                    } else {
-                        add_from_variants(
-                            mod_items,
-                            &variants,
-                            &value_write_ty,
-                            &fty,
-                            &description,
-                            rv,
-                        );
+                    // if the write structure is finite, it can be safely written.
+                    if variants.len() == 1 << width {
+                        unsafety = false;
                     }
-                }
 
-                // for each variant defined, generate a write function to this field.
-                for v in &variants {
-                    let pc = &v.pc;
-                    let sc = &v.sc;
-                    let doc = util::escape_special_chars(&util::respace(&v.doc));
-                    proxy_items.extend(quote! {
-                        #[doc = #doc]
-                        #inline
-                        pub fn #sc(self) -> &'a mut W {
-                            self.variant(#value_write_ty::#pc)
+                    if epath.is_none() {
+                        // does the read and the write value has the same name? If we have the same,
+                        // we can reuse read value type other than generating a new one.
+                        let writer_reader_different_enum = evs_r != Some(evs);
+    
+                        // generate write value structure and From conversation if we can't reuse read value structure.
+                        if writer_reader_different_enum {
+                            if variants.is_empty() {
+                                add_with_no_variants(mod_items, &value_write_ty, &fty, &description, rv);
+                            } else {
+                                add_from_variants(
+                                    mod_items,
+                                    &variants,
+                                    &value_write_ty,
+                                    &fty,
+                                    &description,
+                                    rv,
+                                );
+                            }
                         }
-                    });
+                    }
+
+                    // for each variant defined, generate a write function to this field.
+                    for v in &variants {
+                        let pc = &v.pc;
+                        let sc = &v.sc;
+                        let doc = util::escape_special_chars(&util::respace(&v.doc));
+                        proxy_items.extend(quote! {
+                            #[doc = #doc]
+                            #inline
+                            pub fn #sc(self) -> &'a mut W {
+                                self.variant(#value_write_ty::#pc)
+                            }
+                        });
+                    }
                 }
             }
 
@@ -1086,6 +1090,7 @@ pub fn fields(
                 }
             }
 
+            // Generate field writer accessors
             if let Field::Array(_, de) = &f {
                 let increment = de.dim_increment;
                 let doc = &util::replace_suffix(&description, &brief_suffix);
