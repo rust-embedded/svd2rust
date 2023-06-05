@@ -1,3 +1,4 @@
+pub mod github;
 mod svd_test;
 mod tests;
 
@@ -31,7 +32,6 @@ pub fn get_cargo_workspace() -> &'static std::path::Path {
 }
 
 #[derive(clap::Parser, Debug)]
-#[command(name = "svd2rust-regress")]
 pub struct Tests {
     /// Run a long test (it's very long)
     #[clap(short = 'l', long)]
@@ -206,7 +206,7 @@ pub struct Opts {
     /// Defaults to `target/release/svd2rust[.exe]` of this repository
     /// (which must be already built)
     #[clap(global = true, short = 'p', long = "svd2rust-path", default_value = default_svd2rust())]
-    pub bin_path: PathBuf,
+    pub current_bin_path: PathBuf,
 
     /// Path to an `rustfmt` binary, relative or absolute.
     /// Defaults to `$(rustup which rustfmt)`
@@ -313,9 +313,6 @@ fn main() -> Result<(), anyhow::Error> {
     // Validate all test pre-conditions
     validate_tests(tests::tests(Some(&opt))?);
 
-    let bin_path = &opt.bin_path;
-    anyhow::ensure!(bin_path.exists(), "svd2rust binary does not exist");
-
     let default_rustfmt: Option<PathBuf> = if let Some((v, true)) = Command::new("rustup")
         .args(["which", "rustfmt"])
         .output()
@@ -345,6 +342,13 @@ fn main() -> Result<(), anyhow::Error> {
     }
 
     match &opt.subcommand {
-        Subcommand::Tests(tests_opts) => tests_opts.run(&opt, bin_path, rustfmt_bin_path)?,
+        Subcommand::Tests(tests_opts) => {
+            anyhow::ensure!(
+                opt.current_bin_path.exists(),
+                "svd2rust binary does not exist"
+            );
+
+            tests_opts.run(&opt, &opt.current_bin_path, rustfmt_bin_path)?
+        }
     }
 }
