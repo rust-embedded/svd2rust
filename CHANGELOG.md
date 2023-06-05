@@ -7,17 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- `FieldFpec` instead or `fty` generic
-- print error on ci `curl` request fail
-- removed `rty` generic in `FieldWriter`
-- `bool` and `u8` as default generics for `BitReader/Writer` and `FieldReader/Writer`
-- Bump MSRV to 1.65
-- Optimize case change/sanitize
-- Fix dangling implicit derives
-- Fix escaping <> and & characters in doc attributes
-- Add `interrupt_link_section` config parameter for controlling the `#[link_section = "..."]` attribute of `__INTERRUPTS`
+## [v0.29.0] - 2023-06-05
+
+- `FieldFpec` instead or `fty` generic (#722)
+- print error on ci `curl` request fail (#725)
+- removed `rty` generic in `FieldWriter` (#721)
+- `bool` and `u8` as default generics for `BitReader/Writer` and `FieldReader/Writer` (#720) 
+- Bump MSRV to 1.65 (#711)
+- Optimize case change/sanitize (#715)
+- Fix dangling implicit derives (#703)
+- Fix escaping <> and & characters in doc attributes (#711)
+- Add `interrupt_link_section` config parameter for controlling the `#[link_section = "..."]` attribute of `__INTERRUPTS` (#718)
 - Add option to implement Debug for readable registers (#716)
-- Add `atomics-feature`
+- Add `atomics-feature` (#729)
 
 ## [v0.28.0] - 2022-12-25
 
@@ -792,7 +794,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.29.0...HEAD
+[v0.29.0]: https://github.com/rust-embedded/svd2rust/compare/v0.28.0...v0.29.0
 [v0.28.0]: https://github.com/rust-embedded/svd2rust/compare/v0.27.2...v0.28.0
 [v0.27.2]: https://github.com/rust-embedded/svd2rust/compare/v0.27.1...v0.27.2
 [v0.27.1]: https://github.com/rust-embedded/svd2rust/compare/v0.27.0...v0.27.1
