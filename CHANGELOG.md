@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Updated syn to version 2 (#732)
+
 ## [v0.29.0] - 2023-06-05
 
 - `FieldFpec` instead or `fty` generic (#722)
 - print error on ci `curl` request fail (#725)
 - removed `rty` generic in `FieldWriter` (#721)
-- `bool` and `u8` as default generics for `BitReader/Writer` and `FieldReader/Writer` (#720) 
+- `bool` and `u8` as default generics for `BitReader/Writer` and `FieldReader/Writer` (#720)
 - Bump MSRV to 1.65 (#711)
 - Optimize case change/sanitize (#715)
 - Fix dangling implicit derives (#703)
