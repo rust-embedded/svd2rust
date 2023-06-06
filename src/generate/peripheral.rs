@@ -16,8 +16,8 @@ use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, Token};
 
 use crate::util::{
-    self, array_proxy_type, name_to_ty, new_syn_u32, path_segment, type_path, unsuffixed, Config,
-    FullName, ToSanitizedCase, BITS_PER_BYTE,
+    self, array_proxy_type, name_to_ty, path_segment, type_path, unsuffixed, Config, FullName,
+    ToSanitizedCase, BITS_PER_BYTE,
 };
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -1393,21 +1393,16 @@ fn new_syn_field(ident: Ident, ty: syn::Type) -> syn::Field {
     let span = Span::call_site();
     syn::Field {
         ident: Some(ident),
-        vis: syn::Visibility::Public(syn::VisPublic {
-            pub_token: Token![pub](span),
-        }),
+        vis: syn::Visibility::Public(Token![pub](span)),
         attrs: vec![],
         colon_token: Some(Token![:](span)),
         ty,
+        mutability: syn::FieldMutability::None,
     }
 }
 
 fn new_syn_array(ty: syn::Type, len: u32) -> syn::Type {
     let span = Span::call_site();
-    syn::Type::Array(syn::TypeArray {
-        bracket_token: syn::token::Bracket { span },
-        elem: ty.into(),
-        semi_token: Token![;](span),
-        len: new_syn_u32(len, span),
-    })
+    let len = unsuffixed(len as _);
+    syn::parse_quote_spanned!( span => [#ty; #len] )
 }

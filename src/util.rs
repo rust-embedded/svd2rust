@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use svd_rs::{MaybeArray, Peripheral, PeripheralInfo};
 
 use syn::{
-    punctuated::Punctuated, token::Colon2, AngleBracketedGenericArguments, GenericArgument, Lit,
+    punctuated::Punctuated, token::PathSep, AngleBracketedGenericArguments, GenericArgument, Lit,
     LitInt, PathArguments, PathSegment, Token, Type, TypePath,
 };
 
@@ -473,7 +473,7 @@ pub fn ident_to_path(ident: Ident) -> TypePath {
     type_path(segments)
 }
 
-pub fn type_path(segments: Punctuated<PathSegment, Colon2>) -> TypePath {
+pub fn type_path(segments: Punctuated<PathSegment, PathSep>) -> TypePath {
     TypePath {
         qself: None,
         path: syn::Path {
