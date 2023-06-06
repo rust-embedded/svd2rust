@@ -74,8 +74,45 @@ pub struct Tests {
     /// Print all available test using the specified filters
     #[clap(long)]
     pub list: bool,
+
+    /// Path to an `svd2rust` binary, relative or absolute.
+    /// Defaults to `target/release/svd2rust[.exe]` of this repository
+    /// (which must be already built)
+    #[clap(short = 'p', long = "svd2rust-path", default_value = default_svd2rust())]
+    pub current_bin_path: PathBuf,
     // TODO: Specify smaller subset of tests? Maybe with tags?
     // TODO: Compile svd2rust?
+}
+
+#[derive(clap::Parser, Debug)]
+#[clap(name = "diff")]
+pub struct Diffing {
+    #[clap(long)]
+    pub base: Option<String>,
+
+    #[clap(long)]
+    pub head: Option<String>,
+
+    /// Enable formatting with `rustfmt`
+    #[clap(short = 'f', long)]
+    pub format: bool,
+
+    #[clap(subcommand)]
+    pub short: Option<DiffingSub>,
+}
+
+#[derive(clap::Parser, Debug)]
+pub enum DiffingSub {
+    Pr
+}
+
+#[test]
+pub fn diffing_cli_works() {
+    Diffing::parse_from(["diff", "pr"]);
+    Diffing::parse_from(["diff", "--base", "", "--head", "\"--atomics\""]);
+    Diffing::parse_from(["diff", "--base", "\"@master\"", "--head", "\"@pr\""]);
+    Diffing::parse_from(["diff", "--base", "\"@master\"", "--head", "\"@pr --atomics\""]);
+    Diffing::parse_from(["diff", "--head", "\"--atomics\""]);
 }
 
 impl Tests {
@@ -192,6 +229,7 @@ impl Tests {
 
 #[derive(clap::Subcommand, Debug)]
 pub enum Subcommand {
+    Diff(Diffing),
     Tests(Tests),
 }
 
@@ -201,12 +239,6 @@ pub struct Opts {
     /// Use verbose output
     #[clap(global = true, long, short = 'v', action = clap::ArgAction::Count)]
     pub verbose: u8,
-
-    /// Path to an `svd2rust` binary, relative or absolute.
-    /// Defaults to `target/release/svd2rust[.exe]` of this repository
-    /// (which must be already built)
-    #[clap(global = true, short = 'p', long = "svd2rust-path", default_value = default_svd2rust())]
-    pub current_bin_path: PathBuf,
 
     /// Path to an `rustfmt` binary, relative or absolute.
     /// Defaults to `$(rustup which rustfmt)`
@@ -228,6 +260,7 @@ impl Opts {
     fn use_rustfmt(&self) -> bool {
         match self.subcommand {
             Subcommand::Tests(Tests { format, .. }) => format,
+            Subcommand::Diff(Diffing { format, .. }) => format,
         }
     }
 }
@@ -344,11 +377,14 @@ fn main() -> Result<(), anyhow::Error> {
     match &opt.subcommand {
         Subcommand::Tests(tests_opts) => {
             anyhow::ensure!(
-                opt.current_bin_path.exists(),
+                tests_opts.current_bin_path.exists(),
                 "svd2rust binary does not exist"
             );
 
-            tests_opts.run(&opt, &opt.current_bin_path, rustfmt_bin_path)?
+            tests_opts.run(&opt, &tests_opts.current_bin_path, rustfmt_bin_path)?
+        }
+        Subcommand::Diff(_diff) => {
+            todo!()
         }
     }
 }
