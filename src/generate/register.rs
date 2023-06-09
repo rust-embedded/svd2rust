@@ -805,7 +805,7 @@ pub fn fields(
                             span,
                         );
 
-                        let doc = format!("Checks if the value of the field is `{pc}`");
+                        let doc = util::escape_special_chars(&util::respace(&v.doc));
                         enum_items.extend(quote! {
                             #[doc = #doc]
                             #inline
