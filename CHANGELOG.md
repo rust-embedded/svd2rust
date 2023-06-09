@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - Updated syn to version 2 (#732)
+- Let readable field fetch doc from svd description (#734)
 
 ## [v0.29.0] - 2023-06-05
 
