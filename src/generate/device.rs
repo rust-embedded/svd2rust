@@ -311,12 +311,16 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 critical_section::with(|_| {
                     // SAFETY: We are in a critical section, so we have exclusive access
                     // to `DEVICE_PERIPHERALS`.
-                    if unsafe { DEVICE_PERIPHERALS } {
-                        return None
+                    unsafe {
+                        if DEVICE_PERIPHERALS {
+                            return None
+                        }
+                        DEVICE_PERIPHERALS = true;
                     }
 
-                    // SAFETY: `DEVICE_PERIPHERALS` is set to `true` by `Peripherals::steal`,
-                    // ensuring the peripherals can only be returned once.
+
+                    // SAFETY: `DEVICE_PERIPHERALS` is set to `true`,
+                    // ensuring the peripherals can only be safely returned once.
                     Some(unsafe { Peripherals::steal() })
                 })
             }
@@ -328,8 +332,6 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             /// Each of the returned peripherals must be used at most once.
             #[inline]
             pub unsafe fn steal() -> Self {
-                DEVICE_PERIPHERALS = true;
-
                 Peripherals {
                     #exprs
                 }
