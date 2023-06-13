@@ -146,78 +146,19 @@ pub fn render_register_mod(
 
     if can_read {
         let desc = format!("Register `{}` reader", register.name);
-        let derive = if config.derive_more {
-            Some(quote! { #[derive(derive_more::Deref, derive_more::From)] })
-        } else {
-            None
-        };
         mod_items.extend(quote! {
             #[doc = #desc]
-            #derive
-            pub struct R(crate::R<#regspec_ident>);
+            pub type R = crate::R<#regspec_ident>;
         });
-
-        if !config.derive_more {
-            mod_items.extend(quote! {
-                impl core::ops::Deref for R {
-                    type Target = crate::R<#regspec_ident>;
-
-                    #[inline(always)]
-                    fn deref(&self) -> &Self::Target {
-                        &self.0
-                    }
-                }
-
-                impl From<crate::R<#regspec_ident>> for R {
-                    #[inline(always)]
-                    fn from(reader: crate::R<#regspec_ident>) -> Self {
-                        R(reader)
-                    }
-                }
-            });
-        }
         methods.push("read");
     }
 
     if can_write {
         let desc = format!("Register `{}` writer", register.name);
-        let derive = if config.derive_more {
-            Some(quote! { #[derive(derive_more::Deref, derive_more::DerefMut, derive_more::From)] })
-        } else {
-            None
-        };
         mod_items.extend(quote! {
             #[doc = #desc]
-            #derive
-            pub struct W(crate::W<#regspec_ident>);
+            pub type W = crate::W<#regspec_ident>;
         });
-
-        if !config.derive_more {
-            mod_items.extend(quote! {
-                impl core::ops::Deref for W {
-                    type Target = crate::W<#regspec_ident>;
-
-                    #[inline(always)]
-                    fn deref(&self) -> &Self::Target {
-                        &self.0
-                    }
-                }
-
-                impl core::ops::DerefMut for W {
-                    #[inline(always)]
-                    fn deref_mut(&mut self) -> &mut Self::Target {
-                        &mut self.0
-                    }
-                }
-
-                impl From<crate::W<#regspec_ident>> for W {
-                    #[inline(always)]
-                    fn from(writer: crate::W<#regspec_ident>) -> Self {
-                        W(writer)
-                    }
-                }
-            });
-        }
         methods.push("write_with_zero");
         if can_reset {
             methods.push("reset");
@@ -351,7 +292,7 @@ pub fn render_register_mod(
                 #[doc = "Writes raw bits to the register."]
                 #[inline(always)]
                 pub fn bits(&mut self, bits: #rty) -> &mut Self {
-                    unsafe { self.0.bits(bits) };
+                    self.bits = bits;
                     self
                 }
             });
@@ -360,7 +301,7 @@ pub fn render_register_mod(
                 #[doc = "Writes raw bits to the register."]
                 #[inline(always)]
                 pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
-                    self.0.bits(bits);
+                    self.bits = bits;
                     self
                 }
             });
@@ -406,9 +347,7 @@ pub fn render_register_mod(
         let doc = format!("`read()` method returns [{name_snake_case}::R](R) reader structure",);
         mod_items.extend(quote! {
             #[doc = #doc]
-            impl crate::Readable for #regspec_ident {
-                type Reader = R;
-            }
+            impl crate::Readable for #regspec_ident {}
         });
     }
     if can_write {
@@ -421,7 +360,6 @@ pub fn render_register_mod(
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Writable for #regspec_ident {
-                type Writer = W;
                 const ZERO_TO_MODIFY_FIELDS_BITMAP: Self::Ux = #zero_to_modify_fields_bitmap;
                 const ONE_TO_MODIFY_FIELDS_BITMAP: Self::Ux = #one_to_modify_fields_bitmap;
             }
@@ -677,11 +615,10 @@ pub fn fields(
             // information in enumeratedValues;
             // if it's not enumeratedValues, always derive the read proxy as we do not need to re-export
             // it again from BitReader or FieldReader.
-            let should_derive_reader = match lookup_filter(&lookup_results, Usage::Read) {
-                Some((_evs, Some(_base))) => false,
-                Some((_evs, None)) => true,
-                None => true,
-            };
+            let should_derive_reader = matches!(
+                lookup_filter(&lookup_results, Usage::Read),
+                Some((_, None)) | None
+            );
 
             // derive the read proxy structure if necessary.
             if should_derive_reader {
@@ -984,7 +921,7 @@ pub fn fields(
                     proxy_items.extend(quote! {
                         #[doc = #doc]
                         #inline
-                        pub fn #sc(self) -> &'a mut W {
+                        pub fn #sc(self) -> &'a mut crate::W<REG> {
                             self.variant(#value_write_ty::#pc)
                         }
                     });
@@ -993,11 +930,10 @@ pub fn fields(
 
             // derive writer. We derive writer if the write proxy is in current register module,
             // or writer in different register have different _SPEC structures
-            let should_derive_writer = match lookup_filter(&lookup_results, Usage::Write) {
-                Some((_evs, Some(base))) => base.register() != fpath.register(),
-                Some((_evs, None)) => true,
-                None => true,
-            };
+            let should_derive_writer = matches!(
+                lookup_filter(&lookup_results, Usage::Write),
+                Some((_, None)) | None
+            );
 
             // derive writer structure by type alias to generic write proxy structure.
             if should_derive_writer {
@@ -1016,9 +952,9 @@ pub fn fields(
                         span,
                     );
                     if value_write_ty == "bool" {
-                        quote! { crate::#wproxy<'a, #regspec_ident, O> }
+                        quote! { crate::#wproxy<'a, REG, O> }
                     } else {
-                        quote! { crate::#wproxy<'a, #regspec_ident, O, #value_write_ty> }
+                        quote! { crate::#wproxy<'a, REG, O, #value_write_ty> }
                     }
                 } else {
                     let wproxy = Ident::new(
@@ -1031,27 +967,58 @@ pub fn fields(
                     );
                     let width = &util::unsuffixed(width as _);
                     if value_write_ty == "u8" {
-                        quote! { crate::#wproxy<'a, #regspec_ident, #width, O> }
+                        quote! { crate::#wproxy<'a, REG, #width, O> }
                     } else {
-                        quote! { crate::#wproxy<'a, #regspec_ident, #width, O, #value_write_ty> }
+                        quote! { crate::#wproxy<'a, REG, #width, O, #value_write_ty> }
                     }
                 };
                 mod_items.extend(quote! {
                     #[doc = #field_writer_brief]
-                    pub type #writer_ty<'a, const O: u8> = #proxy;
+                    pub type #writer_ty<'a, REG, const O: u8> = #proxy;
                 });
             }
 
             // generate proxy items from collected information
             if !proxy_items.is_empty() {
-                mod_items.extend(quote! {
-                    impl<'a, const O: u8> #writer_ty<'a, O> {
-                        #proxy_items
+                mod_items.extend(if width == 1 {
+                    quote! {
+                        impl<'a, REG, const O: u8> #writer_ty<'a, REG, O>
+                        where
+                            REG: crate::Writable + crate::RegisterSpec,
+                        {
+                            #proxy_items
+                        }
+                    }
+                } else {
+                    quote! {
+                        impl<'a, REG, const O: u8> #writer_ty<'a, REG, O>
+                        where
+                            REG: crate::Writable + crate::RegisterSpec,
+                            REG::Ux: From<#fty>
+                        {
+                            #proxy_items
+                        }
                     }
                 });
             }
 
             if let Some((evs, Some(base))) = lookup_filter(&lookup_results, Usage::Write) {
+                // if base.register == None, derive write from the same module. This is allowed because both
+                // the generated and source write proxy are in the same module.
+                // we never reuse writer for writer in different module does not have the same _SPEC strcuture,
+                // thus we cannot write to current register using re-exported write proxy.
+
+                // generate pub use field_1 writer as field_2 writer
+                let base_field = util::replace_suffix(&base.field.name, "");
+                let base_w = (base_field + "_W").to_constant_case_ident(span);
+                if !writer_derives.contains(&writer_ty) {
+                    let base_path = base_syn_path(base, &fpath, &base_w)?;
+                    mod_items.extend(quote! {
+                        #[doc = #field_writer_brief]
+                        pub use #base_path as #writer_ty;
+                    });
+                    writer_derives.insert(writer_ty.clone());
+                }
                 // if base.register == None, it emits pub use structure from same module.
                 if base.register() != fpath.register() {
                     let writer_reader_different_enum = evs_r != Some(evs);
@@ -1066,23 +1033,6 @@ pub fn fields(
                             writer_enum_derives.insert(value_write_ty.clone());
                         }
                     }
-                } else {
-                    // if base.register == None, derive write from the same module. This is allowed because both
-                    // the generated and source write proxy are in the same module.
-                    // we never reuse writer for writer in different module does not have the same _SPEC strcuture,
-                    // thus we cannot write to current register using re-exported write proxy.
-
-                    // generate pub use field_1 writer as field_2 writer
-                    let base_field = util::replace_suffix(&base.field.name, "");
-                    let base_w = (base_field + "_W").to_constant_case_ident(span);
-                    if !writer_derives.contains(&writer_ty) {
-                        let base_path = base_syn_path(base, &fpath, &base_w)?;
-                        mod_items.extend(quote! {
-                            #[doc = #field_writer_brief]
-                            pub use #base_path as #writer_ty;
-                        });
-                        writer_derives.insert(writer_ty.clone());
-                    }
                 }
             }
 
@@ -1093,7 +1043,7 @@ pub fn fields(
                     #[doc = #doc]
                     #inline
                     #[must_use]
-                    pub unsafe fn #name_snake_case<const O: u8>(&mut self) -> #writer_ty<O> {
+                    pub unsafe fn #name_snake_case<const O: u8>(&mut self) -> #writer_ty<#regspec_ident, O> {
                         #writer_ty::new(self)
                     }
                 });
@@ -1112,7 +1062,7 @@ pub fn fields(
                         #[doc = #doc]
                         #inline
                         #[must_use]
-                        pub fn #name_snake_case_n(&mut self) -> #writer_ty<#sub_offset> {
+                        pub fn #name_snake_case_n(&mut self) -> #writer_ty<#regspec_ident, #sub_offset> {
                             #writer_ty::new(self)
                         }
                     });
@@ -1124,7 +1074,7 @@ pub fn fields(
                     #[doc = #doc]
                     #inline
                     #[must_use]
-                    pub fn #name_snake_case(&mut self) -> #writer_ty<#offset> {
+                    pub fn #name_snake_case(&mut self) -> #writer_ty<#regspec_ident, #offset> {
                         #writer_ty::new(self)
                     }
                 });

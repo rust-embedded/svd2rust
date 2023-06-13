@@ -46,8 +46,6 @@ pub struct Config {
     #[cfg_attr(feature = "serde", serde(default))]
     pub pascal_enum_values: bool,
     #[cfg_attr(feature = "serde", serde(default))]
-    pub derive_more: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub feature_group: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub feature_peripheral: bool,
@@ -121,7 +119,6 @@ impl Default for Config {
             keep_list: false,
             strict: false,
             pascal_enum_values: false,
-            derive_more: false,
             feature_group: false,
             feature_peripheral: false,
             max_cluster_size: false,
