@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - Fix when `atomics` features is generated but not enabled
+- move hidden structs into module, add register reader/writer links into `SPEC` docs (#736)
 - removed register writer & reader wrappers, generic `REG` in field writers (#731)
 - Updated syn to version 2 (#732)
 - Let readable field fetch doc from svd description (#734)

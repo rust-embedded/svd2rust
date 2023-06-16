@@ -245,18 +245,13 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
 
 /// An enum describing the derivation status of an erc, which allows for disjoint arrays to be
 /// implicitly derived from a common type.
-#[derive(Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq)]
 enum DeriveInfo {
+    #[default]
     Root,
     Explicit(RegisterPath),
     Implicit(RegisterPath),
     Cluster, // don't do anything different for clusters
-}
-
-impl Default for DeriveInfo {
-    fn default() -> Self {
-        DeriveInfo::Root
-    }
 }
 
 impl fmt::Display for DeriveInfo {

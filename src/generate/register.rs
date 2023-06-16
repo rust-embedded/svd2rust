@@ -8,6 +8,7 @@ use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
 use std::borrow::Cow;
 use std::collections::HashSet;
+use std::fmt::Write;
 use svd_parser::expand::{
     derive_enumerated_values, derive_field, BlockPath, EnumPath, FieldPath, Index, RegisterPath,
 };
@@ -80,8 +81,24 @@ pub fn render(
         } else {
             return Err(anyhow!("Incorrect access of register {}", register.name));
         };
-        let alias_doc =
-            format!("{name} ({accs}) register accessor: an alias for `Reg<{regspec_ident}>`");
+
+        let mut alias_doc = format!(
+            "{name} ({accs}) register accessor: {description}\n\n{}",
+            api_docs(
+                access.can_read(),
+                access.can_write(),
+                register.properties.reset_value.is_some(),
+                &name_snake_case,
+                false,
+                register.read_action,
+            )?
+        );
+        if name_snake_case != "cfg" {
+            alias_doc += format!(
+                "\n\nFor information about available fields see [`{name_snake_case}`] module"
+            )
+            .as_str();
+        }
         let mut out = TokenStream::new();
         out.extend(quote! {
             #[doc = #alias_doc]
@@ -104,6 +121,68 @@ pub fn render(
 
         Ok(out)
     }
+}
+
+fn api_docs(
+    can_read: bool,
+    can_write: bool,
+    can_reset: bool,
+    module: &Ident,
+    inmodule: bool,
+    read_action: Option<ReadAction>,
+) -> Result<String, std::fmt::Error> {
+    fn method(s: &str) -> String {
+        format!("[`{s}`](crate::generic::Reg::{s})")
+    }
+
+    let mut doc = String::new();
+
+    if can_read {
+        write!(
+            doc,
+            "You can {} this register and get [`{module}::R`]{}. ",
+            method("read"),
+            if inmodule { "(R)" } else { "" },
+        )?;
+
+        if let Some(action) = read_action {
+            doc.push_str("WARN: ");
+            doc.push_str(match action {
+                ReadAction::Clear => "The register is **cleared** (set to zero) following a read operation.",
+                ReadAction::Set => "The register is **set** (set to ones) following a read operation.",
+                ReadAction::Modify => "The register is **modified** in some way after a read operation.",
+                ReadAction::ModifyExternal => "One or more dependent resources other than the current register are immediately affected by a read operation.",
+            });
+        }
+        doc.push(' ');
+    }
+
+    if can_write {
+        let mut methods = Vec::new();
+        if can_reset {
+            methods.push("reset");
+            methods.push("write");
+        }
+        methods.push("write_with_zero");
+        write!(
+            doc,
+            "You can {} this register using [`{module}::W`]{}. ",
+            methods
+                .iter()
+                .map(|m| method(m))
+                .collect::<Vec<_>>()
+                .join(", "),
+            if inmodule { "(W)" } else { "" },
+        )?;
+    }
+
+    if can_read && can_write {
+        write!(doc, "You can also {} this register. ", method("modify"),)?;
+    }
+
+    doc.push_str("See [API](https://docs.rs/svd2rust/#read--modify--write-api).");
+
+    Ok(doc)
 }
 
 pub fn render_register_mod(
@@ -138,7 +217,6 @@ pub fn render_register_mod(
     );
 
     let mut mod_items = TokenStream::new();
-    let mut methods = vec![];
 
     let can_read = access.can_read();
     let can_write = access.can_write();
@@ -150,7 +228,6 @@ pub fn render_register_mod(
             #[doc = #desc]
             pub type R = crate::R<#regspec_ident>;
         });
-        methods.push("read");
     }
 
     if can_write {
@@ -159,15 +236,6 @@ pub fn render_register_mod(
             #[doc = #desc]
             pub type W = crate::W<#regspec_ident>;
         });
-        methods.push("write_with_zero");
-        if can_reset {
-            methods.push("reset");
-            methods.push("write");
-        }
-    }
-
-    if can_read && can_write {
-        methods.push("modify");
     }
 
     let mut r_impl_items = TokenStream::new();
@@ -310,29 +378,17 @@ pub fn render_register_mod(
         close.to_tokens(&mut mod_items);
     }
 
-    let methods = methods
-        .iter()
-        .map(|s| format!("[`{s}`](crate::generic::Reg::{s})"))
-        .collect::<Vec<_>>();
-    let mut doc = format!("{description}\n\nThis register you can {}. See [API](https://docs.rs/svd2rust/#read--modify--write-api).", methods.join(", "));
-
-    if name_snake_case != "cfg" {
-        doc += format!(
-            "\n\nFor information about available fields see [{name_snake_case}](index.html) module"
-        )
-        .as_str();
-    }
-
-    if can_read {
-        if let Some(action) = register.read_action {
-            doc += match action {
-                ReadAction::Clear => "\n\nThe register is **cleared** (set to zero) following a read operation.",
-                ReadAction::Set => "\n\nThe register is **set** (set to ones) following a read operation.",
-                ReadAction::Modify => "\n\nThe register is **modified** in some way after a read operation.",
-                ReadAction::ModifyExternal => "\n\nOne or more dependent resources other than the current register are immediately affected by a read operation.",
-            };
-        }
-    }
+    let doc = format!(
+        "{description}\n\n{}",
+        api_docs(
+            can_read,
+            can_write,
+            can_reset,
+            &name_snake_case,
+            true,
+            register.read_action,
+        )?
+    );
 
     mod_items.extend(quote! {
         #[doc = #doc]
@@ -344,7 +400,7 @@ pub fn render_register_mod(
     });
 
     if can_read {
-        let doc = format!("`read()` method returns [{name_snake_case}::R](R) reader structure",);
+        let doc = format!("`read()` method returns [`{name_snake_case}::R`](R) reader structure",);
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Readable for #regspec_ident {}
@@ -352,7 +408,7 @@ pub fn render_register_mod(
     }
     if can_write {
         let doc =
-            format!("`write(|w| ..)` method takes [{name_snake_case}::W](W) writer structure",);
+            format!("`write(|w| ..)` method takes [`{name_snake_case}::W`](W) writer structure",);
 
         let zero_to_modify_fields_bitmap = util::hex(zero_to_modify_fields_bitmap);
         let one_to_modify_fields_bitmap = util::hex(one_to_modify_fields_bitmap);
