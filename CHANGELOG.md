@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- make register reader/writer copiable, return writer from write & modify
 - removed register writer & reader wrappers, generic `REG` in field writers (#731)
 - Updated syn to version 2 (#732)
 - Let readable field fetch doc from svd description (#734)
