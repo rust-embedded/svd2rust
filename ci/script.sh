@@ -566,6 +566,7 @@ main() {
             test_patched_stm32 stm32mp157
             test_patched_stm32 stm32wb55
             test_patched_stm32 stm32wle5
+            test_patched_stm32 stm32c011
         ;;
 
         Toshiba)
