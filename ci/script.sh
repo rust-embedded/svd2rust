@@ -40,11 +40,11 @@ main() {
 
     # test crate
     cargo init --name foo $td
-    echo 'cortex-m = "0.7.4"' >> $td/Cargo.toml
-    echo 'cortex-m-rt = "0.7.1"' >> $td/Cargo.toml
+    echo 'cortex-m = "0.7.7"' >> $td/Cargo.toml
+    echo 'cortex-m-rt = "0.7.3"' >> $td/Cargo.toml
     echo 'vcell = "0.1.3"' >> $td/Cargo.toml
     if [[ "$options" == *"--atomics"* ]]; then
-        echo 'portable-atomic = { version = "0.3.16", default-features = false }' >> $td/Cargo.toml
+        echo 'portable-atomic = { version = "1.4", default-features = false }' >> $td/Cargo.toml
     fi
     echo '[profile.dev]' >> $td/Cargo.toml
     echo 'incremental = false' >> $td/Cargo.toml
