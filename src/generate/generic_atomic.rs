@@ -1,4 +1,5 @@
 mod atomic {
+    use super::*;
     use portable_atomic::Ordering;
 
     pub trait AtomicOperations {
@@ -35,67 +36,66 @@ mod atomic {
     // Enable 64-bit atomics for 64-bit RISCV
     #[cfg(any(target_pointer_width = "64", target_has_atomic = "64"))]
     impl_atomics!(u64, portable_atomic::AtomicU64);
-}
-use atomic::AtomicOperations;
 
-impl<REG: Readable + Writable> Reg<REG>
-where
-    REG::Ux: AtomicOperations + Default + core::ops::Not<Output = REG::Ux>,
-{
-    /// Set high every bit in the register that was set in the write proxy. Leave other bits
-    /// untouched. The write is done in a single atomic instruction.
-    ///
-    /// # Safety
-    ///
-    /// The resultant bit pattern may not be valid for the register.
-    #[inline(always)]
-    pub unsafe fn set_bits<F>(&self, f: F)
+    impl<REG: Readable + Writable> Reg<REG>
     where
-        F: FnOnce(&mut W<REG>) -> &mut W<REG>,
+        REG::Ux: AtomicOperations + Default + core::ops::Not<Output = REG::Ux>,
     {
-        let bits = f(&mut W {
-            bits: Default::default(),
-            _reg: marker::PhantomData,
-        })
-        .bits;
-        REG::Ux::atomic_or(self.register.as_ptr(), bits);
-    }
+        /// Set high every bit in the register that was set in the write proxy. Leave other bits
+        /// untouched. The write is done in a single atomic instruction.
+        ///
+        /// # Safety
+        ///
+        /// The resultant bit pattern may not be valid for the register.
+        #[inline(always)]
+        pub unsafe fn set_bits<F>(&self, f: F)
+        where
+            F: FnOnce(&mut W<REG>) -> &mut W<REG>,
+        {
+            let bits = f(&mut W {
+                bits: Default::default(),
+                _reg: marker::PhantomData,
+            })
+            .bits;
+            REG::Ux::atomic_or(self.register.as_ptr(), bits);
+        }
 
-    /// Clear every bit in the register that was cleared in the write proxy. Leave other bits
-    /// untouched. The write is done in a single atomic instruction.
-    ///
-    /// # Safety
-    ///
-    /// The resultant bit pattern may not be valid for the register.
-    #[inline(always)]
-    pub unsafe fn clear_bits<F>(&self, f: F)
-    where
-        F: FnOnce(&mut W<REG>) -> &mut W<REG>,
-    {
-        let bits = f(&mut W {
-            bits: !REG::Ux::default(),
-            _reg: marker::PhantomData,
-        })
-        .bits;
-        REG::Ux::atomic_and(self.register.as_ptr(), bits);
-    }
+        /// Clear every bit in the register that was cleared in the write proxy. Leave other bits
+        /// untouched. The write is done in a single atomic instruction.
+        ///
+        /// # Safety
+        ///
+        /// The resultant bit pattern may not be valid for the register.
+        #[inline(always)]
+        pub unsafe fn clear_bits<F>(&self, f: F)
+        where
+            F: FnOnce(&mut W<REG>) -> &mut W<REG>,
+        {
+            let bits = f(&mut W {
+                bits: !REG::Ux::default(),
+                _reg: marker::PhantomData,
+            })
+            .bits;
+            REG::Ux::atomic_and(self.register.as_ptr(), bits);
+        }
 
-    /// Toggle every bit in the register that was set in the write proxy. Leave other bits
-    /// untouched. The write is done in a single atomic instruction.
-    ///
-    /// # Safety
-    ///
-    /// The resultant bit pattern may not be valid for the register.
-    #[inline(always)]
-    pub unsafe fn toggle_bits<F>(&self, f: F)
-    where
-        F: FnOnce(&mut W<REG>) -> &mut W<REG>,
-    {
-        let bits = f(&mut W {
-            bits: Default::default(),
-            _reg: marker::PhantomData,
-        })
-        .bits;
-        REG::Ux::atomic_xor(self.register.as_ptr(), bits);
+        /// Toggle every bit in the register that was set in the write proxy. Leave other bits
+        /// untouched. The write is done in a single atomic instruction.
+        ///
+        /// # Safety
+        ///
+        /// The resultant bit pattern may not be valid for the register.
+        #[inline(always)]
+        pub unsafe fn toggle_bits<F>(&self, f: F)
+        where
+            F: FnOnce(&mut W<REG>) -> &mut W<REG>,
+        {
+            let bits = f(&mut W {
+                bits: Default::default(),
+                _reg: marker::PhantomData,
+            })
+            .bits;
+            REG::Ux::atomic_xor(self.register.as_ptr(), bits);
+        }
     }
 }
