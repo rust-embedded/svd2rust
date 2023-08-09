@@ -1,5 +1,11 @@
-[![crates.io](https://img.shields.io/crates/d/svd2rust.svg)](https://crates.io/crates/svd2rust)
+![GitHub top language](https://img.shields.io/github/languages/top/rust-embedded/svd2rust)
+![Minimum Supported Rust Version](https://img.shields.io/badge/rustc-1.65+-blue.svg)
 [![crates.io](https://img.shields.io/crates/v/svd2rust.svg)](https://crates.io/crates/svd2rust)
+[![crates.io](https://img.shields.io/crates/d/svd2rust.svg)](https://crates.io/crates/svd2rust)
+[![Released API docs](https://docs.rs/svd2rust/badge.svg)](https://docs.rs/svd2rust)
+![Crates.io](https://img.shields.io/crates/l/svd2rust)
+[![dependency status](https://deps.rs/repo/github/rust-embedded/svd2rust/status.svg)](https://deps.rs/repo/github/rust-embedded/svd2rust)
+[![Continuous integration](https://github.com/rust-embedded/svd2rust/workflows/Continuous%20integration/badge.svg)](https://github.com/rust-embedded/svd2rust)
 
 # `svd2rust`
 
@@ -8,8 +14,6 @@
 This project is developed and maintained by the [Tools team][team].
 
 # [Documentation](https://docs.rs/svd2rust)
-
-# [API](https://docs.rs/svd2rust)
 
 ## Minimum Supported Rust Version (MSRV)
 
