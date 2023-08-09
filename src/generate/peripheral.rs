@@ -93,6 +93,10 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                         }
 
                         ///Steal an instance of this peripheral
+                        ///
+                        ///# Safety
+                        ///
+                        ///Make sure that [`Peripherals::steal`] is already called
                         pub unsafe fn steal() -> Self {
                             Self { _marker: PhantomData }
                         }
@@ -157,6 +161,10 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                     }
 
                     ///Steal an instance of this peripheral
+                        ///
+                        ///# Safety
+                        ///
+                        ///Make sure that [`Peripherals::steal`] is already called
                     pub unsafe fn steal() -> Self {
                         Self { _marker: PhantomData }
                     }
