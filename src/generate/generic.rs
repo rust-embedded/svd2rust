@@ -252,17 +252,114 @@ impl<REG: Readable + Writable> Reg<REG> {
     }
 }
 
+#[doc(hidden)]
+pub mod raw {
+    use super::{marker, BitM, FieldSpec, RegisterSpec, Unsafe, Writable};
+
+    pub struct R<REG: RegisterSpec> {
+        pub(crate) bits: REG::Ux,
+        pub(super) _reg: marker::PhantomData<REG>,
+    }
+
+    pub struct W<REG: RegisterSpec> {
+        ///Writable bits
+        pub(crate) bits: REG::Ux,
+        pub(super) _reg: marker::PhantomData<REG>,
+    }
+
+    pub struct FieldReader<FI = u8>
+    where
+        FI: FieldSpec,
+    {
+        pub(crate) bits: FI::Ux,
+        _reg: marker::PhantomData<FI>,
+    }
+
+    impl<FI: FieldSpec> FieldReader<FI> {
+        /// Creates a new instance of the reader.
+        #[allow(unused)]
+        #[inline(always)]
+        pub(crate) fn new(bits: FI::Ux) -> Self {
+            Self {
+                bits,
+                _reg: marker::PhantomData,
+            }
+        }
+    }
+
+    pub struct BitReader<FI = bool> {
+        pub(crate) bits: bool,
+        _reg: marker::PhantomData<FI>,
+    }
+
+    impl<FI> BitReader<FI> {
+        /// Creates a new instance of the reader.
+        #[allow(unused)]
+        #[inline(always)]
+        pub(crate) fn new(bits: bool) -> Self {
+            Self {
+                bits,
+                _reg: marker::PhantomData,
+            }
+        }
+    }
+
+    pub struct FieldWriter<'a, REG, const WI: u8, const O: u8, FI = u8, Safety = Unsafe>
+    where
+        REG: Writable + RegisterSpec,
+        FI: FieldSpec,
+    {
+        pub(crate) w: &'a mut W<REG>,
+        _field: marker::PhantomData<(FI, Safety)>,
+    }
+
+    impl<'a, REG, const WI: u8, const O: u8, FI, Safety> FieldWriter<'a, REG, WI, O, FI, Safety>
+    where
+        REG: Writable + RegisterSpec,
+        FI: FieldSpec,
+    {
+        /// Creates a new instance of the writer
+        #[allow(unused)]
+        #[inline(always)]
+        pub(crate) fn new(w: &'a mut W<REG>) -> Self {
+            Self {
+                w,
+                _field: marker::PhantomData,
+            }
+        }
+    }
+
+    pub struct BitWriter<'a, REG, const O: u8, FI = bool, M = BitM>
+    where
+        REG: Writable + RegisterSpec,
+        bool: From<FI>,
+    {
+        pub(crate) w: &'a mut W<REG>,
+        _field: marker::PhantomData<(FI, M)>,
+    }
+
+    impl<'a, REG, const O: u8, FI, M> BitWriter<'a, REG, O, FI, M>
+    where
+        REG: Writable + RegisterSpec,
+        bool: From<FI>,
+    {
+        /// Creates a new instance of the writer
+        #[allow(unused)]
+        #[inline(always)]
+        pub(crate) fn new(w: &'a mut W<REG>) -> Self {
+            Self {
+                w,
+                _field: marker::PhantomData,
+            }
+        }
+    }
+}
+
 /// Register reader.
 ///
 /// Result of the `read` methods of registers. Also used as a closure argument in the `modify`
 /// method.
-pub type R<REG> = RRaw<REG>;
-
-#[doc(hidden)]
-pub struct RRaw<REG: RegisterSpec> {
-    pub(crate) bits: REG::Ux,
-    _reg: marker::PhantomData<REG>,
-}
+pub type R<REG> = raw::R<REG>;
 
 impl<REG: RegisterSpec> R<REG> {
     /// Reads raw bits from register.
@@ -287,61 +384,15 @@ where
 /// Register writer.
 ///
 /// Used as an argument to the closures in the `write` and `modify` methods of the register.
-pub type W<REG> = WRaw<REG>;
-
-#[doc(hidden)]
-pub struct WRaw<REG: RegisterSpec> {
-    ///Writable bits
-    pub(crate) bits: REG::Ux,
-    _reg: marker::PhantomData<REG>,
-}
-
-#[doc(hidden)]
-pub struct FieldReaderRaw<FI = u8>
-where
-    FI: FieldSpec
-{
-    pub(crate) bits: FI::Ux,
-    _reg: marker::PhantomData<FI>,
-}
-
-impl<FI: FieldSpec> FieldReaderRaw<FI> {
-    /// Creates a new instance of the reader.
-    #[allow(unused)]
-    #[inline(always)]
-    pub(crate) fn new(bits: FI::Ux) -> Self {
-        Self {
-            bits,
-            _reg: marker::PhantomData,
-        }
-    }
-}
-
-#[doc(hidden)]
-pub struct BitReaderRaw<FI = bool> {
-    pub(crate) bits: bool,
-    _reg: marker::PhantomData<FI>,
-}
-
-impl<FI> BitReaderRaw<FI> {
-    /// Creates a new instance of the reader.
-    #[allow(unused)]
-    #[inline(always)]
-    pub(crate) fn new(bits: bool) -> Self {
-        Self {
-            bits,
-            _reg: marker::PhantomData,
-        }
-    }
-}
+pub type W<REG> = raw::W<REG>;
 
 /// Field reader.
 ///
 /// Result of the `read` methods of fields.
-pub type FieldReader<FI = u8> = FieldReaderRaw<FI>;
+pub type FieldReader<FI = u8> = raw::FieldReader<FI>;
 
 /// Bit-wise field reader
-pub type BitReader<FI = bool> = BitReaderRaw<FI>;
+pub type BitReader<FI = bool> = raw::BitReader<FI>;
 
 impl<FI: FieldSpec> FieldReader<FI> {
     /// Reads raw bits from field.
@@ -395,65 +446,12 @@ pub struct Safe;
 #[doc(hidden)]
 pub struct Unsafe;
 
-#[doc(hidden)]
-pub struct FieldWriterRaw<'a, REG, const WI: u8, const O: u8, FI = u8, Safety = Unsafe>
-where
-    REG: Writable + RegisterSpec,
-    FI: FieldSpec,
-{
-    pub(crate) w: &'a mut W<REG>,
-    _field: marker::PhantomData<(FI, Safety)>,
-}
-
-impl<'a, REG, const WI: u8, const O: u8, FI, Safety>
-    FieldWriterRaw<'a, REG, WI, O, FI, Safety>
-where
-    REG: Writable + RegisterSpec,
-    FI: FieldSpec,
-{
-    /// Creates a new instance of the writer
-    #[allow(unused)]
-    #[inline(always)]
-    pub(crate) fn new(w: &'a mut W<REG>) -> Self {
-        Self {
-            w,
-            _field: marker::PhantomData,
-        }
-    }
-}
-
-#[doc(hidden)]
-pub struct BitWriterRaw<'a, REG, const O: u8, FI = bool, M = BitM>
-where
-    REG: Writable + RegisterSpec,
-    bool: From<FI>,
-{
-    pub(crate) w: &'a mut W<REG>,
-    _field: marker::PhantomData<(FI, M)>,
-}
-
-impl<'a, REG, const O: u8, FI, M> BitWriterRaw<'a, REG, O, FI, M>
-where
-    REG: Writable + RegisterSpec,
-    bool: From<FI>,
-{
-    /// Creates a new instance of the writer
-    #[allow(unused)]
-    #[inline(always)]
-    pub(crate) fn new(w: &'a mut W<REG>) -> Self {
-        Self {
-            w,
-            _field: marker::PhantomData,
-        }
-    }
-}
-
 /// Write field Proxy with unsafe `bits`
 pub type FieldWriter<'a, REG, const WI: u8, const O: u8, FI = u8> =
-    FieldWriterRaw<'a, REG, WI, O, FI, Unsafe>;
+    raw::FieldWriter<'a, REG, WI, O, FI, Unsafe>;
 /// Write field Proxy with safe `bits`
 pub type FieldWriterSafe<'a, REG, const WI: u8, const O: u8, FI = u8> =
-    FieldWriterRaw<'a, REG, WI, O, FI, Safe>;
+    raw::FieldWriter<'a, REG, WI, O, FI, Safe>;
 
 impl<'a, REG, const WI: u8, const OF: u8, FI> FieldWriter<'a, REG, WI, OF, FI>
 where
@@ -479,7 +477,7 @@ macro_rules! bit_proxy {
         pub struct $mwv;
 
         /// Bit-wise write field proxy
-        pub type $writer<'a, REG, const O: u8, FI = bool> = BitWriterRaw<'a, REG, O, FI, $mwv>;
+        pub type $writer<'a, REG, const O: u8, FI = bool> = raw::BitWriter<'a, REG, O, FI, $mwv>;
 
         impl<'a, REG, const OF: u8, FI> $writer<'a, REG, OF, FI>
         where
