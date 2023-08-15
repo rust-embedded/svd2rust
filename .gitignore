@@ -3,4 +3,4 @@
 *.rs.bk
 *.svd
 target
-Cargo.lock
+ci/svd2rust-regress/Cargo.lock

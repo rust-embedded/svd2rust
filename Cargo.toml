@@ -44,7 +44,7 @@ yaml = ["dep:serde_yaml"]
 
 [dependencies]
 clap = { version = "4.0", optional = true }
-irx-config = { version = "3.1", features = ["cmd", "toml-parser"], optional = true }
+irx-config = { version = "3.3", features = ["cmd", "toml-parser"], optional = true }
 env_logger = { version = "0.10", optional = true }
 inflections = "1.1"
 log = { version = "~0.4", features = ["std"] }
@@ -55,7 +55,7 @@ thiserror = "1.0"
 serde = { version = "1.0", optional = true }
 serde_json = { version = "1.0.85", optional = true }
 serde_yaml = { version = "0.9.11", optional = true }
-regex = "1.7.0"
+regex = "1.9.0"
 html-escape = "0.2"
 
 [dependencies.svd-parser]

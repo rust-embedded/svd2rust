@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add `aarch64` target for releases, more readme badges
 - Fix when `atomics` features is generated but not enabled
 - move hidden structs into module, add register reader/writer links into `SPEC` docs (#736)
 - removed register writer & reader wrappers, generic `REG` in field writers (#731)
