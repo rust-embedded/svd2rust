@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - removed register writer & reader wrappers, generic `REG` in field writers (#731)
 - Updated syn to version 2 (#732)
 - Let readable field fetch doc from svd description (#734)
+- Add `steal()` for each peripheral
 
 ## [v0.29.0] - 2023-06-05
 
