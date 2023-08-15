@@ -186,9 +186,9 @@
 //! use the implementation provided by the target crate like `cortex-m`, `riscv` and `*-hal` crates.
 //! See more details in the [`critical-section`](https://crates.io/crates/critical-section) crate documentation.
 //!
-//! The singleton property can be *unsafely* bypassed using the `ptr` static method which is
-//! available on all the peripheral types. This method is useful for implementing safe higher
-//! level abstractions.
+//! The singleton property can be *unsafely* bypassed using the `ptr` or `steal` static methods
+//! which are available on all the peripheral types. This method is useful for implementing safe
+//! higher level abstractions.
 //!
 //! ```ignore
 //! struct PA0 { _0: () }

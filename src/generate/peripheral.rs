@@ -96,7 +96,15 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                         ///
                         ///# Safety
                         ///
-                        ///Make sure that [`Peripherals::steal`] is already called
+                        /// Ensure that the new instance of the peripheral cannot be used in a way
+                        /// that may race with any existing instances, for example by only
+                        /// accessing read-only or write-only registers, or by consuming the
+                        /// original peripheral and using critical sections to coordinate
+                        /// access between multiple new instances.
+                        ///
+                        /// Additionally, other software such as HALs may rely on only one
+                        /// peripheral instance existing to ensure memory safety; ensure
+                        /// no stolen instances are passed to such software.
                         pub unsafe fn steal() -> Self {
                             Self { _marker: PhantomData }
                         }
@@ -161,10 +169,18 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                     }
 
                     ///Steal an instance of this peripheral
-                        ///
-                        ///# Safety
-                        ///
-                        ///Make sure that [`Peripherals::steal`] is already called
+                    ///
+                    ///# Safety
+                    ///
+                    /// Ensure that the new instance of the peripheral cannot be used in a way
+                    /// that may race with any existing instances, for example by only
+                    /// accessing read-only or write-only registers, or by consuming the
+                    /// original peripheral and using critical sections to coordinate
+                    /// access between multiple new instances.
+                    ///
+                    /// Additionally, other software such as HALs may rely on only one
+                    /// peripheral instance existing to ensure memory safety; ensure
+                    /// no stolen instances are passed to such software.
                     pub unsafe fn steal() -> Self {
                         Self { _marker: PhantomData }
                     }
