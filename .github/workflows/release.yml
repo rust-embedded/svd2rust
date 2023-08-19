@@ -38,6 +38,11 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
+
+      - name: Install Dependencies
+        if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
+        run: sudo apt install -y gcc-aarch64-linux-gnu
+
       - run: cargo build --target ${{ matrix.target }} --release
 
       - name: Compress and rename executable

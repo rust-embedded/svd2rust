@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.30.0] - 2023-08-16
+
 - Add `aarch64` target for releases, more readme badges
 - Fix when `atomics` features is generated but not enabled
 - move hidden structs into module, add register reader/writer links into `SPEC` docs (#736)
@@ -802,7 +804,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.29.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.30.0...HEAD
+[v0.30.0]: https://github.com/rust-embedded/svd2rust/compare/v0.29.0...v0.30.0
 [v0.29.0]: https://github.com/rust-embedded/svd2rust/compare/v0.28.0...v0.29.0
 [v0.28.0]: https://github.com/rust-embedded/svd2rust/compare/v0.27.2...v0.28.0
 [v0.27.2]: https://github.com/rust-embedded/svd2rust/compare/v0.27.1...v0.27.2
