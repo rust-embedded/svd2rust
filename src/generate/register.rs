@@ -366,7 +366,11 @@ pub fn render_register_mod(
             });
         } else {
             mod_items.extend(quote! {
-                #[doc = "Writes raw bits to the register."]
+                /// Writes raw bits to the register.
+                ///
+                /// # Safety
+                ///
+                /// Passing incorrect value can cause undefined behaviour. See reference manual
                 #[inline(always)]
                 pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
                     self.bits = bits;

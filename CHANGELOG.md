@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.30.1] - 2023-10-01
+
+- Fix clippy lints on `nightly`
 - Bump MSRV to 1.70
 - Fix `derivedFrom` on field
 
@@ -807,7 +810,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.30.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.30.1...HEAD
+[v0.30.1]: https://github.com/rust-embedded/svd2rust/compare/v0.30.0...v0.30.1
 [v0.30.0]: https://github.com/rust-embedded/svd2rust/compare/v0.29.0...v0.30.0
 [v0.29.0]: https://github.com/rust-embedded/svd2rust/compare/v0.28.0...v0.29.0
 [v0.28.0]: https://github.com/rust-embedded/svd2rust/compare/v0.27.2...v0.28.0
