@@ -554,12 +554,11 @@ pub fn fields(
     let inline = quote! { #[inline(always)] };
     for &f in fields.iter() {
         let mut f = f.clone();
-        let mut fpath = None;
-        let dpath = f.derived_from.take();
-        if let Some(dpath) = dpath {
-            fpath = derive_field(&mut f, &dpath, rpath, index)?;
+        let mut fdpath = None;
+        if let Some(dpath) = f.derived_from.take() {
+            fdpath = derive_field(&mut f, &dpath, rpath, index)?;
         }
-        let fpath = fpath.unwrap_or_else(|| rpath.new_field(&f.name));
+        let fpath = rpath.new_field(&f.name);
         // TODO(AJM) - do we need to do anything with this range type?
         let BitRange { offset, width, .. } = f.bit_range;
 
@@ -601,10 +600,18 @@ pub fn fields(
             let dpath = ev.derived_from.take();
             if let Some(dpath) = dpath {
                 epath = Some(derive_enumerated_values(&mut ev, &dpath, &fpath, index)?);
-            }
-            // TODO: remove this hack
-            if let Some(epath) = epath.as_ref() {
-                ev = (*index.evs.get(epath).unwrap()).clone();
+                // TODO: remove this hack
+                if let Some(epath) = epath.as_ref() {
+                    ev = (*index.evs.get(epath).unwrap()).clone();
+                }
+            } else if let Some(path) = fdpath.as_ref() {
+                epath = Some(
+                    path.new_enum(
+                        ev.name
+                            .clone()
+                            .unwrap_or_else(|| index.fields.get(path).unwrap().name.clone()),
+                    ),
+                );
             }
             lookup_results.push((ev, epath));
         }
