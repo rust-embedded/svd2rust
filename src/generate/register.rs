@@ -605,13 +605,7 @@ pub fn fields(
                     ev = (*index.evs.get(epath).unwrap()).clone();
                 }
             } else if let Some(path) = fdpath.as_ref() {
-                epath = Some(
-                    path.new_enum(
-                        ev.name
-                            .clone()
-                            .unwrap_or_else(|| index.fields.get(path).unwrap().name.clone()),
-                    ),
-                );
+                epath = Some(path.new_enum(ev.name.clone().unwrap_or_else(|| path.name.clone())));
             }
             lookup_results.push((ev, epath));
         }
