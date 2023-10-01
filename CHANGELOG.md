@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump MSRV to 1.70
+- Fix `derivedFrom` on field
+
 ## [v0.30.0] - 2023-08-16
 
 - Add `aarch64` target for releases, more readme badges
