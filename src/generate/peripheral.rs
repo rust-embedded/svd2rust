@@ -329,6 +329,9 @@ struct Region {
 }
 
 impl Region {
+    fn size(&self) -> u32 {
+        self.end - self.offset
+    }
     fn shortest_ident(&self) -> Option<String> {
         let mut idents: Vec<_> = self
             .rbfs
@@ -490,12 +493,17 @@ impl FieldRegions {
             .binary_search_by_key(&new_region.offset, |r| r.offset);
         match idx {
             Ok(idx) => {
-                bail!(
-                    "we shouldn't exist in the vec, but are at idx {} {:#?}\n{:#?}",
-                    idx,
-                    new_region,
-                    self.regions
-                );
+                if new_region.size() == 0 {
+                    // add ArrayProxy
+                    self.regions.insert(idx, new_region);
+                } else {
+                    bail!(
+                        "we shouldn't exist in the vec, but are at idx {} {:#?}\n{:#?}",
+                        idx,
+                        new_region,
+                        self.regions
+                    );
+                }
             }
             Err(idx) => self.regions.insert(idx, new_region),
         };
@@ -1185,6 +1193,8 @@ fn expand_register(
         Register::Array(info, array_info) => {
             let sequential_addresses = (array_info.dim == 1)
                 || (register_size == array_info.dim_increment * BITS_PER_BYTE);
+            let disjoint_sequential_addresses = (array_info.dim == 1)
+                || (register_size <= array_info.dim_increment * BITS_PER_BYTE);
 
             let convert_list = match config.keep_list {
                 true => match &array_info.dim_name {
@@ -1208,20 +1218,22 @@ fn expand_register(
             } else {
                 "".into()
             };
-            let array_convertible = match derive_info {
+            let ac = match derive_info {
                 DeriveInfo::Implicit(_) => {
                     ty_name = util::replace_suffix(&info_name, &index);
-                    sequential_addresses && convert_list && sequential_indexes_from0
+                    convert_list && sequential_indexes_from0
                 }
                 DeriveInfo::Explicit(_) => {
                     ty_name = util::replace_suffix(&info_name, &index);
-                    sequential_addresses && convert_list && sequential_indexes_from0
+                    convert_list && sequential_indexes_from0
                 }
-                _ => sequential_addresses && convert_list,
+                _ => convert_list,
             };
+            let array_convertible = ac && sequential_addresses;
+            let array_proxy_convertible = ac && disjoint_sequential_addresses;
             let ty = name_to_ty(&ty_name);
 
-            if array_convertible {
+            if array_convertible || (array_proxy_convertible && config.const_generic) {
                 let accessors = if sequential_indexes_from0 {
                     Vec::new()
                 } else {
@@ -1247,14 +1259,22 @@ fn expand_register(
                     }
                     accessors
                 };
-                let array_ty = new_syn_array(ty, array_info.dim);
+                let array_ty = if array_convertible {
+                    new_syn_array(ty, array_info.dim)
+                } else {
+                    array_proxy_type(ty, array_info)
+                };
                 let syn_field =
                     new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), array_ty);
                 register_expanded.push(RegisterBlockField {
                     syn_field,
                     description,
                     offset: info.address_offset,
-                    size: register_size * array_info.dim,
+                    size: if array_convertible {
+                        register_size * array_info.dim
+                    } else {
+                        0
+                    },
                     accessors,
                 });
             } else {
