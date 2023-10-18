@@ -279,7 +279,7 @@ pub mod raw {
         /// Creates a new instance of the reader.
         #[allow(unused)]
         #[inline(always)]
-        pub(crate) fn new(bits: FI::Ux) -> Self {
+        pub(crate) const fn new(bits: FI::Ux) -> Self {
             Self {
                 bits,
                 _reg: marker::PhantomData,
@@ -296,7 +296,7 @@ pub mod raw {
         /// Creates a new instance of the reader.
         #[allow(unused)]
         #[inline(always)]
-        pub(crate) fn new(bits: bool) -> Self {
+        pub(crate) const fn new(bits: bool) -> Self {
             Self {
                 bits,
                 _reg: marker::PhantomData,
@@ -364,7 +364,7 @@ pub type R<REG> = raw::R<REG>;
 impl<REG: RegisterSpec> R<REG> {
     /// Reads raw bits from register.
     #[inline(always)]
-    pub fn bits(&self) -> REG::Ux {
+    pub const fn bits(&self) -> REG::Ux {
         self.bits
     }
 }
@@ -397,7 +397,7 @@ pub type BitReader<FI = bool> = raw::BitReader<FI>;
 impl<FI: FieldSpec> FieldReader<FI> {
     /// Reads raw bits from field.
     #[inline(always)]
-    pub fn bits(&self) -> FI::Ux {
+    pub const fn bits(&self) -> FI::Ux {
         self.bits
     }
 }
@@ -426,7 +426,7 @@ where
 impl<FI> BitReader<FI> {
     /// Value of the field as raw bits.
     #[inline(always)]
-    pub fn bit(&self) -> bool {
+    pub const fn bit(&self) -> bool {
         self.bits
     }
     /// Returns `true` if the bit is clear (0).
