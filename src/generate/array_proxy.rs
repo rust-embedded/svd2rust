@@ -16,14 +16,12 @@ pub struct ArrayProxy<T, const COUNT: usize, const STRIDE: usize> {
 #[allow(clippy::len_without_is_empty)]
 impl<T, const C: usize, const S: usize> ArrayProxy<T, C, S> {
     /// Get a reference from an [ArrayProxy] with no bounds checking.
-    pub unsafe fn get_ref(&self, index: usize) -> &T {
-        let base = self as *const Self as usize;
-        let address = base + S * index;
-        &*(address as *const T)
+    pub const unsafe fn get_ref(&self, index: usize) -> &T {
+        &*(self as *const Self).cast::<u8>().add(S * index).cast::<T>()
     }
     /// Get a reference from an [ArrayProxy], or return `None` if the index
     /// is out of bounds.
-    pub fn get(&self, index: usize) -> Option<&T> {
+    pub const fn get(&self, index: usize) -> Option<&T> {
         if index < C {
             Some(unsafe { self.get_ref(index) })
         } else {
@@ -31,7 +29,7 @@ impl<T, const C: usize, const S: usize> ArrayProxy<T, C, S> {
         }
     }
     /// Return the number of items.
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         C
     }
 }
