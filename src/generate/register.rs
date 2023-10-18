@@ -772,7 +772,7 @@ pub fn fields(
                         enum_items.extend(quote! {
                             #[doc = "Get enumerated values variant"]
                             #inline
-                            pub fn variant(&self) -> Option<#value_read_ty> {
+                            pub const fn variant(&self) -> Option<#value_read_ty> {
                                 match self.bits {
                                     #arms
                                 }
@@ -782,7 +782,7 @@ pub fn fields(
                         enum_items.extend(quote! {
                         #[doc = "Get enumerated values variant"]
                         #inline
-                        pub fn variant(&self) -> #value_read_ty {
+                        pub const fn variant(&self) -> #value_read_ty {
                             match self.bits {
                                 #arms
                             }

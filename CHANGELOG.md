@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Use `const fn` where allowed
+
 ## [v0.30.1] - 2023-10-01
 
 - Fix clippy lints on `nightly`
