@@ -859,20 +859,23 @@ pub fn fields(
 
             if let Field::Array(_, de) = &f {
                 let increment = de.dim_increment;
-                let doc = &util::replace_suffix(&description, &brief_suffix);
-                if let Some(range) = de.indexes_as_range() {
-                    let first = *range.start();
+                let doc = util::replace_suffix(&description, &brief_suffix);
 
-                    let offset_calc = calculate_offset(first, increment, offset, true);
-                    let value = quote! { ((self.bits >> #offset_calc) & #hexmask) #cast };
-                    r_impl_items.extend(quote! {
-                        #[doc = #doc]
-                        #inline
-                        pub unsafe fn #name_snake_case(&self, n: u8) -> #reader_ty {
-                            #reader_ty::new ( #value )
-                        }
-                    });
-                }
+                let array_doc =
+                    format!("{doc}\n\nNOTE: `n` is number of field in register starting from 0");
+                let offset_calc = calculate_offset(increment, offset, true);
+                let value = quote! { ((self.bits >> #offset_calc) & #hexmask) #cast };
+                let dim = util::unsuffixed(de.dim as _);
+                r_impl_items.extend(quote! {
+                    #[doc = #array_doc]
+                    #inline
+                    pub fn #name_snake_case(&self, n: u8) -> #reader_ty {
+                        #[allow(clippy::no_effect)]
+                        [(); #dim][n as usize];
+                        #reader_ty::new ( #value )
+                    }
+                });
+
                 for fi in crate::svd::field::expand(&f, de) {
                     let sub_offset = fi.bit_offset() as u64;
                     let value = if sub_offset != 0 {
@@ -1024,9 +1027,9 @@ pub fn fields(
                         span,
                     );
                     if value_write_ty == "bool" {
-                        quote! { crate::#wproxy<'a, REG, O> }
+                        quote! { crate::#wproxy<'a, REG> }
                     } else {
-                        quote! { crate::#wproxy<'a, REG, O, #value_write_ty> }
+                        quote! { crate::#wproxy<'a, REG, #value_write_ty> }
                     }
                 } else {
                     let wproxy = Ident::new(
@@ -1039,14 +1042,14 @@ pub fn fields(
                     );
                     let width = &util::unsuffixed(width as _);
                     if value_write_ty == "u8" {
-                        quote! { crate::#wproxy<'a, REG, #width, O> }
+                        quote! { crate::#wproxy<'a, REG, #width> }
                     } else {
-                        quote! { crate::#wproxy<'a, REG, #width, O, #value_write_ty> }
+                        quote! { crate::#wproxy<'a, REG, #width, #value_write_ty> }
                     }
                 };
                 mod_items.extend(quote! {
                     #[doc = #field_writer_brief]
-                    pub type #writer_ty<'a, REG, const O: u8> = #proxy;
+                    pub type #writer_ty<'a, REG> = #proxy;
                 });
             }
 
@@ -1054,7 +1057,7 @@ pub fn fields(
             if !proxy_items.is_empty() {
                 mod_items.extend(if width == 1 {
                     quote! {
-                        impl<'a, REG, const O: u8> #writer_ty<'a, REG, O>
+                        impl<'a, REG> #writer_ty<'a, REG>
                         where
                             REG: crate::Writable + crate::RegisterSpec,
                         {
@@ -1063,7 +1066,7 @@ pub fn fields(
                     }
                 } else {
                     quote! {
-                        impl<'a, REG, const O: u8> #writer_ty<'a, REG, O>
+                        impl<'a, REG> #writer_ty<'a, REG>
                         where
                             REG: crate::Writable + crate::RegisterSpec,
                             REG::Ux: From<#fty>
@@ -1109,13 +1112,18 @@ pub fn fields(
             }
 
             if let Field::Array(_, de) = &f {
+                let increment = de.dim_increment;
+                let offset_calc = calculate_offset(increment, offset, false);
                 let doc = &util::replace_suffix(&description, &brief_suffix);
+                let dim = util::unsuffixed(de.dim as _);
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
                     #[must_use]
-                    pub unsafe fn #name_snake_case<const O: u8>(&mut self) -> #writer_ty<#regspec_ident, O> {
-                        #writer_ty::new(self)
+                    pub fn #name_snake_case(&mut self, n: u8) -> #writer_ty<#regspec_ident> {
+                        #[allow(clippy::no_effect)]
+                        [(); #dim][n as usize];
+                        #writer_ty::new(self, #offset_calc)
                     }
                 });
 
@@ -1133,8 +1141,8 @@ pub fn fields(
                         #[doc = #doc]
                         #inline
                         #[must_use]
-                        pub fn #name_snake_case_n(&mut self) -> #writer_ty<#regspec_ident, #sub_offset> {
-                            #writer_ty::new(self)
+                        pub fn #name_snake_case_n(&mut self) -> #writer_ty<#regspec_ident> {
+                            #writer_ty::new(self, #sub_offset)
                         }
                     });
                 }
@@ -1145,8 +1153,8 @@ pub fn fields(
                     #[doc = #doc]
                     #inline
                     #[must_use]
-                    pub fn #name_snake_case(&mut self) -> #writer_ty<#regspec_ident, #offset> {
-                        #writer_ty::new(self)
+                    pub fn #name_snake_case(&mut self) -> #writer_ty<#regspec_ident> {
+                        #writer_ty::new(self, #offset)
                     }
                 });
             }
@@ -1328,31 +1336,17 @@ fn add_from_variants(
     }
 }
 
-fn calculate_offset(
-    first: u32,
-    increment: u32,
-    offset: u64,
-    with_parentheses: bool,
-) -> TokenStream {
-    let mut res = if first != 0 {
-        let first = util::unsuffixed(first as u64);
-        quote! { n - #first }
-    } else {
-        quote! { n }
-    };
+fn calculate_offset(increment: u32, offset: u64, with_parentheses: bool) -> TokenStream {
+    let mut res = quote! { n };
     if increment != 1 {
         let increment = util::unsuffixed(increment as u64);
-        res = if first != 0 {
-            quote! { (#res) * #increment }
-        } else {
-            quote! { #res * #increment }
-        };
+        res = quote! { #res * #increment };
     }
     if offset != 0 {
         let offset = &util::unsuffixed(offset);
         res = quote! { #res + #offset };
     }
-    let single_ident = (first == 0) && (increment == 1) && (offset == 0);
+    let single_ident = (increment == 1) && (offset == 0);
     if with_parentheses && !single_ident {
         quote! { (#res) }
     } else {
