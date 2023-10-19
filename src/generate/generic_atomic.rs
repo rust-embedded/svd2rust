@@ -54,7 +54,7 @@ mod atomic {
         {
             let bits = f(&mut W {
                 bits: Default::default(),
-                _reg: marker::PhantomData,
+                _reg: Marker,
             })
             .bits;
             REG::Ux::atomic_or(self.register.as_ptr(), bits);
@@ -73,7 +73,7 @@ mod atomic {
         {
             let bits = f(&mut W {
                 bits: !REG::Ux::default(),
-                _reg: marker::PhantomData,
+                _reg: Marker,
             })
             .bits;
             REG::Ux::atomic_and(self.register.as_ptr(), bits);
@@ -92,7 +92,7 @@ mod atomic {
         {
             let bits = f(&mut W {
                 bits: Default::default(),
-                _reg: marker::PhantomData,
+                _reg: Marker,
             })
             .bits;
             REG::Ux::atomic_xor(self.register.as_ptr(), bits);

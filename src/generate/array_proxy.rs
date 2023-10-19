@@ -12,13 +12,13 @@ pub struct ArrayProxy<T, const COUNT: usize, const STRIDE: usize> {
     /// As well as providing a PhantomData, this field is non-public, and
     /// therefore ensures that code outside of this module can never create
     /// an ArrayProxy.
-    _array: marker::PhantomData<T>,
+    _array: Marker<T>,
 }
 #[allow(clippy::len_without_is_empty)]
 impl<T, const C: usize, const S: usize> ArrayProxy<T, C, S> {
     /// Get a reference from an [ArrayProxy] with no bounds checking.
     pub const unsafe fn get_ref(&self, index: usize) -> &T {
-        &*(self as *const Self).cast::<u8>().add(S * index).cast::<T>()
+        &*(self as *const Self).cast::<u8>().add(S * index).cast()
     }
     /// Get a reference from an [ArrayProxy], or return `None` if the index
     /// is out of bounds.

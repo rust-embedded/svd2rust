@@ -420,8 +420,8 @@ pub fn render_register_mod(
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Writable for #regspec_ident {
-                const ZERO_TO_MODIFY_FIELDS_BITMAP: Self::Ux = #zero_to_modify_fields_bitmap;
-                const ONE_TO_MODIFY_FIELDS_BITMAP: Self::Ux = #one_to_modify_fields_bitmap;
+                const ZEROS_BITMAP: Self::Ux = #zero_to_modify_fields_bitmap;
+                const ONES_BITMAP: Self::Ux = #one_to_modify_fields_bitmap;
             }
         });
     }
