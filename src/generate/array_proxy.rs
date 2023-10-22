@@ -7,6 +7,7 @@
 /// ensure that the memory really is backed by appropriate content.
 ///
 /// Typically, this is used for accessing hardware registers.
+#[derive(Debug)]
 pub struct ArrayProxy<T, const COUNT: usize, const STRIDE: usize> {
     /// As well as providing a PhantomData, this field is non-public, and
     /// therefore ensures that code outside of this module can never create

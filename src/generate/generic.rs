@@ -431,12 +431,12 @@ impl<FI> BitReader<FI> {
     }
     /// Returns `true` if the bit is clear (0).
     #[inline(always)]
-    pub fn bit_is_clear(&self) -> bool {
+    pub const fn bit_is_clear(&self) -> bool {
         !self.bit()
     }
     /// Returns `true` if the bit is set (1).
     #[inline(always)]
-    pub fn bit_is_set(&self) -> bool {
+    pub const fn bit_is_set(&self) -> bool {
         self.bit()
     }
 }

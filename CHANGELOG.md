@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Use `ArrayProxy` for memory disjoined register arrays
 - Use `const fn` where allowed
 
 ## [v0.30.1] - 2023-10-01
