@@ -183,7 +183,7 @@ pub enum SourceType {
 }
 
 impl SourceType {
-    /// Make a new [`Source`] from a given extension.
+    /// Make a new [`SourceType`] from a given extension.
     pub fn from_extension(s: &str) -> Option<Self> {
         match s {
             "svd" | "xml" => Some(Self::Xml),

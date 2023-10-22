@@ -588,7 +588,7 @@ pub fn generate(input: &str, config: &Config) -> Result<Generation> {
     })
 }
 
-/// Load a [Device] from a string slice with given [config](crate::util::Config).
+/// Load a [Device](svd::Device) from a string slice with given [config](crate::util::Config).
 pub fn load_from(input: &str, config: &crate::util::Config) -> Result<svd::Device> {
     use self::util::SourceType;
     use svd_parser::ValidateLevel;

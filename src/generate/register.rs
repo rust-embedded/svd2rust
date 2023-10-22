@@ -95,7 +95,7 @@ pub fn render(
         );
         if name_snake_case != "cfg" {
             alias_doc += format!(
-                "\n\nFor information about available fields see [`{name_snake_case}`] module"
+                "\n\nFor information about available fields see [`mod@{name_snake_case}`] module"
             )
             .as_str();
         }

@@ -457,18 +457,50 @@ impl<'a, REG, const WI: u8, const OF: u8, FI> FieldWriter<'a, REG, WI, OF, FI>
 where
     REG: Writable + RegisterSpec,
     FI: FieldSpec,
+    REG::Ux: From<FI::Ux>,
 {
     /// Field width
     pub const WIDTH: u8 = WI;
+
+    /// Writes raw bits to the field
+    ///
+    /// # Safety
+    ///
+    /// Passing incorrect value can cause undefined behaviour. See reference manual
+    #[inline(always)]
+    pub unsafe fn bits(self, value: FI::Ux) -> &'a mut W<REG> {
+        self.w.bits &= !(REG::Ux::mask::<WI>() << OF);
+        self.w.bits |= (REG::Ux::from(value) & REG::Ux::mask::<WI>()) << OF;
+        self.w
+    }
+    /// Writes `variant` to the field
+    #[inline(always)]
+    pub fn variant(self, variant: FI) -> &'a mut W<REG> {
+        unsafe { self.bits(FI::Ux::from(variant)) }
+    }
 }
 
 impl<'a, REG, const WI: u8, const OF: u8, FI> FieldWriterSafe<'a, REG, WI, OF, FI>
 where
     REG: Writable + RegisterSpec,
     FI: FieldSpec,
+    REG::Ux: From<FI::Ux>,
 {
     /// Field width
     pub const WIDTH: u8 = WI;
+
+    /// Writes raw bits to the field
+    #[inline(always)]
+    pub fn bits(self, value: FI::Ux) -> &'a mut W<REG> {
+        self.w.bits &= !(REG::Ux::mask::<WI>() << OF);
+        self.w.bits |= (REG::Ux::from(value) & REG::Ux::mask::<WI>()) << OF;
+        self.w
+    }
+    /// Writes `variant` to the field
+    #[inline(always)]
+    pub fn variant(self, variant: FI) -> &'a mut W<REG> {
+        self.bits(FI::Ux::from(variant))
+    }
 }
 
 macro_rules! bit_proxy {
@@ -486,17 +518,7 @@ macro_rules! bit_proxy {
         {
             /// Field width
             pub const WIDTH: u8 = 1;
-        }
-    };
-}
 
-macro_rules! impl_bit_proxy {
-    ($writer:ident) => {
-        impl<'a, REG, const OF: u8, FI> $writer<'a, REG, OF, FI>
-        where
-            REG: Writable + RegisterSpec,
-            bool: From<FI>,
-        {
             /// Writes bit to the field
             #[inline(always)]
             pub fn bit(self, value: bool) -> &'a mut W<REG> {
@@ -520,57 +542,6 @@ bit_proxy!(BitWriter1C, Bit1C);
 bit_proxy!(BitWriter0S, Bit0S);
 bit_proxy!(BitWriter1T, Bit1T);
 bit_proxy!(BitWriter0T, Bit0T);
-
-impl<'a, REG, const WI: u8, const OF: u8, FI> FieldWriter<'a, REG, WI, OF, FI>
-where
-    REG: Writable + RegisterSpec,
-    FI: FieldSpec,
-    REG::Ux: From<FI::Ux>,
-{
-    /// Writes raw bits to the field
-    ///
-    /// # Safety
-    ///
-    /// Passing incorrect value can cause undefined behaviour. See reference manual
-    #[inline(always)]
-    pub unsafe fn bits(self, value: FI::Ux) -> &'a mut W<REG> {
-        self.w.bits &= !(REG::Ux::mask::<WI>() << OF);
-        self.w.bits |= (REG::Ux::from(value) & REG::Ux::mask::<WI>()) << OF;
-        self.w
-    }
-    /// Writes `variant` to the field
-    #[inline(always)]
-    pub fn variant(self, variant: FI) -> &'a mut W<REG> {
-        unsafe { self.bits(FI::Ux::from(variant)) }
-    }
-}
-impl<'a, REG, const WI: u8, const OF: u8, FI> FieldWriterSafe<'a, REG, WI, OF, FI>
-where
-    REG: Writable + RegisterSpec,
-    FI: FieldSpec,
-    REG::Ux: From<FI::Ux>,
-{
-    /// Writes raw bits to the field
-    #[inline(always)]
-    pub fn bits(self, value: FI::Ux) -> &'a mut W<REG> {
-        self.w.bits &= !(REG::Ux::mask::<WI>() << OF);
-        self.w.bits |= (REG::Ux::from(value) & REG::Ux::mask::<WI>()) << OF;
-        self.w
-    }
-    /// Writes `variant` to the field
-    #[inline(always)]
-    pub fn variant(self, variant: FI) -> &'a mut W<REG> {
-        self.bits(FI::Ux::from(variant))
-    }
-}
-
-impl_bit_proxy!(BitWriter);
-impl_bit_proxy!(BitWriter1S);
-impl_bit_proxy!(BitWriter0C);
-impl_bit_proxy!(BitWriter1C);
-impl_bit_proxy!(BitWriter0S);
-impl_bit_proxy!(BitWriter1T);
-impl_bit_proxy!(BitWriter0T);
 
 impl<'a, REG, const OF: u8, FI> BitWriter<'a, REG, OF, FI>
 where
