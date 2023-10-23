@@ -575,10 +575,14 @@ pub trait FullName {
 
 impl FullName for RegisterInfo {
     fn fullname(&self, ignore_group: bool) -> Cow<str> {
-        match &self.alternate_group {
-            Some(group) if !ignore_group => format!("{group}_{}", self.name).into(),
-            _ => self.name.as_str().into(),
-        }
+        fullname(&self.name, &self.alternate_group, ignore_group)
+    }
+}
+
+pub fn fullname<'a>(name: &'a str, group: &Option<String>, ignore_group: bool) -> Cow<'a, str> {
+    match &group {
+        Some(group) if !ignore_group => format!("{group}_{}", name).into(),
+        _ => name.into(),
     }
 }
 

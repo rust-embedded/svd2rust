@@ -7,8 +7,7 @@ use svd_parser::expand::{
 };
 
 use crate::svd::{
-    array::names, Cluster, ClusterInfo, MaybeArray, Peripheral, Register, RegisterCluster,
-    RegisterInfo,
+    Cluster, ClusterInfo, MaybeArray, Peripheral, Register, RegisterCluster, RegisterInfo,
 };
 use log::{debug, trace, warn};
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
@@ -74,36 +73,32 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
 
     match &p {
         Peripheral::Array(p, dim) => {
-            let names: Vec<Cow<str>> = names(p, dim).map(|n| n.into()).collect();
-            let names_str = names.iter().map(|n| n.to_sanitized_constant_case());
-            let names_constant_case = names_str.clone().map(|n| Ident::new(&n, span));
-            let addresses =
-                (0..=dim.dim).map(|i| util::hex(p.base_address + (i * dim.dim_increment) as u64));
-            let snake_names = names
-                .iter()
-                .map(|p_name| p_name.to_sanitized_snake_case())
-                .collect::<Vec<_>>();
-            let feature_attribute_n = snake_names.iter().map(|p_snake| {
-                let mut feature_attribute = feature_attribute.clone();
+            let mut snake_names = Vec::with_capacity(dim.dim as _);
+            for pi in crate::svd::peripheral::expand(p, dim) {
+                let name = &pi.name;
+                let description = pi.description.as_deref().unwrap_or(&p.name);
+                let name_str = name.to_sanitized_constant_case();
+                let name_constant_case = Ident::new(&name, span);
+                let address = util::hex(pi.base_address);
+                let p_snake = name.to_sanitized_snake_case();
+                snake_names.push(p_snake.to_string());
+                let mut feature_attribute_n = feature_attribute.clone();
                 if config.feature_peripheral {
-                    feature_attribute.extend(quote! { #[cfg(feature = #p_snake)] })
+                    feature_attribute_n.extend(quote! { #[cfg(feature = #p_snake)] })
                 };
-                feature_attribute
-            });
-            // Insert the peripherals structure
-            out.extend(quote! {
-                #(
+                // Insert the peripherals structure
+                out.extend(quote! {
                     #[doc = #description]
                     #feature_attribute_n
-                    pub struct #names_constant_case { _marker: PhantomData<*const ()> }
+                    pub struct #name_constant_case { _marker: PhantomData<*const ()> }
 
                     #feature_attribute_n
-                    unsafe impl Send for #names_constant_case {}
+                    unsafe impl Send for #name_constant_case {}
 
                     #feature_attribute_n
-                    impl #names_constant_case {
+                    impl #name_constant_case {
                         ///Pointer to the register block
-                        pub const PTR: *const #base::RegisterBlock = #addresses as *const _;
+                        pub const PTR: *const #base::RegisterBlock = #address as *const _;
 
                         ///Return the pointer to the register block
                         #[inline(always)]
@@ -115,7 +110,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                     }
 
                     #feature_attribute_n
-                    impl Deref for #names_constant_case {
+                    impl Deref for #name_constant_case {
                         type Target = #base::RegisterBlock;
 
                         #[inline(always)]
@@ -125,13 +120,13 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                     }
 
                     #feature_attribute_n
-                    impl core::fmt::Debug for #names_constant_case {
+                    impl core::fmt::Debug for #name_constant_case {
                         fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-                            f.debug_struct(#names_str).finish()
+                            f.debug_struct(#name_str).finish()
                         }
                     }
-                )*
-            });
+                });
+            }
 
             let feature_any_attribute = quote! {#[cfg(any(#(feature = #snake_names),*))]};
 
@@ -1075,36 +1070,36 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 .is_some();
 
             let convert_list = match config.keep_list {
-                true => match &array_info.dim_name {
-                    Some(dim_name) => dim_name.contains("[%s]"),
-                    None => info.name.contains("[%s]"),
-                },
+                true => info.name.contains("[%s]"),
                 false => true,
             };
 
             let array_convertible = sequential_addresses && convert_list;
 
             if array_convertible {
+                let span = Span::call_site();
+                let nb_name_sc = if let Some(dim_name) = array_info.dim_name.as_ref() {
+                    dim_name.to_snake_case_ident(span)
+                } else {
+                    ty_name.to_snake_case_ident(span)
+                };
                 let accessors = if sequential_indexes_from0 {
                     Vec::new()
                 } else {
-                    let span = Span::call_site();
                     let mut accessors = Vec::new();
-                    let nb_name_cs = ty_name.to_snake_case_ident(span);
-                    for (i, idx) in array_info.indexes().enumerate() {
-                        let idx_name =
-                            util::replace_suffix(&info.name, &idx).to_snake_case_ident(span);
+                    for (i, ci) in crate::svd::cluster::expand(info, array_info).enumerate() {
+                        let idx_name = ci.name.to_snake_case_ident(span);
                         let comment = make_comment(
                             cluster_size,
-                            info.address_offset + (i as u32) * cluster_size / 8,
-                            &description,
+                            ci.address_offset,
+                            ci.description.as_deref().unwrap_or(&ci.name),
                         );
                         let i = unsuffixed(i as _);
                         accessors.push(ArrayAccessor {
                             doc: comment,
                             name: idx_name,
                             ty: ty.clone(),
-                            basename: nb_name_cs.clone(),
+                            basename: nb_name_sc.clone(),
                             i,
                         });
                     }
@@ -1112,10 +1107,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 };
                 let array_ty = new_syn_array(ty, array_info.dim);
                 cluster_expanded.push(RegisterBlockField {
-                    syn_field: new_syn_field(
-                        ty_name.to_snake_case_ident(Span::call_site()),
-                        array_ty,
-                    ),
+                    syn_field: new_syn_field(nb_name_sc, array_ty),
                     description,
                     offset: info.address_offset,
                     size: cluster_size * array_info.dim,
@@ -1135,15 +1127,14 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                     accessors: Vec::new(),
                 });
             } else {
-                for (field_num, idx) in array_info.indexes().enumerate() {
-                    let nb_name = util::replace_suffix(&info.name, &idx);
+                for ci in crate::svd::cluster::expand(info, array_info) {
                     let syn_field =
-                        new_syn_field(nb_name.to_snake_case_ident(Span::call_site()), ty.clone());
+                        new_syn_field(ci.name.to_snake_case_ident(Span::call_site()), ty.clone());
 
                     cluster_expanded.push(RegisterBlockField {
                         syn_field,
-                        description: description.clone(),
-                        offset: info.address_offset + field_num as u32 * array_info.dim_increment,
+                        description: ci.description.unwrap_or(ci.name),
+                        offset: ci.address_offset,
                         size: cluster_size,
                         accessors: Vec::new(),
                     });
@@ -1197,10 +1188,7 @@ fn expand_register(
                 || (register_size <= array_info.dim_increment * BITS_PER_BYTE);
 
             let convert_list = match config.keep_list {
-                true => match &array_info.dim_name {
-                    Some(dim_name) => dim_name.contains("[%s]"),
-                    None => info.name.contains("[%s]"),
-                },
+                true => info.name.contains("[%s]"),
                 false => true,
             };
 
@@ -1234,26 +1222,32 @@ fn expand_register(
             let ty = name_to_ty(&ty_name);
 
             if array_convertible || (array_proxy_convertible && config.const_generic) {
+                let span = Span::call_site();
+                let nb_name_sc = if let Some(dim_name) = array_info.dim_name.as_ref() {
+                    util::fullname(dim_name, &info.alternate_group, config.ignore_groups)
+                        .to_snake_case_ident(span)
+                } else {
+                    ty_name.to_snake_case_ident(span)
+                };
                 let accessors = if sequential_indexes_from0 {
                     Vec::new()
                 } else {
-                    let span = Span::call_site();
                     let mut accessors = Vec::new();
-                    let nb_name_cs = ty_name.to_snake_case_ident(span);
-                    for (i, idx) in array_info.indexes().enumerate() {
+                    for (i, ri) in crate::svd::register::expand(info, array_info).enumerate() {
                         let idx_name =
-                            util::replace_suffix(&info_name, &idx).to_snake_case_ident(span);
+                            util::fullname(&ri.name, &info.alternate_group, config.ignore_groups)
+                                .to_snake_case_ident(span);
                         let comment = make_comment(
                             register_size,
-                            info.address_offset + (i as u32) * register_size / 8,
-                            &description,
+                            ri.address_offset,
+                            ri.description.as_deref().unwrap_or(&ri.name),
                         );
                         let i = unsuffixed(i as _);
                         accessors.push(ArrayAccessor {
                             doc: comment,
                             name: idx_name,
                             ty: ty.clone(),
-                            basename: nb_name_cs.clone(),
+                            basename: nb_name_sc.clone(),
                             i,
                         });
                     }
@@ -1264,8 +1258,7 @@ fn expand_register(
                 } else {
                     array_proxy_type(ty, array_info)
                 };
-                let syn_field =
-                    new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), array_ty);
+                let syn_field = new_syn_field(nb_name_sc, array_ty);
                 register_expanded.push(RegisterBlockField {
                     syn_field,
                     description,
@@ -1278,15 +1271,14 @@ fn expand_register(
                     accessors,
                 });
             } else {
-                for (field_num, idx) in array_info.indexes().enumerate() {
-                    let nb_name = util::replace_suffix(&info_name, &idx);
+                for ri in crate::svd::register::expand(info, array_info) {
                     let syn_field =
-                        new_syn_field(nb_name.to_snake_case_ident(Span::call_site()), ty.clone());
+                        new_syn_field(ri.name.to_snake_case_ident(Span::call_site()), ty.clone());
 
                     register_expanded.push(RegisterBlockField {
                         syn_field,
-                        description: description.clone(),
-                        offset: info.address_offset + field_num as u32 * array_info.dim_increment,
+                        description: ri.description.unwrap_or(ri.name),
+                        offset: ri.address_offset,
                         size: register_size,
                         accessors: Vec::new(),
                     });

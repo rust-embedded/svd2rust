@@ -18,7 +18,7 @@ pub struct ArrayProxy<T, const COUNT: usize, const STRIDE: usize> {
 impl<T, const C: usize, const S: usize> ArrayProxy<T, C, S> {
     /// Get a reference from an [ArrayProxy] with no bounds checking.
     pub const unsafe fn get_ref(&self, index: usize) -> &T {
-        &*(self as *const Self).cast::<u8>().add(S * index).cast::<T>()
+        &*(self as *const Self).cast::<u8>().add(S * index).cast()
     }
     /// Get a reference from an [ArrayProxy], or return `None` if the index
     /// is out of bounds.
