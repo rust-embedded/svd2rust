@@ -36,7 +36,7 @@ pub struct Config {
     #[cfg_attr(feature = "serde", serde(default))]
     pub make_mod: bool,
     #[cfg_attr(feature = "serde", serde(default))]
-    pub const_generic: bool,
+    pub array_proxy: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub ignore_groups: bool,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -114,7 +114,7 @@ impl Default for Config {
             atomics_feature: None,
             generic_mod: false,
             make_mod: false,
-            const_generic: false,
+            array_proxy: false,
             ignore_groups: false,
             keep_list: false,
             strict: false,
