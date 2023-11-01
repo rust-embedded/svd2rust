@@ -133,6 +133,7 @@ pub fn render(
                 }
 
                 #[doc(hidden)]
+                #[repr(C)]
                 pub union Vector {
                     _handler: unsafe extern "C" fn(),
                     _reserved: u32,
@@ -167,6 +168,7 @@ pub fn render(
                 }
 
                 #[doc(hidden)]
+                #[repr(C)]
                 pub union Vector {
                     _handler: unsafe extern "msp430-interrupt" fn(),
                     _reserved: u16,
@@ -201,6 +203,7 @@ pub fn render(
                 }
 
                 #[doc(hidden)]
+                #[repr(C)]
                 pub union Vector {
                     pub _handler: unsafe extern "C" fn(),
                     pub _reserved: usize,
@@ -233,6 +236,7 @@ pub fn render(
                 }
 
                 #[doc(hidden)]
+                #[repr(C)]
                 pub union Vector {
                     pub _handler: unsafe extern "C" fn(),
                     _reserved: u32,

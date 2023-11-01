@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Mark `Vector` union as `repr(C)`
+
 ## [v0.30.2] - 2023-10-22
 
 - Fix documentation warnings
