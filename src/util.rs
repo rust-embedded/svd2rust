@@ -65,6 +65,10 @@ pub struct Config {
     pub log_level: Option<String>,
     #[cfg_attr(feature = "serde", serde(default))]
     pub interrupt_link_section: Option<String>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub reexport_core_peripherals: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub reexport_interrupt: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -129,6 +133,8 @@ impl Default for Config {
             source_type: SourceType::default(),
             log_level: None,
             interrupt_link_section: None,
+            reexport_core_peripherals: false,
+            reexport_interrupt: false,
         }
     }
 }

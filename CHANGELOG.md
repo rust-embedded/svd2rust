@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add `reexport_core_peripherals` and `reexport_interrupt` features disabled by default
 - rename `const-generic` feature to `array_proxy`
 
 ## [v0.30.3] - 2023-11-19
