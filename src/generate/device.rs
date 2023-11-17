@@ -60,8 +60,6 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             #![deny(overflowing_literals)]
             #![deny(path_statements)]
             #![deny(patterns_in_fns_without_body)]
-            #![deny(private_bounds)]
-            #![deny(private_interfaces)]
             #![deny(unconditional_recursion)]
             #![deny(unused_allocation)]
             #![deny(unused_comparisons)]
