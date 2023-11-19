@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- rename `const-generic` feature to `array_proxy`
+
 ## [v0.30.3] - 2023-11-19
 
 - Remove unstable lints

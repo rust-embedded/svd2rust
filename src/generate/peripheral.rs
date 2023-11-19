@@ -1113,7 +1113,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                     size: cluster_size * array_info.dim,
                     accessors,
                 });
-            } else if sequential_indexes_from0 && config.const_generic {
+            } else if sequential_indexes_from0 && config.array_proxy {
                 // Include a ZST ArrayProxy giving indexed access to the
                 // elements.
                 let ap_path = array_proxy_type(ty, array_info);
@@ -1221,7 +1221,7 @@ fn expand_register(
             let array_proxy_convertible = ac && disjoint_sequential_addresses;
             let ty = name_to_ty(&ty_name);
 
-            if array_convertible || (array_proxy_convertible && config.const_generic) {
+            if array_convertible || (array_proxy_convertible && config.array_proxy) {
                 let span = Span::call_site();
                 let nb_name_sc = if let Some(dim_name) = array_info.dim_name.as_ref() {
                     util::fullname(dim_name, &info.alternate_group, config.ignore_groups)

@@ -157,7 +157,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             }
             writeln!(file, "\n{generic_atomic_file}")?;
         }
-        if config.const_generic {
+        if config.array_proxy {
             writeln!(file, "{array_proxy}")?;
         }
 
@@ -177,7 +177,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             }
             syn::parse_file(generic_atomic_file)?.to_tokens(&mut tokens);
         }
-        if config.const_generic {
+        if config.array_proxy {
             syn::parse_file(array_proxy)?.to_tokens(&mut tokens);
         }
 

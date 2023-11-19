@@ -80,11 +80,11 @@ fn run() -> Result<()> {
                 .value_name("FEATURE"),
         )
         .arg(
-            Arg::new("const_generic")
-            .long("const_generic")
+            Arg::new("array_proxy")
+            .long("array_proxy")
             .action(ArgAction::SetTrue)
             .help(
-                "Use const generics to generate writers for same fields with different offsets",
+                "Use ArrayProxy helper for non-sequential register arrays",
             ),
         )
         .arg(
