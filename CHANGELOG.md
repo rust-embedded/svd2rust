@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Remove unstable lints
 - Mark `Vector` union as `repr(C)`
+- Support `dimArrayIndex` for array names and descriptions
 
 ## [v0.30.2] - 2023-10-22
 

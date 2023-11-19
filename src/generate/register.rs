@@ -1,6 +1,6 @@
 use crate::svd::{
-    Access, BitRange, EnumeratedValues, Field, MaybeArray, ModifiedWriteValues, ReadAction,
-    Register, RegisterProperties, Usage, WriteConstraint,
+    Access, BitRange, DimElement, EnumeratedValues, Field, MaybeArray, ModifiedWriteValues,
+    ReadAction, Register, RegisterProperties, Usage, WriteConstraint,
 };
 use core::u64;
 use log::warn;
@@ -571,7 +571,18 @@ pub fn fields(
         }
 
         let name = util::replace_suffix(&f.name, "");
-        let name_snake_case = name.to_snake_case_ident(span);
+        let name_snake_case = if let Field::Array(
+            _,
+            DimElement {
+                dim_name: Some(dim_name),
+                ..
+            },
+        ) = &f
+        {
+            dim_name.to_snake_case_ident(span)
+        } else {
+            name.to_snake_case_ident(span)
+        };
         let name_constant_case = name.to_sanitized_constant_case();
         let description_raw = f.description.as_deref().unwrap_or(""); // raw description, if absent using empty string
         let description = util::respace(&util::escape_special_chars(description_raw));
@@ -862,8 +873,8 @@ pub fn fields(
                         }
                     });
                 }
-                for (i, suffix) in de.indexes().enumerate() {
-                    let sub_offset = offset + (i as u64) * (increment as u64);
+                for fi in crate::svd::field::expand(&f, de) {
+                    let sub_offset = fi.bit_offset() as u64;
                     let value = if sub_offset != 0 {
                         let sub_offset = &util::unsuffixed(sub_offset);
                         quote! { (self.bits >> #sub_offset) }
@@ -877,11 +888,11 @@ pub fn fields(
                     } else {
                         value
                     };
-                    let name_snake_case_n = util::replace_suffix(&f.name, &suffix)
-                        .to_snake_case_ident(Span::call_site());
-                    let doc = util::replace_suffix(
-                        &description_with_bits(description_raw, sub_offset, width),
-                        &suffix,
+                    let name_snake_case_n = fi.name.to_snake_case_ident(Span::call_site());
+                    let doc = description_with_bits(
+                        fi.description.as_deref().unwrap_or(&fi.name),
+                        sub_offset,
+                        width,
                     );
                     r_impl_items.extend(quote! {
                         #[doc = #doc]
@@ -1098,7 +1109,6 @@ pub fn fields(
             }
 
             if let Field::Array(_, de) = &f {
-                let increment = de.dim_increment;
                 let doc = &util::replace_suffix(&description, &brief_suffix);
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
@@ -1109,13 +1119,13 @@ pub fn fields(
                     }
                 });
 
-                for (i, suffix) in de.indexes().enumerate() {
-                    let sub_offset = offset + (i as u64) * (increment as u64);
-                    let name_snake_case_n = &util::replace_suffix(&f.name, &suffix)
-                        .to_snake_case_ident(Span::call_site());
-                    let doc = util::replace_suffix(
-                        &description_with_bits(description_raw, sub_offset, width),
-                        &suffix,
+                for fi in crate::svd::field::expand(&f, de) {
+                    let sub_offset = fi.bit_offset() as u64;
+                    let name_snake_case_n = &fi.name.to_snake_case_ident(Span::call_site());
+                    let doc = description_with_bits(
+                        fi.description.as_deref().unwrap_or(&fi.name),
+                        sub_offset,
+                        width,
                     );
                     let sub_offset = util::unsuffixed(sub_offset);
 
