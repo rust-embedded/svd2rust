@@ -1,5 +1,5 @@
 use crate::svd::{
-    Access, BitRange, DimElement, EnumeratedValues, Field, MaybeArray, ModifiedWriteValues,
+    self, Access, BitRange, DimElement, EnumeratedValues, Field, MaybeArray, ModifiedWriteValues,
     ReadAction, Register, RegisterProperties, Usage, WriteConstraint,
 };
 use core::u64;
@@ -857,12 +857,12 @@ pub fn fields(
                 }
             }
 
-            if let Field::Array(_, de) = &f {
+            if let Field::Array(f, de) = &f {
                 let increment = de.dim_increment;
                 let doc = util::replace_suffix(&description, &brief_suffix);
-
+                let first_name = svd::array::names(f, de).next().unwrap();
                 let array_doc =
-                    format!("{doc}\n\nNOTE: `n` is number of field in register starting from 0");
+                    format!("{doc}\n\nNOTE: `n` is number of field in register. `n == 0` corresponds to `{first_name}` field");
                 let offset_calc = calculate_offset(increment, offset, true);
                 let value = quote! { ((self.bits >> #offset_calc) & #hexmask) #cast };
                 let dim = util::unsuffixed(de.dim as _);
@@ -876,7 +876,7 @@ pub fn fields(
                     }
                 });
 
-                for fi in crate::svd::field::expand(&f, de) {
+                for fi in svd::field::expand(&f, de) {
                     let sub_offset = fi.bit_offset() as u64;
                     let value = if sub_offset != 0 {
                         let sub_offset = &util::unsuffixed(sub_offset);
@@ -1111,13 +1111,16 @@ pub fn fields(
                 }
             }
 
-            if let Field::Array(_, de) = &f {
+            if let Field::Array(f, de) = &f {
                 let increment = de.dim_increment;
                 let offset_calc = calculate_offset(increment, offset, false);
                 let doc = &util::replace_suffix(&description, &brief_suffix);
+                let first_name = svd::array::names(f, de).next().unwrap();
+                let array_doc =
+                    format!("{doc}\n\nNOTE: `n` is number of field in register. `n == 0` corresponds to `{first_name}` field");
                 let dim = util::unsuffixed(de.dim as _);
                 w_impl_items.extend(quote! {
-                    #[doc = #doc]
+                    #[doc = #array_doc]
                     #inline
                     #[must_use]
                     pub fn #name_snake_case(&mut self, n: u8) -> #writer_ty<#regspec_ident> {
@@ -1127,7 +1130,7 @@ pub fn fields(
                     }
                 });
 
-                for fi in crate::svd::field::expand(&f, de) {
+                for fi in svd::field::expand(&f, de) {
                     let sub_offset = fi.bit_offset() as u64;
                     let name_snake_case_n = &fi.name.to_snake_case_ident(Span::call_site());
                     let doc = description_with_bits(

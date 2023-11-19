@@ -548,7 +548,7 @@ macro_rules! bit_proxy {
             /// Field width
             #[inline(always)]
             pub const fn width(&self) -> u8 {
-                1
+                Self::WIDTH
             }
         
             /// Field offset
