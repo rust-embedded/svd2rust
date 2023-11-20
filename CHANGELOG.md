@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - rename `const-generic` feature to `array_proxy`
+- `FieldWriter` takes offset as struct field instead of const generic.
+  Improves SVD field array access
+  Add `width`, `offset` methods
+- *breaking change* Always numerates field arrays from 0 
 
 ## [v0.30.3] - 2023-11-19
 
