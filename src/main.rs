@@ -164,6 +164,18 @@ fn run() -> Result<()> {
                 .help("Specify file/stream format"),
         )
         .arg(
+            Arg::new("reexport_core_peripherals")
+                .long("reexport_core_peripherals")
+                .action(ArgAction::SetTrue)
+                .help("For Cortex-M target reexport peripherals from cortex-m crate"),
+        )
+        .arg(
+            Arg::new("reexport_interrupt")
+                .long("reexport_interrupt")
+                .action(ArgAction::SetTrue)
+                .help("Reexport interrupt macro from cortex-m-rt like crates"),
+        )
+        .arg(
             Arg::new("log_level")
                 .long("log")
                 .short('l')

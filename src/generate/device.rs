@@ -103,46 +103,51 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
 
     let mut fields = TokenStream::new();
     let mut exprs = TokenStream::new();
-    if config.target == Target::CortexM {
-        out.extend(quote! {
-            pub use cortex_m::peripheral::Peripherals as CorePeripherals;
-            #[cfg(feature = "rt")]
-            pub use cortex_m_rt::interrupt;
-            #[cfg(feature = "rt")]
-            pub use self::Interrupt as interrupt;
-        });
+    match config.target {
+        Target::CortexM => {
+            if config.reexport_core_peripherals {
+                let fpu = fpu_present.then(|| quote!(FPU,));
+                out.extend(quote! {
+                    pub use cortex_m::peripheral::Peripherals as CorePeripherals;
+                    pub use cortex_m::peripheral::{
+                        CBP, CPUID, DCB, DWT, FPB, #fpu ITM, MPU, NVIC, SCB, SYST, TPIU,
+                    };
+                });
+            }
 
-        if fpu_present {
-            out.extend(quote! {
-                pub use cortex_m::peripheral::{
-                    CBP, CPUID, DCB, DWT, FPB, FPU, ITM, MPU, NVIC, SCB, SYST, TPIU,
-                };
-            });
-        } else {
-            out.extend(quote! {
-                pub use cortex_m::peripheral::{
-                    CBP, CPUID, DCB, DWT, FPB, ITM, MPU, NVIC, SCB, SYST, TPIU,
-                };
-            });
+            if config.reexport_interrupt {
+                out.extend(quote! {
+                    #[cfg(feature = "rt")]
+                    pub use cortex_m_rt::interrupt;
+                    #[cfg(feature = "rt")]
+                    pub use self::Interrupt as interrupt;
+                });
+            }
         }
-    }
 
-    if config.target == Target::Msp430 {
-        out.extend(quote! {
+        Target::Msp430 => {
             // XXX: Are there any core peripherals, really? Requires bump of msp430 crate.
             // pub use msp430::peripheral::Peripherals as CorePeripherals;
-            #[cfg(feature = "rt")]
-            pub use msp430_rt::interrupt;
-            #[cfg(feature = "rt")]
-            pub use self::Interrupt as interrupt;
-        });
-    }
+            if config.reexport_interrupt {
+                out.extend(quote! {
+                    #[cfg(feature = "rt")]
+                    pub use msp430_rt::interrupt;
+                    #[cfg(feature = "rt")]
+                    pub use self::Interrupt as interrupt;
+                });
+            }
+        }
 
-    if config.target == Target::Mips {
-        out.extend(quote! {
-            #[cfg(feature = "rt")]
-            pub use mips_rt::interrupt;
-        });
+        Target::Mips => {
+            if config.reexport_interrupt {
+                out.extend(quote! {
+                    #[cfg(feature = "rt")]
+                    pub use mips_rt::interrupt;
+                });
+            }
+        }
+
+        _ => {}
     }
 
     let generic_file = include_str!("generic.rs");
