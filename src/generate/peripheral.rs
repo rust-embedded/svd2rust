@@ -22,6 +22,9 @@ use anyhow::{anyhow, bail, Context, Result};
 
 use crate::generate::register;
 
+mod accessor;
+use accessor::*;
+
 pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result<TokenStream> {
     let mut out = TokenStream::new();
 
@@ -279,175 +282,8 @@ impl fmt::Display for DeriveInfo {
 }
 
 #[derive(Clone, Debug)]
-pub enum Accessor {
-    Array(ArrayAccessor),
-    RawArray(RawArrayAccessor),
-    ArrayElem(ArrayElemAccessor),
-}
-
-impl ToTokens for Accessor {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            Self::Array(a) => a.to_tokens(tokens),
-            Self::RawArray(a) => a.to_tokens(tokens),
-            Self::ArrayElem(a) => a.to_tokens(tokens),
-        }
-    }
-}
-
-impl From<ArrayAccessor> for Accessor {
-    fn from(value: ArrayAccessor) -> Self {
-        Self::Array(value)
-    }
-}
-
-impl From<RawArrayAccessor> for Accessor {
-    fn from(value: RawArrayAccessor) -> Self {
-        Self::RawArray(value)
-    }
-}
-
-impl From<ArrayElemAccessor> for Accessor {
-    fn from(value: ArrayElemAccessor) -> Self {
-        Self::ArrayElem(value)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct RawAccessor {
-    pub doc: String,
-    pub name: Ident,
-    pub ty: syn::Type,
-    pub offset: syn::LitInt,
-}
-
-impl ToTokens for RawAccessor {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let Self {
-            doc,
-            name,
-            ty,
-            offset,
-        } = self;
-        quote! {
-            #[doc = #doc]
-            #[inline(always)]
-            pub const fn #name(&self) -> &#ty {
-                unsafe { &*(self as *const Self).cast::<u8>().add(#offset).cast() }
-            }
-        }
-        .to_tokens(tokens);
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct FieldAccessor {
-    pub doc: String,
-    pub name: Ident,
-    pub ty: syn::Type,
-}
-
-impl ToTokens for FieldAccessor {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let Self { doc, name, ty } = self;
-        quote! {
-            #[doc = #doc]
-            #[inline(always)]
-            pub const fn #name(&self) -> &#ty {
-                &self.#name
-            }
-        }
-        .to_tokens(tokens);
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct ArrayAccessor {
-    pub doc: String,
-    pub name: Ident,
-    pub ty: syn::Type,
-}
-
-impl ToTokens for ArrayAccessor {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let Self { doc, name, ty } = self;
-        quote! {
-            #[doc = #doc]
-            #[inline(always)]
-            pub const fn #name(&self, n: usize) -> &#ty {
-                &self.#name[n]
-            }
-        }
-        .to_tokens(tokens);
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct RawArrayAccessor {
-    pub doc: String,
-    pub name: Ident,
-    pub ty: syn::Type,
-    pub offset: syn::LitInt,
-    pub dim: syn::LitInt,
-    pub increment: syn::LitInt,
-}
-
-impl ToTokens for RawArrayAccessor {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let Self {
-            doc,
-            name,
-            ty,
-            offset,
-            dim,
-            increment,
-        } = self;
-        quote! {
-            #[doc = #doc]
-            #[inline(always)]
-            pub const fn #name(&self, n: usize) -> &#ty {
-                #[allow(clippy::no_effect)]
-                [(); #dim][n];
-                unsafe { &*(self as *const Self).cast::<u8>().add(#offset).add(#increment * n).cast() }
-            }
-        }
-        .to_tokens(tokens);
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct ArrayElemAccessor {
-    pub doc: String,
-    pub name: Ident,
-    pub ty: syn::Type,
-    pub basename: Ident,
-    pub i: syn::LitInt,
-}
-
-impl ToTokens for ArrayElemAccessor {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let Self {
-            doc,
-            name,
-            ty,
-            basename,
-            i,
-        } = &self;
-        quote! {
-            #[doc = #doc]
-            #[inline(always)]
-            pub const fn #name(&self) -> &#ty {
-                &self.#basename(#i)
-            }
-        }
-        .to_tokens(tokens);
-    }
-}
-
-#[derive(Clone, Debug)]
 struct RegisterBlockField {
     syn_field: syn::Field,
-    description: String,
     offset: u32,
     size: u32,
     accessors: Vec<Accessor>,
@@ -726,33 +562,17 @@ fn register_or_cluster_block(
         let is_region_a_union = region.is_union();
 
         for reg_block_field in &region.rbfs {
-            let doc = make_comment(
-                reg_block_field.size,
-                reg_block_field.offset,
-                &reg_block_field.description,
-            );
-            let name = reg_block_field.syn_field.ident.clone().unwrap();
-            let ty = reg_block_field.syn_field.ty.clone();
-            let offset = unsuffixed(reg_block_field.offset);
-
             if is_region_a_union {
-                RawAccessor {
-                    doc,
-                    name,
-                    ty,
-                    offset,
-                }
-                .to_tokens(&mut accessors);
+                reg_block_field.accessors[0]
+                    .clone()
+                    .raw()
+                    .to_tokens(&mut accessors);
             } else {
-                region_rbfs.extend(quote! {
-                    #[doc = #doc]
-                });
-
                 reg_block_field.syn_field.to_tokens(&mut region_rbfs);
                 Punct::new(',', Spacing::Alone).to_tokens(&mut region_rbfs);
-                FieldAccessor { doc, name, ty }.to_tokens(&mut accessors);
+                reg_block_field.accessors[0].to_tokens(&mut accessors);
             }
-            for a in &reg_block_field.accessors {
+            for a in &reg_block_field.accessors[1..] {
                 a.to_tokens(&mut accessors);
             }
         }
@@ -1178,13 +998,20 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
 
     match cluster {
         Cluster::Single(info) => {
-            let syn_field = new_syn_field(info.name.to_snake_case_ident(Span::call_site()), ty);
+            let doc = make_comment(cluster_size, info.address_offset, &description);
+            let name: Ident = info.name.to_snake_case_ident(Span::call_site());
+            let syn_field = new_syn_field(name.clone(), ty.clone());
             cluster_expanded.push(RegisterBlockField {
                 syn_field,
-                description,
                 offset: info.address_offset,
                 size: cluster_size,
-                accessors: Vec::new(),
+                accessors: vec![RegAccessor {
+                    doc,
+                    name,
+                    ty,
+                    offset: unsuffixed(info.address_offset),
+                }
+                .into()],
             })
         }
         Cluster::Array(info, array_info) => {
@@ -1220,7 +1047,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 } else {
                     ty_name.to_snake_case_ident(span)
                 };
-                let comment = make_comment(
+                let doc = make_comment(
                     cluster_size * array_info.dim,
                     info.address_offset,
                     &description,
@@ -1228,14 +1055,17 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 let mut accessors = Vec::<Accessor>::with_capacity((array_info.dim + 1) as _);
                 accessors.push(if array_convertible {
                     ArrayAccessor {
-                        doc: comment,
+                        doc,
                         name: nb_name_sc.clone(),
                         ty: ty.clone(),
+                        offset: unsuffixed(info.address_offset),
+                        dim: unsuffixed(array_info.dim),
+                        increment: unsuffixed(array_info.dim_increment),
                     }
                     .into()
                 } else {
                     RawArrayAccessor {
-                        doc: comment,
+                        doc,
                         name: nb_name_sc.clone(),
                         ty: ty.clone(),
                         offset: unsuffixed(info.address_offset),
@@ -1247,7 +1077,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 if !sequential_indexes_from0 {
                     for (i, ci) in svd::cluster::expand(info, array_info).enumerate() {
                         let idx_name = ci.name.to_snake_case_ident(span);
-                        let comment = make_comment(
+                        let doc = make_comment(
                             cluster_size,
                             ci.address_offset,
                             ci.description.as_deref().unwrap_or(&ci.name),
@@ -1255,7 +1085,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         let i = unsuffixed(i as u64);
                         accessors.push(
                             ArrayElemAccessor {
-                                doc: comment,
+                                doc,
                                 name: idx_name,
                                 ty: ty.clone(),
                                 basename: nb_name_sc.clone(),
@@ -1276,7 +1106,6 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 };
                 cluster_expanded.push(RegisterBlockField {
                     syn_field,
-                    description,
                     offset: info.address_offset,
                     size: if array_convertible {
                         cluster_size * array_info.dim
@@ -1287,15 +1116,25 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 });
             } else {
                 for ci in svd::cluster::expand(info, array_info) {
-                    let syn_field =
-                        new_syn_field(ci.name.to_snake_case_ident(Span::call_site()), ty.clone());
+                    let doc = make_comment(
+                        cluster_size,
+                        ci.address_offset,
+                        ci.description.as_deref().unwrap_or(&ci.name),
+                    );
+                    let name = ci.name.to_snake_case_ident(Span::call_site());
+                    let syn_field = new_syn_field(name.clone(), ty.clone());
 
                     cluster_expanded.push(RegisterBlockField {
                         syn_field,
-                        description: ci.description.unwrap_or(ci.name),
                         offset: ci.address_offset,
                         size: cluster_size,
-                        accessors: Vec::new(),
+                        accessors: vec![RegAccessor {
+                            doc,
+                            name,
+                            ty: ty.clone(),
+                            offset: unsuffixed(info.address_offset),
+                        }
+                        .into()],
                     });
                 }
             }
@@ -1330,14 +1169,21 @@ fn expand_register(
 
     match register {
         Register::Single(info) => {
+            let doc = make_comment(register_size, info.address_offset, &description);
             let ty = name_to_ty(&ty_name);
-            let syn_field = new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), ty);
+            let name = ty_name.to_snake_case_ident(Span::call_site());
+            let syn_field = new_syn_field(name.clone(), ty.clone());
             register_expanded.push(RegisterBlockField {
                 syn_field,
-                description,
                 offset: info.address_offset,
                 size: register_size,
-                accessors: Vec::new(),
+                accessors: vec![RegAccessor {
+                    doc,
+                    name,
+                    ty,
+                    offset: unsuffixed(info.address_offset),
+                }
+                .into()],
             })
         }
         Register::Array(info, array_info) => {
@@ -1388,7 +1234,7 @@ fn expand_register(
                 } else {
                     ty_name.to_snake_case_ident(span)
                 };
-                let comment = make_comment(
+                let doc = make_comment(
                     register_size * array_info.dim,
                     info.address_offset,
                     &description,
@@ -1396,14 +1242,17 @@ fn expand_register(
                 let mut accessors = Vec::<Accessor>::with_capacity((array_info.dim + 1) as _);
                 accessors.push(if array_convertible {
                     ArrayAccessor {
-                        doc: comment,
+                        doc,
                         name: nb_name_sc.clone(),
                         ty: ty.clone(),
+                        offset: unsuffixed(info.address_offset),
+                        dim: unsuffixed(array_info.dim),
+                        increment: unsuffixed(array_info.dim_increment),
                     }
                     .into()
                 } else {
                     RawArrayAccessor {
-                        doc: comment,
+                        doc,
                         name: nb_name_sc.clone(),
                         ty: ty.clone(),
                         offset: unsuffixed(info.address_offset),
@@ -1417,7 +1266,7 @@ fn expand_register(
                         let idx_name =
                             util::fullname(&ri.name, &info.alternate_group, config.ignore_groups)
                                 .to_snake_case_ident(span);
-                        let comment = make_comment(
+                        let doc = make_comment(
                             register_size,
                             ri.address_offset,
                             ri.description.as_deref().unwrap_or(&ri.name),
@@ -1425,7 +1274,7 @@ fn expand_register(
                         let i = unsuffixed(i as u64);
                         accessors.push(
                             ArrayElemAccessor {
-                                doc: comment,
+                                doc,
                                 name: idx_name,
                                 ty: ty.clone(),
                                 basename: nb_name_sc.clone(),
@@ -1443,7 +1292,6 @@ fn expand_register(
                 let syn_field = new_syn_field(nb_name_sc, array_ty);
                 register_expanded.push(RegisterBlockField {
                     syn_field,
-                    description,
                     offset: info.address_offset,
                     size: if array_convertible {
                         register_size * array_info.dim
@@ -1454,15 +1302,25 @@ fn expand_register(
                 });
             } else {
                 for ri in svd::register::expand(info, array_info) {
-                    let syn_field =
-                        new_syn_field(ri.name.to_snake_case_ident(Span::call_site()), ty.clone());
+                    let doc = make_comment(
+                        register_size,
+                        info.address_offset,
+                        ri.description.as_deref().unwrap_or(&ri.name),
+                    );
+                    let name = ri.name.to_snake_case_ident(Span::call_site());
+                    let syn_field = new_syn_field(name.clone(), ty.clone());
 
                     register_expanded.push(RegisterBlockField {
                         syn_field,
-                        description: ri.description.unwrap_or(ri.name),
                         offset: ri.address_offset,
                         size: register_size,
-                        accessors: Vec::new(),
+                        accessors: vec![RegAccessor {
+                            doc,
+                            name,
+                            ty: ty.clone(),
+                            offset: unsuffixed(info.address_offset),
+                        }
+                        .into()],
                     });
                 }
             }
