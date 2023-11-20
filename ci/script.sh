@@ -63,7 +63,7 @@ main() {
     echo 'unused_comparisons = "deny"'           >> $td/Cargo.toml
     echo 'unused_parens = "deny"'                >> $td/Cargo.toml
     echo 'while_true = "deny"'                   >> $td/Cargo.toml
-    if [[ "$RUST_TOOLCHAIN" == *"nightly"* ]]; then
+    if [[ "${RUST_TOOLCHAIN:-}" == *"nightly"* ]]; then
         echo 'private_bounds = "deny"'           >> $td/Cargo.toml
         echo 'private_interfaces = "deny"'       >> $td/Cargo.toml
     fi
