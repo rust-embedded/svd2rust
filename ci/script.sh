@@ -39,15 +39,34 @@ main() {
     esac
 
     # test crate
-    cargo init --name foo $td
-    echo 'cortex-m = "0.7.7"' >> $td/Cargo.toml
+    cargo init --lib --name foo $td
+    echo 'cortex-m = "0.7.7"'    >> $td/Cargo.toml
     echo 'cortex-m-rt = "0.7.3"' >> $td/Cargo.toml
-    echo 'vcell = "0.1.3"' >> $td/Cargo.toml
+    echo 'vcell = "0.1.3"'       >> $td/Cargo.toml
     if [[ "$options" == *"--atomics"* ]]; then
         echo 'portable-atomic = { version = "1.4", default-features = false }' >> $td/Cargo.toml
     fi
-    echo '[profile.dev]' >> $td/Cargo.toml
-    echo 'incremental = false' >> $td/Cargo.toml
+    echo '[profile.dev]'         >> $td/Cargo.toml
+    echo 'incremental = false'   >> $td/Cargo.toml
+
+    echo '[lints.rust]'          >> $td/Cargo.toml
+    echo 'dead_code = "deny"'                    >> $td/Cargo.toml
+    echo 'improper_ctypes = "deny"'              >> $td/Cargo.toml
+    echo 'missing_docs = "deny"'                 >> $td/Cargo.toml
+    echo 'no_mangle_generic_items = "deny"'      >> $td/Cargo.toml
+    echo 'non_shorthand_field_patterns = "deny"' >> $td/Cargo.toml
+    echo 'overflowing_literals = "deny"'         >> $td/Cargo.toml
+    echo 'path_statements = "deny"'              >> $td/Cargo.toml
+    echo 'patterns_in_fns_without_body = "deny"' >> $td/Cargo.toml
+    echo 'unconditional_recursion = "deny"'      >> $td/Cargo.toml
+    echo 'unused_allocation = "deny"'            >> $td/Cargo.toml
+    echo 'unused_comparisons = "deny"'           >> $td/Cargo.toml
+    echo 'unused_parens = "deny"'                >> $td/Cargo.toml
+    echo 'while_true = "deny"'                   >> $td/Cargo.toml
+    if [[ "${RUST_TOOLCHAIN:-}" == *"nightly"* ]]; then
+        echo 'private_bounds = "deny"'           >> $td/Cargo.toml
+        echo 'private_interfaces = "deny"'       >> $td/Cargo.toml
+    fi
 
     case $VENDOR in
         Atmel)

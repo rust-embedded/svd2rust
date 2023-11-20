@@ -105,6 +105,7 @@ jobs:
           VENDOR: ${{ matrix.vendor }}
           OPTIONS: ${{ matrix.options }}
           COMMAND: check
+          RUST_TOOLCHAIN: ${{ matrix.rust }}
         run: bash ci/script.sh
 
   ci-clippy:

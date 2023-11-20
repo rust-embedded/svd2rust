@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Remove all deny lints from generated crate
 - Add `reexport_core_peripherals` and `reexport_interrupt` features disabled by default
 - rename `const-generic` feature to `array_proxy`
 - `FieldWriter` takes offset as struct field instead of const generic.
