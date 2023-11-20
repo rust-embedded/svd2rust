@@ -7,7 +7,7 @@ use svd_parser::expand::{
 };
 
 use crate::svd::{
-    Cluster, ClusterInfo, MaybeArray, Peripheral, Register, RegisterCluster, RegisterInfo,
+    self, Cluster, ClusterInfo, MaybeArray, Peripheral, Register, RegisterCluster, RegisterInfo,
 };
 use log::{debug, trace, warn};
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
@@ -74,7 +74,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
     match &p {
         Peripheral::Array(p, dim) => {
             let mut snake_names = Vec::with_capacity(dim.dim as _);
-            for pi in crate::svd::peripheral::expand(p, dim) {
+            for pi in svd::peripheral::expand(p, dim) {
                 let name = &pi.name;
                 let description = pi.description.as_deref().unwrap_or(&p.name);
                 let name_str = name.to_sanitized_constant_case();
@@ -279,7 +279,144 @@ impl fmt::Display for DeriveInfo {
 }
 
 #[derive(Clone, Debug)]
+pub enum Accessor {
+    Array(ArrayAccessor),
+    RawArray(RawArrayAccessor),
+    ArrayElem(ArrayElemAccessor),
+}
+
+impl ToTokens for Accessor {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::Array(a) => a.to_tokens(tokens),
+            Self::RawArray(a) => a.to_tokens(tokens),
+            Self::ArrayElem(a) => a.to_tokens(tokens),
+        }
+    }
+}
+
+impl From<ArrayAccessor> for Accessor {
+    fn from(value: ArrayAccessor) -> Self {
+        Self::Array(value)
+    }
+}
+
+impl From<RawArrayAccessor> for Accessor {
+    fn from(value: RawArrayAccessor) -> Self {
+        Self::RawArray(value)
+    }
+}
+
+impl From<ArrayElemAccessor> for Accessor {
+    fn from(value: ArrayElemAccessor) -> Self {
+        Self::ArrayElem(value)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RawAccessor {
+    pub doc: String,
+    pub name: Ident,
+    pub ty: syn::Type,
+    pub offset: syn::LitInt,
+}
+
+impl ToTokens for RawAccessor {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let Self {
+            doc,
+            name,
+            ty,
+            offset,
+        } = self;
+        quote! {
+            #[doc = #doc]
+            #[inline(always)]
+            pub const fn #name(&self) -> &#ty {
+                unsafe { &*(self as *const Self).cast::<u8>().add(#offset).cast() }
+            }
+        }
+        .to_tokens(tokens);
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct FieldAccessor {
+    pub doc: String,
+    pub name: Ident,
+    pub ty: syn::Type,
+}
+
+impl ToTokens for FieldAccessor {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let Self { doc, name, ty } = self;
+        quote! {
+            #[doc = #doc]
+            #[inline(always)]
+            pub const fn #name(&self) -> &#ty {
+                &self.#name
+            }
+        }
+        .to_tokens(tokens);
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct ArrayAccessor {
+    pub doc: String,
+    pub name: Ident,
+    pub ty: syn::Type,
+}
+
+impl ToTokens for ArrayAccessor {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let Self { doc, name, ty } = self;
+        quote! {
+            #[doc = #doc]
+            #[inline(always)]
+            pub const fn #name(&self, n: usize) -> &#ty {
+                &self.#name[n]
+            }
+        }
+        .to_tokens(tokens);
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RawArrayAccessor {
+    pub doc: String,
+    pub name: Ident,
+    pub ty: syn::Type,
+    pub offset: syn::LitInt,
+    pub dim: syn::LitInt,
+    pub increment: syn::LitInt,
+}
+
+impl ToTokens for RawArrayAccessor {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let Self {
+            doc,
+            name,
+            ty,
+            offset,
+            dim,
+            increment,
+        } = self;
+        quote! {
+            #[doc = #doc]
+            #[inline(always)]
+            pub const fn #name(&self, n: usize) -> &#ty {
+                #[allow(clippy::no_effect)]
+                [(); #dim][n];
+                unsafe { &*(self as *const Self).cast::<u8>().add(#offset).add(#increment * n).cast() }
+            }
+        }
+        .to_tokens(tokens);
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ArrayElemAccessor {
     pub doc: String,
     pub name: Ident,
     pub ty: syn::Type,
@@ -287,18 +424,20 @@ pub struct ArrayAccessor {
     pub i: syn::LitInt,
 }
 
-impl ToTokens for ArrayAccessor {
+impl ToTokens for ArrayElemAccessor {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let doc = &self.doc;
-        let name = &self.name;
-        let ty = &self.ty;
-        let basename = &self.basename;
-        let i = &self.i;
+        let Self {
+            doc,
+            name,
+            ty,
+            basename,
+            i,
+        } = &self;
         quote! {
             #[doc = #doc]
             #[inline(always)]
-            pub fn #name(&self) -> &#ty {
-                &self.#basename()[#i]
+            pub const fn #name(&self) -> &#ty {
+                &self.#basename(#i)
             }
         }
         .to_tokens(tokens);
@@ -311,7 +450,7 @@ struct RegisterBlockField {
     description: String,
     offset: u32,
     size: u32,
-    accessors: Vec<ArrayAccessor>,
+    accessors: Vec<Accessor>,
 }
 
 #[derive(Clone, Debug)]
@@ -587,37 +726,31 @@ fn register_or_cluster_block(
         let is_region_a_union = region.is_union();
 
         for reg_block_field in &region.rbfs {
-            let comment = make_comment(
+            let doc = make_comment(
                 reg_block_field.size,
                 reg_block_field.offset,
                 &reg_block_field.description,
             );
-            let name = &reg_block_field.syn_field.ident;
-            let ty = &reg_block_field.syn_field.ty;
-            let offset = reg_block_field.offset as usize;
+            let name = reg_block_field.syn_field.ident.clone().unwrap();
+            let ty = reg_block_field.syn_field.ty.clone();
+            let offset = unsuffixed(reg_block_field.offset);
 
             if is_region_a_union {
-                accessors.extend(quote! {
-                    #[doc = #comment]
-                    #[inline(always)]
-                    pub const fn #name(&self) -> &#ty {
-                        unsafe { &*(self as *const Self).cast::<u8>().add(#offset).cast() }
-                    }
-                });
+                RawAccessor {
+                    doc,
+                    name,
+                    ty,
+                    offset,
+                }
+                .to_tokens(&mut accessors);
             } else {
                 region_rbfs.extend(quote! {
-                    #[doc = #comment]
+                    #[doc = #doc]
                 });
 
                 reg_block_field.syn_field.to_tokens(&mut region_rbfs);
                 Punct::new(',', Spacing::Alone).to_tokens(&mut region_rbfs);
-                accessors.extend(quote! {
-                    #[doc = #comment]
-                    #[inline(always)]
-                    pub fn #name(&self) -> &#ty {
-                        &self.#name
-                    }
-                });
+                FieldAccessor { doc, name, ty }.to_tokens(&mut accessors);
             }
             for a in &reg_block_field.accessors {
                 a.to_tokens(&mut accessors);
@@ -1080,58 +1213,80 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
 
             let array_convertible = sequential_addresses && convert_list;
 
-            if array_convertible {
+            if array_convertible || config.array_proxy {
                 let span = Span::call_site();
                 let nb_name_sc = if let Some(dim_name) = array_info.dim_name.as_ref() {
                     dim_name.to_snake_case_ident(span)
                 } else {
                     ty_name.to_snake_case_ident(span)
                 };
-                let accessors = if sequential_indexes_from0 {
-                    Vec::new()
+                let comment = make_comment(
+                    cluster_size * array_info.dim,
+                    info.address_offset,
+                    &description,
+                );
+                let mut accessors = Vec::<Accessor>::with_capacity((array_info.dim + 1) as _);
+                accessors.push(if array_convertible {
+                    ArrayAccessor {
+                        doc: comment,
+                        name: nb_name_sc.clone(),
+                        ty: ty.clone(),
+                    }
+                    .into()
                 } else {
-                    let mut accessors = Vec::new();
-                    for (i, ci) in crate::svd::cluster::expand(info, array_info).enumerate() {
+                    RawArrayAccessor {
+                        doc: comment,
+                        name: nb_name_sc.clone(),
+                        ty: ty.clone(),
+                        offset: unsuffixed(info.address_offset),
+                        dim: unsuffixed(array_info.dim),
+                        increment: unsuffixed(array_info.dim_increment),
+                    }
+                    .into()
+                });
+                if !sequential_indexes_from0 {
+                    for (i, ci) in svd::cluster::expand(info, array_info).enumerate() {
                         let idx_name = ci.name.to_snake_case_ident(span);
                         let comment = make_comment(
                             cluster_size,
                             ci.address_offset,
                             ci.description.as_deref().unwrap_or(&ci.name),
                         );
-                        let i = unsuffixed(i as _);
-                        accessors.push(ArrayAccessor {
-                            doc: comment,
-                            name: idx_name,
-                            ty: ty.clone(),
-                            basename: nb_name_sc.clone(),
-                            i,
-                        });
+                        let i = unsuffixed(i as u64);
+                        accessors.push(
+                            ArrayElemAccessor {
+                                doc: comment,
+                                name: idx_name,
+                                ty: ty.clone(),
+                                basename: nb_name_sc.clone(),
+                                i,
+                            }
+                            .into(),
+                        );
                     }
-                    accessors
+                }
+                let syn_field = if array_convertible {
+                    let array_ty = new_syn_array(ty, array_info.dim);
+                    new_syn_field(nb_name_sc, array_ty)
+                } else {
+                    // Include a ZST ArrayProxy giving indexed access to the
+                    // elements.
+                    let ap_path = array_proxy_type(ty, array_info);
+                    new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), ap_path)
                 };
-                let array_ty = new_syn_array(ty, array_info.dim);
-                cluster_expanded.push(RegisterBlockField {
-                    syn_field: new_syn_field(nb_name_sc, array_ty),
-                    description,
-                    offset: info.address_offset,
-                    size: cluster_size * array_info.dim,
-                    accessors,
-                });
-            } else if sequential_indexes_from0 && config.array_proxy {
-                // Include a ZST ArrayProxy giving indexed access to the
-                // elements.
-                let ap_path = array_proxy_type(ty, array_info);
-                let syn_field =
-                    new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), ap_path);
                 cluster_expanded.push(RegisterBlockField {
                     syn_field,
-                    description: info.description.as_ref().unwrap_or(&info.name).into(),
+                    description,
                     offset: info.address_offset,
-                    size: 0,
-                    accessors: Vec::new(),
+                    size: if array_convertible {
+                        cluster_size * array_info.dim
+                    } else {
+                        0
+                    },
+                    accessors,
                 });
             } else {
-                for ci in crate::svd::cluster::expand(info, array_info) {
+                for ci in svd::cluster::expand(info, array_info) {
                     let syn_field =
                         new_syn_field(ci.name.to_snake_case_ident(Span::call_site()), ty.clone());
 
@@ -1233,11 +1388,32 @@ fn expand_register(
                 } else {
                     ty_name.to_snake_case_ident(span)
                 };
-                let accessors = if sequential_indexes_from0 {
-                    Vec::new()
+                let comment = make_comment(
+                    register_size * array_info.dim,
+                    info.address_offset,
+                    &description,
+                );
+                let mut accessors = Vec::<Accessor>::with_capacity((array_info.dim + 1) as _);
+                accessors.push(if array_convertible {
+                    ArrayAccessor {
+                        doc: comment,
+                        name: nb_name_sc.clone(),
+                        ty: ty.clone(),
+                    }
+                    .into()
                 } else {
-                    let mut accessors = Vec::new();
-                    for (i, ri) in crate::svd::register::expand(info, array_info).enumerate() {
+                    RawArrayAccessor {
+                        doc: comment,
+                        name: nb_name_sc.clone(),
+                        ty: ty.clone(),
+                        offset: unsuffixed(info.address_offset),
+                        dim: unsuffixed(array_info.dim),
+                        increment: unsuffixed(array_info.dim_increment),
+                    }
+                    .into()
+                });
+                if !sequential_indexes_from0 {
+                    for (i, ri) in svd::register::expand(info, array_info).enumerate() {
                         let idx_name =
                             util::fullname(&ri.name, &info.alternate_group, config.ignore_groups)
                                 .to_snake_case_ident(span);
@@ -1246,16 +1422,18 @@ fn expand_register(
                             ri.address_offset,
                             ri.description.as_deref().unwrap_or(&ri.name),
                         );
-                        let i = unsuffixed(i as _);
-                        accessors.push(ArrayAccessor {
-                            doc: comment,
-                            name: idx_name,
-                            ty: ty.clone(),
-                            basename: nb_name_sc.clone(),
-                            i,
-                        });
+                        let i = unsuffixed(i as u64);
+                        accessors.push(
+                            ArrayElemAccessor {
+                                doc: comment,
+                                name: idx_name,
+                                ty: ty.clone(),
+                                basename: nb_name_sc.clone(),
+                                i,
+                            }
+                            .into(),
+                        );
                     }
-                    accessors
                 };
                 let array_ty = if array_convertible {
                     new_syn_array(ty, array_info.dim)
@@ -1275,7 +1453,7 @@ fn expand_register(
                     accessors,
                 });
             } else {
-                for ri in crate::svd::register::expand(info, array_info) {
+                for ri in svd::register::expand(info, array_info) {
                     let syn_field =
                         new_syn_field(ri.name.to_snake_case_ident(Span::call_site()), ty.clone());
 
@@ -1448,6 +1626,6 @@ fn new_syn_field(ident: Ident, ty: syn::Type) -> syn::Field {
 
 fn new_syn_array(ty: syn::Type, len: u32) -> syn::Type {
     let span = Span::call_site();
-    let len = unsuffixed(len as _);
+    let len = unsuffixed(len);
     syn::parse_quote_spanned!( span => [#ty; #len] )
 }

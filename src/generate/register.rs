@@ -14,7 +14,7 @@ use svd_parser::expand::{
 };
 
 use crate::util::{
-    self, ident_to_path, path_segment, replace_suffix, type_path, Config, FullName,
+    self, ident_to_path, path_segment, replace_suffix, type_path, unsuffixed, Config, FullName,
     ToSanitizedCase, U32Ext,
 };
 use anyhow::{anyhow, Result};
@@ -646,7 +646,7 @@ pub fn fields(
                 quote! { as #fty }
             };
             let value = if offset != 0 {
-                let offset = &util::unsuffixed(offset);
+                let offset = &unsuffixed(offset);
                 quote! { (self.bits >> #offset) }
             } else {
                 quote! { self.bits }
@@ -865,7 +865,7 @@ pub fn fields(
                     format!("{doc}\n\nNOTE: `n` is number of field in register. `n == 0` corresponds to `{first_name}` field");
                 let offset_calc = calculate_offset(increment, offset, true);
                 let value = quote! { ((self.bits >> #offset_calc) & #hexmask) #cast };
-                let dim = util::unsuffixed(de.dim as _);
+                let dim = unsuffixed(de.dim);
                 r_impl_items.extend(quote! {
                     #[doc = #array_doc]
                     #inline
@@ -879,7 +879,7 @@ pub fn fields(
                 for fi in svd::field::expand(&f, de) {
                     let sub_offset = fi.bit_offset() as u64;
                     let value = if sub_offset != 0 {
-                        let sub_offset = &util::unsuffixed(sub_offset);
+                        let sub_offset = &unsuffixed(sub_offset);
                         quote! { (self.bits >> #sub_offset) }
                     } else {
                         quote! { self.bits }
@@ -1040,7 +1040,7 @@ pub fn fields(
                         },
                         span,
                     );
-                    let width = &util::unsuffixed(width as _);
+                    let width = &unsuffixed(width);
                     if value_write_ty == "u8" {
                         quote! { crate::#wproxy<'a, REG, #width> }
                     } else {
@@ -1118,7 +1118,7 @@ pub fn fields(
                 let first_name = svd::array::names(f, de).next().unwrap();
                 let array_doc =
                     format!("{doc}\n\nNOTE: `n` is number of field in register. `n == 0` corresponds to `{first_name}` field");
-                let dim = util::unsuffixed(de.dim as _);
+                let dim = unsuffixed(de.dim);
                 w_impl_items.extend(quote! {
                     #[doc = #array_doc]
                     #inline
@@ -1138,7 +1138,7 @@ pub fn fields(
                         sub_offset,
                         width,
                     );
-                    let sub_offset = util::unsuffixed(sub_offset);
+                    let sub_offset = unsuffixed(sub_offset);
 
                     w_impl_items.extend(quote! {
                         #[doc = #doc]
@@ -1151,7 +1151,7 @@ pub fn fields(
                 }
             } else {
                 let doc = description_with_bits(description_raw, offset, width);
-                let offset = util::unsuffixed(offset);
+                let offset = unsuffixed(offset);
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
@@ -1301,7 +1301,7 @@ fn add_from_variants(
     for v in variants.iter().map(|v| {
         let desc = util::escape_special_chars(&util::respace(&format!("{}: {}", v.value, v.doc)));
         let pcv = &v.pc;
-        let pcval = &util::unsuffixed(v.value);
+        let pcval = &unsuffixed(v.value);
         quote! {
             #[doc = #desc]
             #pcv = #pcval,
@@ -1342,11 +1342,11 @@ fn add_from_variants(
 fn calculate_offset(increment: u32, offset: u64, with_parentheses: bool) -> TokenStream {
     let mut res = quote! { n };
     if increment != 1 {
-        let increment = util::unsuffixed(increment as u64);
+        let increment = unsuffixed(increment);
         res = quote! { #res * #increment };
     }
     if offset != 0 {
-        let offset = &util::unsuffixed(offset);
+        let offset = &unsuffixed(offset);
         res = quote! { #res + #offset };
     }
     let single_ident = (increment == 1) && (offset == 0);

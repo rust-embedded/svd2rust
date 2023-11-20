@@ -400,8 +400,8 @@ pub fn hex(n: u64) -> LitInt {
 }
 
 /// Turns `n` into an unsuffixed token
-pub fn unsuffixed(n: u64) -> LitInt {
-    LitInt::new(&n.to_string(), Span::call_site())
+pub fn unsuffixed(n: impl Into<u64>) -> LitInt {
+    LitInt::new(&n.into().to_string(), Span::call_site())
 }
 
 pub fn unsuffixed_or_bool(n: u64, width: u32) -> Lit {
