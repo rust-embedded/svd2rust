@@ -31,7 +31,7 @@ main() {
 
     case $OPTIONS in
         all)
-            options="--array_proxy --strict --atomics"
+            options="--strict --atomics"
             ;;
         *)
             options=$OPTIONS

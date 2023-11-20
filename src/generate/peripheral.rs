@@ -15,7 +15,7 @@ use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, Token};
 
 use crate::util::{
-    self, array_proxy_type, name_to_ty, path_segment, type_path, unsuffixed, Config, FullName,
+    self, name_to_ty, path_segment, type_path, unsuffixed, zst_type, Config, FullName,
     ToSanitizedCase, BITS_PER_BYTE,
 };
 use anyhow::{anyhow, bail, Context, Result};
@@ -1040,7 +1040,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
 
             let array_convertible = sequential_addresses && convert_list;
 
-            if array_convertible || config.array_proxy {
+            if !convert_list {
                 let span = Span::call_site();
                 let nb_name_sc = if let Some(dim_name) = array_info.dim_name.as_ref() {
                     dim_name.to_snake_case_ident(span)
@@ -1095,15 +1095,12 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         );
                     }
                 }
-                let syn_field = if array_convertible {
-                    let array_ty = new_syn_array(ty, array_info.dim);
-                    new_syn_field(nb_name_sc, array_ty)
+                let array_ty = if array_convertible {
+                    new_syn_array(ty, array_info.dim)
                 } else {
-                    // Include a ZST ArrayProxy giving indexed access to the
-                    // elements.
-                    let ap_path = array_proxy_type(ty, array_info);
-                    new_syn_field(ty_name.to_snake_case_ident(Span::call_site()), ap_path)
+                    zst_type()
                 };
+                let syn_field = new_syn_field(nb_name_sc, array_ty);
                 cluster_expanded.push(RegisterBlockField {
                     syn_field,
                     offset: info.address_offset,
@@ -1226,7 +1223,7 @@ fn expand_register(
             let array_proxy_convertible = ac && disjoint_sequential_addresses;
             let ty = name_to_ty(&ty_name);
 
-            if array_convertible || (array_proxy_convertible && config.array_proxy) {
+            if array_convertible || array_proxy_convertible {
                 let span = Span::call_site();
                 let nb_name_sc = if let Some(dim_name) = array_info.dim_name.as_ref() {
                     util::fullname(dim_name, &info.alternate_group, config.ignore_groups)
@@ -1287,7 +1284,7 @@ fn expand_register(
                 let array_ty = if array_convertible {
                     new_syn_array(ty, array_info.dim)
                 } else {
-                    array_proxy_type(ty, array_info)
+                    zst_type()
                 };
                 let syn_field = new_syn_field(nb_name_sc, array_ty);
                 register_expanded.push(RegisterBlockField {

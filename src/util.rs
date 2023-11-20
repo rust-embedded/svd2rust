@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::svd::{Access, Device, DimElement, Field, RegisterInfo, RegisterProperties};
+use crate::svd::{Access, Device, Field, RegisterInfo, RegisterProperties};
 use html_escape::encode_text_minimal;
 use inflections::Inflect;
 use proc_macro2::{Ident, Span, TokenStream};
@@ -10,8 +10,7 @@ use std::path::{Path, PathBuf};
 use svd_rs::{MaybeArray, Peripheral, PeripheralInfo};
 
 use syn::{
-    punctuated::Punctuated, token::PathSep, AngleBracketedGenericArguments, GenericArgument, Lit,
-    LitInt, PathArguments, PathSegment, Token, Type, TypePath,
+    punctuated::Punctuated, token::PathSep, Lit, LitInt, PathArguments, PathSegment, Type, TypePath,
 };
 
 use anyhow::{anyhow, bail, Result};
@@ -35,8 +34,6 @@ pub struct Config {
     pub generic_mod: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub make_mod: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub array_proxy: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub ignore_groups: bool,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -118,7 +115,6 @@ impl Default for Config {
             atomics_feature: None,
             generic_mod: false,
             make_mod: false,
-            array_proxy: false,
             ignore_groups: false,
             keep_list: false,
             strict: false,
@@ -419,30 +415,11 @@ pub fn new_syn_u32(len: u32, span: Span) -> syn::Expr {
     })
 }
 
-pub fn array_proxy_type(ty: Type, array_info: &DimElement) -> Type {
-    let span = Span::call_site();
-    let inner_path = GenericArgument::Type(ty);
-    let mut args = Punctuated::new();
-    args.push(inner_path);
-    args.push(GenericArgument::Const(new_syn_u32(array_info.dim, span)));
-    args.push(GenericArgument::Const(syn::Expr::Lit(syn::ExprLit {
-        attrs: Vec::new(),
-        lit: syn::Lit::Int(hex(array_info.dim_increment as u64)),
-    })));
-    let arguments = PathArguments::AngleBracketed(AngleBracketedGenericArguments {
-        colon2_token: None,
-        lt_token: Token![<](span),
-        args,
-        gt_token: Token![>](span),
-    });
-
-    let mut segments = Punctuated::new();
-    segments.push(path_segment(Ident::new("crate", span)));
-    segments.push(PathSegment {
-        ident: Ident::new("ArrayProxy", span),
-        arguments,
-    });
-    Type::Path(type_path(segments))
+pub fn zst_type() -> Type {
+    Type::Tuple(syn::TypeTuple {
+        paren_token: syn::token::Paren::default(),
+        elems: Punctuated::new(),
+    })
 }
 
 pub fn name_to_ty(name: &str) -> Type {
