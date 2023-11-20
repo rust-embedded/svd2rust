@@ -1015,6 +1015,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
             })
         }
         Cluster::Array(info, array_info) => {
+            let ends_with_index = info.name.ends_with("[%s]") || info.name.ends_with("%s");
             let increment_bits = array_info.dim_increment * BITS_PER_BYTE;
             if cluster_size > increment_bits {
                 let cname = &cluster.name;
@@ -1074,7 +1075,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                     }
                     .into()
                 });
-                if !sequential_indexes_from0 {
+                if !sequential_indexes_from0 || !ends_with_index {
                     for (i, ci) in svd::cluster::expand(info, array_info).enumerate() {
                         let idx_name = ci.name.to_snake_case_ident(span);
                         let doc = make_comment(
@@ -1184,6 +1185,7 @@ fn expand_register(
             })
         }
         Register::Array(info, array_info) => {
+            let ends_with_index = info.name.ends_with("[%s]") || info.name.ends_with("%s");
             let sequential_addresses = (array_info.dim == 1)
                 || (register_size == array_info.dim_increment * BITS_PER_BYTE);
             let disjoint_sequential_addresses = (array_info.dim == 1)
@@ -1258,7 +1260,7 @@ fn expand_register(
                     }
                     .into()
                 });
-                if !sequential_indexes_from0 {
+                if !sequential_indexes_from0 || !ends_with_index {
                     for (i, ri) in svd::register::expand(info, array_info).enumerate() {
                         let idx_name =
                             util::fullname(&ri.name, &info.alternate_group, config.ignore_groups)

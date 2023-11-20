@@ -171,7 +171,7 @@
 //!
 //! ```ignore
 //! let mut peripherals = stm32f30x::Peripherals::take().unwrap();
-//! peripherals.GPIOA.odr.write(|w| w.bits(1));
+//! peripherals.GPIOA.odr().write(|w| w.bits(1));
 //! ```
 //!
 //! This method can only be successfully called *once* -- that's why the method returns an `Option`.
@@ -195,7 +195,7 @@
 //! impl PA0 {
 //!     fn is_high(&self) -> bool {
 //!         // NOTE(unsafe) actually safe because this is an atomic read with no side effects
-//!         unsafe { (*GPIOA::ptr()).idr.read().bits() & 1 != 0 }
+//!         unsafe { (*GPIOA::ptr()).idr().read().bits() & 1 != 0 }
 //!     }
 //!
 //!     fn is_low(&self) -> bool {
@@ -315,7 +315,7 @@
 //!
 //! ```ignore
 //! // is the SADD0 bit of the CR2 register set?
-//! if i2c1.c2r.read().sadd0().bit() {
+//! if i2c1.c2r().read().sadd0().bit() {
 //!     // yes
 //! } else {
 //!     // no
@@ -330,7 +330,7 @@
 //! Usage looks like this:
 //!
 //! ```ignore
-//! if i2c1.c2r.write().reset()
+//! if i2c1.c2r().write().reset()
 //! ```
 //!
 //! ## `write`
@@ -360,7 +360,7 @@
 //! // Starting from the reset value, `0x0000_0000`, change the bitfields SADD0
 //! // and SADD1 to `1` and `0b0011110` respectively and write that to the
 //! // register CR2.
-//! i2c1.cr2.write(|w| unsafe { w.sadd0().bit(true).sadd1().bits(0b0011110) });
+//! i2c1.cr2().write(|w| unsafe { w.sadd0().bit(true).sadd1().bits(0b0011110) });
 //! // NOTE ^ unsafe because you could be writing a reserved bit pattern into
 //! // the register. In this case, the SVD doesn't provide enough information to
 //! // check whether that's the case.
@@ -383,10 +383,10 @@
 //!
 //! ```ignore
 //! // Set the START bit to 1 while KEEPING the state of the other bits intact
-//! i2c1.cr2.modify(|_, w| unsafe { w.start().bit(true) });
+//! i2c1.cr2().modify(|_, w| unsafe { w.start().bit(true) });
 //!
 //! // TOGGLE the STOP bit, all the other bits will remain untouched
-//! i2c1.cr2.modify(|r, w| w.stop().bit(!r.stop().bit()));
+//! i2c1.cr2().modify(|r, w| w.stop().bit(!r.stop().bit()));
 //! ```
 //!
 //! # enumeratedValues
@@ -399,7 +399,7 @@
 //! The new `read` API returns an enum that you can match:
 //!
 //! ```ignore
-//! match gpioa.dir.read().pin0().variant() {
+//! match gpioa.dir().read().pin0().variant() {
 //!     gpioa::dir::PIN0_A::Input => { .. },
 //!     gpioa::dir::PIN0_A::Output => { .. },
 //! }
@@ -408,7 +408,7 @@
 //! or test for equality
 //!
 //! ```ignore
-//! if gpioa.dir.read().pin0().variant() == gpio::dir::PIN0_A::Input {
+//! if gpioa.dir().read().pin0().variant() == gpio::dir::PIN0_A::Input {
 //!     ..
 //! }
 //! ```
@@ -417,11 +417,11 @@
 //! having to import the enum:
 //!
 //! ```ignore
-//! if gpioa.dir.read().pin0().is_input() {
+//! if gpioa.dir().read().pin0().is_input() {
 //!     ..
 //! }
 //!
-//! if gpioa.dir.read().pin0().is_output() {
+//! if gpioa.dir().read().pin0().is_output() {
 //!     ..
 //! }
 //! ```
@@ -429,7 +429,7 @@
 //! The original `bits` method is available as well:
 //!
 //! ```ignore
-//! if gpioa.dir.read().pin0().bits() == 0 {
+//! if gpioa.dir().read().pin0().bits() == 0 {
 //!     ..
 //! }
 //! ```
@@ -439,14 +439,14 @@
 //!
 //! ```ignore
 //! // enum PIN0_A { Input, Output }
-//! gpioa.dir.write(|w| w.pin0().variant(gpio::dir::PIN0_A::Output));
+//! gpioa.dir().write(|w| w.pin0().variant(gpio::dir::PIN0_A::Output));
 //! ```
 //!
 //! There are convenience methods to pick one of the variants without having to
 //! import the enum:
 //!
 //! ```ignore
-//! gpioa.dir.write(|w| w.pin0().output());
+//! gpioa.dir().write(|w| w.pin0().output());
 //! ```
 //!
 //! The `bits` (or `bit`) method is still available but will become safe if it's
@@ -454,7 +454,7 @@
 //!
 //! ```ignore
 //! // safe because there are only two options: `0` or `1`
-//! gpioa.dir.write(|w| w.pin0().bit(true));
+//! gpioa.dir().write(|w| w.pin0().bit(true));
 //! ```
 //!
 //! # Interrupt API
@@ -513,9 +513,9 @@
 //!
 //! ```ignore
 //! // These can be called from different contexts even though they are modifying the same register
-//! P1.p1out.set_bits(|w| unsafe { w.bits(1 << 1) });
-//! P1.p1out.clear_bits(|w| unsafe { w.bits(!(1 << 2)) });
-//! P1.p1out.toggle_bits(|w| unsafe { w.bits(1 << 4) });
+//! P1.p1out().set_bits(|w| unsafe { w.bits(1 << 1) });
+//! P1.p1out().clear_bits(|w| unsafe { w.bits(!(1 << 2)) });
+//! P1.p1out().toggle_bits(|w| unsafe { w.bits(1 << 4) });
 //! // if impl_debug was used one can print Registers or RegisterBlocks
 //! // print single register
 //! println!("RTC_CNT {:#?}", unsafe { &*esp32s3::RTC_CNTL::ptr() }.options0);
