@@ -223,29 +223,40 @@
 //! /// Inter-integrated circuit
 //! pub mod i2c1 {
 //!     /// Register block
+//!     #[repr(C)]
 //!     pub struct RegisterBlock {
+//!         cr1: CR1,
+//!         cr2: CR2,
+//!         oar1: OAR1,
+//!         oar2: OAR2,
+//!         dr: DR,
+//!     }
+//!     impl RegisterBlock {
 //!         /// 0x00 - Control register 1
-//!         pub cr1: CR1,
+//!         #[inline(always)]
+//!         pub const fn cr1(&self) -> &CR1 {
+//!             &self.cr1
+//!         }
 //!         /// 0x04 - Control register 2
-//!         pub cr2: CR2,
+//!         #[inline(always)]
+//!         pub const fn cr2(&self) -> &CR2 {
+//!             &self.cr2
+//!         }
 //!         /// 0x08 - Own address register 1
-//!         pub oar1: OAR1,
-//!         /// 0x0c - Own address register 2
-//!         pub oar2: OAR2,
-//!         /// 0x10 - Timing register
-//!         pub timingr: TIMINGR,
-//!         /// Status register 1
-//!         pub timeoutr: TIMEOUTR,
-//!         /// Interrupt and Status register
-//!         pub isr: ISR,
-//!         /// 0x1c - Interrupt clear register
-//!         pub icr: ICR,
-//!         /// 0x20 - PEC register
-//!         pub pecr: PECR,
-//!         /// 0x24 - Receive data register
-//!         pub rxdr: RXDR,
-//!         /// 0x28 - Transmit data register
-//!         pub txdr: TXDR,
+//!         #[inline(always)]
+//!         pub const fn oar1(&self) -> &OAR1 {
+//!             &self.oar1
+//!         }
+//!         #[doc = "0x0c - Own address register 2"]
+//!         #[inline(always)]
+//!         pub const fn oar2(&self) -> &OAR2 {
+//!             &self.oar2
+//!         }
+//!         #[doc = "0x10 - Data register"]
+//!         #[inline(always)]
+//!         pub const fn dr(&self) -> &DR {
+//!             &self.dr
+//!         }
 //!     }
 //! }
 //! ```
