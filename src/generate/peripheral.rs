@@ -1460,20 +1460,9 @@ fn cluster_block(
 
 fn new_syn_field(ident: Ident, ty: syn::Type) -> syn::Field {
     let span = Span::call_site();
-    let mut segments = Punctuated::new();
-    segments.push(path_segment(Ident::new("crate", span)));
-    let crate_path = syn::Path {
-        leading_colon: None,
-        segments,
-    };
     syn::Field {
         ident: Some(ident),
-        vis: syn::Visibility::Restricted(syn::VisRestricted {
-            pub_token: Token![pub](span),
-            paren_token: Default::default(),
-            in_token: None,
-            path: Box::new(crate_path),
-        }),
+        vis: syn::Visibility::Inherited,
         attrs: vec![],
         colon_token: Some(Token![:](span)),
         ty,
