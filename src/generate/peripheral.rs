@@ -81,7 +81,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 let name = &pi.name;
                 let description = pi.description.as_deref().unwrap_or(&p.name);
                 let name_str = name.to_sanitized_constant_case();
-                let name_constant_case = Ident::new(&name, span);
+                let name_constant_case = Ident::new(name, span);
                 let address = util::hex(pi.base_address);
                 let p_snake = name.to_sanitized_snake_case();
                 snake_names.push(p_snake.to_string());

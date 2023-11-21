@@ -1,14 +1,14 @@
 use crate::svd::{
-    self, Access, BitRange, DimElement, EnumeratedValues, Field, MaybeArray, ModifiedWriteValues,
-    ReadAction, Register, RegisterProperties, Usage, WriteConstraint,
+    self, Access, BitRange, DimElement, EnumeratedValue, EnumeratedValues, Field, MaybeArray,
+    ModifiedWriteValues, ReadAction, Register, RegisterProperties, Usage, WriteConstraint,
 };
 use core::u64;
 use log::warn;
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
-use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt::Write;
+use std::{borrow::Cow, collections::BTreeMap};
 use svd_parser::expand::{
     derive_enumerated_values, derive_field, BlockPath, EnumPath, FieldPath, Index, RegisterPath,
 };
@@ -472,7 +472,7 @@ fn render_register_mod_debug(
             log::debug!("register={} field={}", name, f.name);
             if field_access.can_read() && f.read_action.is_none() {
                 if let Field::Array(_, de) = &f {
-                    for (_, suffix) in de.indexes().enumerate() {
+                    for suffix in de.indexes() {
                         let f_name_n = util::replace_suffix(&f.name, &suffix)
                             .to_snake_case_ident(Span::call_site());
                         let f_name_n_s = format!("{f_name_n}");
@@ -730,11 +730,24 @@ pub fn fields(
                 // later on is the same as the read enumeration, we reuse and do not generate again.
                 evs_r = Some(evs);
 
-                // do we have finite definition of this enumeration in svd? If not, the later code would
-                // return an Option when the value read from field does not match any defined values.
-                let has_reserved_variant = evs.values.len() != (1 << width);
                 // parse enum variants from enumeratedValues svd record
-                let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
+                let mut variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
+
+                let map = enums_to_map(evs);
+                let mut def = evs
+                    .default_value()
+                    .and_then(|def| {
+                        minimal_hole(&map, width)
+                            .map(|v| Variant::from_value(v, def, config.pascal_enum_values))
+                    })
+                    .transpose()?;
+                if variants.len() == 1 << width {
+                    def = None;
+                } else if variants.len() == (1 << width) - 1 {
+                    if let Some(def) = def.take() {
+                        variants.push(def);
+                    }
+                }
 
                 // if there's no variant defined in enumeratedValues, generate enumeratedValues with new-type
                 // wrapper struct, and generate From conversation only.
@@ -743,8 +756,33 @@ pub fn fields(
                     // generate struct VALUE_READ_TY_A(fty) and From<fty> for VALUE_READ_TY_A.
                     add_with_no_variants(mod_items, &value_read_ty, &fty, &description, rv);
                 } else {
+                    // do we have finite definition of this enumeration in svd? If not, the later code would
+                    // return an Option when the value read from field does not match any defined values.
+                    let has_reserved_variant;
+
                     // generate enum VALUE_READ_TY_A { ... each variants ... } and and From<fty> for VALUE_READ_TY_A.
-                    add_from_variants(mod_items, &variants, &value_read_ty, &fty, &description, rv);
+                    if let Some(def) = def.as_ref() {
+                        add_from_variants_with_default(
+                            mod_items,
+                            &variants,
+                            def,
+                            &value_read_ty,
+                            &fty,
+                            &description,
+                            rv,
+                        );
+                        has_reserved_variant = false;
+                    } else {
+                        add_from_variants(
+                            mod_items,
+                            &variants,
+                            &value_read_ty,
+                            &fty,
+                            &description,
+                            rv,
+                        );
+                        has_reserved_variant = evs.values.len() != (1 << width);
+                    }
 
                     // prepare code for each match arm. If we have reserved variant, the match operation would
                     // return an Option, thus we wrap the return value with Some.
@@ -771,6 +809,11 @@ pub fn fields(
                         arms.extend(quote! {
                             _ => None,
                         });
+                    } else if let Some(v) = def.as_ref() {
+                        let pc = &v.pc;
+                        arms.extend(quote! {
+                            _ => #value_read_ty::#pc,
+                        });
                     } else if 1 << width.to_ty_width()? != variants.len() {
                         arms.extend(quote! {
                             _ => unreachable!(),
@@ -779,26 +822,20 @@ pub fn fields(
 
                     // prepare the `variant` function. This function would return field value in
                     // Rust structure; if we have reserved variant we return by Option.
-                    if has_reserved_variant {
-                        enum_items.extend(quote! {
-                            #[doc = "Get enumerated values variant"]
-                            #inline
-                            pub const fn variant(&self) -> Option<#value_read_ty> {
-                                match self.bits {
-                                    #arms
-                                }
-                            }
-                        });
+                    let ret_ty = if has_reserved_variant {
+                        quote!(Option<#value_read_ty>)
                     } else {
-                        enum_items.extend(quote! {
+                        quote!(#value_read_ty)
+                    };
+                    enum_items.extend(quote! {
                         #[doc = "Get enumerated values variant"]
                         #inline
-                        pub const fn variant(&self) -> #value_read_ty {
+                        pub const fn variant(&self) -> #ret_ty {
                             match self.bits {
                                 #arms
                             }
-                        }});
-                    }
+                        }
+                    });
 
                     // for each variant defined, we generate an `is_variant` function.
                     for v in &variants {
@@ -820,6 +857,28 @@ pub fn fields(
                             #inline
                             pub fn #is_variant(&self) -> bool {
                                 *self == #value_read_ty::#pc
+                            }
+                        });
+                    }
+                    if let Some(v) = def.as_ref() {
+                        let pc = &v.pc;
+                        let sc = &v.nksc;
+
+                        let is_variant = Ident::new(
+                            &if sc.to_string().starts_with('_') {
+                                format!("is{sc}")
+                            } else {
+                                format!("is_{sc}")
+                            },
+                            span,
+                        );
+
+                        let doc = util::escape_special_chars(&util::respace(&v.doc));
+                        enum_items.extend(quote! {
+                            #[doc = #doc]
+                            #inline
+                            pub fn #is_variant(&self) -> bool {
+                                matches!(self.variant(), #value_read_ty::#pc)
                             }
                         });
                     }
@@ -876,7 +935,7 @@ pub fn fields(
                     }
                 });
 
-                for fi in svd::field::expand(&f, de) {
+                for fi in svd::field::expand(f, de) {
                     let sub_offset = fi.bit_offset() as u64;
                     let value = if sub_offset != 0 {
                         let sub_offset = &unsuffixed(sub_offset);
@@ -961,7 +1020,20 @@ pub fn fields(
             // if we writes to enumeratedValues, generate its structure if it differs from read structure.
             if let Some((evs, None)) = lookup_filter(&lookup_results, Usage::Write) {
                 // parse variants from enumeratedValues svd record
-                let variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
+                let mut variants = Variant::from_enumerated_values(evs, config.pascal_enum_values)?;
+                let map = enums_to_map(evs);
+                let mut def = evs
+                    .default_value()
+                    .and_then(|def| {
+                        minimal_hole(&map, width)
+                            .map(|v| Variant::from_value(v, def, config.pascal_enum_values))
+                    })
+                    .transpose()?;
+                if variants.len() == 1 << width {
+                } else if let Some(def) = def.take() {
+                    variants.push(def);
+                    unsafety = false;
+                }
 
                 // if the write structure is finite, it can be safely written.
                 if variants.len() == 1 << width {
@@ -1130,7 +1202,7 @@ pub fn fields(
                     }
                 });
 
-                for fi in svd::field::expand(&f, de) {
+                for fi in svd::field::expand(f, de) {
                     let sub_offset = fi.bit_offset() as u64;
                     let name_snake_case_n = &fi.name.to_snake_case_ident(Span::call_site());
                     let doc = description_with_bits(
@@ -1212,35 +1284,37 @@ struct Variant {
 
 impl Variant {
     fn from_enumerated_values(evs: &EnumeratedValues, pc: bool) -> Result<Vec<Self>> {
-        let span = Span::call_site();
         evs.values
             .iter()
             // filter out all reserved variants, as we should not
             // generate code for them
-            .filter(|field| field.name.to_lowercase() != "reserved" && field.is_default.is_none())
+            .filter(|ev| ev.name.to_lowercase() != "reserved" && !ev.is_default())
             .map(|ev| {
                 let value = ev
                     .value
-                    .ok_or_else(|| anyhow!("EnumeratedValue {} has no `<value>` field", ev.name))?;
-
-                let nksc = ev.name.to_sanitized_not_keyword_snake_case();
-                let sc = util::sanitize_keyword(nksc.clone());
-                Ok(Variant {
-                    doc: ev
-                        .description
-                        .clone()
-                        .unwrap_or_else(|| format!("`{value:b}`")),
-                    pc: if pc {
-                        ev.name.to_pascal_case_ident(span)
-                    } else {
-                        ev.name.to_constant_case_ident(span)
-                    },
-                    nksc: Ident::new(&nksc, span),
-                    sc: Ident::new(&sc, span),
-                    value,
-                })
+                    .ok_or_else(|| anyhow!("EnumeratedValue {} has no `<value>` entry", ev.name))?;
+                Self::from_value(value, ev, pc)
             })
             .collect::<Result<Vec<_>>>()
+    }
+    fn from_value(value: u64, ev: &EnumeratedValue, pc: bool) -> Result<Self> {
+        let span = Span::call_site();
+        let nksc = ev.name.to_sanitized_not_keyword_snake_case();
+        let sc = util::sanitize_keyword(nksc.clone());
+        Ok(Variant {
+            doc: ev
+                .description
+                .clone()
+                .unwrap_or_else(|| format!("`{value:b}`")),
+            pc: if pc {
+                ev.name.to_pascal_case_ident(span)
+            } else {
+                ev.name.to_constant_case_ident(span)
+            },
+            nksc: Ident::new(&nksc, span),
+            sc: Ident::new(&sc, span),
+            value,
+        })
     }
 }
 
@@ -1399,4 +1473,84 @@ fn lookup_filter(
     evs.iter()
         .find(|evsbase| evsbase.0.usage == Some(usage))
         .or_else(|| evs.first())
+}
+
+fn enums_to_map(evs: &EnumeratedValues) -> BTreeMap<u64, &EnumeratedValue> {
+    let mut map = BTreeMap::new();
+    for ev in &evs.values {
+        if let Some(v) = ev.value {
+            map.insert(v, ev);
+        }
+    }
+    map
+}
+
+fn minimal_hole(map: &BTreeMap<u64, &EnumeratedValue>, width: u32) -> Option<u64> {
+    (0..(1u64 << width)).find(|&v| !map.contains_key(&v))
+}
+
+fn add_from_variants_with_default(
+    mod_items: &mut TokenStream,
+    variants: &[Variant],
+    default: &Variant,
+    pc: &Ident,
+    fty: &Ident,
+    desc: &str,
+    reset_value: Option<u64>,
+) {
+    let repr = if fty == "bool" {
+        quote!()
+    } else {
+        quote! { #[repr(#fty)] }
+    };
+
+    let mut vars = TokenStream::new();
+    let mut casts = TokenStream::new();
+    for (v, c) in variants.iter().chain(std::iter::once(default)).map(|v| {
+        let desc = util::escape_special_chars(&util::respace(&format!("{}: {}", v.value, v.doc)));
+        let pcv = &v.pc;
+        let pcval = &util::unsuffixed(v.value);
+        (
+            quote! {
+                #[doc = #desc]
+                #pcv,
+            },
+            quote! {
+                #pc::#pcv => #pcval,
+            },
+        )
+    }) {
+        vars.extend(v);
+        casts.extend(c);
+    }
+
+    let desc = if let Some(rv) = reset_value {
+        format!("{desc}\n\nValue on reset: {rv}")
+    } else {
+        desc.to_string()
+    };
+
+    mod_items.extend(quote! {
+        #[doc = #desc]
+        #[derive(Clone, Copy, Debug, PartialEq)]
+        #repr
+        pub enum #pc {
+            #vars
+        }
+        impl From<#pc> for #fty {
+            #[inline(always)]
+            fn from(variant: #pc) -> Self {
+                match variant {
+                    #casts
+                }
+            }
+        }
+    });
+    if fty != "bool" {
+        mod_items.extend(quote! {
+            impl crate::FieldSpec for #pc {
+                type Ux = #fty;
+            }
+        });
+    }
 }
