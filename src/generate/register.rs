@@ -1498,14 +1498,8 @@ fn add_from_variants_with_default(
     desc: &str,
     reset_value: Option<u64>,
 ) {
-    let repr = if fty == "bool" {
-        quote!()
-    } else {
-        quote! { #[repr(#fty)] }
-    };
-
     let mut vars = TokenStream::new();
-    let mut casts = TokenStream::new();
+    let mut arms = TokenStream::new();
     for (v, c) in variants.iter().chain(std::iter::once(default)).map(|v| {
         let desc = util::escape_special_chars(&util::respace(&format!("{}: {}", v.value, v.doc)));
         let pcv = &v.pc;
@@ -1513,7 +1507,7 @@ fn add_from_variants_with_default(
         (
             quote! {
                 #[doc = #desc]
-                #pcv,
+                #pcv = #pcval,
             },
             quote! {
                 #pc::#pcv => #pcval,
@@ -1521,7 +1515,7 @@ fn add_from_variants_with_default(
         )
     }) {
         vars.extend(v);
-        casts.extend(c);
+        arms.extend(c);
     }
 
     let desc = if let Some(rv) = reset_value {
@@ -1533,7 +1527,6 @@ fn add_from_variants_with_default(
     mod_items.extend(quote! {
         #[doc = #desc]
         #[derive(Clone, Copy, Debug, PartialEq)]
-        #repr
         pub enum #pc {
             #vars
         }
@@ -1541,7 +1534,7 @@ fn add_from_variants_with_default(
             #[inline(always)]
             fn from(variant: #pc) -> Self {
                 match variant {
-                    #casts
+                    #arms
                 }
             }
         }
