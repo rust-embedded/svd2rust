@@ -538,10 +538,11 @@
 use quote::quote;
 use svd_parser::svd;
 
+pub mod config;
 pub mod generate;
 pub mod util;
 
-pub use crate::util::{Config, Target};
+pub use config::{Config, Target};
 
 #[non_exhaustive]
 pub struct Generation {
@@ -599,9 +600,9 @@ pub fn generate(input: &str, config: &Config) -> Result<Generation> {
     })
 }
 
-/// Load a [Device](svd::Device) from a string slice with given [config](crate::util::Config).
-pub fn load_from(input: &str, config: &crate::util::Config) -> Result<svd::Device> {
-    use self::util::SourceType;
+/// Load a [Device](svd::Device) from a string slice with given [config](crate::config::Config).
+pub fn load_from(input: &str, config: &Config) -> Result<svd::Device> {
+    use config::SourceType;
     use svd_parser::ValidateLevel;
 
     let mut device = match config.source_type {

@@ -6,6 +6,7 @@ use svd_parser::expand::{
     derive_cluster, derive_peripheral, derive_register, BlockPath, Index, RegisterPath,
 };
 
+use crate::config::Config;
 use crate::svd::{
     self, Cluster, ClusterInfo, MaybeArray, Peripheral, Register, RegisterCluster, RegisterInfo,
 };
@@ -15,8 +16,8 @@ use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, Token};
 
 use crate::util::{
-    self, name_to_ty, path_segment, type_path, unsuffixed, zst_type, Config, FullName,
-    ToSanitizedCase, BITS_PER_BYTE,
+    self, name_to_ty, path_segment, type_path, unsuffixed, zst_type, FullName, ToSanitizedCase,
+    BITS_PER_BYTE,
 };
 use anyhow::{anyhow, bail, Context, Result};
 

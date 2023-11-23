@@ -13,8 +13,9 @@ use svd_parser::expand::{
     derive_enumerated_values, derive_field, BlockPath, EnumPath, FieldPath, Index, RegisterPath,
 };
 
+use crate::config::Config;
 use crate::util::{
-    self, ident_to_path, path_segment, replace_suffix, type_path, unsuffixed, Config, FullName,
+    self, ident_to_path, path_segment, replace_suffix, type_path, unsuffixed, FullName,
     ToSanitizedCase, U32Ext,
 };
 use anyhow::{anyhow, Result};

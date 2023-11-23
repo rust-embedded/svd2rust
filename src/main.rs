@@ -10,8 +10,9 @@ use anyhow::{Context, Result};
 use clap::{Arg, ArgAction, Command};
 
 use svd2rust::{
+    config::{Config, SourceType, Target},
     generate, load_from,
-    util::{self, build_rs, Config, SourceType, Target},
+    util::{self, build_rs},
 };
 
 fn parse_configs(app: Command) -> Result<Config> {

@@ -7,8 +7,8 @@ use std::borrow::Cow;
 use std::fs::File;
 use std::io::Write;
 
-use crate::util::{self, Config, ToSanitizedCase};
-use crate::Target;
+use crate::config::{Config, Target};
+use crate::util::{self, ToSanitizedCase};
 use anyhow::{Context, Result};
 
 use crate::generate::{interrupt, peripheral};
