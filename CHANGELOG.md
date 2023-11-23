@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Use methods to access any register or cluster
 - Remove all deny lints from generated crate
-- Add `reexport_core_peripherals` and `reexport_interrupt` features disabled by default
+- Add `reexport-core-peripherals` and `reexport-interrupt` features disabled by default
 - ~~rename `const-generic` feature to `array_proxy`~~ remove `ArrayProxy`
 - `FieldWriter` takes offset as struct field instead of const generic.
   Improves SVD field array access
