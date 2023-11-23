@@ -47,6 +47,7 @@ fn run() -> Result<()> {
         .arg(
             Arg::new("output_dir")
                 .long("output-dir")
+                .alias("output_dir")
                 .help("Directory to place generated files")
                 .short('o')
                 .action(ArgAction::Set)
@@ -75,58 +76,67 @@ fn run() -> Result<()> {
         )
         .arg(
             Arg::new("atomics_feature")
-                .long("atomics_feature")
+                .long("atomics-feature")
+                .alias("atomics_feature")
                 .help("add feature gating for atomic register modification API")
                 .action(ArgAction::Set)
                 .value_name("FEATURE"),
         )
         .arg(
             Arg::new("ignore_groups")
-                .long("ignore_groups")
+                .long("ignore-groups")
+                .alias("ignore_groups")
                 .action(ArgAction::SetTrue)
                 .help("Don't add alternateGroup name as prefix to register name"),
         )
         .arg(
             Arg::new("keep_list")
-            .long("keep_list")
+            .long("keep-list")
+            .alias("keep_list")
             .action(ArgAction::SetTrue)
             .help(
             "Keep lists when generating code of dimElement, instead of trying to generate arrays",
         ))
         .arg(
             Arg::new("generic_mod")
-                .long("generic_mod")
+                .long("generic-mod")
+                .alias("generic_mod")
                 .short('g')
                 .action(ArgAction::SetTrue)
                 .help("Push generic mod in separate file"),
         )
         .arg(
             Arg::new("feature_group")
-                .long("feature_group")
+                .long("feature-group")
+                .alias("feature_group")
                 .action(ArgAction::SetTrue)
                 .help("Use group_name of peripherals as feature"),
         )
         .arg(
             Arg::new("feature_peripheral")
-                .long("feature_peripheral")
+                .long("feature-peripheral")
+                .alias("feature_peripheral")
                 .action(ArgAction::SetTrue)
                 .help("Use independent cfg feature flags for each peripheral"),
         )
         .arg(
             Arg::new("max_cluster_size")
-                .long("max_cluster_size")
+                .long("max-cluster-size")
+                .alias("max_cluster_size")
                 .action(ArgAction::SetTrue)
                 .help("Use array increment for cluster size"),
         )
         .arg(
             Arg::new("impl_debug")
-                .long("impl_debug")
+                .long("impl-debug")
+                .alias("impl_debug")
                 .action(ArgAction::SetTrue)
                 .help("implement Debug for readable blocks and registers"),
         )
         .arg(
             Arg::new("impl_debug_feature")
-                .long("impl_debug_feature")
+                .long("impl-debug-feature")
+                .alias("impl_debug_feature")
                 .help("Add feature gating for block and register debug implementation")
                 .action(ArgAction::Set)
                 .value_name("FEATURE"),
@@ -141,7 +151,8 @@ fn run() -> Result<()> {
         )
         .arg(
             Arg::new("make_mod")
-                .long("make_mod")
+                .long("make-mod")
+                .alias("make_mod")
                 .short('m')
                 .action(ArgAction::SetTrue)
                 .help("Create mod.rs instead of lib.rs, without inner attributes"),
@@ -155,24 +166,28 @@ fn run() -> Result<()> {
         )
         .arg(
             Arg::new("pascal_enum_values")
-                .long("pascal_enum_values")
+                .long("pascal-enum-values")
+                .alias("pascal_enum_values")
                 .action(ArgAction::SetTrue)
                 .help("Use PascalCase in stead of UPPER_CASE for enumerated values"),
         )
         .arg(
             Arg::new("source_type")
-                .long("source_type")
+                .long("source-type")
+                .alias("source_type")
                 .help("Specify file/stream format"),
         )
         .arg(
             Arg::new("reexport_core_peripherals")
-                .long("reexport_core_peripherals")
+                .long("reexport-core-peripherals")
+                .alias("reexport_core_peripherals")
                 .action(ArgAction::SetTrue)
                 .help("For Cortex-M target reexport peripherals from cortex-m crate"),
         )
         .arg(
             Arg::new("reexport_interrupt")
-                .long("reexport_interrupt")
+                .long("reexport-interrupt")
+                .alias("reexport_interrupt")
                 .action(ArgAction::SetTrue)
                 .help("Reexport interrupt macro from cortex-m-rt like crates"),
         )

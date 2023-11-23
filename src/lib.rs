@@ -77,6 +77,11 @@
 //! rt = ["cortex-m-rt/device"]
 //! ```
 //!
+//! ## the `--reexport-core-peripherals` flag
+//!
+//! With `--reexport-core-peripherals` flag enabled peripherals from `cortex-m` crate
+//! be reexported by peripheral access crate.
+//!
 //! ## target = msp430
 //!
 //! MSP430 does not natively use the SVD format. However, SVD files can be generated using the
@@ -341,7 +346,7 @@
 //! Usage looks like this:
 //!
 //! ```ignore
-//! if i2c1.c2r().write().reset()
+//! if i2c1.c2r().reset()
 //! ```
 //!
 //! ## `write`
@@ -495,6 +500,11 @@
 //!
 //! [`interrupt`]: https://docs.rs/cortex-m-rt-macros/0.1/cortex_m_rt_macros/attr.interrupt.html
 //!
+//! ## the `--reexport-interrupt` flag (deprecated)
+//!
+//! With `--reexport-interrupt` flag passed `interrupt` macro from `cortex-m-rt` or `riscv-rt`
+//! be reexported by peripheral access crate.
+//!
 //! ## the `--atomics` flag
 //!
 //! The `--atomics` flag can be passed to `svd2rust` to extends the register API with operations to
@@ -503,13 +513,13 @@
 //! concurrently called on different bits in the same register without data races. This flag won't
 //! work for RISCV chips without the atomic extension.
 //!
-//! The `--atomics_feature` flag can also be specified to include atomics implementations conditionally
+//! The `--atomics-feature` flag can also be specified to include atomics implementations conditionally
 //! behind the supplied feature name.
 //!
 //! `portable-atomic` v0.3.16 must be added to the dependencies, with default features off to
 //! disable the `fallback` feature.
 //!
-//! ## the `--impl_debug` flag
+//! ## the `--impl-debug` flag
 //!
 //! The `--impl_debug` option will cause svd2rust to generate `core::fmt::Debug` implementations for
 //! all registers and blocks.  If a register is readable and has fields defined then each field value
@@ -517,7 +527,7 @@
 //! register that has read actions will not be read and printed as `(not read/has read action!)`.
 //! Registers that are not readable will have `(write only register)` printed as the value.
 //!
-//! The `--impl_debug_feature` flag can also be specified to include debug implementations conditionally
+//! The `--impl-debug-feature` flag can also be specified to include debug implementations conditionally
 //! behind the supplied feature name.
 //!
 //! Usage examples:
@@ -533,6 +543,11 @@
 //! // print all registers for peripheral
 //! println!("RTC_CNT {:#?}", unsafe { &*esp32s3::RTC_CNTL::ptr() });
 //! ```
+//!
+//! ## the `--impl-defmt` flag
+//!
+//! The `--impl-defmt` flag can also be specified to include `defmt::Format` implementations conditionally
+//! behind the supplied feature name.
 #![recursion_limit = "128"]
 
 use quote::quote;

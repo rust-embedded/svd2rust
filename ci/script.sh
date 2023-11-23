@@ -13,7 +13,7 @@ test_svd_for_target() {
 
     # NOTE we care about errors in svd2rust, but not about errors / warnings in rustfmt
     pushd $td
-    RUST_BACKTRACE=1 svd2rust $options --target $1 --source_type xml -i input.svd
+    RUST_BACKTRACE=1 svd2rust $options --target $1 --source-type xml -i input.svd
 
     mv lib.rs src/lib.rs
 
