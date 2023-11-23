@@ -19,6 +19,7 @@ pub struct Config {
     pub max_cluster_size: bool,
     pub impl_debug: bool,
     pub impl_debug_feature: Option<String>,
+    pub impl_defmt: Option<String>,
     pub output_dir: Option<PathBuf>,
     pub input: Option<PathBuf>,
     pub source_type: SourceType,

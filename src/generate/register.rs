@@ -248,6 +248,11 @@ pub fn render_register_mod(
     let open = Punct::new('{', Spacing::Alone);
     let close = Punct::new('}', Spacing::Alone);
 
+    let debug_feature = config
+        .impl_debug_feature
+        .as_ref()
+        .map(|feature| quote!(#[cfg(feature=#feature)]));
+
     if let Some(cur_fields) = register.fields.as_ref() {
         // filter out all reserved fields, as we should not generate code for
         // them
@@ -284,12 +289,8 @@ pub fn render_register_mod(
             )?;
         }
     } else if !access.can_read() || register.read_action.is_some() {
-        if let Some(feature) = &config.impl_debug_feature {
-            r_debug_impl.extend(quote! {
-                #[cfg(feature=#feature)]
-            });
-        }
         r_debug_impl.extend(quote! {
+            #debug_feature
             impl core::fmt::Debug for crate::generic::Reg<#regspec_ident> {
                 fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                     write!(f, "(not readable)")
@@ -298,24 +299,14 @@ pub fn render_register_mod(
         });
     } else {
         // no register fields are defined so implement Debug to get entire register value
-        if let Some(feature) = &config.impl_debug_feature {
-            r_debug_impl.extend(quote! {
-                #[cfg(feature=#feature)]
-            });
-        }
         r_debug_impl.extend(quote! {
+            #debug_feature
             impl core::fmt::Debug for R {
                 fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                     write!(f, "{}", self.bits())
                 }
             }
-        });
-        if let Some(feature) = &config.impl_debug_feature {
-            r_debug_impl.extend(quote! {
-                #[cfg(feature=#feature)]
-            });
-        }
-        r_debug_impl.extend(quote! {
+            #debug_feature
             impl core::fmt::Debug for crate::generic::Reg<#regspec_ident> {
                 fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                     self.read().fmt(f)
@@ -450,15 +441,15 @@ fn render_register_mod_debug(
     let open = Punct::new('{', Spacing::Alone);
     let close = Punct::new('}', Spacing::Alone);
     let mut r_debug_impl = TokenStream::new();
+    let debug_feature = config
+        .impl_debug_feature
+        .as_ref()
+        .map(|feature| quote!(#[cfg(feature=#feature)]));
 
     // implement Debug for register readable fields that have no read side effects
     if access.can_read() && register.read_action.is_none() {
-        if let Some(feature) = &config.impl_debug_feature {
-            r_debug_impl.extend(quote! {
-                #[cfg(feature=#feature)]
-            });
-        }
         r_debug_impl.extend(quote! {
+            #debug_feature
             impl core::fmt::Debug for R #open
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result #open
                 f.debug_struct(#name)
@@ -496,12 +487,8 @@ fn render_register_mod_debug(
                 #close
             #close
         });
-        if let Some(feature) = &config.impl_debug_feature {
-            r_debug_impl.extend(quote! {
-                #[cfg(feature=#feature)]
-            });
-        }
         r_debug_impl.extend(quote! {
+            #debug_feature
             impl core::fmt::Debug for crate::generic::Reg<#regspec_ident> {
                 fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                     self.read().fmt(f)
@@ -509,12 +496,8 @@ fn render_register_mod_debug(
             }
         });
     } else if !access.can_read() || register.read_action.is_some() {
-        if let Some(feature) = &config.impl_debug_feature {
-            r_debug_impl.extend(quote! {
-                #[cfg(feature=#feature)]
-            });
-        }
         r_debug_impl.extend(quote! {
+            #debug_feature
             impl core::fmt::Debug for crate::generic::Reg<#regspec_ident> {
                 fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                     write!(f, "(not readable)")
@@ -755,7 +738,7 @@ pub fn fields(
                 // else, generate enumeratedValues into a Rust enum with functions for each variant.
                 if variants.is_empty() {
                     // generate struct VALUE_READ_TY_A(fty) and From<fty> for VALUE_READ_TY_A.
-                    add_with_no_variants(mod_items, &value_read_ty, &fty, &description, rv);
+                    add_with_no_variants(mod_items, &value_read_ty, &fty, &description, rv, config);
                 } else {
                     // do we have finite definition of this enumeration in svd? If not, the later code would
                     // return an Option when the value read from field does not match any defined values.
@@ -770,6 +753,7 @@ pub fn fields(
                             &fty,
                             &description,
                             rv,
+                            config,
                         );
                         has_reserved_variant = false;
                     } else {
@@ -780,6 +764,7 @@ pub fn fields(
                             &fty,
                             &description,
                             rv,
+                            config,
                         );
                         has_reserved_variant = evs.values.len() != (1 << width);
                     }
@@ -1047,7 +1032,14 @@ pub fn fields(
                 // generate write value structure and From conversation if we can't reuse read value structure.
                 if writer_reader_different_enum {
                     if variants.is_empty() {
-                        add_with_no_variants(mod_items, &value_write_ty, &fty, &description, rv);
+                        add_with_no_variants(
+                            mod_items,
+                            &value_write_ty,
+                            &fty,
+                            &description,
+                            rv,
+                            config,
+                        );
                     } else {
                         add_from_variants(
                             mod_items,
@@ -1056,6 +1048,7 @@ pub fn fields(
                             &fty,
                             &description,
                             rv,
+                            config,
                         );
                     }
                 }
@@ -1324,7 +1317,13 @@ fn add_with_no_variants(
     fty: &Ident,
     desc: &str,
     reset_value: Option<u64>,
+    config: &Config,
 ) {
+    let defmt = config
+        .impl_defmt
+        .as_ref()
+        .map(|feature| quote!(#[cfg_attr(feature = #feature, derive(defmt::Format))]));
+
     let cast = if fty == "bool" {
         quote! { val.0 as u8 != 0 }
     } else {
@@ -1339,6 +1338,7 @@ fn add_with_no_variants(
 
     mod_items.extend(quote! {
         #[doc = #desc]
+        #defmt
         #[derive(Clone, Copy, Debug, PartialEq, Eq)]
         pub struct #pc(#fty);
         impl From<#pc> for #fty {
@@ -1364,7 +1364,13 @@ fn add_from_variants<'a>(
     fty: &Ident,
     desc: &str,
     reset_value: Option<u64>,
+    config: &Config,
 ) {
+    let defmt = config
+        .impl_defmt
+        .as_ref()
+        .map(|feature| quote!(#[cfg_attr(feature = #feature, derive(defmt::Format))]));
+
     let (repr, cast) = if fty == "bool" {
         (quote! {}, quote! { variant as u8 != 0 })
     } else {
@@ -1392,6 +1398,7 @@ fn add_from_variants<'a>(
 
     mod_items.extend(quote! {
         #[doc = #desc]
+        #defmt
         #[derive(Clone, Copy, Debug, PartialEq, Eq)]
         #repr
         pub enum #pc {
