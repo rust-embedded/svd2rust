@@ -2,82 +2,30 @@ use anyhow::{bail, Result};
 use std::path::{Path, PathBuf};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Config {
-    #[cfg_attr(feature = "serde", serde(default))]
     pub target: Target,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub atomics: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub atomics_feature: Option<String>,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub generic_mod: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub make_mod: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub ignore_groups: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub keep_list: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub strict: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub pascal_enum_values: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub feature_group: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub feature_peripheral: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub max_cluster_size: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub impl_debug: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub impl_debug_feature: Option<String>,
-    #[cfg_attr(feature = "serde", serde(default = "current_dir"))]
-    pub output_dir: PathBuf,
-    #[cfg_attr(feature = "serde", serde(default))]
+    pub output_dir: Option<PathBuf>,
     pub input: Option<PathBuf>,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub source_type: SourceType,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub log_level: Option<String>,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub interrupt_link_section: Option<String>,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub reexport_core_peripherals: bool,
-    #[cfg_attr(feature = "serde", serde(default))]
     pub reexport_interrupt: bool,
-}
-
-fn current_dir() -> PathBuf {
-    PathBuf::from(".")
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            target: Target::default(),
-            atomics: false,
-            atomics_feature: None,
-            generic_mod: false,
-            make_mod: false,
-            ignore_groups: false,
-            keep_list: false,
-            strict: false,
-            pascal_enum_values: false,
-            feature_group: false,
-            feature_peripheral: false,
-            max_cluster_size: false,
-            impl_debug: false,
-            impl_debug_feature: None,
-            output_dir: current_dir(),
-            input: None,
-            source_type: SourceType::default(),
-            log_level: None,
-            interrupt_link_section: None,
-            reexport_core_peripherals: false,
-            reexport_interrupt: false,
-        }
-    }
 }
 
 #[allow(clippy::upper_case_acronyms)]

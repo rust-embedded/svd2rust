@@ -2,9 +2,9 @@
 
 use log::{debug, error, info};
 
-use std::fs::File;
 use std::io::Write;
 use std::process;
+use std::{fs::File, path::Path};
 
 use anyhow::{Context, Result};
 use clap::{Arg, ArgAction, Command};
@@ -217,7 +217,7 @@ fn run() -> Result<()> {
     if let Some(file) = config.input.as_ref() {
         config.source_type = SourceType::from_path(file)
     }
-    let path = &config.output_dir;
+    let path = config.output_dir.as_deref().unwrap_or(Path::new("."));
 
     info!("Parsing device from SVD file");
     let device = load_from(input, &config)?;
