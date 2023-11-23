@@ -127,7 +127,15 @@ fn run() -> Result<()> {
         .arg(
             Arg::new("impl_debug_feature")
                 .long("impl_debug_feature")
-                .help("add feature gating for block and register debug implementation")
+                .help("Add feature gating for block and register debug implementation")
+                .action(ArgAction::Set)
+                .value_name("FEATURE"),
+        )
+        .arg(
+            Arg::new("impl_defmt")
+                .long("impl-defmt")
+                .alias("impl_defmt")
+                .help("Add automatic defmt implementation for enumerated values")
                 .action(ArgAction::Set)
                 .value_name("FEATURE"),
         )
