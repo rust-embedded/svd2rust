@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.31.0] - 2023-11-24
+
 - Use methods to access any register or cluster
 - Remove all deny lints from generated crate
 - Add `reexport-core-peripherals` and `reexport-interrupt` features disabled by default
-- ~~rename `const-generic` feature to `array_proxy`~~ remove `ArrayProxy`
+- remove `ArrayProxy` and `const_generic` feature
 - `FieldWriter` takes offset as struct field instead of const generic.
   Improves SVD field array access
   Add `width`, `offset` methods
@@ -835,7 +837,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.30.3...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.31.0...HEAD
+[v0.31.0]: https://github.com/rust-embedded/svd2rust/compare/v0.30.3...v0.31.0
 [v0.30.3]: https://github.com/rust-embedded/svd2rust/compare/v0.30.2...v0.30.3
 [v0.30.2]: https://github.com/rust-embedded/svd2rust/compare/v0.30.1...v0.30.2
 [v0.30.1]: https://github.com/rust-embedded/svd2rust/compare/v0.30.0...v0.30.1
