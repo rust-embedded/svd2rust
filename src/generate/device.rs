@@ -6,9 +6,10 @@ use log::debug;
 use std::borrow::Cow;
 use std::fs::File;
 use std::io::Write;
+use std::path::Path;
 
-use crate::util::{self, Config, ToSanitizedCase};
-use crate::Target;
+use crate::config::{Config, Target};
+use crate::util::{self, ToSanitizedCase};
 use anyhow::{Context, Result};
 
 use crate::generate::{interrupt, peripheral};
@@ -139,7 +140,13 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     let generic_file = include_str!("generic.rs");
     let generic_atomic_file = include_str!("generic_atomic.rs");
     if config.generic_mod {
-        let mut file = File::create(config.output_dir.join("generic.rs"))?;
+        let mut file = File::create(
+            config
+                .output_dir
+                .as_deref()
+                .unwrap_or(Path::new("."))
+                .join("generic.rs"),
+        )?;
         writeln!(file, "{generic_file}")?;
         if config.atomics {
             if let Some(atomics_feature) = config.atomics_feature.as_ref() {
