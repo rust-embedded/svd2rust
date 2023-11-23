@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Support of default value for `EnumeratedValues`
 - move `Config` to `config` module
 - add `impl-defmt` config flag
+- Use dash instead of underscore in flag names
 
 ## [v0.30.3] - 2023-11-19
 
