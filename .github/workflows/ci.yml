@@ -75,7 +75,7 @@ jobs:
           - { rust: stable, vendor: Spansion, options: "--atomics" }
           - { rust: stable, vendor: STMicro, options: "" }
           - { rust: stable, vendor: STMicro, options: "--atomics" }
-          - { rust: stable, vendor: STM32-patched, options: "--strict --pascal_enum_values --max_cluster_size --atomics --atomics_feature atomics --impl_debug --impl_defmt defmt" }
+          - { rust: stable, vendor: STM32-patched, options: "--strict --pascal_enum_values --max_cluster_size --atomics --atomics_feature atomics --impl_debug --impl-defmt defmt" }
           - { rust: stable, vendor: Toshiba, options: all }
           - { rust: stable, vendor: Toshiba, options: "" }
           # Test MSRV

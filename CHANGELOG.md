@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - *breaking change* Always numerates field arrays from 0
 - Support of default value for `EnumeratedValues`
 - move `Config` to `config` module
-- add `impl_defmt` config flag
+- add `impl-defmt` config flag
 
 ## [v0.30.3] - 2023-11-19
 

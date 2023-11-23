@@ -133,7 +133,7 @@ fn run() -> Result<()> {
         )
         .arg(
             Arg::new("impl_defmt")
-                .long("impl_defmt")
+                .long("impl-defmt")
                 .help("Add automatic defmt implementation for enumerated values")
                 .action(ArgAction::Set)
                 .value_name("FEATURE"),
