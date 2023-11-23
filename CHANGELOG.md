@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `FieldWriter` takes offset as struct field instead of const generic.
   Improves SVD field array access
   Add `width`, `offset` methods
-- *breaking change* Always numerates field arrays from 0 
+- *breaking change* Always numerates field arrays from 0
+- Support of default value for `EnumeratedValues`
 
 ## [v0.30.3] - 2023-11-19
 

@@ -64,7 +64,7 @@ version = "0.14.3"
 
 [dependencies.svd-rs]
 features = ["serde"]
-version = "0.14.4"
+version = "0.14.5"
 
 [dependencies.syn]
 version = "2.0"
