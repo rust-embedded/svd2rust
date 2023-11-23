@@ -138,7 +138,6 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
 
     let generic_file = include_str!("generic.rs");
     let generic_atomic_file = include_str!("generic_atomic.rs");
-    let array_proxy = include_str!("array_proxy.rs");
     if config.generic_mod {
         let mut file = File::create(config.output_dir.join("generic.rs"))?;
         writeln!(file, "{generic_file}")?;
@@ -147,9 +146,6 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 writeln!(file, "#[cfg(feature = \"{atomics_feature}\")]")?;
             }
             writeln!(file, "\n{generic_atomic_file}")?;
-        }
-        if config.array_proxy {
-            writeln!(file, "{array_proxy}")?;
         }
 
         if !config.make_mod {
@@ -167,9 +163,6 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 quote!(#[cfg(feature = #atomics_feature)]).to_tokens(&mut tokens);
             }
             syn::parse_file(generic_atomic_file)?.to_tokens(&mut tokens);
-        }
-        if config.array_proxy {
-            syn::parse_file(array_proxy)?.to_tokens(&mut tokens);
         }
 
         out.extend(quote! {

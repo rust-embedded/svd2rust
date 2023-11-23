@@ -67,7 +67,7 @@ pub fn render(
                 .unwrap_or_else(|| interrupt.0.name.clone())
         );
 
-        let value = util::unsuffixed(interrupt.0.value.into());
+        let value = util::unsuffixed(interrupt.0.value);
 
         let mut feature_attribute_flag = false;
         let mut feature_attribute = TokenStream::new();
@@ -111,7 +111,7 @@ pub fn render(
         names_cfg_attr.push(feature_attribute);
     }
 
-    let n = util::unsuffixed(pos.into());
+    let n = util::unsuffixed(pos);
     match target {
         Target::CortexM => {
             for name in &names {

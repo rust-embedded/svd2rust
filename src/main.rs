@@ -80,14 +80,6 @@ fn run() -> Result<()> {
                 .value_name("FEATURE"),
         )
         .arg(
-            Arg::new("array_proxy")
-            .long("array_proxy")
-            .action(ArgAction::SetTrue)
-            .help(
-                "Use ArrayProxy helper for non-sequential register arrays",
-            ),
-        )
-        .arg(
             Arg::new("ignore_groups")
                 .long("ignore_groups")
                 .action(ArgAction::SetTrue)
