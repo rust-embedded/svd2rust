@@ -762,10 +762,9 @@ pub fn fields(
 
                     // generate enum VALUE_READ_TY_A { ... each variants ... } and and From<fty> for VALUE_READ_TY_A.
                     if let Some(def) = def.as_ref() {
-                        add_from_variants_with_default(
+                        add_from_variants(
                             mod_items,
-                            &variants,
-                            def,
+                            variants.iter().chain(std::iter::once(def)),
                             &value_read_ty,
                             &fty,
                             &description,
@@ -775,7 +774,7 @@ pub fn fields(
                     } else {
                         add_from_variants(
                             mod_items,
-                            &variants,
+                            variants.iter(),
                             &value_read_ty,
                             &fty,
                             &description,
@@ -1051,7 +1050,7 @@ pub fn fields(
                     } else {
                         add_from_variants(
                             mod_items,
-                            &variants,
+                            variants.iter(),
                             &value_write_ty,
                             &fty,
                             &description,
@@ -1357,9 +1356,9 @@ fn add_with_no_variants(
     }
 }
 
-fn add_from_variants(
+fn add_from_variants<'a>(
     mod_items: &mut TokenStream,
-    variants: &[Variant],
+    variants: impl Iterator<Item = &'a Variant>,
     pc: &Ident,
     fty: &Ident,
     desc: &str,
@@ -1372,7 +1371,7 @@ fn add_from_variants(
     };
 
     let mut vars = TokenStream::new();
-    for v in variants.iter().map(|v| {
+    for v in variants.map(|v| {
         let desc = util::escape_special_chars(&util::respace(&format!("{}: {}", v.value, v.doc)));
         let pcv = &v.pc;
         let pcval = &unsuffixed(v.value);
@@ -1487,63 +1486,4 @@ fn enums_to_map(evs: &EnumeratedValues) -> BTreeMap<u64, &EnumeratedValue> {
 
 fn minimal_hole(map: &BTreeMap<u64, &EnumeratedValue>, width: u32) -> Option<u64> {
     (0..(1u64 << width)).find(|&v| !map.contains_key(&v))
-}
-
-fn add_from_variants_with_default(
-    mod_items: &mut TokenStream,
-    variants: &[Variant],
-    default: &Variant,
-    pc: &Ident,
-    fty: &Ident,
-    desc: &str,
-    reset_value: Option<u64>,
-) {
-    let mut vars = TokenStream::new();
-    let mut arms = TokenStream::new();
-    for (v, c) in variants.iter().chain(std::iter::once(default)).map(|v| {
-        let desc = util::escape_special_chars(&util::respace(&format!("{}: {}", v.value, v.doc)));
-        let pcv = &v.pc;
-        let pcval = &util::unsuffixed(v.value);
-        (
-            quote! {
-                #[doc = #desc]
-                #pcv = #pcval,
-            },
-            quote! {
-                #pc::#pcv => #pcval,
-            },
-        )
-    }) {
-        vars.extend(v);
-        arms.extend(c);
-    }
-
-    let desc = if let Some(rv) = reset_value {
-        format!("{desc}\n\nValue on reset: {rv}")
-    } else {
-        desc.to_string()
-    };
-
-    mod_items.extend(quote! {
-        #[doc = #desc]
-        #[derive(Clone, Copy, Debug, PartialEq)]
-        pub enum #pc {
-            #vars
-        }
-        impl From<#pc> for #fty {
-            #[inline(always)]
-            fn from(variant: #pc) -> Self {
-                match variant {
-                    #arms
-                }
-            }
-        }
-    });
-    if fty != "bool" {
-        mod_items.extend(quote! {
-            impl crate::FieldSpec for #pc {
-                type Ux = #fty;
-            }
-        });
-    }
 }
