@@ -261,9 +261,15 @@ pub fn render(
         (quote!(#[repr(u16)]), quote!(#self_token as u16))
     };
 
+    let defmt = config
+        .impl_defmt
+        .as_ref()
+        .map(|feature| quote!(#[cfg_attr(feature = #feature, derive(defmt::Format))]));
+
     if target == Target::Msp430 {
         let interrupt_enum = quote! {
             ///Enumeration of all the interrupts. This enum is seldom used in application or library crates. It is present primarily for documenting the device's implemented interrupts.
+            #defmt
             #[derive(Copy, Clone, Debug, PartialEq, Eq)]
             #enum_repr
             pub enum Interrupt {
@@ -275,6 +281,7 @@ pub fn render(
     } else {
         let interrupt_enum = quote! {
             ///Enumeration of all the interrupts.
+            #defmt
             #[derive(Copy, Clone, Debug, PartialEq, Eq)]
             #enum_repr
             pub enum Interrupt {
