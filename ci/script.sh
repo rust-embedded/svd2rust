@@ -47,7 +47,7 @@ main() {
         echo 'portable-atomic = { version = "1.4", default-features = false }' >> $td/Cargo.toml
     fi
     if [[ "$options" == *"--impl_defmt"* ]]; then
-        echo 'defmt = "0.3.5"' >> $td/Cargo.toml
+        echo 'defmt = { version = "0.3.5", optional = true }' >> $td/Cargo.toml
     fi
     echo '[profile.dev]'         >> $td/Cargo.toml
     echo 'incremental = false'   >> $td/Cargo.toml

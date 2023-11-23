@@ -309,7 +309,7 @@ pub fn render_register_mod(
             #debug_feature
             impl core::fmt::Debug for crate::generic::Reg<#regspec_ident> {
                 fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                    self.read().fmt(f)
+                    core::fmt::Debug::fmt(&self.read(), f)
                 }
             }
         });
@@ -491,7 +491,7 @@ fn render_register_mod_debug(
             #debug_feature
             impl core::fmt::Debug for crate::generic::Reg<#regspec_ident> {
                 fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                    self.read().fmt(f)
+                    core::fmt::Debug::fmt(&self.read(), f)
                 }
             }
         });
