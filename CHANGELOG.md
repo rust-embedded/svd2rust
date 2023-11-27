@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.31.1] - 2023-11-27
+
 - Fix cluster arrays
 - Remove needless reference in `ArrayElemAccessor`
 
@@ -840,7 +842,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.31.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.31.1...HEAD
+[v0.31.1]: https://github.com/rust-embedded/svd2rust/compare/v0.31.0...v0.31.1
 [v0.31.0]: https://github.com/rust-embedded/svd2rust/compare/v0.30.3...v0.31.0
 [v0.30.3]: https://github.com/rust-embedded/svd2rust/compare/v0.30.2...v0.30.3
 [v0.30.2]: https://github.com/rust-embedded/svd2rust/compare/v0.30.1...v0.30.2
