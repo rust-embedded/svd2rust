@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Remove needless reference in `ArrayElemAccessor`
+
 ## [v0.31.0] - 2023-11-24
 
 - Use methods to access any register or cluster

@@ -204,7 +204,7 @@ impl ToTokens for ArrayElemAccessor {
             #[doc = #doc]
             #[inline(always)]
             pub const fn #name(&self) -> &#ty {
-                &self.#basename(#i)
+                self.#basename(#i)
             }
         }
         .to_tokens(tokens);
