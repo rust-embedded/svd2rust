@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fix cluster arrays
 - Remove needless reference in `ArrayElemAccessor`
 
 ## [v0.31.0] - 2023-11-24

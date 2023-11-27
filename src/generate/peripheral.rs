@@ -1035,7 +1035,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
 
             let array_convertible = sequential_addresses && convert_list;
 
-            if !convert_list {
+            if convert_list {
                 let span = Span::call_site();
                 let nb_name_sc = if let Some(dim_name) = array_info.dim_name.as_ref() {
                     dim_name.to_snake_case_ident(span)
