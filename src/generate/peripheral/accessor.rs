@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, TokenStream, Span};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 
 #[derive(Clone, Debug)]
@@ -176,6 +176,7 @@ impl ToTokens for RawArrayAccessor {
             dim,
             increment,
         } = self;
+        let name_iter = Ident::new(&format!("{name}_iter"), Span::call_site());
         quote! {
             #[doc = #doc]
             #[inline(always)]
@@ -183,6 +184,12 @@ impl ToTokens for RawArrayAccessor {
                 #[allow(clippy::no_effect)]
                 [(); #dim][n];
                 unsafe { &*(self as *const Self).cast::<u8>().add(#offset).add(#increment * n).cast() }
+            }
+            #[doc = "Iterator for array of:"]
+            #[doc = #doc]
+            #[inline(always)]
+            pub fn #name_iter(&self) -> impl Iterator<Item=&#ty> {
+                crate::RegRawArrayIter::<#ty, #offset>::new((self as *const Self).cast::<u8>(), #dim)
             }
         }
         .to_tokens(tokens);

@@ -390,6 +390,41 @@ where
 /// Used as an argument to the closures in the `write` and `modify` methods of the register.
 pub type W<REG> = raw::W<REG>;
 
+use core::marker::PhantomData;
+#[allow(unused)]
+pub struct RegRawArrayIter<'a, T, const S: usize> {
+    ptr: *const u8,
+    n: usize,
+    rf: PhantomData<&'a T>,
+}
+
+#[allow(unused)]
+impl<'a, T, const S: usize> RegRawArrayIter<'a, T, S> {
+    pub(crate) fn new(ptr: *const u8, n: usize) -> Self {
+        Self {
+            ptr,
+            n,
+            rf: PhantomData,
+        }
+    }
+}
+
+impl<'a, T, const S: usize> Iterator for RegRawArrayIter<'a, T, S> {
+    type Item = &'a T;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.n == 0 {
+            None
+        } else {
+            unsafe {
+                let next = Some(&*self.ptr.cast());
+                self.ptr = self.ptr.add(S);
+                self.n -= 1;
+                next
+            }
+        }
+    }
+}
+
 /// Field reader.
 ///
 /// Result of the `read` methods of fields.
