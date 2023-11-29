@@ -32,12 +32,28 @@ pub enum DiffingSub {
 
 impl Diffing {
     pub fn run(&self, opts: &Opts, rustfmt_bin_path: Option<&Path>) -> Result<(), anyhow::Error> {
+        let [head, base] = self
+            .make_cases(opts, rustfmt_bin_path)
+            .with_context(|| "couldn't setup svd2rust")?;
+        std::process::Command::new("git")
+            .args(["diff", "--no-index"])
+            .args([&*head.0, &*base.0])
+            .status()
+            .with_context(|| "couldn't run git diff")
+            .map(|_| ())
+    }
+
+    pub fn make_cases(
+        &self,
+        opts: &Opts,
+        rustfmt_bin_path: Option<&Path>,
+    ) -> Result<[(PathBuf, Vec<PathBuf>); 2], anyhow::Error> {
         let (head, base) = self
             .svd2rust_setup(opts)
             .with_context(|| "couldn't setup svd2rust")?;
         let tests = crate::tests::tests(Some(opts)).with_context(|| "no tests found")?;
 
-        tests[0]
+        let head = tests[0]
             .setup_case(
                 &opts.output_dir.join("head"),
                 &head,
@@ -45,7 +61,7 @@ impl Diffing {
                 false,
             )
             .with_context(|| "couldn't create head")?;
-        tests[0]
+        let base = tests[0]
             .setup_case(
                 &opts.output_dir.join("base"),
                 &base,
@@ -53,7 +69,8 @@ impl Diffing {
                 false,
             )
             .with_context(|| "couldn't create base")?;
-        Ok(())
+
+        Ok([head, base])
     }
 
     pub fn svd2rust_setup(&self, opts: &Opts) -> Result<(PathBuf, PathBuf), anyhow::Error> {

@@ -62,9 +62,7 @@ impl TestCase {
     }
 
     pub fn name(&self) -> String {
-        format!("{:?}-{}", self.mfgr, self.chip.replace('.', "_"))
-            .to_sanitized_snake_case()
-            .into()
+        format!("{:?}-{}", self.mfgr, self.chip.replace('.', "_")).into()
     }
 }
 

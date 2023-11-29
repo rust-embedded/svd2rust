@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use svd2rust::Target;
+use svd2rust::{util::ToSanitizedCase, Target};
 
 use crate::{command::CommandExt, tests::TestCase, Opts, TestOpts};
 use std::io::prelude::*;
@@ -151,7 +151,7 @@ impl TestCase {
             Ok(val) => val,
             Err(_) => "rusttester".into(),
         };
-        let chip_dir = output_dir.join(&self.name());
+        let chip_dir = output_dir.join(self.name().to_sanitized_snake_case().as_ref());
         if let Err(err) = fs::remove_dir_all(&chip_dir) {
             match err.kind() {
                 std::io::ErrorKind::NotFound => (),
@@ -163,7 +163,7 @@ impl TestCase {
             .env("USER", user)
             .arg("init")
             .arg("--name")
-            .arg(&self.name())
+            .arg(self.name().to_sanitized_snake_case().as_ref())
             .arg("--vcs")
             .arg("none")
             .arg(&chip_dir)

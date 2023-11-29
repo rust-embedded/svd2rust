@@ -93,7 +93,7 @@ pub fn get_release_binary_artifact(
     reference: &str,
     output_dir: &Path,
 ) -> Result<PathBuf, anyhow::Error> {
-    let output_dir = output_dir.join(reference);
+    let output_dir = output_dir.join(".binary").join(reference);
     if let Some(binary) = find_executable(&output_dir, "svd2rust").unwrap_or_default() {
         return Ok(binary);
     }
@@ -159,7 +159,7 @@ pub fn get_pr_binary_artifact(
     sha: &str,
     output_dir: &Path,
 ) -> Result<PathBuf, anyhow::Error> {
-    let output_dir = output_dir.join(pr.to_string()).join(sha);
+    let output_dir = output_dir.join(".binary").join(pr.to_string()).join(sha);
 
     if let Some(binary) = find_executable(&output_dir, "svd2rust").unwrap_or_default() {
         return Ok(binary);

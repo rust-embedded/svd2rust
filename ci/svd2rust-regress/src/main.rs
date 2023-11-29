@@ -1,3 +1,4 @@
+pub mod ci;
 pub mod command;
 pub mod diff;
 pub mod github;
@@ -5,6 +6,7 @@ mod svd_test;
 mod tests;
 
 use anyhow::Context;
+use ci::Ci;
 use diff::Diffing;
 
 use clap::Parser;
@@ -15,6 +17,7 @@ use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
+use wildmatch::WildMatch;
 
 /// Returns the cargo workspace for the manifest
 pub fn get_cargo_workspace() -> &'static std::path::Path {
@@ -98,7 +101,7 @@ impl TestOpts {
             // selected architecture?
             .filter(|t| {
                 if let Some(ref arch) = self.arch {
-                    arch == &format!("{:?}", t.arch)
+                    WildMatch::new(arch).matches(&format!("{:?}", t.arch))
                 } else {
                     true
                 }
@@ -106,7 +109,7 @@ impl TestOpts {
             // selected manufacturer?
             .filter(|t| {
                 if let Some(ref mfgr) = self.mfgr {
-                    mfgr == &format!("{:?}", t.mfgr)
+                    WildMatch::new(mfgr).matches(&format!("{:?}", t.mfgr))
                 } else {
                     true
                 }
@@ -114,7 +117,7 @@ impl TestOpts {
             // Specify chip - note: may match multiple
             .filter(|t| {
                 if !self.chip.is_empty() {
-                    self.chip.iter().any(|c| c == &t.chip)
+                    self.chip.iter().any(|c| WildMatch::new(c).matches(&t.chip))
                 } else {
                     // Don't run failable tests unless wanted
                     self.bad_tests || t.should_pass
@@ -199,6 +202,7 @@ impl TestOpts {
 pub enum Subcommand {
     Diff(Diffing),
     Tests(TestOpts),
+    Ci(Ci),
 }
 
 #[derive(Parser, Debug)]
@@ -227,11 +231,13 @@ pub struct Opts {
     #[clap(subcommand)]
     subcommand: Subcommand,
 }
+
 impl Opts {
     fn use_rustfmt(&self) -> bool {
         match self.subcommand {
             Subcommand::Tests(TestOpts { format, .. }) => format,
             Subcommand::Diff(Diffing { format, .. }) => format,
+            Subcommand::Ci(Ci { format, .. }) => format,
         }
     }
 }
@@ -252,7 +258,10 @@ fn default_test_cases() -> std::ffi::OsString {
 
 fn default_svd2rust() -> std::ffi::OsString {
     get_cargo_workspace()
-        .join("target/release/svd2rust")
+        .join(format!(
+            "target/release/svd2rust{}",
+            std::env::consts::EXE_SUFFIX,
+        ))
         .into_os_string()
 }
 
@@ -359,5 +368,8 @@ fn main() -> Result<(), anyhow::Error> {
         Subcommand::Diff(diff) => diff
             .run(&opt, rustfmt_bin_path)
             .with_context(|| "failed to run diff"),
+        Subcommand::Ci(ci) => ci
+            .run(&opt, rustfmt_bin_path)
+            .with_context(|| "failed to run ci"),
     }
 }

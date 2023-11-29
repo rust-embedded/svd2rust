@@ -1,0 +1,24 @@
+name: Diff
+on:
+    issue_comment:
+        types: [created]
+
+jobs:
+    diff:
+        runs-on: ubuntu-latest
+        if: ${{ github.event.issue.pull_request }}
+        steps:
+          - uses: actions/checkout@v4
+
+          - uses: dtolnay/rust-toolchain@master
+            with:
+              toolchain: stable
+
+          - name: Cache
+            uses: Swatinem/rust-cache@v2
+
+          - run: cargo regress ci
+            env:
+              GITHUB_COMMENT:  ${{ github.event.comment.body }}
+              GITHUB_COMMENT_USER: ${{ github.event.comment.user }}
+              GITHUB_COMMENT_PR: ${{ github.event.comment.issue_url }}
