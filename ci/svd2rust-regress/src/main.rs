@@ -1,8 +1,8 @@
+pub mod command;
 pub mod diff;
 pub mod github;
 mod svd_test;
 mod tests;
-pub mod command;
 
 use anyhow::Context;
 use diff::Diffing;
@@ -116,11 +116,10 @@ impl TestOpts {
                 if !self.chip.is_empty() {
                     self.chip.iter().any(|c| c == &t.chip)
                 } else {
-                    true
+                    // Don't run failable tests unless wanted
+                    self.bad_tests || t.should_pass
                 }
             })
-            // Run failable tests?
-            .filter(|t| self.bad_tests || t.should_pass)
             .collect::<Vec<_>>();
         if self.list {
             // FIXME: Prettier output
