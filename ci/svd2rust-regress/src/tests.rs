@@ -1,7 +1,7 @@
 use self::RunWhen::*;
 use anyhow::Context;
-pub use svd2rust::Target;
 use svd2rust::util::ToSanitizedCase;
+pub use svd2rust::Target;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
