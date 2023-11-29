@@ -613,10 +613,10 @@ pub fn fields(
 
         let brief_suffix = if let Field::Array(_, de) = &f {
             if let Some(range) = de.indexes_as_range() {
-                format!("[{}-{}]", *range.start(), *range.end())
+                format!("({}-{})", *range.start(), *range.end())
             } else {
                 let suffixes: Vec<_> = de.indexes().collect();
-                format!("[{}]", suffixes.join(","))
+                format!("({})", suffixes.join(","))
             }
         } else {
             String::new()
