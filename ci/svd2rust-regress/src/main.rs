@@ -19,13 +19,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 use wildmatch::WildMatch;
 
-/// Returns the cargo workspace for the manifest
-pub fn get_cargo_workspace() -> &'static std::path::Path {
-    static WORKSPACE: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
-    #[derive(Debug, serde::Deserialize)]
-    pub struct CargoMetadata {
-        pub workspace_root: PathBuf,
-    }
+#[derive(Debug, serde::Deserialize)]
+pub struct CargoMetadata {
+    workspace_root: PathBuf,
+    target_directory: PathBuf,
+}
+
+/// Returns the cargo metadata
+pub fn get_cargo_metadata() -> &'static CargoMetadata {
+    static WORKSPACE: std::sync::OnceLock<CargoMetadata> = std::sync::OnceLock::new();
     WORKSPACE.get_or_init(|| {
         std::process::Command::new("cargo")
             .args(["metadata", "--format-version", "1"])
@@ -35,8 +37,12 @@ pub fn get_cargo_workspace() -> &'static std::path::Path {
             .map_err(anyhow::Error::from)
             .and_then(|s: String| serde_json::from_str::<CargoMetadata>(&s).map_err(Into::into))
             .unwrap()
-            .workspace_root
     })
+}
+
+/// Returns the cargo workspace for the manifest
+pub fn get_cargo_workspace() -> &'static std::path::Path {
+    &get_cargo_metadata().workspace_root
 }
 
 #[derive(clap::Parser, Debug)]

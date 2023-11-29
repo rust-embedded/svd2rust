@@ -126,6 +126,9 @@ impl Diffing {
                 github::get_pr_binary_artifact(number, &sha, &opts.output_dir)
                     .with_context(|| "couldn't get pr artifact")?
             }
+            Some("debug") => crate::get_cargo_metadata()
+                .target_directory
+                .join(format!("debug/svd2rust{}", std::env::consts::EXE_SUFFIX)),
             Some(reference) => github::get_release_binary_artifact(reference, &opts.output_dir)
                 .with_context(|| format!("could not get svd2rust for {reference}"))?,
         };
@@ -137,6 +140,9 @@ impl Diffing {
                 github::get_pr_binary_artifact(number, &sha, &opts.output_dir)
                     .with_context(|| "couldn't get pr artifact")?
             }
+            Some("debug") => crate::get_cargo_metadata()
+                .target_directory
+                .join(format!("debug/svd2rust{}", std::env::consts::EXE_SUFFIX)),
             Some(reference) => github::get_release_binary_artifact(reference, &opts.output_dir)
                 .with_context(|| format!("could not get svd2rust for {reference}"))?,
         };
