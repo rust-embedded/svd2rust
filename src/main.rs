@@ -158,6 +158,13 @@ fn run() -> Result<()> {
                 .help("Create mod.rs instead of lib.rs, without inner attributes"),
         )
         .arg(
+            Arg::new("include_compatible")
+                .long("include-compatible")
+                .alias("include_compatible")
+                .action(ArgAction::SetTrue)
+                .help("Do not generate top-level attributes to make it compatible with include! macro"),
+        )
+        .arg(
             Arg::new("strict")
                 .long("strict")
                 .short('s')

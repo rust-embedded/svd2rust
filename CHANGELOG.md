@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [v0.31.2] - 2023-11-29
 
+- Add `include-compatible` config flag
 - Add iterators for register/cluster/field arrays
 - Use parentheses instead of square brackets in docs for field arrays
 
