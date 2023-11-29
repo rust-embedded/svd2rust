@@ -158,6 +158,13 @@ fn run() -> Result<()> {
                 .help("Create mod.rs instead of lib.rs, without inner attributes"),
         )
         .arg(
+            Arg::new("skip_crate_attributes")
+                .long("skip-crate-attributes")
+                .alias("skip_crate_attributes")
+                .action(ArgAction::SetTrue)
+                .help("Do not generate crate attributes"),
+        )
+        .arg(
             Arg::new("strict")
                 .long("strict")
                 .short('s')

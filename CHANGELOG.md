@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [v0.31.2] - 2023-11-29
 
+- Add `skip-crate-attributes` config flag
 - Add iterators for register/cluster/field arrays
 - Use parentheses instead of square brackets in docs for field arrays
 - Better display parsing errors
