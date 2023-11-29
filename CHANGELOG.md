@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Add iterators for register/cluster/field arrays
 - Use parentheses instead of square brackets in docs for field arrays
+- Better display parsing errors
 
 ## [v0.31.1] - 2023-11-27
 

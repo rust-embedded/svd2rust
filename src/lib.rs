@@ -578,7 +578,7 @@ pub enum SvdError {
     #[error("Cannot format crate")]
     Fmt,
     #[error("Cannot render SVD device")]
-    Render,
+    Render(#[from] anyhow::Error),
 }
 
 /// Generates rust code for the specified svd content.
@@ -588,7 +588,7 @@ pub fn generate(input: &str, config: &Config) -> Result<Generation> {
     let device = load_from(input, config)?;
     let mut device_x = String::new();
     let items =
-        generate::device::render(&device, config, &mut device_x).map_err(|_| SvdError::Render)?;
+        generate::device::render(&device, config, &mut device_x).map_err(SvdError::Render)?;
 
     let mut lib_rs = String::new();
     writeln!(

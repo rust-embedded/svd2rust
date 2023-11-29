@@ -199,23 +199,17 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
 
         debug!("Rendering peripheral {}", p.name);
-        match peripheral::render(p, &index, config) {
-            Ok(periph) => out.extend(periph),
-            Err(e) => {
-                let descrip = p.description.as_deref().unwrap_or("No description");
-                let group_name = p.group_name.as_deref().unwrap_or("No group name");
-                let mut context_string = format!(
-                    "Rendering error at peripheral\nName: {}\nDescription: {descrip}\nGroup: {group_name}",
-                    p.name
-                );
-                if let Some(dname) = p.derived_from.as_ref() {
-                    context_string = format!("{context_string}\nDerived from: {dname}");
-                }
-                let mut e = Err(e);
-                e = e.with_context(|| context_string);
-                return e;
+        let periph = peripheral::render(p, &index, config).with_context(|| {
+            let group_name = p.group_name.as_deref().unwrap_or("No group name");
+            let mut context_string =
+                format!("can't render peripheral '{}', group '{group_name}'", p.name);
+            if let Some(dname) = p.derived_from.as_ref() {
+                context_string += &format!(", derived from: '{dname}'");
             }
-        };
+            context_string
+        })?;
+
+        out.extend(periph);
 
         if p.registers
             .as_ref()
