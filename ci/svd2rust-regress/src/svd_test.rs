@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use svd2rust::Target;
 
-use crate::tests::TestCase;
+use crate::{command::CommandExt, tests::TestCase, Opts, TestOpts};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -21,10 +21,6 @@ const CRATES_MIPS: &[&str] = &["mips-mcu = \"0.1.0\""];
 const PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
 const FEATURES_ALL: &[&str] = &["[features]"];
 const FEATURES_XTENSALX: &[&str] = &["default = [\"xtensa-lx/esp32\", \"xtensa-lx-rt/esp32\"]"];
-
-fn path_helper(input: &[&str]) -> PathBuf {
-    input.iter().collect()
-}
 
 fn path_helper_base(base: &Path, input: &[&str]) -> PathBuf {
     input
@@ -112,13 +108,16 @@ impl CommandHelper for Output {
 impl TestCase {
     pub fn test(
         &self,
-        bin_path: &PathBuf,
-        rustfmt_bin_path: Option<&PathBuf>,
-        atomics: bool,
-        verbosity: u8,
+        opts: &Opts,
+        test_opts: &TestOpts,
+        rustfmt_bin_path: Option<&Path>,
     ) -> Result<Option<Vec<PathBuf>>, TestError> {
-        let (chip_dir, mut process_stderr_paths) =
-            self.setup_case(atomics, bin_path, rustfmt_bin_path)?;
+        let (chip_dir, mut process_stderr_paths) = self.setup_case(
+            &opts.output_dir,
+            &test_opts.current_bin_path,
+            rustfmt_bin_path,
+            test_opts.atomics,
+        )?;
         // Run `cargo check`, capturing stderr to a log file
         let cargo_check_err_file = path_helper_base(&chip_dir, &["cargo-check.err.log"]);
         let output = Command::new("cargo")
@@ -134,7 +133,7 @@ impl TestCase {
             &process_stderr_paths,
         )?;
         process_stderr_paths.push(cargo_check_err_file);
-        Ok(if verbosity > 1 {
+        Ok(if opts.verbose > 1 {
             Some(process_stderr_paths)
         } else {
             None
@@ -143,15 +142,16 @@ impl TestCase {
 
     pub fn setup_case(
         &self,
+        output_dir: &Path,
+        svd2rust_bin_path: &Path,
+        rustfmt_bin_path: Option<&Path>,
         atomics: bool,
-        bin_path: &PathBuf,
-        rustfmt_bin_path: Option<&PathBuf>,
     ) -> Result<(PathBuf, Vec<PathBuf>), TestError> {
         let user = match std::env::var("USER") {
             Ok(val) => val,
             Err(_) => "rusttester".into(),
         };
-        let chip_dir = path_helper(&["output", &self.name()]);
+        let chip_dir = output_dir.join(&self.name());
         if let Err(err) = fs::remove_dir_all(&chip_dir) {
             match err.kind() {
                 std::io::ErrorKind::NotFound => (),
@@ -217,7 +217,7 @@ impl TestCase {
             Target::XtensaLX => "xtensa-lx",
             Target::None => unreachable!(),
         };
-        let mut svd2rust_bin = Command::new(bin_path);
+        let mut svd2rust_bin = Command::new(svd2rust_bin_path);
         if atomics {
             svd2rust_bin.arg("--atomics");
         }
@@ -226,7 +226,12 @@ impl TestCase {
             .args(["--target", target])
             .current_dir(&chip_dir)
             .output()
-            .with_context(|| "failed to execute process")?;
+            .with_context(|| {
+                format!(
+                    "failed to execute svd2rust: {}",
+                    svd2rust_bin_path.display()
+                )
+            })?;
         output.capture_outputs(
             true,
             "svd2rust",

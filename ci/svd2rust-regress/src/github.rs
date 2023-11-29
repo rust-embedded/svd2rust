@@ -1,8 +1,10 @@
-use std::process::{Command, Output};
+use std::process::Command;
 use std::{ffi::OsStr, path::Path};
 use std::{iter::IntoIterator, path::PathBuf};
 
 use anyhow::Context;
+
+use crate::command::CommandExt;
 
 pub fn run_gh<I, S>(args: I) -> Command
 where
@@ -14,34 +16,31 @@ where
     command
 }
 
-pub fn get_current_pr() -> Result<usize, anyhow::Error> {
-    let pr = run_gh([
-        "pr",
-        "view",
-        "--json",
-        "number",
-        "--template",
-        "{{.number}}",
-    ])
-    .output()?;
-    String::from_utf8(pr.stdout)?
-        .trim()
-        .parse()
-        .map_err(Into::into)
+pub fn get_current_pr() -> Result<(usize, String), anyhow::Error> {
+    #[derive(serde::Deserialize)]
+    struct Pr {
+        number: usize,
+        #[serde(rename = "headRefOid")]
+        head_ref_oid: String,
+    }
+    let pr = run_gh(["pr", "view", "--json", "headRefOid,number"]).get_output_string()?;
+    let Pr {
+        number,
+        head_ref_oid,
+    } = serde_json::from_str(&pr)?;
+
+    Ok((number, head_ref_oid))
 }
 
-pub fn get_pr_run_id(pr: usize) -> Result<usize, anyhow::Error> {
+pub fn get_sha_run_id(sha: &str) -> Result<usize, anyhow::Error> {
     let run_id = run_gh([
         "api",
-        &format!("repos/:owner/:repo/actions/runs?event=pull_request&pr={pr}"),
+        &format!("repos/:owner/:repo/actions/runs?event=pull_request&head_sha={sha}"),
         "--jq",
         r#"[.workflow_runs[] | select(.name == "Continuous integration")][0] | .id"#,
     ])
-    .output()?;
-    String::from_utf8(run_id.stdout)?
-        .trim()
-        .parse()
-        .map_err(Into::into)
+    .get_output_string()?;
+    run_id.trim().parse().map_err(Into::into)
 }
 
 pub fn get_release_run_id(event: &str) -> Result<usize, anyhow::Error> {
@@ -49,26 +48,25 @@ pub fn get_release_run_id(event: &str) -> Result<usize, anyhow::Error> {
         "master" => "branch=master".to_owned(),
         _ => anyhow::bail!("unknown event"),
     };
-    let run_id = dbg!(run_gh([
+    let run_id = run_gh([
         "api",
         &format!("repos/:owner/:repo/actions/runs?{query}"),
         "--jq",
         r#"[.workflow_runs[] | select(.name == "release")][0] | .id"#,
     ])
-    .output())
-    .with_context(|| "couldn't run gh")?;
-    String::from_utf8(run_id.stdout)?
-        .trim()
-        .parse()
-        .map_err(Into::into)
+    .get_output_string()?;
+    run_id.trim().parse().map_err(Into::into)
 }
 
-fn find(dir: &Path, begins: &str) -> Result<Option<PathBuf>, anyhow::Error> {
+fn find_executable(dir: &Path, begins: &str) -> Result<Option<PathBuf>, anyhow::Error> {
     let find = |entry, begins: &str| -> Result<Option<PathBuf>, std::io::Error> {
         let entry: std::fs::DirEntry = entry?;
         let filename = entry.file_name();
         let filename = filename.to_string_lossy();
-        if entry.metadata()?.is_file() && filename.starts_with(begins) {
+        if entry.metadata()?.is_file()
+            && filename.starts_with(begins)
+            && !entry.path().extension().is_some_and(|s| s == "gz")
+        {
             Ok(Some(entry.path()))
         } else {
             Ok(None)
@@ -86,7 +84,7 @@ pub fn get_release_binary_artifact(
     output_dir: &Path,
 ) -> Result<PathBuf, anyhow::Error> {
     let output_dir = output_dir.join(reference);
-    if let Some(binary) = find(&output_dir, "svd2rust")? {
+    if let Some(binary) = find_executable(&output_dir, "svd2rust").unwrap_or_default() {
         return Ok(binary);
     }
 
@@ -99,6 +97,9 @@ pub fn get_release_binary_artifact(
             } else {
                 Some(reference)
             };
+
+            std::fs::remove_file(output_dir.join("svd2rust-x86_64-unknown-linux-gnu.gz")).ok();
+
             run_gh([
                 "release",
                 "download",
@@ -108,18 +109,18 @@ pub fn get_release_binary_artifact(
             ])
             .arg(&output_dir)
             .args(tag)
-            .status()?;
+            .run(true)?;
 
-            Command::new("tar")
-                .arg("-xzf")
+            Command::new("gzip")
+                .arg("-d")
                 .arg(output_dir.join("svd2rust-x86_64-unknown-linux-gnu.gz"))
-                .arg("-C")
-                .arg(&output_dir)
-                .output()
-                .expect("Failed to execute command");
+                .get_output()?;
+
+            std::fs::remove_file(output_dir.join("svd2rust-x86_64-unknown-linux-gnu.gz"))?;
         }
         _ => {
-            let run_id = get_release_run_id(reference)?;
+            let run_id =
+                get_release_run_id(reference).with_context(|| "couldn't get release run id")?;
             run_gh([
                 "run",
                 "download",
@@ -129,16 +130,26 @@ pub fn get_release_binary_artifact(
                 "--dir",
             ])
             .arg(&output_dir)
-            .output()?;
+            .run(true)?;
         }
     }
-    let binary = find(&output_dir, "svd2rust")?;
+    let binary =
+        find_executable(&output_dir, "svd2rust").with_context(|| "couldn't find svd2rust")?;
     binary.ok_or_else(|| anyhow::anyhow!("no binary found"))
 }
 
-pub fn get_pr_binary_artifact(pr: usize, output_dir: &Path) -> Result<PathBuf, anyhow::Error> {
-    let output_dir = output_dir.join(format!("{pr}"));
-    let run_id = get_pr_run_id(pr)?;
+pub fn get_pr_binary_artifact(
+    pr: usize,
+    sha: &str,
+    output_dir: &Path,
+) -> Result<PathBuf, anyhow::Error> {
+    let output_dir = output_dir.join(pr.to_string()).join(sha);
+
+    if let Some(binary) = find_executable(&output_dir, "svd2rust").unwrap_or_default() {
+        return Ok(binary);
+    }
+
+    let run_id = get_sha_run_id(sha)?;
     run_gh([
         "run",
         "download",
@@ -148,22 +159,9 @@ pub fn get_pr_binary_artifact(pr: usize, output_dir: &Path) -> Result<PathBuf, a
         "--dir",
     ])
     .arg(&output_dir)
-    .output()?;
-    let mut read_dir = std::fs::read_dir(output_dir)?;
-    let binary = read_dir
-        .find_map(|entry| {
-            let find = |entry| -> Result<Option<PathBuf>, std::io::Error> {
-                let entry: std::fs::DirEntry = entry?;
-                let filename = entry.file_name();
-                let filename = filename.to_string_lossy();
-                if entry.metadata()?.is_file() && filename.starts_with("svd2rust-regress") {
-                    Ok(Some(entry.path()))
-                } else {
-                    Ok(None)
-                }
-            };
-            find(entry).transpose()
-        })
-        .transpose()?;
+    .run(true)?;
+
+    let binary =
+        find_executable(&output_dir, "svd2rust").with_context(|| "couldn't find svd2rust")?;
     binary.ok_or_else(|| anyhow::anyhow!("no binary found"))
 }

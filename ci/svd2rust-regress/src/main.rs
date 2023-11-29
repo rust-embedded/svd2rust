@@ -1,12 +1,17 @@
+pub mod diff;
 pub mod github;
 mod svd_test;
 mod tests;
+pub mod command;
+
+use anyhow::Context;
+use diff::Diffing;
 
 use clap::Parser;
 use rayon::prelude::*;
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
@@ -32,7 +37,7 @@ pub fn get_cargo_workspace() -> &'static std::path::Path {
 }
 
 #[derive(clap::Parser, Debug)]
-pub struct Tests {
+pub struct TestOpts {
     /// Run a long test (it's very long)
     #[clap(short = 'l', long)]
     pub long_test: bool,
@@ -84,44 +89,8 @@ pub struct Tests {
     // TODO: Compile svd2rust?
 }
 
-#[derive(clap::Parser, Debug)]
-#[clap(name = "diff")]
-pub struct Diffing {
-    #[clap(long)]
-    pub base: Option<String>,
-
-    #[clap(long)]
-    pub head: Option<String>,
-
-    /// Enable formatting with `rustfmt`
-    #[clap(short = 'f', long)]
-    pub format: bool,
-
-    #[clap(subcommand)]
-    pub short: Option<DiffingSub>,
-}
-
-#[derive(clap::Parser, Debug)]
-pub enum DiffingSub {
-    Pr
-}
-
-#[test]
-pub fn diffing_cli_works() {
-    Diffing::parse_from(["diff", "pr"]);
-    Diffing::parse_from(["diff", "--base", "", "--head", "\"--atomics\""]);
-    Diffing::parse_from(["diff", "--base", "\"@master\"", "--head", "\"@pr\""]);
-    Diffing::parse_from(["diff", "--base", "\"@master\"", "--head", "\"@pr --atomics\""]);
-    Diffing::parse_from(["diff", "--head", "\"--atomics\""]);
-}
-
-impl Tests {
-    fn run(
-        &self,
-        opt: &Opts,
-        bin_path: &PathBuf,
-        rustfmt_bin_path: Option<&PathBuf>,
-    ) -> Result<Result<(), anyhow::Error>, anyhow::Error> {
+impl TestOpts {
+    fn run(&self, opt: &Opts, rustfmt_bin_path: Option<&Path>) -> Result<(), anyhow::Error> {
         let tests = tests::tests(None)?
             .iter()
             // Short test?
@@ -165,7 +134,7 @@ impl Tests {
         tests.par_iter().for_each(|t| {
             let start = Instant::now();
 
-            match t.test(bin_path, rustfmt_bin_path, self.atomics, opt.verbose) {
+            match t.test(opt, self, rustfmt_bin_path) {
                 Ok(s) => {
                     if let Some(stderrs) = s {
                         let mut buf = String::new();
@@ -230,7 +199,7 @@ impl Tests {
 #[derive(clap::Subcommand, Debug)]
 pub enum Subcommand {
     Diff(Diffing),
-    Tests(Tests),
+    Tests(TestOpts),
 }
 
 #[derive(Parser, Debug)]
@@ -253,13 +222,16 @@ pub struct Opts {
     #[clap(global = true, long, default_value = default_test_cases())]
     pub test_cases: std::path::PathBuf,
 
+    #[clap(global = true, long, short, default_value = "output")]
+    pub output_dir: std::path::PathBuf,
+
     #[clap(subcommand)]
     subcommand: Subcommand,
 }
 impl Opts {
     fn use_rustfmt(&self) -> bool {
         match self.subcommand {
-            Subcommand::Tests(Tests { format, .. }) => format,
+            Subcommand::Tests(TestOpts { format, .. }) => format,
             Subcommand::Diff(Diffing { format, .. }) => format,
         }
     }
@@ -359,13 +331,13 @@ fn main() -> Result<(), anyhow::Error> {
 
     let rustfmt_bin_path = match (&opt.rustfmt_bin_path, opt.use_rustfmt()) {
         (_, false) => None,
-        (Some(path), true) => Some(path),
+        (Some(path), true) => Some(path.as_path()),
         (&None, true) => {
             // FIXME: Use Option::filter instead when stable, rust-lang/rust#45860
             if !default_rustfmt.iter().any(|p| p.is_file()) {
                 panic!("No rustfmt found");
             }
-            default_rustfmt.as_ref()
+            default_rustfmt.as_deref()
         }
     };
 
@@ -375,16 +347,18 @@ fn main() -> Result<(), anyhow::Error> {
     }
 
     match &opt.subcommand {
-        Subcommand::Tests(tests_opts) => {
+        Subcommand::Tests(test_opts) => {
             anyhow::ensure!(
-                tests_opts.current_bin_path.exists(),
+                test_opts.current_bin_path.exists(),
                 "svd2rust binary does not exist"
             );
 
-            tests_opts.run(&opt, &tests_opts.current_bin_path, rustfmt_bin_path)?
+            test_opts
+                .run(&opt, rustfmt_bin_path)
+                .with_context(|| "failed to run tests")
         }
-        Subcommand::Diff(_diff) => {
-            todo!()
-        }
+        Subcommand::Diff(diff) => diff
+            .run(&opt, rustfmt_bin_path)
+            .with_context(|| "failed to run diff"),
     }
 }
