@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 
 #[derive(Clone, Debug)]
@@ -138,11 +138,18 @@ pub struct ArrayAccessor {
 impl ToTokens for ArrayAccessor {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let Self { doc, name, ty, .. } = self;
+        let name_iter = Ident::new(&format!("{name}_iter"), Span::call_site());
         quote! {
             #[doc = #doc]
             #[inline(always)]
             pub const fn #name(&self, n: usize) -> &#ty {
                 &self.#name[n]
+            }
+            #[doc = "Iterator for array of:"]
+            #[doc = #doc]
+            #[inline(always)]
+            pub fn #name_iter(&self) -> impl Iterator<Item=&#ty> {
+                self.#name.iter()
             }
         }
         .to_tokens(tokens);
@@ -169,13 +176,21 @@ impl ToTokens for RawArrayAccessor {
             dim,
             increment,
         } = self;
+        let name_iter = Ident::new(&format!("{name}_iter"), Span::call_site());
+        let cast = quote! { unsafe { &*(self as *const Self).cast::<u8>().add(#offset).add(#increment * n).cast() } };
         quote! {
             #[doc = #doc]
             #[inline(always)]
             pub const fn #name(&self, n: usize) -> &#ty {
                 #[allow(clippy::no_effect)]
                 [(); #dim][n];
-                unsafe { &*(self as *const Self).cast::<u8>().add(#offset).add(#increment * n).cast() }
+                #cast
+            }
+            #[doc = "Iterator for array of:"]
+            #[doc = #doc]
+            #[inline(always)]
+            pub fn #name_iter(&self) -> impl Iterator<Item=&#ty> {
+                (0..#dim).map(|n| #cast)
             }
         }
         .to_tokens(tokens);

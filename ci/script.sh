@@ -580,7 +580,7 @@ main() {
             test_patched_stm32 stm32f7x3
             test_patched_stm32 stm32g070
             test_patched_stm32 stm32g473
-            test_patched_stm32 stm32h743
+            test_patched_stm32 stm32h753
             test_patched_stm32 stm32l0x3
             test_patched_stm32 stm32l162
             test_patched_stm32 stm32l4x6

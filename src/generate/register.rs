@@ -613,10 +613,10 @@ pub fn fields(
 
         let brief_suffix = if let Field::Array(_, de) = &f {
             if let Some(range) = de.indexes_as_range() {
-                format!("[{}-{}]", *range.start(), *range.end())
+                format!("({}-{})", *range.start(), *range.end())
             } else {
                 let suffixes: Vec<_> = de.indexes().collect();
-                format!("[{}]", suffixes.join(","))
+                format!("({})", suffixes.join(","))
             }
         } else {
             String::new()
@@ -905,18 +905,26 @@ pub fn fields(
                 let increment = de.dim_increment;
                 let doc = util::replace_suffix(&description, &brief_suffix);
                 let first_name = svd::array::names(f, de).next().unwrap();
-                let array_doc =
-                    format!("{doc}\n\nNOTE: `n` is number of field in register. `n == 0` corresponds to `{first_name}` field");
+                let note = format!("NOTE: `n` is number of field in register. `n == 0` corresponds to `{first_name}` field");
                 let offset_calc = calculate_offset(increment, offset, true);
                 let value = quote! { ((self.bits >> #offset_calc) & #hexmask) #cast };
                 let dim = unsuffixed(de.dim);
+                let name_snake_case_iter = Ident::new(&format!("{name_snake_case}_iter"), span);
                 r_impl_items.extend(quote! {
-                    #[doc = #array_doc]
+                    #[doc = #doc]
+                    #[doc = ""]
+                    #[doc = #note]
                     #inline
                     pub fn #name_snake_case(&self, n: u8) -> #reader_ty {
                         #[allow(clippy::no_effect)]
                         [(); #dim][n as usize];
                         #reader_ty::new ( #value )
+                    }
+                    #[doc = "Iterator for array of:"]
+                    #[doc = #doc]
+                    #inline
+                    pub fn #name_snake_case_iter(&self) -> impl Iterator<Item = #reader_ty> + '_ {
+                        (0..#dim).map(|n| #reader_ty::new ( #value ))
                     }
                 });
 
@@ -1181,11 +1189,12 @@ pub fn fields(
                 let offset_calc = calculate_offset(increment, offset, false);
                 let doc = &util::replace_suffix(&description, &brief_suffix);
                 let first_name = svd::array::names(f, de).next().unwrap();
-                let array_doc =
-                    format!("{doc}\n\nNOTE: `n` is number of field in register. `n == 0` corresponds to `{first_name}` field");
+                let note = format!("NOTE: `n` is number of field in register. `n == 0` corresponds to `{first_name}` field");
                 let dim = unsuffixed(de.dim);
                 w_impl_items.extend(quote! {
-                    #[doc = #array_doc]
+                    #[doc = #doc]
+                    #[doc = ""]
+                    #[doc = #note]
                     #inline
                     #[must_use]
                     pub fn #name_snake_case(&mut self, n: u8) -> #writer_ty<#regspec_ident> {
