@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add iterators for register/cluster/field arrays
+
 ## [v0.31.1] - 2023-11-27
 
 - Fix cluster arrays

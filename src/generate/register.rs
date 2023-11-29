@@ -920,7 +920,7 @@ pub fn fields(
                         #reader_ty::new ( #value )
                     }
                     #[doc = "Iterator for array of:"]
-                    #[doc = #array_doc]
+                    #[doc = #doc]
                     #inline
                     pub fn #name_snake_case_iter(&self) -> impl Iterator<Item = #reader_ty> + '_ {
                         (0..#dim).map(|n| #reader_ty::new ( #value ))
