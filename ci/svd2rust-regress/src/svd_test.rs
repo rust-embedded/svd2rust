@@ -30,7 +30,11 @@ fn path_helper_base(base: &Path, input: &[&str]) -> PathBuf {
 
 /// Create and write to file
 fn file_helper(payload: &str, path: &Path) -> Result<()> {
-    let mut f = File::create(path).with_context(|| format!("Failed to create {path:?}"))?;
+    let mut f = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .with_context(|| format!("Failed to create {path:?}"))?;
 
     f.write_all(payload.as_bytes())
         .with_context(|| format!("Failed to write to {path:?}"))?;
@@ -49,7 +53,7 @@ pub struct ProcessFailed {
 
 #[derive(Debug, thiserror::Error)]
 pub enum TestError {
-    #[error(transparent)]
+    #[error("test case failed")]
     Process(#[from] ProcessFailed),
     #[error("Failed to run test")]
     Other(#[from] anyhow::Error),
@@ -111,12 +115,14 @@ impl TestCase {
         opts: &Opts,
         test_opts: &TestOpts,
         rustfmt_bin_path: Option<&Path>,
+        form_bin_path: Option<&Path>,
     ) -> Result<Option<Vec<PathBuf>>, TestError> {
         let (chip_dir, mut process_stderr_paths) = self.setup_case(
             &opts.output_dir,
             &test_opts.current_bin_path,
             rustfmt_bin_path,
-            test_opts.atomics,
+            form_bin_path,
+            test_opts.command.as_deref(),
         )?;
         // Run `cargo check`, capturing stderr to a log file
         let cargo_check_err_file = path_helper_base(&chip_dir, &["cargo-check.err.log"]);
@@ -145,7 +151,8 @@ impl TestCase {
         output_dir: &Path,
         svd2rust_bin_path: &Path,
         rustfmt_bin_path: Option<&Path>,
-        atomics: bool,
+        form_bin_path: Option<&Path>,
+        command: Option<&str>,
     ) -> Result<(PathBuf, Vec<PathBuf>), TestError> {
         let user = match std::env::var("USER") {
             Ok(val) => val,
@@ -186,7 +193,7 @@ impl TestCase {
                 Target::XtensaLX => CRATES_XTENSALX.iter(),
                 Target::None => unreachable!(),
             })
-            .chain(if atomics {
+            .chain(if command.unwrap_or_default().contains("--atomics") {
                 CRATES_ATOMICS.iter()
             } else {
                 [].iter()
@@ -208,6 +215,7 @@ impl TestCase {
         let svd_file = path_helper_base(&chip_dir, &[&chip_svd]);
         file_helper(&svd, &svd_file)?;
         let lib_rs_file = path_helper_base(&chip_dir, &["src", "lib.rs"]);
+        let src_dir = path_helper_base(&chip_dir, &["src"]);
         let svd2rust_err_file = path_helper_base(&chip_dir, &["svd2rust.err.log"]);
         let target = match self.arch {
             Target::CortexM => "cortex-m",
@@ -218,8 +226,8 @@ impl TestCase {
             Target::None => unreachable!(),
         };
         let mut svd2rust_bin = Command::new(svd2rust_bin_path);
-        if atomics {
-            svd2rust_bin.arg("--atomics");
+        if let Some(command) = command {
+            svd2rust_bin.arg(command);
         }
         let output = svd2rust_bin
             .args(["-i", &chip_svd])
@@ -263,22 +271,74 @@ impl TestCase {
             .write(prettyplease::unparse(&file).as_bytes())
             .with_context(|| format!("couldn't write {}", lib_rs_file.display()))?;
         let rustfmt_err_file = path_helper_base(&chip_dir, &["rustfmt.err.log"]);
-        if let Some(rustfmt_bin_path) = rustfmt_bin_path {
-            // Run `cargo fmt`, capturing stderr to a log file
-
-            let output = Command::new(rustfmt_bin_path)
-                .arg(lib_rs_file)
+        let form_err_file = path_helper_base(&chip_dir, &["form.err.log"]);
+        if let Some(form_bin_path) = form_bin_path {
+            // move the lib.rs file to src, then split with form.
+            let new_lib_rs_file = path_helper_base(&chip_dir, &["lib.rs"]);
+            std::fs::rename(lib_rs_file, &new_lib_rs_file)
+                .with_context(|| "While moving lib.rs file")?;
+            let output = Command::new(form_bin_path)
+                .arg("--input")
+                .arg(&new_lib_rs_file)
+                .arg("--outdir")
+                .arg(&src_dir)
                 .output()
-                .with_context(|| "failed to format")?;
+                .with_context(|| "failed to form")?;
             output.capture_outputs(
-                false,
-                "rustfmt",
+                true,
+                "form",
                 None,
-                Some(&rustfmt_err_file),
+                Some(&form_err_file),
                 &process_stderr_paths,
             )?;
+            std::fs::remove_file(&new_lib_rs_file)
+                .with_context(|| "While removing lib.rs file after form")?;
+        }
+        if let Some(rustfmt_bin_path) = rustfmt_bin_path {
+            // Run `rusfmt`, capturing stderr to a log file
+
+            // find all .rs files in src_dir and it's subdirectories
+            let mut src_files = vec![];
+            visit_dirs(&src_dir, &mut |e: &fs::DirEntry| {
+                if e.path().extension().unwrap_or_default() == "rs" {
+                    src_files.push(e.path());
+                }
+            })
+            .context("couldn't visit")?;
+            src_files.sort();
+
+            for entry in src_files {
+                let output = Command::new(rustfmt_bin_path)
+                    .arg(entry)
+                    .args(["--edition", "2021"])
+                    .output()
+                    .with_context(|| "failed to format")?;
+                output.capture_outputs(
+                    false,
+                    "rustfmt",
+                    None,
+                    Some(&rustfmt_err_file),
+                    &process_stderr_paths,
+                )?;
+            }
+
             process_stderr_paths.push(rustfmt_err_file);
         }
         Ok((chip_dir, process_stderr_paths))
     }
+}
+
+fn visit_dirs(dir: &Path, cb: &mut dyn FnMut(&fs::DirEntry)) -> std::io::Result<()> {
+    if dir.is_dir() {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                visit_dirs(&path, cb)?;
+            } else {
+                cb(&entry);
+            }
+        }
+    }
+    Ok(())
 }

@@ -45,11 +45,6 @@ pub struct TestOpts {
     #[clap(short = 'l', long)]
     pub long_test: bool,
 
-    // TODO: Consider using the same strategy cargo uses for passing args to rustc via `--`
-    /// Run svd2rust with `--atomics`
-    #[clap(long)]
-    pub atomics: bool,
-
     /// Filter by chip name, case sensitive, may be combined with other filters
     #[clap(short = 'c', long)]
     pub chip: Vec<String>,
@@ -79,6 +74,10 @@ pub struct TestOpts {
     #[clap(short = 'f', long)]
     pub format: bool,
 
+    /// Enable splitting `lib.rs` with `form`
+    #[clap(long)]
+    pub form_lib: bool,
+
     /// Print all available test using the specified filters
     #[clap(long)]
     pub list: bool,
@@ -88,12 +87,19 @@ pub struct TestOpts {
     /// (which must be already built)
     #[clap(short = 'p', long = "svd2rust-path", default_value = default_svd2rust())]
     pub current_bin_path: PathBuf,
+    #[clap(last = true)]
+    pub command: Option<String>,
     // TODO: Specify smaller subset of tests? Maybe with tags?
     // TODO: Compile svd2rust?
 }
 
 impl TestOpts {
-    fn run(&self, opt: &Opts, rustfmt_bin_path: Option<&Path>) -> Result<(), anyhow::Error> {
+    fn run(
+        &self,
+        opt: &Opts,
+        rustfmt_bin_path: Option<&Path>,
+        form_bin_path: Option<&Path>,
+    ) -> Result<(), anyhow::Error> {
         let tests = tests::tests(None)?
             .iter()
             // Short test?
@@ -136,7 +142,7 @@ impl TestOpts {
         tests.par_iter().for_each(|t| {
             let start = Instant::now();
 
-            match t.test(opt, self, rustfmt_bin_path) {
+            match t.test(opt, self, rustfmt_bin_path, form_bin_path) {
                 Ok(s) => {
                     if let Some(stderrs) = s {
                         let mut buf = String::new();
@@ -217,6 +223,11 @@ pub struct Opts {
     #[clap(global = true, long)]
     pub rustfmt_bin_path: Option<PathBuf>,
 
+    /// Path to a `form` binary, relative or absolute.
+    /// Defaults to `form`
+    #[clap(global = true, long)]
+    pub form_bin_path: Option<PathBuf>,
+
     /// Specify what rustup toolchain to use when compiling chip(s)
     #[clap(global = true, long = "toolchain")] // , env = "RUSTUP_TOOLCHAIN"
     pub rustup_toolchain: Option<String>,
@@ -238,6 +249,14 @@ impl Opts {
             Subcommand::Tests(TestOpts { format, .. }) => format,
             Subcommand::Diff(Diffing { format, .. }) => format,
             Subcommand::Ci(Ci { format, .. }) => format,
+        }
+    }
+
+    fn use_form(&self) -> bool {
+        match self.subcommand {
+            Subcommand::Tests(TestOpts { form_lib, .. }) => form_lib,
+            Subcommand::Diff(Diffing { form_lib, .. }) => form_lib,
+            Subcommand::Ci(Ci { form_lib, .. }) => form_lib,
         }
     }
 }
@@ -348,6 +367,12 @@ fn main() -> Result<(), anyhow::Error> {
             default_rustfmt.as_deref()
         }
     };
+    let form = which::which("form");
+    let form_bin_path = match (&opt.form_bin_path, opt.use_form()) {
+        (_, false) => None,
+        (Some(path), true) => Some(path.as_path()),
+        (&None, true) => form.as_deref().ok(),
+    };
 
     // Set RUSTUP_TOOLCHAIN if needed
     if let Some(toolchain) = &opt.rustup_toolchain {
@@ -362,14 +387,14 @@ fn main() -> Result<(), anyhow::Error> {
             );
 
             test_opts
-                .run(&opt, rustfmt_bin_path)
+                .run(&opt, rustfmt_bin_path, form_bin_path)
                 .with_context(|| "failed to run tests")
         }
         Subcommand::Diff(diff) => diff
-            .run(&opt, rustfmt_bin_path)
+            .run(&opt, rustfmt_bin_path, form_bin_path)
             .with_context(|| "failed to run diff"),
         Subcommand::Ci(ci) => ci
-            .run(&opt, rustfmt_bin_path)
+            .run(&opt, rustfmt_bin_path, form_bin_path)
             .with_context(|| "failed to run ci"),
     }
 }

@@ -8,6 +8,11 @@ use crate::Opts;
 #[derive(clap::Parser, Debug)]
 #[clap(name = "diff")]
 pub struct Diffing {
+    /// The base version of svd2rust to use and the command input, defaults to latest master build
+    ///
+    /// Change the base version by starting with `@` followed by the source.
+    ///
+    /// supports `@pr` for current pr, `@master` for latest master build, or a version tag like `@v0.30.0`
     #[clap(long)]
     pub base: Option<String>,
 
@@ -17,6 +22,10 @@ pub struct Diffing {
     /// Enable formatting with `rustfmt`
     #[clap(short = 'f', long)]
     pub format: bool,
+
+    /// Enable splitting `lib.rs` with `form`
+    #[clap(long)]
+    pub form_lib: bool,
 
     #[clap(subcommand)]
     pub sub: Option<DiffingSub>,
@@ -30,13 +39,21 @@ pub enum DiffingSub {
     Pr,
 }
 
+type Source<'s> = Option<&'s str>;
+type Command<'s> = Option<&'s str>;
+
 impl Diffing {
-    pub fn run(&self, opts: &Opts, rustfmt_bin_path: Option<&Path>) -> Result<(), anyhow::Error> {
+    pub fn run(
+        &self,
+        opts: &Opts,
+        rustfmt_bin_path: Option<&Path>,
+        form_bin_path: Option<&Path>,
+    ) -> Result<(), anyhow::Error> {
         let [head, base] = self
-            .make_cases(opts, rustfmt_bin_path)
+            .make_cases(opts, rustfmt_bin_path, form_bin_path)
             .with_context(|| "couldn't setup svd2rust")?;
         std::process::Command::new("git")
-            .args(["diff", "--no-index"])
+            .args(["--no-pager", "diff", "--no-index", "--minimal"])
             .args([&*head.0, &*base.0])
             .status()
             .with_context(|| "couldn't run git diff")
@@ -47,8 +64,9 @@ impl Diffing {
         &self,
         opts: &Opts,
         rustfmt_bin_path: Option<&Path>,
+        form_bin_path: Option<&Path>,
     ) -> Result<[(PathBuf, Vec<PathBuf>); 2], anyhow::Error> {
-        let (head, base) = self
+        let [(head_bin, head_cmd), (base_bin, base_cmd)] = self
             .svd2rust_setup(opts)
             .with_context(|| "couldn't setup svd2rust")?;
         let tests = crate::tests::tests(Some(opts)).with_context(|| "no tests found")?;
@@ -56,30 +74,48 @@ impl Diffing {
         let head = tests[0]
             .setup_case(
                 &opts.output_dir.join("head"),
-                &head,
+                &head_bin,
                 rustfmt_bin_path,
-                false,
+                form_bin_path,
+                head_cmd,
             )
             .with_context(|| "couldn't create head")?;
         let base = tests[0]
             .setup_case(
                 &opts.output_dir.join("base"),
-                &base,
+                &base_bin,
                 rustfmt_bin_path,
-                false,
+                form_bin_path,
+                base_cmd,
             )
             .with_context(|| "couldn't create base")?;
 
         Ok([head, base])
     }
 
-    pub fn svd2rust_setup(&self, opts: &Opts) -> Result<(PathBuf, PathBuf), anyhow::Error> {
-        let base = match self
-            .base
-            .as_deref()
-            .and_then(|s| s.strip_prefix('@'))
-            .and_then(|s| s.split(' ').next())
-        {
+    fn get_source_and_command<'s>(&'s self) -> [Option<(Source, Command)>; 2] {
+        let split = |s: &'s str| -> (Source, Command) {
+            if let Some(s) = s.strip_prefix('@') {
+                if let Some((source, cmd)) = s.split_once(' ') {
+                    (Some(source), Some(cmd))
+                } else {
+                    (Some(s), None)
+                }
+            } else {
+                (None, Some(s))
+            }
+        };
+
+        let base = self.base.as_deref().map(split);
+
+        let head = self.head.as_deref().map(split);
+        [base, head]
+    }
+
+    pub fn svd2rust_setup(&self, opts: &Opts) -> Result<[(PathBuf, Command); 2], anyhow::Error> {
+        // FIXME: refactor this to be less ugly
+        let [base_sc, head_sc] = self.get_source_and_command();
+        let base = match base_sc.and_then(|(source, _)| source) {
             reference @ None | reference @ Some("" | "master") => {
                 github::get_release_binary_artifact(reference.unwrap_or("master"), &opts.output_dir)
                     .with_context(|| "couldn't get svd2rust latest unreleased artifact")?
@@ -94,12 +130,7 @@ impl Diffing {
                 .with_context(|| format!("could not get svd2rust for {reference}"))?,
         };
 
-        let head = match self
-            .head
-            .as_deref()
-            .and_then(|s| s.strip_prefix('@'))
-            .and_then(|s| s.split(' ').next())
-        {
+        let head = match head_sc.and_then(|(source, _)| source) {
             None | Some("" | "pr") => {
                 let (number, sha) =
                     github::get_current_pr().with_context(|| "couldn't get current pr")?;
@@ -110,7 +141,10 @@ impl Diffing {
                 .with_context(|| format!("could not get svd2rust for {reference}"))?,
         };
 
-        Ok((base, head))
+        Ok([
+            (base, base_sc.and_then(|(_, cmd)| cmd)),
+            (head, head_sc.and_then(|(_, cmd)| cmd)),
+        ])
     }
 }
 

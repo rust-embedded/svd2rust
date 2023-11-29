@@ -5,7 +5,11 @@ use crate::Opts;
 #[derive(clap::Parser, Debug)]
 #[clap(name = "continuous-integration")]
 pub struct Ci {
+    #[clap(long)]
     pub format: bool,
+    /// Enable splitting `lib.rs` with `form`
+    #[clap(long)]
+    pub form_lib: bool,
     #[clap(env = "GITHUB_COMMENT")]
     pub comment: String,
     #[clap(env = "GITHUB_COMMENT_USER")]
@@ -15,7 +19,12 @@ pub struct Ci {
 }
 
 impl Ci {
-    pub fn run(&self, opts: &Opts, rustfmt_bin_path: Option<&Path>) -> Result<(), anyhow::Error> {
+    pub fn run(
+        &self,
+        opts: &Opts,
+        rustfmt_bin_path: Option<&Path>,
+        form_bin_path: Option<&Path>,
+    ) -> Result<(), anyhow::Error> {
         let command = 'command: {
             // FIXME: this is just fun rust, probably not idiomatic.
             for line in self.comment.lines() {
