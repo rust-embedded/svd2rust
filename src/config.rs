@@ -31,7 +31,7 @@ pub struct Config {
 
 #[allow(clippy::upper_case_acronyms)]
 #[allow(non_camel_case_types)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum Target {
     #[cfg_attr(feature = "serde", serde(rename = "cortex-m"))]

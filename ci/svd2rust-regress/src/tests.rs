@@ -1,6 +1,6 @@
 use self::RunWhen::*;
 use anyhow::Context;
-pub use svd2rust::util::Target;
+pub use svd2rust::Target;
 use svd2rust::util::ToSanitizedCase;
 
 #[allow(clippy::upper_case_acronyms)]

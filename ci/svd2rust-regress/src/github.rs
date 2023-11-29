@@ -40,7 +40,13 @@ pub fn get_sha_run_id(sha: &str) -> Result<usize, anyhow::Error> {
         r#"[.workflow_runs[] | select(.name == "Continuous integration")][0] | .id"#,
     ])
     .get_output_string()?;
-    run_id.trim().parse().map_err(Into::into)
+    if run_id.trim().is_empty() {
+        anyhow::bail!("no run id found for sha `{}`", sha);
+    }
+    run_id
+        .trim()
+        .parse()
+        .with_context(|| anyhow::anyhow!("couldn't parse api output: {run_id}"))
 }
 
 pub fn get_release_run_id(event: &str) -> Result<usize, anyhow::Error> {
@@ -65,6 +71,10 @@ fn find_executable(dir: &Path, begins: &str) -> Result<Option<PathBuf>, anyhow::
         let filename = filename.to_string_lossy();
         if entry.metadata()?.is_file()
             && filename.starts_with(begins)
+            && entry
+                .path()
+                .extension()
+                .is_some_and(|s| s == std::env::consts::EXE_EXTENSION)
             && !entry.path().extension().is_some_and(|s| s == "gz")
         {
             Ok(Some(entry.path()))
@@ -98,25 +108,31 @@ pub fn get_release_binary_artifact(
                 Some(reference)
             };
 
-            std::fs::remove_file(output_dir.join("svd2rust-x86_64-unknown-linux-gnu.gz")).ok();
+            let artifact = if cfg!(linux) {
+                "svd2rust-x86_64-unknown-linux-gnu.gz"
+            } else if cfg!(windows) {
+                "svd2rust-x86_64-pc-windows-msvc.exe"
+            } else if cfg!(macos) {
+                "svd2rust-x86_64-apple-darwin.gz"
+            } else {
+                anyhow::bail!("regress with release artifact doesn't support current platform")
+            };
 
-            run_gh([
-                "release",
-                "download",
-                "--pattern",
-                "svd2rust-x86_64-unknown-linux-gnu.gz",
-                "--dir",
-            ])
-            .arg(&output_dir)
-            .args(tag)
-            .run(true)?;
+            std::fs::remove_file(output_dir.join(artifact)).ok();
 
-            Command::new("gzip")
-                .arg("-d")
-                .arg(output_dir.join("svd2rust-x86_64-unknown-linux-gnu.gz"))
-                .get_output()?;
+            run_gh(["release", "download", "--pattern", artifact, "--dir"])
+                .arg(&output_dir)
+                .args(tag)
+                .run(true)?;
 
-            std::fs::remove_file(output_dir.join("svd2rust-x86_64-unknown-linux-gnu.gz"))?;
+            if cfg!(target = "x86_64-unknown-linux-gnu") || cfg!(macos) {
+                Command::new("gzip")
+                    .arg("-d")
+                    .arg(output_dir.join(artifact))
+                    .get_output()?;
+
+                std::fs::remove_file(output_dir.join(artifact))?;
+            }
         }
         _ => {
             let run_id =
@@ -149,13 +165,23 @@ pub fn get_pr_binary_artifact(
         return Ok(binary);
     }
 
-    let run_id = get_sha_run_id(sha)?;
+    let target = if cfg!(linux) {
+        "x86_64-unknown-linux-gnu"
+    } else if cfg!(windows) {
+        "x86_64-pc-windows-msvc"
+    } else if cfg!(macos) {
+        "x86_64-apple-darwin"
+    } else {
+        anyhow::bail!("regress with pr artifact doesn't support current platform");
+    };
+
+    let run_id = get_sha_run_id(sha).context("when getting run id")?;
     run_gh([
         "run",
         "download",
         &run_id.to_string(),
         "-n",
-        "artifact-svd2rust-x86_64-unknown-linux-gnu",
+        &format!("artifact-svd2rust-{}", target),
         "--dir",
     ])
     .arg(&output_dir)
