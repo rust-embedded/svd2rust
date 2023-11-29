@@ -158,11 +158,11 @@ fn run() -> Result<()> {
                 .help("Create mod.rs instead of lib.rs, without inner attributes"),
         )
         .arg(
-            Arg::new("include_compatible")
-                .long("include-compatible")
-                .alias("include_compatible")
+            Arg::new("skip_crate_attributes")
+                .long("skip-crate-attributes")
+                .alias("skip_crate_attributes")
                 .action(ArgAction::SetTrue)
-                .help("Do not generate top-level attributes to make it compatible with include! macro"),
+                .help("Do not generate crate attributes"),
         )
         .arg(
             Arg::new("strict")

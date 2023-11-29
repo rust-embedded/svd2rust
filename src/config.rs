@@ -10,7 +10,7 @@ pub struct Config {
     pub atomics_feature: Option<String>,
     pub generic_mod: bool,
     pub make_mod: bool,
-    pub include_compatible: bool,
+    pub skip_crate_attributes: bool,
     pub ignore_groups: bool,
     pub keep_list: bool,
     pub strict: bool,

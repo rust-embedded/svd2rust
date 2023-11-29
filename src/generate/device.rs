@@ -35,7 +35,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         });
     }
 
-    if !config.include_compatible {
+    if !config.skip_crate_attributes {
         let doc = format!(
             "Peripheral access API for {0} microcontrollers \
              (generated using svd2rust v{1}{commit_info})\n\n\
@@ -53,7 +53,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         out.extend(quote! { #![doc = #doc] });
     }
 
-    if !config.make_mod && !config.include_compatible {
+    if !config.make_mod && !config.skip_crate_attributes {
         out.extend(quote! {
             // Explicitly allow a few warnings that may be verbose
             #![allow(non_camel_case_types)]
