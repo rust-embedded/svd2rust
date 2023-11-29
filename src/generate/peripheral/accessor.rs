@@ -189,7 +189,7 @@ impl ToTokens for RawArrayAccessor {
             #[doc = #doc]
             #[inline(always)]
             pub fn #name_iter(&self) -> impl Iterator<Item=&#ty> {
-                crate::RegRawArrayIter::<#ty, #offset>::new((self as *const Self).cast::<u8>(), #dim)
+                crate::RegRawArrayIter::<#ty, #offset>::new((self as *const Self).cast(), #dim)
             }
         }
         .to_tokens(tokens);
