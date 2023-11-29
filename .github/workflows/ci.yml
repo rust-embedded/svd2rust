@@ -191,6 +191,7 @@ jobs:
             runs-on: macos-latest
           - target: x86_64-pc-windows-msvc
             runs-on: windows-latest
+            suffix: .exe
     steps:
       - uses: actions/checkout@v3
 
@@ -205,7 +206,7 @@ jobs:
       - name: Build svd2rust artifact
         run: cargo build --release --target ${{ matrix.target }}
 
-      - run: mv target/${{ matrix.target }}/release/svd2rust svd2rust-${{ matrix.target }}-$(git rev-parse --short HEAD)
+      - run: mv target/${{ matrix.target }}/release/svd2rust${{ matrix.suffix || '' }} svd2rust-${{ matrix.target }}-$(git rev-parse --short HEAD)${{ matrix.suffix || '' }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
