@@ -671,22 +671,15 @@ fn expand(
         match &erc {
             RegisterCluster::Register(register) => {
                 let reg_name = &register.name;
-                let expanded_reg =
-                    expand_register(register, derive_info, config).with_context(|| {
-                        let descrip = register.description.as_deref().unwrap_or("No description");
-                        format!(
-                            "Error expanding register\nName: {reg_name}\nDescription: {descrip}"
-                        )
-                    })?;
+                let expanded_reg = expand_register(register, derive_info, config)
+                    .with_context(|| format!("can't expand register '{reg_name}'"))?;
                 trace!("Register: {reg_name}");
                 ercs_expanded.extend(expanded_reg);
             }
             RegisterCluster::Cluster(cluster) => {
                 let cluster_name = &cluster.name;
-                let expanded_cluster = expand_cluster(cluster, config).with_context(|| {
-                    let descrip = cluster.description.as_deref().unwrap_or("No description");
-                    format!("Error expanding cluster\nName: {cluster_name}\nDescription: {descrip}")
-                })?;
+                let expanded_cluster = expand_cluster(cluster, config)
+                    .with_context(|| format!("can't expand cluster '{cluster_name}'"))?;
                 trace!("Cluster: {cluster_name}");
                 ercs_expanded.extend(expanded_cluster);
             }
@@ -1359,13 +1352,8 @@ fn render_ercs(
                     }
                 }
                 let reg_name = &reg.name;
-                let rendered_reg =
-                    register::render(reg, path, rpath, index, config).with_context(|| {
-                        let descrip = reg.description.as_deref().unwrap_or("No description");
-                        format!(
-                            "Error rendering register\nName: {reg_name}\nDescription: {descrip}"
-                        )
-                    })?;
+                let rendered_reg = register::render(reg, path, rpath, index, config)
+                    .with_context(|| format!("can't render register '{reg_name}'"))?;
                 mod_items.extend(rendered_reg)
             }
         }
