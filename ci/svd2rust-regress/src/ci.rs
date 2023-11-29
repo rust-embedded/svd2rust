@@ -26,6 +26,5 @@ impl Ci {
             }
             std::process::exit(0);
         };
-
     }
 }
