@@ -910,6 +910,7 @@ pub fn fields(
                 let offset_calc = calculate_offset(increment, offset, true);
                 let value = quote! { ((self.bits >> #offset_calc) & #hexmask) #cast };
                 let dim = unsuffixed(de.dim);
+                let name_snake_case_iter = Ident::new(&format!("{name_snake_case}_iter"), span);
                 r_impl_items.extend(quote! {
                     #[doc = #array_doc]
                     #inline
@@ -917,6 +918,12 @@ pub fn fields(
                         #[allow(clippy::no_effect)]
                         [(); #dim][n as usize];
                         #reader_ty::new ( #value )
+                    }
+                    #[doc = "Iterator for array of:"]
+                    #[doc = #array_doc]
+                    #inline
+                    pub fn #name_snake_case_iter(&self) -> impl Iterator<Item = #reader_ty> + '_ {
+                        (0..#dim).map(|n| #reader_ty::new ( #value ))
                     }
                 });
 
