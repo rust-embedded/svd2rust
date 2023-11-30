@@ -620,24 +620,34 @@ pub fn load_from(input: &str, config: &Config) -> Result<svd::Device> {
     use config::SourceType;
     use svd_parser::ValidateLevel;
 
+    let validate_level = if config.strict {
+        ValidateLevel::Strict
+    } else {
+        ValidateLevel::Weak
+    };
+
     let mut device = match config.source_type {
         SourceType::Xml => {
             let mut parser_config = svd_parser::Config::default();
-            parser_config.validate_level = if config.strict {
-                ValidateLevel::Strict
-            } else {
-                ValidateLevel::Weak
-            };
+            parser_config.validate_level = validate_level;
 
             svd_parser::parse_with_config(input, &parser_config)
                 .with_context(|| "Error parsing SVD XML file".to_string())?
         }
         #[cfg(feature = "yaml")]
-        SourceType::Yaml => serde_yaml::from_str(input)
-            .with_context(|| "Error parsing SVD YAML file".to_string())?,
+        SourceType::Yaml => {
+            let device: svd::Device = serde_yaml::from_str(input)
+                .with_context(|| "Error parsing SVD YAML file".to_string())?;
+            device.validate_all(validate_level)?;
+            device
+        }
         #[cfg(feature = "json")]
-        SourceType::Json => serde_json::from_str(input)
-            .with_context(|| "Error parsing SVD JSON file".to_string())?,
+        SourceType::Json => {
+            let device: svd::Device = serde_json::from_str(input)
+                .with_context(|| "Error parsing SVD JSON file".to_string())?;
+            device.validate_all(validate_level)?;
+            device
+        }
     };
     svd_parser::expand_properties(&mut device);
     Ok(device)
