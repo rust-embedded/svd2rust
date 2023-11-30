@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Context;
 
@@ -13,84 +13,84 @@ pub struct Diffing {
     /// Change the base version by starting with `@` followed by the source.
     ///
     /// supports `@pr` for current pr, `@master` for latest master build, or a version tag like `@v0.30.0`
-    #[clap(long)]
-    pub base: Option<String>,
+    #[clap(global = true, long, alias = "base")]
+    pub baseline: Option<String>,
 
-    #[clap(long)]
-    pub head: Option<String>,
+    #[clap(global = true, long, alias = "head")]
+    pub current: Option<String>,
 
     /// Enable formatting with `rustfmt`
-    #[clap(short = 'f', long)]
+    #[clap(global = true, short = 'f', long)]
     pub format: bool,
 
     /// Enable splitting `lib.rs` with `form`
-    #[clap(long)]
-    pub form_lib: bool,
+    #[clap(global = true, long)]
+    pub form_split: bool,
 
     #[clap(subcommand)]
-    pub sub: Option<DiffingSub>,
+    pub sub: Option<DiffingMode>,
 
-    #[clap(long)]
+    #[clap(global = true, long)]
     pub chip: Vec<String>,
+
+    #[clap(global = true, long)]
+    pub diff_folder: Option<PathBuf>,
+
+    #[clap(last = true)]
+    pub args: Option<String>,
 }
 
-#[derive(clap::Parser, Debug)]
-pub enum DiffingSub {
-    Pr,
+#[derive(clap::Parser, Debug, Clone, Copy)]
+pub enum DiffingMode {
+    Semver,
+    Diff,
 }
 
 type Source<'s> = Option<&'s str>;
 type Command<'s> = Option<&'s str>;
 
 impl Diffing {
-    pub fn run(
-        &self,
-        opts: &Opts,
-        rustfmt_bin_path: Option<&Path>,
-        form_bin_path: Option<&Path>,
-    ) -> Result<(), anyhow::Error> {
-        let [head, base] = self
-            .make_cases(opts, rustfmt_bin_path, form_bin_path)
+    pub fn run(&self, opts: &Opts) -> Result<(), anyhow::Error> {
+        let [baseline, current] = self
+            .make_cases(opts)
             .with_context(|| "couldn't setup svd2rust")?;
-        std::process::Command::new("git")
-            .args(["--no-pager", "diff", "--no-index", "--minimal"])
-            .args([&*head.0, &*base.0])
-            .status()
-            .with_context(|| "couldn't run git diff")
-            .map(|_| ())
+        match self.sub.unwrap_or(DiffingMode::Diff) {
+            DiffingMode::Diff => std::process::Command::new("git")
+                .args(["--no-pager", "diff", "--no-index", "--minimal"])
+                .args([&*baseline.0, &*current.0])
+                .status()
+                .with_context(|| "couldn't run git diff")
+                .map(|_| ()),
+            DiffingMode::Semver => std::process::Command::new("cargo")
+                .args(["semver-checks", "check-release"])
+                .arg("--baseline-root")
+                .arg(baseline.0)
+                .arg("--manifest-path")
+                .arg(current.0.join("Cargo.toml"))
+                .status()
+                .with_context(|| "couldn't run git diff")
+                .map(|_| ()),
+        }
     }
 
-    pub fn make_cases(
-        &self,
-        opts: &Opts,
-        rustfmt_bin_path: Option<&Path>,
-        form_bin_path: Option<&Path>,
-    ) -> Result<[(PathBuf, Vec<PathBuf>); 2], anyhow::Error> {
-        let [(head_bin, head_cmd), (base_bin, base_cmd)] = self
+    pub fn make_cases(&self, opts: &Opts) -> Result<[(PathBuf, Vec<PathBuf>); 2], anyhow::Error> {
+        let [(baseline_bin, baseline_cmd), (current_bin, current_cmd)] = self
             .svd2rust_setup(opts)
             .with_context(|| "couldn't setup svd2rust")?;
         let tests = crate::tests::tests(Some(opts)).with_context(|| "no tests found")?;
 
-        let head = tests[0]
+        let baseline = tests[0]
             .setup_case(
-                &opts.output_dir.join("head"),
-                &head_bin,
-                rustfmt_bin_path,
-                form_bin_path,
-                head_cmd,
+                &opts.output_dir.join("baseline"),
+                &baseline_bin,
+                baseline_cmd,
             )
             .with_context(|| "couldn't create head")?;
-        let base = tests[0]
-            .setup_case(
-                &opts.output_dir.join("base"),
-                &base_bin,
-                rustfmt_bin_path,
-                form_bin_path,
-                base_cmd,
-            )
+        let current = tests[0]
+            .setup_case(&opts.output_dir.join("current"), &current_bin, current_cmd)
             .with_context(|| "couldn't create base")?;
 
-        Ok([head, base])
+        Ok([baseline, current])
     }
 
     fn get_source_and_command<'s>(&'s self) -> [Option<(Source, Command)>; 2] {
@@ -106,16 +106,16 @@ impl Diffing {
             }
         };
 
-        let base = self.base.as_deref().map(split);
+        let baseline = self.baseline.as_deref().map(split);
 
-        let head = self.head.as_deref().map(split);
-        [base, head]
+        let current = self.current.as_deref().map(split);
+        [baseline, current]
     }
 
     pub fn svd2rust_setup(&self, opts: &Opts) -> Result<[(PathBuf, Command); 2], anyhow::Error> {
         // FIXME: refactor this to be less ugly
-        let [base_sc, head_sc] = self.get_source_and_command();
-        let base = match base_sc.and_then(|(source, _)| source) {
+        let [baseline_sc, current_sc] = self.get_source_and_command();
+        let baseline = match baseline_sc.and_then(|(source, _)| source) {
             reference @ None | reference @ Some("" | "master") => {
                 github::get_release_binary_artifact(reference.unwrap_or("master"), &opts.output_dir)
                     .with_context(|| "couldn't get svd2rust latest unreleased artifact")?
@@ -129,11 +129,14 @@ impl Diffing {
             Some("debug") => crate::get_cargo_metadata()
                 .target_directory
                 .join(format!("debug/svd2rust{}", std::env::consts::EXE_SUFFIX)),
+            Some("release") => crate::get_cargo_metadata()
+                .target_directory
+                .join(format!("release/svd2rust{}", std::env::consts::EXE_SUFFIX)),
             Some(reference) => github::get_release_binary_artifact(reference, &opts.output_dir)
                 .with_context(|| format!("could not get svd2rust for {reference}"))?,
         };
 
-        let head = match head_sc.and_then(|(source, _)| source) {
+        let current = match current_sc.and_then(|(source, _)| source) {
             None | Some("" | "pr") => {
                 let (number, sha) =
                     github::get_current_pr().with_context(|| "couldn't get current pr")?;
@@ -143,13 +146,16 @@ impl Diffing {
             Some("debug") => crate::get_cargo_metadata()
                 .target_directory
                 .join(format!("debug/svd2rust{}", std::env::consts::EXE_SUFFIX)),
+            Some("release") => crate::get_cargo_metadata()
+                .target_directory
+                .join(format!("release/svd2rust{}", std::env::consts::EXE_SUFFIX)),
             Some(reference) => github::get_release_binary_artifact(reference, &opts.output_dir)
                 .with_context(|| format!("could not get svd2rust for {reference}"))?,
         };
 
         Ok([
-            (base, base_sc.and_then(|(_, cmd)| cmd)),
-            (head, head_sc.and_then(|(_, cmd)| cmd)),
+            (baseline, baseline_sc.and_then(|(_, cmd)| cmd)),
+            (current, current_sc.and_then(|(_, cmd)| cmd)),
         ])
     }
 }

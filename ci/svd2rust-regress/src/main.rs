@@ -25,6 +25,9 @@ pub struct CargoMetadata {
     target_directory: PathBuf,
 }
 
+static RUSTFMT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+static FORM: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
 /// Returns the cargo metadata
 pub fn get_cargo_metadata() -> &'static CargoMetadata {
     static WORKSPACE: std::sync::OnceLock<CargoMetadata> = std::sync::OnceLock::new();
@@ -100,12 +103,7 @@ pub struct TestOpts {
 }
 
 impl TestOpts {
-    fn run(
-        &self,
-        opt: &Opts,
-        rustfmt_bin_path: Option<&Path>,
-        form_bin_path: Option<&Path>,
-    ) -> Result<(), anyhow::Error> {
+    fn run(&self, opt: &Opts) -> Result<(), anyhow::Error> {
         let tests = tests::tests(None)?
             .iter()
             // Short test?
@@ -138,31 +136,33 @@ impl TestOpts {
             .collect::<Vec<_>>();
         if self.list {
             // FIXME: Prettier output
-            eprintln!("{:?}", tests.iter().map(|t| t.name()).collect::<Vec<_>>());
+            println!("{:?}", tests.iter().map(|t| t.name()).collect::<Vec<_>>());
             exit(0);
         }
         if tests.is_empty() {
-            eprintln!("No tests run, you might want to use `--bad-tests` and/or `--long-test`");
+            tracing::error!(
+                "No tests run, you might want to use `--bad-tests` and/or `--long-test`"
+            );
         }
         let any_fails = AtomicBool::new(false);
         tests.par_iter().for_each(|t| {
             let start = Instant::now();
 
-            match t.test(opt, self, rustfmt_bin_path, form_bin_path) {
+            match t.test(opt, self) {
                 Ok(s) => {
                     if let Some(stderrs) = s {
                         let mut buf = String::new();
                         for stderr in stderrs {
                             read_file(&stderr, &mut buf);
                         }
-                        eprintln!(
+                        tracing::info!(
                             "Passed: {} - {} seconds\n{}",
                             t.name(),
                             start.elapsed().as_secs(),
                             buf
                         );
                     } else {
-                        eprintln!(
+                        tracing::info!(
                             "Passed: {} - {} seconds",
                             t.name(),
                             start.elapsed().as_secs()
@@ -192,7 +192,7 @@ impl TestOpts {
                     } else {
                         "".into()
                     };
-                    eprintln!(
+                    tracing::error!(
                         "Failed: {} - {} seconds. {:?}{}",
                         t.name(),
                         start.elapsed().as_secs(),
@@ -261,7 +261,10 @@ impl Opts {
     fn use_form(&self) -> bool {
         match self.subcommand {
             Subcommand::Tests(TestOpts { form_lib, .. }) => form_lib,
-            Subcommand::Diff(Diffing { form_lib, .. }) => form_lib,
+            Subcommand::Diff(Diffing {
+                form_split: form_lib,
+                ..
+            }) => form_lib,
             Subcommand::Ci(Ci { form_lib, .. }) => form_lib,
         }
     }
@@ -324,7 +327,7 @@ fn validate_tests(tests: &[tests::TestCase]) {
         let name = t.name();
         if !uniq.insert(name.clone()) {
             fail = true;
-            eprintln!("{} is not unique!", name);
+            tracing::info!("{} is not unique!", name);
         }
     }
 
@@ -347,6 +350,13 @@ fn read_file(path: &PathBuf, buf: &mut String) {
 
 fn main() -> Result<(), anyhow::Error> {
     let opt = Opts::parse();
+    tracing_subscriber::fmt()
+    .pretty()
+        .with_target(false)
+        .with_env_filter(tracing_subscriber::EnvFilter::builder()
+        .with_default_directive(tracing::level_filters::LevelFilter::INFO.into())
+        .from_env_lossy())
+        .init();
 
     // Validate all test pre-conditions
     validate_tests(tests::tests(Some(&opt))?);
@@ -362,23 +372,32 @@ fn main() -> Result<(), anyhow::Error> {
         None
     };
 
-    let rustfmt_bin_path = match (&opt.rustfmt_bin_path, opt.use_rustfmt()) {
-        (_, false) => None,
-        (Some(path), true) => Some(path.as_path()),
+    match (&opt.rustfmt_bin_path, opt.use_rustfmt()) {
+        (_, false) => {}
+        (Some(path), true) => {
+            RUSTFMT.get_or_init(|| path.clone());
+        }
         (&None, true) => {
             // FIXME: Use Option::filter instead when stable, rust-lang/rust#45860
             if !default_rustfmt.iter().any(|p| p.is_file()) {
                 panic!("No rustfmt found");
             }
-            default_rustfmt.as_deref()
+            if let Some(default_rustfmt) = default_rustfmt {
+                RUSTFMT.get_or_init(|| default_rustfmt);
+            }
         }
     };
-    let form = which::which("form");
-    let form_bin_path = match (&opt.form_bin_path, opt.use_form()) {
-        (_, false) => None,
-        (Some(path), true) => Some(path.as_path()),
-        (&None, true) => form.as_deref().ok(),
-    };
+    match (&opt.form_bin_path, opt.use_form()) {
+        (_, false) => {}
+        (Some(path), true) => {
+            FORM.get_or_init(|| path.clone());
+        }
+        (&None, true) => {
+            if let Ok(form) = which::which("form") {
+                FORM.get_or_init(|| form);
+            }
+        }
+    }
 
     // Set RUSTUP_TOOLCHAIN if needed
     if let Some(toolchain) = &opt.rustup_toolchain {
@@ -392,15 +411,9 @@ fn main() -> Result<(), anyhow::Error> {
                 "svd2rust binary does not exist"
             );
 
-            test_opts
-                .run(&opt, rustfmt_bin_path, form_bin_path)
-                .with_context(|| "failed to run tests")
+            test_opts.run(&opt).with_context(|| "failed to run tests")
         }
-        Subcommand::Diff(diff) => diff
-            .run(&opt, rustfmt_bin_path, form_bin_path)
-            .with_context(|| "failed to run diff"),
-        Subcommand::Ci(ci) => ci
-            .run(&opt, rustfmt_bin_path, form_bin_path)
-            .with_context(|| "failed to run ci"),
+        Subcommand::Diff(diff) => diff.run(&opt).with_context(|| "failed to run diff"),
+        Subcommand::Ci(ci) => ci.run(&opt).with_context(|| "failed to run ci"),
     }
 }

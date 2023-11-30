@@ -17,6 +17,10 @@ jobs:
           - name: Cache
             uses: Swatinem/rust-cache@v2
 
+          - uses: taiki-e/install-action@v2
+            with:
+              tool: cargo-semver-checks
+
           - run: cargo regress ci
             env:
               GITHUB_COMMENT:  ${{ github.event.comment.body }}

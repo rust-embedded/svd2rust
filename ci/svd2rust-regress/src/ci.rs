@@ -22,8 +22,7 @@ impl Ci {
     pub fn run(
         &self,
         opts: &Opts,
-        rustfmt_bin_path: Option<&Path>,
-        form_bin_path: Option<&Path>,
+
     ) -> Result<(), anyhow::Error> {
         let command = 'command: {
             // FIXME: this is just fun rust, probably not idiomatic.
