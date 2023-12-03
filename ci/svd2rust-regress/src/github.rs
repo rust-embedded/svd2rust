@@ -108,7 +108,7 @@ pub fn get_release_binary_artifact(
                 Some(reference)
             };
 
-            let artifact = if cfg!(linux) {
+            let artifact = if cfg!(target_os = "linux") {
                 "svd2rust-x86_64-unknown-linux-gnu.gz"
             } else if cfg!(windows) {
                 "svd2rust-x86_64-pc-windows-msvc.exe"

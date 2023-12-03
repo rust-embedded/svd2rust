@@ -46,8 +46,4 @@ jobs:
         with:
           tool: cargo-semver-checks
 
-      - run: gh repo set-default Emilgardis/svd2rust
-        env:
-          GH_TOKEN: ${{ github.token }}
-
       - run: cargo regress diff ${{ matrix.command }}
