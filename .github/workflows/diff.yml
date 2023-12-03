@@ -26,6 +26,7 @@ jobs:
           GITHUB_COMMENT_PR: ${{ github.event.comment.issue_url }}
   diff:
     runs-on: ubuntu-latest
+    needs: [generate]
     strategy:
       matrix:
         include: ${{ fromJson(needs.generate.outputs.diff) }}
