@@ -50,7 +50,7 @@ jobs:
 
       - uses: taiki-e/install-action@v2
         with:
-          tool: delta
+          tool: git-delta
 
       - run: cargo regress diff ${{ matrix.command }}
         env:
