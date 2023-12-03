@@ -48,8 +48,19 @@ jobs:
         with:
           tool: cargo-semver-checks
 
-      - run: jq '.' <<< '${{ toJson(github) }}'
       - run: cargo regress diff ${{ matrix.command }}
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_PR: ${{ matrix.pr }}
+  summary:
+    runs-on: ubuntu-latestw
+    needs: [diff]
+    if: always()
+    steps:
+      - run: |
+          PR_ID=$(echo "${{ github.event.comment.issue_url }}" | grep -o '[0-9]\+$')
+          gh run view ${{ github.run_id }} --json jobs | \
+          jq -r '"Diff for [comment]\n" + ([.jobs[] | select(.name | startswith("diff")) | "- [" + (.name | capture("\\((?<name>[^,]+),.*") | .name) + "](" + .url + "?pr=" + $pr_id + "#step:6:14)"] | join("\n"))' --arg pr_id "$PR_ID"| \
+          gh pr comment "$PR_ID" --body "$(< /dev/stdin)"
+        env:
+          GH_TOKEN: ${{ github.token }}
