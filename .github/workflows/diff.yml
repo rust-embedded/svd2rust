@@ -53,7 +53,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_PR: ${{ matrix.pr }}
   summary:
-    runs-on: ubuntu-latestw
+    runs-on: ubuntu-latest
     needs: [diff]
     if: always()
     steps:
