@@ -48,10 +48,15 @@ jobs:
         with:
           tool: cargo-semver-checks
 
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: delta
+
       - run: cargo regress diff ${{ matrix.command }}
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_PR: ${{ matrix.pr }}
+          PAGER: delta
   summary:
     runs-on: ubuntu-latest
     needs: [diff]
@@ -62,7 +67,7 @@ jobs:
       - run: |
           PR_ID=$(echo "${{ github.event.comment.issue_url }}" | grep -o '[0-9]\+$')
           gh run view ${{ github.run_id }} --json jobs | \
-          jq -r '"Diff for [comment]($comment)\n" + ([.jobs[] | select(.name | startswith("diff")) | "- [" + (.name | capture("\\((?<name>[^,]+),.*") | .name) + "](" + .url + "?pr=" + $pr_id + "#step:6:14)"] | join("\n"))' --arg pr_id "$PR_ID" --arg comment "${{ github.event.comment.url }}"| \
+          jq -r '"Diff for [comment]("+$comment+")\n\n" + ([.jobs[] | select(.name | startswith("diff")) | "- [" + (.name | capture("\\((?<name>[^,]+),.*") | .name) + "](" + .url + "?pr=" + $pr_id + "#step:7:45)"] | join("\n"))' --arg pr_id "$PR_ID" --arg comment "${{ github.event.comment.url }}"| \
           gh pr comment "$PR_ID" --body "$(< /dev/stdin)"
         env:
           GH_TOKEN: ${{ github.token }}

@@ -57,6 +57,9 @@ pub struct Diffing {
     #[clap(hide = true, env = "GITHUB_PR")]
     pub pr: Option<usize>,
 
+    #[clap(env = "PAGER")]
+    pub pager: Option<String>,
+
     #[clap(last = true)]
     pub args: Option<String>,
 }
@@ -76,12 +79,20 @@ impl Diffing {
             .make_case(opts)
             .with_context(|| "couldn't setup test case")?;
         match self.sub.unwrap_or(DiffingMode::Diff) {
-            DiffingMode::Diff => std::process::Command::new("git")
-                .args(["--no-pager", "diff", "--no-index", "--minimal"])
-                .args([&*baseline.0, &*current.0])
-                .status()
-                .with_context(|| "couldn't run git diff")
-                .map(|_| ()),
+            DiffingMode::Diff => {
+                let mut command = std::process::Command::new("git");
+                if let Some(pager) = &self.pager {
+                    command.args(["--config", &format!("core.pager=\"{}\"", pager)]);
+                } else {
+                    command.arg("--no-pager");
+                }
+                command
+                    .args(["diff", "--no-index", "--minimal"])
+                    .args([&*baseline.0, &*current.0])
+                    .status()
+                    .with_context(|| "couldn't run git diff")
+                    .map(|_| ())
+            }
             DiffingMode::Semver => std::process::Command::new("cargo")
                 .args(["semver-checks", "check-release"])
                 .arg("--baseline-root")
