@@ -51,3 +51,4 @@ jobs:
       - run: cargo regress diff ${{ matrix.command }}
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_PR: ${{ matrix.pr }}

@@ -18,6 +18,7 @@ pub struct Ci {
 struct Diff {
     command: String,
     needs_semver_checks: bool,
+    pr: usize,
 }
 
 impl Ci {
@@ -31,6 +32,7 @@ impl Ci {
             diffs.push(Diff {
                 needs_semver_checks: command.contains("semver"),
                 command: command.to_owned(),
+                pr: self.comment_pr.split('/').last().unwrap().parse()?,
             });
         }
         let json = serde_json::to_string(&diffs)?;

@@ -32,6 +32,23 @@ pub fn get_current_pr() -> Result<(usize, String), anyhow::Error> {
     Ok((number, head_ref_oid))
 }
 
+pub fn get_pr(pr: usize) -> Result<(usize, String), anyhow::Error> {
+    #[derive(serde::Deserialize)]
+    struct Pr {
+        number: usize,
+        #[serde(rename = "headRefOid")]
+        head_ref_oid: String,
+    }
+    let pr = run_gh(["pr", "view", &pr.to_string(), "--json", "headRefOid,number"])
+        .get_output_string()?;
+    let Pr {
+        number,
+        head_ref_oid,
+    } = serde_json::from_str(&pr)?;
+
+    Ok((number, head_ref_oid))
+}
+
 pub fn get_sha_run_id(sha: &str) -> Result<usize, anyhow::Error> {
     let run_id = run_gh([
         "api",
@@ -160,7 +177,7 @@ pub fn get_release_binary_artifact(
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755))?;
+        std::fs::set_permissions(binary, std::fs::Permissions::from_mode(0o755))?;
     }
 
     Ok(binary)
@@ -206,7 +223,7 @@ pub fn get_pr_binary_artifact(
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755))?;
+        std::fs::set_permissions(binary, std::fs::Permissions::from_mode(0o755))?;
     }
 
     Ok(binary)

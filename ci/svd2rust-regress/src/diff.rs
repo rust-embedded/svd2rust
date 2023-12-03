@@ -54,6 +54,9 @@ pub struct Diffing {
     #[clap(global = true, long)]
     pub diff_folder: Option<PathBuf>,
 
+    #[clap(hide = true, env = "GITHUB_PR")]
+    pub pr: Option<usize>,
+
     #[clap(last = true)]
     pub args: Option<String>,
 }
@@ -183,9 +186,15 @@ impl Diffing {
                 github::get_release_binary_artifact(reference.unwrap_or("master"), &opts.output_dir)
                     .with_context(|| "couldn't get svd2rust latest unreleased artifact")?
             }
-            Some("pr") => {
+            Some("pr") if self.pr.is_none() => {
                 let (number, sha) =
                     github::get_current_pr().with_context(|| "couldn't get current pr")?;
+                github::get_pr_binary_artifact(number, &sha, &opts.output_dir)
+                    .with_context(|| "couldn't get pr artifact")?
+            }
+            Some("pr") => {
+                let (number, sha) =
+                    github::get_pr(self.pr.unwrap()).with_context(|| "couldn't get current pr")?;
                 github::get_pr_binary_artifact(number, &sha, &opts.output_dir)
                     .with_context(|| "couldn't get pr artifact")?
             }
@@ -199,12 +208,16 @@ impl Diffing {
                 .with_context(|| format!("could not get svd2rust for {reference}"))?,
         };
 
-
-
         let current = match current_sc.and_then(|(source, _)| source) {
-            None | Some("" | "pr") => {
+            None | Some("" | "pr") if self.pr.is_none() => {
                 let (number, sha) =
                     github::get_current_pr().with_context(|| "couldn't get current pr")?;
+                github::get_pr_binary_artifact(number, &sha, &opts.output_dir)
+                    .with_context(|| "couldn't get pr artifact")?
+            }
+            None | Some("" | "pr") => {
+                let (number, sha) =
+                    github::get_pr(self.pr.unwrap()).with_context(|| "couldn't get current pr")?;
                 github::get_pr_binary_artifact(number, &sha, &opts.output_dir)
                     .with_context(|| "couldn't get pr artifact")?
             }
