@@ -23,7 +23,6 @@ jobs:
         id: regress-ci
         env:
           GITHUB_COMMENT: ${{ github.event.comment.body }}
-          GITHUB_COMMENT_USER: ${{ github.event.comment.user }}
           GITHUB_COMMENT_PR: ${{ github.event.comment.issue_url }}
   diff:
     runs-on: ubuntu-latest

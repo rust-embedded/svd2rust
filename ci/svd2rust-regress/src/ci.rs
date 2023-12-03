@@ -10,8 +10,6 @@ pub struct Ci {
     pub form_lib: bool,
     #[clap(env = "GITHUB_COMMENT")]
     pub comment: String,
-    #[clap(env = "GITHUB_COMMENT_USER")]
-    pub comment_user: String,
     #[clap(env = "GITHUB_COMMENT_PR")]
     pub comment_pr: String,
 }
