@@ -57,8 +57,12 @@ pub struct Diffing {
     #[clap(hide = true, env = "GITHUB_PR")]
     pub pr: Option<usize>,
 
-    #[clap(env = "PAGER")]
+    #[clap(env = "GIT_PAGER", long)]
     pub pager: Option<String>,
+
+    /// if set, will use pager directly instead of `git -c core.pager`
+    #[clap(long, short = 'P')]
+    pub use_pager_directly: bool,
 
     #[clap(last = true)]
     pub args: Option<String>,
@@ -80,17 +84,27 @@ impl Diffing {
             .with_context(|| "couldn't setup test case")?;
         match self.sub.unwrap_or(DiffingMode::Diff) {
             DiffingMode::Diff => {
-                let mut command = std::process::Command::new("git");
+                let mut command;
                 if let Some(pager) = &self.pager {
-                    command.args(["-c", &format!("core.pager=\"{}\"", pager)]);
+                    if self.use_pager_directly {
+                        let mut pager = pager.split_whitespace();
+                        command = std::process::Command::new(pager.next().unwrap());
+                        command.args(pager);
+                    } else {
+                        command = std::process::Command::new("git");
+                        command.env("GIT_PAGER", pager);
+                    }
                 } else {
+                    command = std::process::Command::new("git");
                     command.arg("--no-pager");
                 }
+                if !self.use_pager_directly {
+                    command.args(["diff", "--no-index", "--minimal"]);
+                }
                 command
-                    .args(["diff", "--no-index", "--minimal"])
                     .args([&*baseline.0, &*current.0])
                     .status()
-                    .with_context(|| "couldn't run git diff")
+                    .with_context(|| "couldn't run diff")
                     .map(|_| ())
             }
             DiffingMode::Semver => std::process::Command::new("cargo")
@@ -100,7 +114,7 @@ impl Diffing {
                 .arg("--manifest-path")
                 .arg(current.0.join("Cargo.toml"))
                 .status()
-                .with_context(|| "couldn't run git diff")
+                .with_context(|| "couldn't run semver-checks")
                 .map(|_| ()),
         }
     }
