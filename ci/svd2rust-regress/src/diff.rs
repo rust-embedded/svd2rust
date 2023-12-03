@@ -199,6 +199,8 @@ impl Diffing {
                 .with_context(|| format!("could not get svd2rust for {reference}"))?,
         };
 
+
+
         let current = match current_sc.and_then(|(source, _)| source) {
             None | Some("" | "pr") => {
                 let (number, sha) =
