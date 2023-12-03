@@ -57,6 +57,8 @@ jobs:
     needs: [diff]
     if: always()
     steps:
+      - uses: actions/checkout@v4
+
       - run: |
           PR_ID=$(echo "${{ github.event.comment.issue_url }}" | grep -o '[0-9]\+$')
           gh run view ${{ github.run_id }} --json jobs | \
