@@ -131,9 +131,14 @@ pub fn get_release_binary_artifact(
                 Command::new("gzip")
                     .arg("-d")
                     .arg(output_dir.join(artifact))
-                    .get_output()?;
+                    .get_output()
+                    .with_context(|| {
+                        format!("couldn't gzip {}", output_dir.join(artifact).display())
+                    })?;
 
-                std::fs::remove_file(output_dir.join(artifact))?;
+                std::fs::remove_file(output_dir.join(artifact)).with_context(|| {
+                    format!("couldn't remove {}", output_dir.join(artifact).display())
+                })?;
             }
         }
         _ => {
