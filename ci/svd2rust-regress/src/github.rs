@@ -127,7 +127,7 @@ pub fn get_release_binary_artifact(
                 .args(tag)
                 .run(true)?;
 
-            if cfg!(target = "x86_64-unknown-linux-gnu") || cfg!(macos) {
+            if cfg!(target_os = "linux") || cfg!(macos) {
                 Command::new("gzip")
                     .arg("-d")
                     .arg(output_dir.join(artifact))
