@@ -47,3 +47,5 @@ jobs:
           tool: cargo-semver-checks
 
       - run: cargo regress diff ${{ matrix.command }}
+        env:
+          GH_TOKEN: ${{ github.token }}

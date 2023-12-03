@@ -112,8 +112,10 @@ pub fn get_release_binary_artifact(
                 "svd2rust-x86_64-unknown-linux-gnu.gz"
             } else if cfg!(windows) {
                 "svd2rust-x86_64-pc-windows-msvc.exe"
-            } else if cfg!(macos) {
+            } else if cfg!(macos) && cfg!(target_arch = "x86_64") {
                 "svd2rust-x86_64-apple-darwin.gz"
+            } else if cfg!(macos) && cfg!(target_arch = "aarch64") {
+                "svd2rust-aarch64-apple-darwin.gz"
             } else {
                 anyhow::bail!("regress with release artifact doesn't support current platform")
             };
