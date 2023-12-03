@@ -1,28 +1,48 @@
 name: Diff
 on:
-    issue_comment:
-        types: [created]
+  issue_comment:
+    types: [created]
 
 jobs:
-    diff:
-        runs-on: ubuntu-latest
-        if: ${{ github.event.issue.pull_request }}
-        steps:
-          - uses: actions/checkout@v4
+  generate:
+    runs-on: ubuntu-latest
+    outputs:
+      diffs: ${{ steps.regress-ci.outputs.diffs }}
+    if: ${{ github.event.issue.pull_request }}
+    steps:
+      - uses: actions/checkout@v4
 
-          - uses: dtolnay/rust-toolchain@master
-            with:
-              toolchain: stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
 
-          - name: Cache
-            uses: Swatinem/rust-cache@v2
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
 
-          - uses: taiki-e/install-action@v2
-            with:
-              tool: cargo-semver-checks
+      - run: cargo regress ci
+        id: regress-ci
+        env:
+          GITHUB_COMMENT: ${{ github.event.comment.body }}
+          GITHUB_COMMENT_USER: ${{ github.event.comment.user }}
+          GITHUB_COMMENT_PR: ${{ github.event.comment.issue_url }}
+  diff:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.generate.outputs.diff) }}
+    steps:
+      - uses: actions/checkout@v4
 
-          - run: cargo regress ci
-            env:
-              GITHUB_COMMENT:  ${{ github.event.comment.body }}
-              GITHUB_COMMENT_USER: ${{ github.event.comment.user }}
-              GITHUB_COMMENT_PR: ${{ github.event.comment.issue_url }}
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@v2
+        if: matrix.needs_semver_checks
+        with:
+          tool: cargo-semver-checks
+
+      - run: cargo regress diff ${{ matrix.command }}

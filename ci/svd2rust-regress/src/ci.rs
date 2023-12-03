@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::Opts;
 
 #[derive(clap::Parser, Debug)]
@@ -18,22 +16,28 @@ pub struct Ci {
     pub comment_pr: String,
 }
 
-impl Ci {
-    pub fn run(
-        &self,
-        opts: &Opts,
+#[derive(serde::Serialize)]
+struct Diff {
+    command: String,
+    needs_semver_checks: bool,
+}
 
-    ) -> Result<(), anyhow::Error> {
-        let command = 'command: {
-            // FIXME: this is just fun rust, probably not idiomatic.
-            for line in self.comment.lines() {
-                let Some(command) = line.strip_prefix("/ci diff ") else {
-                    continue;
-                };
-                break 'command command;
-            }
-            std::process::exit(0);
-        };
-        todo!()
+impl Ci {
+    pub fn run(&self, _opts: &Opts) -> Result<(), anyhow::Error> {
+        let mut diffs = vec![];
+        for line in self.comment.lines() {
+            let Some(command) = line.strip_prefix("/ci diff ") else {
+                continue;
+            };
+
+            diffs.push(Diff {
+                needs_semver_checks: command.contains("semver"),
+                command: command.to_owned(),
+            });
+        }
+        let json = serde_json::to_string(&diffs)?;
+        crate::gha_print(&json);
+        crate::gha_output("diffs", &json)?;
+        Ok(())
     }
 }

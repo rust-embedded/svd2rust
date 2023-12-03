@@ -30,8 +30,26 @@ pub struct Diffing {
     #[clap(subcommand)]
     pub sub: Option<DiffingMode>,
 
-    #[clap(global = true, long)]
+    #[clap(long, short = 'c')]
     pub chip: Vec<String>,
+
+    /// Filter by manufacturer, case sensitive, may be combined with other filters
+    #[clap(
+            short = 'm',
+            long = "manufacturer",
+            ignore_case = true,
+            value_parser = crate::manufacturers(),
+        )]
+    pub mfgr: Option<String>,
+
+    /// Filter by architecture, case sensitive, may be combined with other filters
+    #[clap(
+            short = 'a',
+            long = "architecture",
+            ignore_case = true,
+            value_parser = crate::architectures(),
+        )]
+    pub arch: Option<String>,
 
     #[clap(global = true, long)]
     pub diff_folder: Option<PathBuf>,
@@ -52,8 +70,8 @@ type Command<'s> = Option<&'s str>;
 impl Diffing {
     pub fn run(&self, opts: &Opts) -> Result<(), anyhow::Error> {
         let [baseline, current] = self
-            .make_cases(opts)
-            .with_context(|| "couldn't setup svd2rust")?;
+            .make_case(opts)
+            .with_context(|| "couldn't setup test case")?;
         match self.sub.unwrap_or(DiffingMode::Diff) {
             DiffingMode::Diff => std::process::Command::new("git")
                 .args(["--no-pager", "diff", "--no-index", "--minimal"])
@@ -73,11 +91,56 @@ impl Diffing {
         }
     }
 
-    pub fn make_cases(&self, opts: &Opts) -> Result<[(PathBuf, Vec<PathBuf>); 2], anyhow::Error> {
+    pub fn make_case(&self, opts: &Opts) -> Result<[(PathBuf, Vec<PathBuf>); 2], anyhow::Error> {
         let [(baseline_bin, baseline_cmd), (current_bin, current_cmd)] = self
             .svd2rust_setup(opts)
             .with_context(|| "couldn't setup svd2rust")?;
-        let tests = crate::tests::tests(Some(opts)).with_context(|| "no tests found")?;
+        let tests = crate::tests::tests(Some(opts.test_cases.as_ref()))
+            .with_context(|| "no tests found")?;
+
+        let tests = tests
+            .iter()
+            .filter(|t| {
+                if let Some(ref arch) = self.arch {
+                    arch.to_ascii_lowercase()
+                        .eq_ignore_ascii_case(&t.arch.to_string())
+                } else {
+                    true
+                }
+            })
+            // selected manufacturer?
+            .filter(|t| {
+                if let Some(ref mfgr) = self.mfgr {
+                    mfgr.to_ascii_lowercase()
+                        .eq_ignore_ascii_case(&t.mfgr.to_string().to_ascii_lowercase())
+                } else {
+                    true
+                }
+            })
+            .filter(|t| {
+                if !self.chip.is_empty() {
+                    self.chip.iter().any(|c| {
+                        wildmatch::WildMatch::new(&c.to_ascii_lowercase())
+                            .matches(&t.chip.to_ascii_lowercase())
+                    })
+                } else {
+                    false
+                }
+            })
+            .collect::<Vec<_>>();
+        if tests.len() != 1 {
+            let error = anyhow::anyhow!("diff requires exactly one test case");
+            if tests.is_empty() {
+                return Err(error.context("matched no tests"));
+            } else if tests.len() > 10 {
+                return Err(error.context(format!("matched multiple ({}) tests", tests.len())));
+            }
+            return Err(error.context(format!(
+                "matched multiple ({}) tests\n{:?}",
+                tests.len(),
+                tests.iter().map(|t| t.name()).collect::<Vec<_>>()
+            )));
+        }
 
         let baseline = tests[0]
             .setup_case(
@@ -97,12 +160,12 @@ impl Diffing {
         let split = |s: &'s str| -> (Source, Command) {
             if let Some(s) = s.strip_prefix('@') {
                 if let Some((source, cmd)) = s.split_once(' ') {
-                    (Some(source), Some(cmd))
+                    (Some(source), Some(cmd.trim()))
                 } else {
                     (Some(s), None)
                 }
             } else {
-                (None, Some(s))
+                (None, Some(s.trim()))
             }
         };
 

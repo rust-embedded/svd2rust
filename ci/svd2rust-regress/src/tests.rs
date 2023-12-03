@@ -1,10 +1,12 @@
 use self::RunWhen::*;
 use anyhow::Context;
-use svd2rust::util::ToSanitizedCase;
+use serde::Serialize as _;
 pub use svd2rust::Target;
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, serde::Serialize, serde::Deserialize, PartialOrd, Ord, PartialEq, Eq, Clone, Copy,
+)]
 pub enum Manufacturer {
     Atmel,
     Freescale,
@@ -21,6 +23,35 @@ pub enum Manufacturer {
     SiFive,
     TexasInstruments,
     Espressif,
+}
+
+impl Manufacturer {
+    pub const fn all() -> &'static [Self] {
+        use self::Manufacturer::*;
+        &[
+            Atmel,
+            Freescale,
+            Fujitsu,
+            Holtek,
+            Microchip,
+            Nordic,
+            Nuvoton,
+            NXP,
+            SiliconLabs,
+            Spansion,
+            STMicro,
+            Toshiba,
+            SiFive,
+            TexasInstruments,
+            Espressif,
+        ]
+    }
+}
+
+impl std::fmt::Display for Manufacturer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.serialize(f)
+    }
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -62,23 +93,21 @@ impl TestCase {
     }
 
     pub fn name(&self) -> String {
-        format!("{:?}-{}", self.mfgr, self.chip.replace('.', "_")).into()
+        format!("{:?}-{}", self.mfgr, self.chip.replace('.', "_"))
     }
 }
 
-pub fn tests(opts: Option<&crate::Opts>) -> Result<&'static [TestCase], anyhow::Error> {
+pub fn tests(test_cases: Option<&std::path::Path>) -> Result<&'static [TestCase], anyhow::Error> {
     pub static TESTS: std::sync::OnceLock<Vec<TestCase>> = std::sync::OnceLock::new();
 
     if let Some(cases) = TESTS.get() {
         Ok(cases)
     } else {
-        let path = opts
-            .map(|o| o.test_cases.clone())
-            .ok_or_else(|| anyhow::format_err!("no test cases specified"))?;
+        let path = test_cases.ok_or_else(|| anyhow::format_err!("no test cases specified"))?;
         let cases: Vec<TestCase> = serde_json::from_reader(
             std::fs::OpenOptions::new()
                 .read(true)
-                .open(&path)
+                .open(path)
                 .with_context(|| format!("couldn't open file {}", path.display()))?,
         )?;
         Ok(TESTS.get_or_init(|| cases))

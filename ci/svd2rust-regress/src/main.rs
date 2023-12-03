@@ -13,7 +13,7 @@ use clap::Parser;
 use rayon::prelude::*;
 use std::fs::File;
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{exit, Command};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
@@ -62,16 +62,17 @@ pub struct TestOpts {
     #[clap(
     short = 'm',
     long = "manufacturer",
-    value_parser = validate_manufacturer,
+    ignore_case = true,
+    value_parser = manufacturers(),
 )]
     pub mfgr: Option<String>,
 
     /// Filter by architecture, case sensitive, may be combined with other filters
-    /// Options are: "CortexM", "RiscV", "Msp430", "Mips" and "XtensaLX"
     #[clap(
     short = 'a',
     long = "architecture",
-    value_parser = validate_architecture,
+    ignore_case = true,
+    value_parser = architectures(),
 )]
     pub arch: Option<String>,
 
@@ -83,8 +84,8 @@ pub struct TestOpts {
     #[clap(short = 'f', long)]
     pub format: bool,
 
-    /// Enable splitting `lib.rs` with `form`
     #[clap(long)]
+    /// Enable splitting `lib.rs` with `form`
     pub form_lib: bool,
 
     /// Print all available test using the specified filters
@@ -111,7 +112,8 @@ impl TestOpts {
             // selected architecture?
             .filter(|t| {
                 if let Some(ref arch) = self.arch {
-                    WildMatch::new(arch).matches(&format!("{:?}", t.arch))
+                    arch.to_ascii_lowercase()
+                        .eq_ignore_ascii_case(&t.arch.to_string())
                 } else {
                     true
                 }
@@ -119,7 +121,8 @@ impl TestOpts {
             // selected manufacturer?
             .filter(|t| {
                 if let Some(ref mfgr) = self.mfgr {
-                    WildMatch::new(mfgr).matches(&format!("{:?}", t.mfgr))
+                    mfgr.to_ascii_lowercase()
+                        .eq_ignore_ascii_case(&t.mfgr.to_string().to_ascii_lowercase())
                 } else {
                     true
                 }
@@ -293,26 +296,18 @@ fn default_svd2rust() -> std::ffi::OsString {
         .into_os_string()
 }
 
-fn validate_architecture(s: &str) -> Result<(), anyhow::Error> {
-    if tests::tests(None)?
+fn architectures() -> Vec<clap::builder::PossibleValue> {
+    svd2rust::Target::all()
         .iter()
-        .any(|t| format!("{:?}", t.arch) == s)
-    {
-        Ok(())
-    } else {
-        anyhow::bail!("Architecture `{s}` is not a valid value")
-    }
+        .map(|arch| clap::builder::PossibleValue::new(arch.to_string()))
+        .collect()
 }
 
-fn validate_manufacturer(s: &str) -> Result<(), anyhow::Error> {
-    if tests::tests(None)?
+fn manufacturers() -> Vec<clap::builder::PossibleValue> {
+    tests::Manufacturer::all()
         .iter()
-        .any(|t| format!("{:?}", t.mfgr) == s)
-    {
-        Ok(())
-    } else {
-        anyhow::bail!("Manufacturer `{s}` is not a valid value")
-    }
+        .map(|mfgr| clap::builder::PossibleValue::new(mfgr.to_string()))
+        .collect()
 }
 
 /// Validate any assumptions made by this program
@@ -351,15 +346,17 @@ fn read_file(path: &PathBuf, buf: &mut String) {
 fn main() -> Result<(), anyhow::Error> {
     let opt = Opts::parse();
     tracing_subscriber::fmt()
-    .pretty()
+        .pretty()
         .with_target(false)
-        .with_env_filter(tracing_subscriber::EnvFilter::builder()
-        .with_default_directive(tracing::level_filters::LevelFilter::INFO.into())
-        .from_env_lossy())
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::builder()
+                .with_default_directive(tracing::level_filters::LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
         .init();
 
     // Validate all test pre-conditions
-    validate_tests(tests::tests(Some(&opt))?);
+    validate_tests(tests::tests(Some(&opt.test_cases))?);
 
     let default_rustfmt: Option<PathBuf> = if let Some((v, true)) = Command::new("rustup")
         .args(["which", "rustfmt"])
@@ -416,4 +413,41 @@ fn main() -> Result<(), anyhow::Error> {
         Subcommand::Diff(diff) => diff.run(&opt).with_context(|| "failed to run diff"),
         Subcommand::Ci(ci) => ci.run(&opt).with_context(|| "failed to run ci"),
     }
+}
+
+macro_rules! gha_output {
+    ($fmt:literal$(, $args:expr)* $(,)?) => {
+        #[cfg(not(test))]
+        println!($fmt $(, $args)*);
+        #[cfg(test)]
+        eprintln!($fmt $(,$args)*);
+    };
+}
+
+pub fn gha_print(content: &str) {
+    gha_output!("{}", content);
+}
+
+pub fn gha_error(content: &str) {
+    gha_output!("::error {}", content);
+}
+
+#[track_caller]
+pub fn gha_output(tag: &str, content: &str) -> anyhow::Result<()> {
+    if content.contains('\n') {
+        // https://github.com/actions/toolkit/issues/403
+        anyhow::bail!("output `{tag}` contains newlines, consider serializing with json and deserializing in gha with fromJSON()");
+    }
+    write_to_gha_env_file("GITHUB_OUTPUT", &format!("{tag}={content}"))?;
+    Ok(())
+}
+
+// https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#environment-files
+pub fn write_to_gha_env_file(env_name: &str, contents: &str) -> anyhow::Result<()> {
+    use std::io::Write;
+    let path = std::env::var(env_name)?;
+    let path = std::path::Path::new(&path);
+    let mut file = std::fs::OpenOptions::new().append(true).open(path)?;
+    writeln!(file, "{}", contents)?;
+    Ok(())
 }

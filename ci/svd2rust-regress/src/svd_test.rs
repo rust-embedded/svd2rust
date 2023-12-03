@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use svd2rust::{util::ToSanitizedCase, Target};
 
-use crate::{command::CommandExt, tests::TestCase, Opts, TestOpts};
+use crate::{tests::TestCase, Opts, TestOpts};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -212,6 +212,7 @@ impl TestCase {
             writeln!(file, "{}", c).with_context(|| "Failed to append to file!")?;
         }
         tracing::info!("Downloading SVD");
+        // FIXME: Avoid downloading multiple times, especially if we're using the diff command
         let svd = reqwest::blocking::get(self.svd_url())
             .with_context(|| "Failed to get svd URL")?
             .text()
