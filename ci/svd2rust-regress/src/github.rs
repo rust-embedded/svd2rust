@@ -194,12 +194,14 @@ pub fn get_pr_binary_artifact(
         return Ok(binary);
     }
 
-    let target = if cfg!(linux) {
+    let target = if cfg!(target_os = "linux") {
         "x86_64-unknown-linux-gnu"
     } else if cfg!(windows) {
         "x86_64-pc-windows-msvc"
-    } else if cfg!(macos) {
+    } else if cfg!(macos) && cfg!(target_arch = "x86_64") {
         "x86_64-apple-darwin"
+    } else if cfg!(macos) && cfg!(target_arch = "aarch64") {
+        "aarch64-apple-darwin"
     } else {
         anyhow::bail!("regress with pr artifact doesn't support current platform");
     };
