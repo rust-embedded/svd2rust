@@ -201,5 +201,13 @@ pub fn get_pr_binary_artifact(
 
     let binary =
         find_executable(&output_dir, "svd2rust").with_context(|| "couldn't find svd2rust")?;
-    binary.ok_or_else(|| anyhow::anyhow!("no binary found"))
+    let binary = binary.ok_or_else(|| anyhow::anyhow!("no binary found"))?;
+
+    #[cfg(unix)]
+    {
+        use std::fs::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(binary, std::fs::Permissions::set_mode(0o755))
+    }
+
+    Ok(binary)
 }
