@@ -27,9 +27,10 @@ jobs:
   diff:
     runs-on: ubuntu-latest
     needs: [generate]
+    if: needs.generate.outputs.diffs != '{}' && needs.generate.outputs.diffs != '[]' && needs.generate.outputs.diffs != ''
     strategy:
       matrix:
-        include: ${{ fromJson(needs.generate.outputs.diff) }}
+        include: ${{ fromJson(needs.generate.outputs.diffs) }}
     steps:
       - uses: actions/checkout@v4
 
