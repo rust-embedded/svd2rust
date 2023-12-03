@@ -82,7 +82,7 @@ impl Diffing {
             DiffingMode::Diff => {
                 let mut command = std::process::Command::new("git");
                 if let Some(pager) = &self.pager {
-                    command.args(["--config", &format!("core.pager=\"{}\"", pager)]);
+                    command.args(["-c", &format!("core.pager=\"{}\"", pager)]);
                 } else {
                     command.arg("--no-pager");
                 }
