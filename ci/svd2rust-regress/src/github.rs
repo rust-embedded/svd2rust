@@ -159,7 +159,7 @@ pub fn get_release_binary_artifact(
 
     #[cfg(unix)]
     {
-        use std::fs::os::unix::fs::PermissionsExt;
+        use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(binary, std::fs::Permissions::set_mode(0o755))
     }
 
@@ -205,7 +205,7 @@ pub fn get_pr_binary_artifact(
 
     #[cfg(unix)]
     {
-        use std::fs::os::unix::fs::PermissionsExt;
+        use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(binary, std::fs::Permissions::set_mode(0o755))
     }
 
