@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use svd2rust::{util::ToSanitizedCase, Target};
 
-use crate::{tests::TestCase, Opts, TestOpts};
+use crate::{command::CommandExt, tests::TestCase, Opts, TestOpts};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -240,13 +240,7 @@ impl TestCase {
             .args(["-i", &chip_svd])
             .args(["--target", target])
             .current_dir(&chip_dir)
-            .output()
-            .with_context(|| {
-                format!(
-                    "failed to execute svd2rust: {}",
-                    svd2rust_bin_path.display()
-                )
-            })?;
+            .get_output()?;
         output.capture_outputs(
             true,
             "svd2rust",

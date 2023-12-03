@@ -232,8 +232,11 @@ impl Diffing {
         };
 
         Ok([
-            (baseline, baseline_sc.and_then(|(_, cmd)| cmd)),
-            (current, current_sc.and_then(|(_, cmd)| cmd)),
+            (
+                baseline.canonicalize()?,
+                baseline_sc.and_then(|(_, cmd)| cmd),
+            ),
+            (current.canonicalize()?, current_sc.and_then(|(_, cmd)| cmd)),
         ])
     }
 }

@@ -129,29 +129,26 @@ pub fn get_release_binary_artifact(
                 "svd2rust-aarch64-unknown-linux-gnu.gz"
             } else if cfg!(windows) {
                 "svd2rust-x86_64-pc-windows-msvc.exe"
-            } else if cfg!(macos) && cfg!(target_arch = "x86_64") {
+            } else if cfg!(target_os = "macos") && cfg!(target_arch = "x86_64") {
                 "svd2rust-x86_64-apple-darwin.gz"
-            } else if cfg!(macos) && cfg!(target_arch = "aarch64") {
+            } else if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
                 "svd2rust-aarch64-apple-darwin.gz"
             } else {
                 anyhow::bail!("regress with release artifact doesn't support current platform")
             };
 
-            std::fs::remove_file(output_dir.join(artifact)).ok();
+            std::fs::remove_dir_all(&output_dir).ok();
 
             run_gh(["release", "download", "--pattern", artifact, "--dir"])
                 .arg(&output_dir)
                 .args(tag)
                 .run(true)?;
 
-            if cfg!(target_os = "linux") || cfg!(macos) {
+            if cfg!(target_os = "linux") || cfg!(target_os = "macos") {
                 Command::new("gzip")
                     .arg("-d")
                     .arg(output_dir.join(artifact))
-                    .get_output()
-                    .with_context(|| {
-                        format!("couldn't gzip {}", output_dir.join(artifact).display())
-                    })?;
+                    .get_output()?;
             }
         }
         _ => {
@@ -199,9 +196,9 @@ pub fn get_pr_binary_artifact(
         "aarch64-unknown-linux-gnu"
     } else if cfg!(windows) {
         "x86_64-pc-windows-msvc"
-    } else if cfg!(macos) && cfg!(target_arch = "x86_64") {
+    } else if cfg!(target_os = "macos") && cfg!(target_arch = "x86_64") {
         "x86_64-apple-darwin"
-    } else if cfg!(macos) && cfg!(target_arch = "aarch64") {
+    } else if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
         "aarch64-apple-darwin"
     } else {
         anyhow::bail!("regress with pr artifact doesn't support current platform");

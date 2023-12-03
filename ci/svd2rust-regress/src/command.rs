@@ -34,7 +34,15 @@ impl CommandExt for Command {
 
     #[track_caller]
     fn get_output(&mut self) -> Result<std::process::Output, anyhow::Error> {
-        let output = self.output()?;
+        let output = self.output().with_context(|| {
+            format!(
+                "command `{}{}` couldn't be run",
+                self.get_current_dir()
+                    .map(|d| format!("{} ", d.display()))
+                    .unwrap_or_default(),
+                self.display()
+            )
+        })?;
         if output.status.success() {
             Ok(output)
         } else {
