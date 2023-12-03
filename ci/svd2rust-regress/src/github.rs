@@ -71,10 +71,11 @@ fn find_executable(dir: &Path, begins: &str) -> Result<Option<PathBuf>, anyhow::
         let filename = filename.to_string_lossy();
         if entry.metadata()?.is_file()
             && filename.starts_with(begins)
-            && entry
-                .path()
-                .extension()
-                .is_some_and(|s| s == std::env::consts::EXE_EXTENSION)
+            && (entry.path().extension().is_none()
+                || entry
+                    .path()
+                    .extension()
+                    .is_some_and(|s| s == std::env::consts::EXE_EXTENSION))
             && !entry.path().extension().is_some_and(|s| s == "gz")
         {
             Ok(Some(entry.path()))
