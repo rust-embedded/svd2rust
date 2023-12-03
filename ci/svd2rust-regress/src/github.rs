@@ -112,9 +112,6 @@ pub fn get_release_binary_artifact(
     output_dir: &Path,
 ) -> Result<PathBuf, anyhow::Error> {
     let output_dir = output_dir.join(".binary").join(reference);
-    if let Some(binary) = find_executable(&output_dir, "svd2rust").unwrap_or_default() {
-        return Ok(binary);
-    }
 
     match reference {
         reference if reference.starts_with('v') || matches!(reference, "master" | "latest") => {
