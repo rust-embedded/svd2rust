@@ -126,14 +126,14 @@ pub fn get_release_binary_artifact(
                 Some(reference)
             };
 
-            let artifact = if cfg!(target_os = "linux") {
+            let artifact = if cfg!(target_os = "linux") && cfg!(target_arch = "x86_64") {
                 "svd2rust-x86_64-unknown-linux-gnu.gz"
+            } else if cfg!(target_os = "linux") && cfg!(target_arch = "aarch64") {
+                "svd2rust-aarch64-unknown-linux-gnu.gz"
             } else if cfg!(windows) {
                 "svd2rust-x86_64-pc-windows-msvc.exe"
-            } else if cfg!(macos) && cfg!(target_arch = "x86_64") {
+            } else if cfg!(macos) {
                 "svd2rust-x86_64-apple-darwin.gz"
-            } else if cfg!(macos) && cfg!(target_arch = "aarch64") {
-                "svd2rust-aarch64-apple-darwin.gz"
             } else {
                 anyhow::bail!("regress with release artifact doesn't support current platform")
             };
@@ -194,14 +194,14 @@ pub fn get_pr_binary_artifact(
         return Ok(binary);
     }
 
-    let target = if cfg!(target_os = "linux") {
+    let target = if cfg!(target_os = "linux") && cfg!(target_arch = "x86_64") {
         "x86_64-unknown-linux-gnu"
+    } else if cfg!(target_os = "linux") && cfg!(target_arch = "aarch644") {
+        "aarch64-unknown-linux-gnu"
     } else if cfg!(windows) {
         "x86_64-pc-windows-msvc"
-    } else if cfg!(macos) && cfg!(target_arch = "x86_64") {
+    } else if cfg!(macos) {
         "x86_64-apple-darwin"
-    } else if cfg!(macos) && cfg!(target_arch = "aarch64") {
-        "aarch64-apple-darwin"
     } else {
         anyhow::bail!("regress with pr artifact doesn't support current platform");
     };
