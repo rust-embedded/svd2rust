@@ -1,3072 +1,2570 @@
 - arch: cortex-m
   mfgr: Atmel
   chip: AT91SAM9CN11
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: AT91SAM9CN12
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: AT91SAM9G10
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: AT91SAM9G15
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: AT91SAM9G20
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: AT91SAM9G25
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: AT91SAM9G35
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: AT91SAM9M10
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: AT91SAM9M11
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: AT91SAM9N12
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: AT91SAM9X25
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: AT91SAM9X35
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3A4C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3A8C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3N00A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3N00B
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3N0A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3N0B
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3N0C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3N1A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3N1B
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3N1C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3N2A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3N2B
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3N2C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3N4A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3N4B
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3N4C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3S1A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3S1B
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3S1C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3S2A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3S2B
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3S2C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3S4A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3S4B
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3S4C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3S8B
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3S8C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3SD8B
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3SD8C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3U1C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3U1E
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3U2C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3U2E
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3U4C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3U4E
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3X4C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3X4E
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3X8C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM3X8E
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM4S16B
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM4S16C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM4S8B
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM4S8C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM4SD32B
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAM4SD32C
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMA5D31
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMA5D33
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMA5D34
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMA5D35
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMD21E15A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMD21E16A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMD21E17A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMD21E18A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMD21G16A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMD21G17A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMD21G18A
   svd_url: https://raw.githubusercontent.com/wez/atsamd21-rs/master/svd/ATSAMD21G18A.svd
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMD21J16A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMD21J17A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMD21J18A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMR21E16A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMR21E17A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMR21E18A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMR21G16A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMR21G17A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Atmel
   chip: ATSAMR21G18A
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV56F20
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV56F22
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV56F24
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV58F20
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV58F22
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV58F24
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Freescale
   chip: MK61F15
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Freescale
   chip: MK61F15WS
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Freescale
   chip: MK70F12
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Freescale
   chip: MK70F15
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Freescale
   chip: MK70F15WS
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Freescale
   chip: MK02F12810
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK10D10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK10D5
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK10D7
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK10DZ10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK10F12
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK11D5
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK11D5WS
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK11DA5
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK12D5
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK20D10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK20D5
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK20D7
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK20DZ10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK20F12
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK21D5
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK21D5WS
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK21DA5
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK21F12
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK21FA12
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK22D5
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK22F12
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK22F12810
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK22F25612
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK22F51212
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK22FA12
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK24F12
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK24F25612
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK26F18
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK30D10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK30D7
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK30DZ10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK40D10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK40D7
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK40DZ10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK50D10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK50D7
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK50DZ10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK51D10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK51D7
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK51DZ10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK52D10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK52DZ10
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK53D10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK53DZ10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK60D10
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK60DZ10
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK60F15
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK63F12
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK64F12
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK65F18
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK66F18
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK80F25615
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK81F25615
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MK82F25615
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE14F16
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE14Z7
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE15Z7
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE16F16
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE18F16
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL28T7_CORE0
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL28T7_CORE1
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL28Z7
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL81Z7
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL82Z7
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKS22F12
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV10Z1287
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV10Z7
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV11Z7
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV30F12810
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV31F12810
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV31F25612
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV31F51212
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV40F15
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV42F16
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV43F15
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV44F15
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV44F16
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV45F15
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV46F15
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV46F16
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW20Z4
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW21D5
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW21Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW22D5
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW24D5
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW30Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW31Z4
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW40Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW41Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE02Z4
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE04Z1284
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE04Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE06Z4
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE14D7
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE15D7
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL02Z4
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL03Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL04Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL05Z4
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL13Z644
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL14Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL15Z4
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL16Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL17Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL17Z644
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL24Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL25Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL26Z4
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL27Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL27Z644
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL33Z4
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL33Z644
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL34Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL36Z4
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL43Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL46Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKM14ZA5
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKM33ZA5
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKM34Z7
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: MKM34ZA5
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW01Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: SKEAZ1284
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Freescale
   chip: SKEAZN642
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: SKEAZN84
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF10xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF10xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF11xK
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF11xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF11xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF11xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF12xK
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF12xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF13xK
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF13xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF13xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF13xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF14xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF14xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF14xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF15xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF15xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF15xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF1AxL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF1AxM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF1AxN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF31xK
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF31xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF31xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF31xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF34xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF34xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF34xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF42xK
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF42xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFA3xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFA3xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFA3xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFA4xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFA4xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFA4xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFAAxL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFAAxM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFAAxN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFB4xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFB4xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFB4xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B160L
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B160R
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B360L
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B360R
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B460L
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B460R
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B560L
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B560R
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF10xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF10xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF11xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF11xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF11xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF11xT
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF12xJ
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF12xK
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF12xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF12xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF12xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF12xT
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF21xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF21xT
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF30xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF30xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF31xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF31xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF31xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF31xT
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF32xK
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF32xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF32xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF32xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF32xT
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF40xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF40xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF41xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF41xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF41xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF41xT
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF42xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF42xT
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF50xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF50xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF51xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF51xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF51xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF51xT
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF52xK
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF52xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF52xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF52xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF52xT
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF61xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF61xT
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BFD1xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BFD1xT
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: S6E1A1
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: S6E2CC
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Holtek
   chip: ht32f125x
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Holtek
   chip: ht32f175x
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Holtek
   chip: ht32f275x
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Nordic
   chip: nrf51
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Nordic
   chip: nrf52
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Nuvoton
   chip: M051_Series
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Nuvoton
   chip: NUC100_Series
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC11Exx_v5
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC11Uxx_v7
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC11xx_v6a
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC11xx_v6
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC13Uxx_v1
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC15xx_v0.7
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC800_v0.3
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC11E6x_v0.8
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC176x5x_v0.2
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC11Cxx_v9
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC178x_7x
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC178x_7x_v0.8
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC408x_7x_v0.7
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC11Axxv0.6
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC11D14_svd_v4
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC13xx_svd_v1
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC18xx_svd_v18
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC43xx_43Sxx
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC1102_4_v4
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: LPC5410x_v0.4
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: NXP
   chip: MK22F25612
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: NXP
   chip: MK22F51212
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: NXP
   chip: MKW41Z4
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: SiliconLabs
   chip: SIM3C1x4_SVD
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: SiliconLabs
   chip: SIM3C1x6_SVD
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: SiliconLabs
   chip: SIM3C1x7_SVD
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: SiliconLabs
   chip: SIM3L1x4_SVD
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: SiliconLabs
   chip: SIM3L1x6_SVD
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: SiliconLabs
   chip: SIM3L1x7_SVD
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: SiliconLabs
   chip: SIM3U1x4_SVD
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: SiliconLabs
   chip: SIM3U1x6_SVD
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: SiliconLabs
   chip: SIM3U1x7_SVD
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: SiliconLabs
   chip: SIM3L1x8_SVD
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF12xK
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF12xL
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF42xK
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF42xL
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF12xJ
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF12xS
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF12xT
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF16xx
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF32xS
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF32xT
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF36xx
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF42xS
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF42xT
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF46xx
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF52xS
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF52xT
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF56xx
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF10xN
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF10xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF11xK
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF11xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF11xM
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF11xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF13xK
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF13xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF13xM
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF13xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF14xL
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF14xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF14xN
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF15xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF15xN
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF15xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF31xK
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF31xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF31xM
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF31xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF34xL
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF34xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF34xN
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFA3xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFA3xM
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFA3xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFA4xL
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFA4xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFA4xN
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFB4xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFB4xM
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFB4xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF10xN
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF10xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF11xN
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF11xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF11xS
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF11xT
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF12xK
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF12xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF12xM
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF21xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF21xT
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF30xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF30xR
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF31xN
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF31xR
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF31xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF31xT
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF32xK
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF32xL
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF32xM
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF40xN
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF40xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF41xN
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF41xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF41xS
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF41xT
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF50xN
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF50xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF51xN
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF51xR
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF51xS
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF51xT
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF52xK
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF52xL
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF52xM
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF61xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF61xT
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BFD1xS
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BFD1xT
-  svd_url:
   should_pass: true
-  run_when: NotShort
+  run_when: not-short
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F030
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F031x
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F042x
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F072x
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F091x
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F0xx
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F100xx
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F101xx
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F102xx
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F103xx
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F105xx
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F107xx
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F20x
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F21x
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F301
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F302
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F303
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F3x4
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F373
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F401
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F405
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F407
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F410
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F411
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F412
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F413
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F427
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F429
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F446
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F469
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x2
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x3
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x5
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x6
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x7
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x9
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G07x
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G431xx
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G441xx
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G471xx
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G474xx
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G483xx
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G484xx
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L100
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L15xC
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L15xxE
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L15xxxA
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L1xx
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L4x6
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32W108
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L051x
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L052x
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L053x
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L062x
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L063x
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Toshiba
   chip: M365
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Toshiba
   chip: M367
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Toshiba
   chip: M368
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Toshiba
   chip: M369
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Toshiba
   chip: M36B
-  svd_url:
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: cortex-m
   mfgr: Toshiba
   chip: M061
-  svd_url:
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: riscv
   mfgr: SiFive
   chip: E310x
   svd_url: https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
   should_pass: false
-  run_when: Never
+  run_when: never
 - arch: msp430
   mfgr: TexasInstruments
   chip: msp430g2553
   svd_url: https://github.com/pftbest/msp430g2553/raw/v0.1.3-svd/msp430g2553.svd
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: msp430
   mfgr: TexasInstruments
   chip: msp430fr2355
   svd_url: https://raw.githubusercontent.com/YuhanLiin/msp430fr2355/master/msp430fr2355.svd
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: xtensa-lx
   mfgr: Espressif
   chip: esp32
   svd_url: https://raw.githubusercontent.com/espressif/svd/main/svd/esp32.svd
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: xtensa-lx
   mfgr: Espressif
   chip: esp32s2
   svd_url: https://raw.githubusercontent.com/espressif/svd/main/svd/esp32s2.svd
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: xtensa-lx
   mfgr: Espressif
   chip: esp32s3
   svd_url: https://raw.githubusercontent.com/espressif/svd/main/svd/esp32s3.svd
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: riscv
   mfgr: Espressif
   chip: esp32c3
   svd_url: https://raw.githubusercontent.com/espressif/svd/main/svd/esp32c3.svd
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: mips
   mfgr: Microchip
   chip: pic32mx170f256b
   svd_url: https://raw.githubusercontent.com/kiffie/pic32-pac/master/pic32mx1xxfxxxb/PIC32MX170F256B.svd.patched
   should_pass: true
-  run_when: Always
+  run_when: always
 - arch: mips
   mfgr: Microchip
   chip: pic32mx270f256b
   svd_url: https://raw.githubusercontent.com/kiffie/pic32-pac/master/pic32mx2xxfxxxb/PIC32MX270F256B.svd.patched
   should_pass: true
-  run_when: Always
+  run_when: always
