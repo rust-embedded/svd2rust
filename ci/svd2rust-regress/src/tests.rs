@@ -104,12 +104,23 @@ pub fn tests(test_cases: Option<&std::path::Path>) -> Result<&'static [TestCase]
         Ok(cases)
     } else {
         let path = test_cases.ok_or_else(|| anyhow::format_err!("no test cases specified"))?;
-        let cases: Vec<TestCase> = serde_json::from_reader(
-            std::fs::OpenOptions::new()
-                .read(true)
-                .open(path)
-                .with_context(|| format!("couldn't open file {}", path.display()))?,
-        )?;
+        let cases: Vec<TestCase> = if path.extension() != Some(std::ffi::OsStr::new("yml")) {
+            serde_json::from_reader(
+                std::fs::OpenOptions::new()
+                    .read(true)
+                    .open(path)
+                    .with_context(|| format!("couldn't open file {}", path.display()))?,
+            )?
+        } else if path.extension() != Some(std::ffi::OsStr::new("json")) {
+            serde_yaml::from_reader(
+                std::fs::OpenOptions::new()
+                    .read(true)
+                    .open(path)
+                    .with_context(|| format!("couldn't open file {}", path.display()))?,
+            )?
+        } else {
+            anyhow::bail!("unknown file extension for {}", path.display());
+        };
         Ok(TESTS.get_or_init(|| cases))
     }
 }

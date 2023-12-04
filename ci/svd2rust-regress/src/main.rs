@@ -241,7 +241,7 @@ pub struct Opts {
     #[clap(global = true, long = "toolchain")] // , env = "RUSTUP_TOOLCHAIN"
     pub rustup_toolchain: Option<String>,
 
-    /// Test cases to run, defaults to `tests.json`
+    /// Test cases to run
     #[clap(global = true, long, default_value = default_test_cases())]
     pub test_cases: std::path::PathBuf,
 
@@ -273,18 +273,18 @@ impl Opts {
     }
 }
 
-/// Hack to use ci/tests.json as default value when running as `cargo run`
+/// Hack to use ci/tests.yml as default value when running as `cargo run`
 fn default_test_cases() -> std::ffi::OsString {
     std::env::var_os("CARGO_MANIFEST_DIR")
         .map(|mut e| {
-            e.extend([std::ffi::OsStr::new("/tests.json")]);
+            e.extend([std::ffi::OsStr::new("/tests.yml")]);
             std::path::PathBuf::from(e)
                 .strip_prefix(std::env::current_dir().unwrap())
                 .unwrap()
                 .to_owned()
                 .into_os_string()
         })
-        .unwrap_or_else(|| std::ffi::OsString::from("tests.json".to_owned()))
+        .unwrap_or_else(|| std::ffi::OsString::from("tests.yml".to_owned()))
 }
 
 fn default_svd2rust() -> std::ffi::OsString {
