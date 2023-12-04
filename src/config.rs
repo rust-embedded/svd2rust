@@ -52,14 +52,14 @@ pub enum Target {
 
 impl std::fmt::Display for Target {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Target::CortexM => f.write_str("cortex-m"),
-            Target::Msp430 => f.write_str("msp430"),
-            Target::RISCV => f.write_str("riscv"),
-            Target::XtensaLX => f.write_str("xtensa-lx"),
-            Target::Mips => f.write_str("mips"),
-            Target::None => f.write_str("none"),
-        }
+        f.write_str(match self {
+            Target::CortexM => "cortex-m",
+            Target::Msp430 => "msp430",
+            Target::RISCV => "riscv",
+            Target::XtensaLX => "xtensa-lx",
+            Target::Mips => "mips",
+            Target::None => "none",
+        })
     }
 }
 

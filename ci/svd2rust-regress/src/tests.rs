@@ -55,6 +55,7 @@ impl std::fmt::Display for Manufacturer {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum RunWhen {
     Always,
     NotShort,
@@ -68,6 +69,7 @@ pub struct TestCase {
     pub arch: Target,
     pub mfgr: Manufacturer,
     pub chip: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     svd_url: Option<String>,
     pub should_pass: bool,
     run_when: RunWhen,

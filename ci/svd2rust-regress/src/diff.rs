@@ -158,16 +158,15 @@ impl Diffing {
             .collect::<Vec<_>>();
         if tests.len() != 1 {
             let error = anyhow::anyhow!("diff requires exactly one test case");
-            if tests.is_empty() {
-                return Err(error.context("matched no tests"));
-            } else if tests.len() > 10 {
-                return Err(error.context(format!("matched multiple ({}) tests", tests.len())));
-            }
-            return Err(error.context(format!(
-                "matched multiple ({}) tests\n{:?}",
-                tests.len(),
-                tests.iter().map(|t| t.name()).collect::<Vec<_>>()
-            )));
+            let len = tests.len();
+            return Err(match len {
+                0 => error.context("matched no tests"),
+                10.. => error.context(format!("matched multiple ({len}) tests")),
+                _ => error.context(format!(
+                    "matched multiple ({len}) tests\n{:?}",
+                    tests.iter().map(|t| t.name()).collect::<Vec<_>>()
+                )),
+            });
         }
 
         let baseline = tests[0]

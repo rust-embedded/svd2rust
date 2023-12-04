@@ -245,9 +245,10 @@ impl TestCase {
             true,
             "svd2rust",
             Some(&lib_rs_file).filter(|_| {
-                (self.arch != Target::CortexM)
-                    && (self.arch != Target::Msp430)
-                    && (self.arch != Target::XtensaLX)
+                !matches!(
+                    self.arch,
+                    Target::CortexM | Target::Msp430 | Target::XtensaLX
+                )
             }),
             Some(&svd2rust_err_file),
             &[],
