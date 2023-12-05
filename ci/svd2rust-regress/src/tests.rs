@@ -79,7 +79,7 @@ impl TestCase {
     pub fn svd_url(&self) -> String {
         match &self.svd_url {
             Some(u) => u.to_owned(),
-            None => format!("https://raw.githubusercontent.com/posborne/cmsis-svd/master/data/{vendor:?}/{chip}.svd",
+            None => format!("https://raw.githubusercontent.com/cmsis-svd/cmsis-svd-data/main/data/{vendor:?}/{chip}.svd",
                   vendor = self.mfgr,
                   chip = self.chip
             )
