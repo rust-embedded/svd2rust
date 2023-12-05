@@ -216,11 +216,11 @@ impl TestCase {
         let svd_url = &self.svd_url();
         let svd = reqwest::blocking::get(svd_url)
             .with_context(|| format!("Failed to get svd URL: {svd_url}"))?
+            .error_for_status()
+            .with_context(|| anyhow!("Response is not ok for svd url"))?
             .text()
             .with_context(|| "SVD is bad text")?;
-        if svd == "404: Not Found" {
-            return Err(anyhow!("Failed to get svd URL: {svd_url}. {svd}").into());
-        }
+
         let chip_svd = format!("{}.svd", &self.chip);
         let svd_file = path_helper_base(&chip_dir, &[&chip_svd]);
         file_helper(&svd, &svd_file)?;
@@ -262,7 +262,7 @@ impl TestCase {
             Target::CortexM | Target::Mips | Target::Msp430 | Target::XtensaLX => {
                 // TODO: Give error the path to stderr
                 fs::rename(path_helper_base(&chip_dir, &["lib.rs"]), &lib_rs_file)
-                    .with_context(|| "While moving lib.rs file")?
+                    .with_context(|| "While moving lib.rs file")?;
             }
             _ => {}
         }

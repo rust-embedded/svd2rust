@@ -146,13 +146,13 @@ impl Diffing {
                 }
             })
             .filter(|t| {
-                if !self.chip.is_empty() {
+                if self.chip.is_empty() {
+                    false
+                } else {
                     self.chip.iter().any(|c| {
                         wildmatch::WildMatch::new(&c.to_ascii_lowercase())
                             .matches(&t.chip.to_ascii_lowercase())
                     })
-                } else {
-                    false
                 }
             })
             .collect::<Vec<_>>();
@@ -206,7 +206,7 @@ impl Diffing {
         // FIXME: refactor this to be less ugly
         let [baseline_sc, current_sc] = self.get_source_and_command();
         let baseline = match baseline_sc.and_then(|(source, _)| source) {
-            reference @ None | reference @ Some("" | "master") => {
+            reference @ (None | Some("" | "master")) => {
                 github::get_release_binary_artifact(reference.unwrap_or("master"), &opts.output_dir)
                     .with_context(|| "couldn't get svd2rust latest unreleased artifact")?
             }

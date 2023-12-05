@@ -44,6 +44,7 @@ pub fn get_cargo_metadata() -> &'static CargoMetadata {
 }
 
 /// Returns the cargo workspace for the manifest
+#[must_use]
 pub fn get_cargo_workspace() -> &'static std::path::Path {
     &get_cargo_metadata().workspace_root
 }
@@ -129,11 +130,11 @@ impl TestOpts {
             })
             // Specify chip - note: may match multiple
             .filter(|t| {
-                if !self.chip.is_empty() {
-                    self.chip.iter().any(|c| WildMatch::new(c).matches(&t.chip))
-                } else {
+                if self.chip.is_empty() {
                     // Don't run failable tests unless wanted
                     self.bad_tests || t.should_pass
+                } else {
+                    self.chip.iter().any(|c| WildMatch::new(c).matches(&t.chip))
                 }
             })
             .collect::<Vec<_>>();
@@ -190,10 +191,10 @@ impl TestOpts {
                                 read_file(stderr, &mut buf);
                                 buf
                             }
-                            _ => "".into(),
+                            _ => String::new(),
                         }
                     } else {
-                        "".into()
+                        String::new()
                     };
                     tracing::error!(
                         "Failed: {} - {} seconds. {:?}{}",
@@ -253,38 +254,39 @@ pub struct Opts {
 }
 
 impl Opts {
-    fn use_rustfmt(&self) -> bool {
+    const fn use_rustfmt(&self) -> bool {
         match self.subcommand {
-            Subcommand::Tests(TestOpts { format, .. }) => format,
-            Subcommand::Diff(Diffing { format, .. }) => format,
-            Subcommand::Ci(Ci { format, .. }) => format,
+            Subcommand::Tests(TestOpts { format, .. })
+            | Subcommand::Diff(Diffing { format, .. })
+            | Subcommand::Ci(Ci { format, .. }) => format,
         }
     }
 
-    fn use_form(&self) -> bool {
+    const fn use_form(&self) -> bool {
         match self.subcommand {
-            Subcommand::Tests(TestOpts { form_lib, .. }) => form_lib,
-            Subcommand::Diff(Diffing {
+            Subcommand::Tests(TestOpts { form_lib, .. })
+            | Subcommand::Diff(Diffing {
                 form_split: form_lib,
                 ..
-            }) => form_lib,
-            Subcommand::Ci(Ci { form_lib, .. }) => form_lib,
+            })
+            | Subcommand::Ci(Ci { form_lib, .. }) => form_lib,
         }
     }
 }
 
 /// Hack to use ci/tests.yml as default value when running as `cargo run`
 fn default_test_cases() -> std::ffi::OsString {
-    std::env::var_os("CARGO_MANIFEST_DIR")
-        .map(|mut e| {
+    std::env::var_os("CARGO_MANIFEST_DIR").map_or_else(
+        || std::ffi::OsString::from("tests.yml".to_owned()),
+        |mut e| {
             e.extend([std::ffi::OsStr::new("/tests.yml")]);
             std::path::PathBuf::from(e)
                 .strip_prefix(std::env::current_dir().unwrap())
                 .unwrap()
                 .to_owned()
                 .into_os_string()
-        })
-        .unwrap_or_else(|| std::ffi::OsString::from("tests.yml".to_owned()))
+        },
+    )
 }
 
 fn default_svd2rust() -> std::ffi::OsString {
@@ -326,9 +328,7 @@ fn validate_tests(tests: &[tests::TestCase]) {
         }
     }
 
-    if fail {
-        panic!("Tests failed validation");
-    }
+    assert!(!fail, "Tests failed validation");
 }
 
 fn read_file(path: &PathBuf, buf: &mut String) {
@@ -376,9 +376,10 @@ fn main() -> Result<(), anyhow::Error> {
         }
         (&None, true) => {
             // FIXME: Use Option::filter instead when stable, rust-lang/rust#45860
-            if !default_rustfmt.iter().any(|p| p.is_file()) {
-                panic!("No rustfmt found");
-            }
+            assert!(
+                default_rustfmt.iter().any(|p| p.is_file()),
+                "No rustfmt found"
+            );
             if let Some(default_rustfmt) = default_rustfmt {
                 RUSTFMT.get_or_init(|| default_rustfmt);
             }

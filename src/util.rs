@@ -144,7 +144,7 @@ pub fn respace(s: &str) -> String {
 
 pub fn escape_brackets(s: &str) -> String {
     s.split('[')
-        .fold("".to_string(), |acc, x| {
+        .fold(String::new(), |acc, x| {
             if acc.is_empty() {
                 x.to_string()
             } else if acc.ends_with('\\') {
@@ -154,7 +154,7 @@ pub fn escape_brackets(s: &str) -> String {
             }
         })
         .split(']')
-        .fold("".to_string(), |acc, x| {
+        .fold(String::new(), |acc, x| {
             if acc.is_empty() {
                 x.to_string()
             } else if acc.ends_with('\\') {
@@ -445,11 +445,13 @@ pub fn peripheral_names(d: &Device) -> Vec<String> {
     for p in &d.peripherals {
         match p {
             Peripheral::Single(info) => {
-                v.push(replace_suffix(&info.name.to_sanitized_snake_case(), ""))
+                v.push(replace_suffix(&info.name.to_sanitized_snake_case(), ""));
             }
-            Peripheral::Array(info, dim) => v.extend(
-                svd_rs::array::names(info, dim).map(|n| n.to_sanitized_snake_case().into()),
-            ),
+            Peripheral::Array(info, dim) => {
+                v.extend(
+                    svd_rs::array::names(info, dim).map(|n| n.to_sanitized_snake_case().into()),
+                );
+            }
         }
     }
     v.sort();

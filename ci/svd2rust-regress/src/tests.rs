@@ -86,7 +86,7 @@ impl TestCase {
         }
     }
 
-    pub fn should_run(&self, short_test: bool) -> bool {
+    pub const fn should_run(&self, short_test: bool) -> bool {
         match (&self.run_when, short_test) {
             (&Always, _) => true,
             (&NotShort, true) => false,
