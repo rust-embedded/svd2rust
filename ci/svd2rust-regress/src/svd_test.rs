@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use svd2rust::{util::ToSanitizedCase, Target};
 
 use crate::{command::CommandExt, tests::TestCase, Opts, TestOpts};
@@ -213,10 +213,14 @@ impl TestCase {
         }
         tracing::info!("Downloading SVD");
         // FIXME: Avoid downloading multiple times, especially if we're using the diff command
-        let svd = reqwest::blocking::get(self.svd_url())
-            .with_context(|| "Failed to get svd URL")?
+        let svd_url = &self.svd_url();
+        let svd = reqwest::blocking::get(svd_url)
+            .with_context(|| format!("Failed to get svd URL: {svd_url}"))?
             .text()
             .with_context(|| "SVD is bad text")?;
+        if svd == "404: Not Found" {
+            return Err(anyhow!("Failed to get svd URL: {svd_url}. {svd}").into());
+        }
         let chip_svd = format!("{}.svd", &self.chip);
         let svd_file = path_helper_base(&chip_dir, &[&chip_svd]);
         file_helper(&svd, &svd_file)?;
