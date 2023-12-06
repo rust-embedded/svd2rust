@@ -2211,6 +2211,102 @@
   run_when: always
 - arch: cortex-m
   mfgr: STMicro
+  chip: STM32F0x2
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32f0x2.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32F103
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32f103.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32F411
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32f411.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32F469
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32f469.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32F7x3
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32f7x3.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32G070
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32g070.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32G473
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32g473.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32H753
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32h753.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32L0x3
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32l0x3.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32L162
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32l162.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32L4x6
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32l4x6.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32L562
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32l562.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32MP157
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32mp157.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32WB55
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32wb55.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32WLE5
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32wle5.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
+  chip: STM32C011
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32c011.svd.patched
+  should_pass: true
+  run_when: always
+- arch: cortex-m
+  mfgr: STMicro
   chip: STM32F031x
   should_pass: true
   run_when: always
@@ -2247,11 +2343,6 @@
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F102xx
-  should_pass: true
-  run_when: always
-- arch: cortex-m
-  mfgr: STMicro
-  chip: STM32F103xx
   should_pass: true
   run_when: always
 - arch: cortex-m
@@ -2321,11 +2412,6 @@
   run_when: always
 - arch: cortex-m
   mfgr: STMicro
-  chip: STM32F411
-  should_pass: true
-  run_when: always
-- arch: cortex-m
-  mfgr: STMicro
   chip: STM32F412
   should_pass: true
   run_when: always
@@ -2351,22 +2437,12 @@
   run_when: always
 - arch: cortex-m
   mfgr: STMicro
-  chip: STM32F469
-  should_pass: true
-  run_when: always
-- arch: cortex-m
-  mfgr: STMicro
   chip: STM32F7x
   should_pass: true
   run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x2
-  should_pass: true
-  run_when: always
-- arch: cortex-m
-  mfgr: STMicro
-  chip: STM32F7x3
   should_pass: true
   run_when: always
 - arch: cortex-m
@@ -2447,11 +2523,6 @@
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L1xx
-  should_pass: true
-  run_when: always
-- arch: cortex-m
-  mfgr: STMicro
-  chip: STM32L4x6
   should_pass: true
   run_when: always
 - arch: cortex-m

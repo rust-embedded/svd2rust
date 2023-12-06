@@ -171,7 +171,7 @@ impl Diffing {
             (1, _) => tests[0],
             (1.., Some(DiffingMode::Pr)) => tests
                 .iter()
-                .find(|t| t.chip == "STM32F401")
+                .find(|t| t.chip == "STM32F103")
                 .unwrap_or(&tests[0]),
             _ => {
                 let error = anyhow::anyhow!("diff requires exactly one test case");
