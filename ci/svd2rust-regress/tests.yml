@@ -442,8 +442,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK02F12810
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK10D10
@@ -457,8 +455,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK10D7
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK10DZ10
@@ -472,8 +468,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK11D5
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK11D5WS
@@ -487,8 +481,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK12D5
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK20D10
@@ -502,8 +494,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK20D7
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK20DZ10
@@ -517,8 +507,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK21D5
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK21D5WS
@@ -532,8 +520,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK21F12
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK21FA12
@@ -547,8 +533,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK22F12
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK22F12810
@@ -562,8 +546,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK22F51212
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK22FA12
@@ -577,8 +559,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK24F25612
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK26F18
@@ -592,8 +572,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK30D7
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK30DZ10
@@ -607,8 +585,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK40D7
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK40DZ10
@@ -622,8 +598,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK50D7
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK50DZ10
@@ -637,8 +611,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK51D7
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK51DZ10
@@ -652,8 +624,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK52DZ10
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK53D10
@@ -667,8 +637,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK60D10
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK60DZ10
@@ -682,8 +650,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK63F12
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK64F12
@@ -697,8 +663,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK66F18
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MK80F25615
@@ -712,8 +676,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MK82F25615
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE14F16
@@ -727,8 +689,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE15Z7
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE16F16
@@ -742,8 +702,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL28T7_CORE0
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL28T7_CORE1
@@ -757,8 +715,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL81Z7
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL82Z7
@@ -772,8 +728,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV10Z1287
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV10Z7
@@ -787,8 +741,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV30F12810
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV31F12810
@@ -802,8 +754,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV31F51212
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV40F15
@@ -817,8 +767,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV43F15
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV44F15
@@ -832,8 +780,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV45F15
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKV46F15
@@ -847,8 +793,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW20Z4
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW21D5
@@ -862,8 +806,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW22D5
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW24D5
@@ -877,8 +819,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW31Z4
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW40Z4
@@ -892,8 +832,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE02Z4
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE04Z1284
@@ -907,8 +845,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE06Z4
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKE14D7
@@ -922,8 +858,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL02Z4
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL03Z4
@@ -937,8 +871,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL05Z4
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL13Z644
@@ -952,8 +884,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL15Z4
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL16Z4
@@ -967,8 +897,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL17Z644
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL24Z4
@@ -982,8 +910,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL26Z4
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL27Z4
@@ -997,8 +923,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL33Z4
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL33Z644
@@ -1012,8 +936,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL36Z4
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKL43Z4
@@ -1027,8 +949,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKM14ZA5
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKM33ZA5
@@ -1042,8 +962,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: MKM34ZA5
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: MKW01Z4
@@ -1057,8 +975,6 @@
 - arch: cortex-m
   mfgr: Freescale
   chip: SKEAZN642
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Freescale
   chip: SKEAZN84
@@ -1067,523 +983,315 @@
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF10xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF10xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF11xK
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF11xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF11xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF11xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF12xK
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF12xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF13xK
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF13xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF13xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF13xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF14xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF14xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF14xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF15xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF15xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF15xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF1AxL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF1AxM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF1AxN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF31xK
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF31xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF31xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF31xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF34xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF34xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF34xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF42xK
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AF42xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFA3xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFA3xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFA3xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFA4xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFA4xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFA4xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFAAxL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFAAxM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFAAxN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFB4xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFB4xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9AFB4xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B160L
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B160R
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B360L
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B360R
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B460L
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B460R
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B560L
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9B560R
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF10xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF10xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF11xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF11xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF11xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF11xT
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF12xJ
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF12xK
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF12xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF12xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF12xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF12xT
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF21xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF21xT
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF30xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF30xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF31xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF31xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF31xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF31xT
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF32xK
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF32xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF32xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF32xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF32xT
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF40xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF40xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF41xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF41xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF41xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF41xT
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF42xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF42xT
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF50xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF50xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF51xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF51xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF51xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF51xT
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF52xK
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF52xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF52xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF52xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF52xT
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF61xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BF61xT
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BFD1xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: MB9BFD1xT
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: S6E1A1
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Fujitsu
   chip: S6E2CC
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Holtek
   chip: ht32f125x
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Holtek
   chip: ht32f175x
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Holtek
   chip: ht32f275x
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Nordic
   chip: nrf51
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Nordic
   chip: nrf52
@@ -1857,8 +1565,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF10xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF11xK
@@ -1867,8 +1573,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF11xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF11xM
@@ -1877,8 +1581,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF11xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF13xK
@@ -1887,8 +1589,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF13xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF13xM
@@ -1897,8 +1597,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF13xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF14xL
@@ -1907,8 +1605,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF14xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF14xN
@@ -1917,8 +1613,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF15xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF15xN
@@ -1927,8 +1621,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF15xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF31xK
@@ -1937,8 +1629,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF31xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF31xM
@@ -1947,8 +1637,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF31xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF34xL
@@ -1957,8 +1645,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF34xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AF34xN
@@ -1967,8 +1653,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFA3xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFA3xM
@@ -1977,8 +1661,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFA3xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFA4xL
@@ -1987,8 +1669,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFA4xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFA4xN
@@ -1997,8 +1677,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFB4xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFB4xM
@@ -2007,8 +1685,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9AFB4xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF10xN
@@ -2017,8 +1693,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF10xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF11xN
@@ -2027,8 +1701,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF11xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF11xS
@@ -2037,8 +1709,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF11xT
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF12xK
@@ -2047,8 +1717,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF12xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF12xM
@@ -2057,8 +1725,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF21xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF21xT
@@ -2067,8 +1733,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF30xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF30xR
@@ -2077,8 +1741,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF31xN
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF31xR
@@ -2087,8 +1749,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF31xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF31xT
@@ -2097,8 +1757,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF32xK
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF32xL
@@ -2107,8 +1765,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF32xM
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF40xN
@@ -2117,8 +1773,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF40xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF41xN
@@ -2127,8 +1781,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF41xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF41xS
@@ -2137,8 +1789,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF41xT
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF50xN
@@ -2147,8 +1797,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF50xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF51xN
@@ -2157,8 +1805,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF51xR
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF51xS
@@ -2167,8 +1813,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF51xT
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF52xK
@@ -2177,8 +1821,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF52xL
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF52xM
@@ -2187,8 +1829,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF61xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BF61xT
@@ -2197,8 +1837,6 @@
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BFD1xS
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: Spansion
   chip: MB9BFD1xT
@@ -2207,264 +1845,166 @@
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F030
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F0x2
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32f0x2.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F103
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32f103.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F411
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32f411.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F469
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32f469.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x3
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32f7x3.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G070
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32g070.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G473
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32g473.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32H753
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32h753.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L0x3
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32l0x3.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L162
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32l162.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L4x6
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32l4x6.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L562
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32l562.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32MP157
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32mp157.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32WB55
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32wb55.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32WLE5
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32wle5.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32C011
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32c011.svd.patched
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F031x
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F042x
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F072x
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F091x
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F0xx
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F100xx
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F101xx
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F102xx
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F105xx
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F107xx
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F20x
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F21x
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F301
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F302
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F303
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F3x4
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F373
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F401
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F405
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F407
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F410
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F412
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F413
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F427
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F429
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F446
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x2
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x5
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x6
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x7
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32F7x9
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G07x
@@ -2473,63 +2013,39 @@
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G431xx
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G441xx
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G471xx
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G474xx
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G483xx
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G484xx
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L100
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L15xC
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L15xxE
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L15xxxA
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L1xx
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32W108
-  should_pass: true
-  run_when: always
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32L051x
@@ -2583,8 +2099,6 @@
 - arch: cortex-m
   mfgr: Toshiba
   chip: M061
-  should_pass: true
-  run_when: always
 - arch: riscv
   mfgr: SiFive
   chip: E310x
@@ -2595,47 +2109,31 @@
   mfgr: TexasInstruments
   chip: msp430g2553
   svd_url: https://github.com/pftbest/msp430g2553/raw/v0.1.3-svd/msp430g2553.svd
-  should_pass: true
-  run_when: always
 - arch: msp430
   mfgr: TexasInstruments
   chip: msp430fr2355
   svd_url: https://raw.githubusercontent.com/YuhanLiin/msp430fr2355/master/msp430fr2355.svd
-  should_pass: true
-  run_when: always
 - arch: xtensa-lx
   mfgr: Espressif
   chip: esp32
   svd_url: https://raw.githubusercontent.com/espressif/svd/main/svd/esp32.svd
-  should_pass: true
-  run_when: always
 - arch: xtensa-lx
   mfgr: Espressif
   chip: esp32s2
   svd_url: https://raw.githubusercontent.com/espressif/svd/main/svd/esp32s2.svd
-  should_pass: true
-  run_when: always
 - arch: xtensa-lx
   mfgr: Espressif
   chip: esp32s3
   svd_url: https://raw.githubusercontent.com/espressif/svd/main/svd/esp32s3.svd
-  should_pass: true
-  run_when: always
 - arch: riscv
   mfgr: Espressif
   chip: esp32c3
   svd_url: https://raw.githubusercontent.com/espressif/svd/main/svd/esp32c3.svd
-  should_pass: true
-  run_when: always
 - arch: mips
   mfgr: Microchip
   chip: pic32mx170f256b
   svd_url: https://raw.githubusercontent.com/kiffie/pic32-pac/master/pic32mx1xxfxxxb/PIC32MX170F256B.svd.patched
-  should_pass: true
-  run_when: always
 - arch: mips
   mfgr: Microchip
   chip: pic32mx270f256b
   svd_url: https://raw.githubusercontent.com/kiffie/pic32-pac/master/pic32mx2xxfxxxb/PIC32MX270F256B.svd.patched
-  should_pass: true
-  run_when: always

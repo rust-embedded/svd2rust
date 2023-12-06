@@ -54,9 +54,10 @@ impl std::fmt::Display for Manufacturer {
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum RunWhen {
+    #[default]
     Always,
     NotShort,
 
@@ -71,8 +72,14 @@ pub struct TestCase {
     pub chip: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     svd_url: Option<String>,
+    #[serde(default = "true_")]
     pub should_pass: bool,
+    #[serde(default)]
     run_when: RunWhen,
+}
+
+fn true_() -> bool {
+    true
 }
 
 impl TestCase {

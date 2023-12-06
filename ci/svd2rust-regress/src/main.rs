@@ -106,7 +106,7 @@ pub struct TestOpts {
 
 impl TestOpts {
     fn run(&self, opt: &Opts) -> Result<(), anyhow::Error> {
-        let tests = tests::tests(None)?
+        let tests = tests::tests(Some(&opt.test_cases))?
             .iter()
             // Short test?
             .filter(|t| t.should_run(!self.long_test))
