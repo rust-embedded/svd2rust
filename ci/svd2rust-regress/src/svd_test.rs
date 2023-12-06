@@ -4,7 +4,7 @@ use svd2rust::{util::ToSanitizedCase, Target};
 use crate::{command::CommandExt, tests::TestCase, Opts, TestOpts};
 use std::io::prelude::*;
 use std::path::PathBuf;
-use std::process::{Command, Output};
+use std::process::Command;
 use std::{
     fmt::Write as _,
     fs::{self, File, OpenOptions},
@@ -340,7 +340,7 @@ impl TestCase {
             src_files.sort();
 
             for entry in src_files {
-                let output = Command::new(rustfmt_bin_path)
+                Command::new(rustfmt_bin_path)
                     .arg(entry)
                     .args(["--edition", "2021"])
                     .capture_outputs(

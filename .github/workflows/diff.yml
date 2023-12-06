@@ -55,7 +55,7 @@ jobs:
         with:
           tool: git-delta
 
-      - run: cargo regress diff ${{ matrix.command }} --use-pager-directly
+      - run: cargo regress diff --use-pager-directly ${{ matrix.command }}
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_PR: ${{ matrix.pr }}
