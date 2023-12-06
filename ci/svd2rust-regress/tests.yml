@@ -10,7 +10,7 @@
   run_when: never
 - arch: cortex-m
   mfgr: Atmel
-  chip: AT91SAM9G10
+  chip: AT91SAM9G09
   should_pass: false
   run_when: never
 - arch: cortex-m

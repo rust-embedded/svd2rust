@@ -148,7 +148,7 @@ pub fn get_release_binary_artifact(
                 Command::new("gzip")
                     .arg("-d")
                     .arg(output_dir.join(artifact))
-                    .get_output()?;
+                    .get_output(false)?;
             }
         }
         _ => {

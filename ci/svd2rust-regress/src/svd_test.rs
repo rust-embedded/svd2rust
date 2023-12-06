@@ -6,6 +6,7 @@ use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Output};
 use std::{
+    fmt::Write as _,
     fs::{self, File, OpenOptions},
     path::Path,
 };
@@ -67,7 +68,7 @@ impl std::fmt::Debug for ProcessFailed {
 
 trait CommandHelper {
     fn capture_outputs(
-        &self,
+        &mut self,
         cant_fail: bool,
         name: &str,
         stdout: Option<&PathBuf>,
@@ -76,26 +77,48 @@ trait CommandHelper {
     ) -> Result<(), TestError>;
 }
 
-impl CommandHelper for Output {
+impl CommandHelper for Command {
+    #[tracing::instrument(skip_all, fields(stdout = tracing::field::Empty, stderr = tracing::field::Empty))]
     fn capture_outputs(
-        &self,
+        &mut self,
         cant_fail: bool,
         name: &str,
         stdout: Option<&PathBuf>,
         stderr: Option<&PathBuf>,
         previous_processes_stderr: &[PathBuf],
     ) -> Result<(), TestError> {
+        let output = self.get_output(true)?;
+        let out_payload = String::from_utf8_lossy(&output.stdout);
         if let Some(out) = stdout {
-            let out_payload = String::from_utf8_lossy(&self.stdout);
             file_helper(&out_payload, out)?;
         };
 
+        let err_payload = String::from_utf8_lossy(&output.stderr);
         if let Some(err) = stderr {
-            let err_payload = String::from_utf8_lossy(&self.stderr);
             file_helper(&err_payload, err)?;
         };
-
-        if cant_fail && !self.status.success() {
+        if cant_fail && !output.status.success() {
+            let span = tracing::Span::current();
+            let mut message = format!("Process failed: {}", self.display());
+            if !out_payload.trim().is_empty() {
+                span.record(
+                    "stdout",
+                    tracing::field::display(
+                        stdout.map(|p| p.display().to_string()).unwrap_or_default(),
+                    ),
+                );
+                write!(message, "\nstdout: \n{}", out_payload).unwrap();
+            }
+            if !err_payload.trim().is_empty() {
+                span.record(
+                    "stderr",
+                    tracing::field::display(
+                        stderr.map(|p| p.display().to_string()).unwrap_or_default(),
+                    ),
+                );
+                write!(message, "\nstderr: \n{}", err_payload).unwrap();
+            }
+            tracing::error!(message=%message);
             return Err(ProcessFailed {
                 command: name.into(),
                 stdout: stdout.cloned(),
@@ -125,18 +148,17 @@ impl TestCase {
             .with_context(|| anyhow!("when setting up case for {}", self.name()))?;
         // Run `cargo check`, capturing stderr to a log file
         let cargo_check_err_file = path_helper_base(&chip_dir, &["cargo-check.err.log"]);
-        let output = Command::new("cargo")
+        Command::new("cargo")
             .arg("check")
             .current_dir(&chip_dir)
-            .output()
+            .capture_outputs(
+                true,
+                "cargo check",
+                None,
+                Some(&cargo_check_err_file),
+                &process_stderr_paths,
+            )
             .with_context(|| "failed to check")?;
-        output.capture_outputs(
-            true,
-            "cargo check",
-            None,
-            Some(&cargo_check_err_file),
-            &process_stderr_paths,
-        )?;
         process_stderr_paths.push(cargo_check_err_file);
         Ok(if opts.verbose > 1 {
             Some(process_stderr_paths)
@@ -180,9 +202,8 @@ impl TestCase {
             .arg("--vcs")
             .arg("none")
             .arg(&chip_dir)
-            .output()
-            .with_context(|| "Failed to cargo init")?
-            .capture_outputs(true, "cargo init", None, None, &[])?;
+            .capture_outputs(true, "cargo init", None, None, &[])
+            .with_context(|| "Failed to cargo init")?;
         let svd_toml = path_helper_base(&chip_dir, &["Cargo.toml"]);
         let mut file = OpenOptions::new()
             .write(true)
@@ -242,23 +263,22 @@ impl TestCase {
         if let Some(command) = command {
             svd2rust_bin.arg(command);
         }
-        let output = svd2rust_bin
+        svd2rust_bin
             .args(["-i", &chip_svd])
             .args(["--target", target])
             .current_dir(&chip_dir)
-            .get_output()?;
-        output.capture_outputs(
-            true,
-            "svd2rust",
-            Some(&lib_rs_file).filter(|_| {
-                !matches!(
-                    self.arch,
-                    Target::CortexM | Target::Msp430 | Target::XtensaLX
-                )
-            }),
-            Some(&svd2rust_err_file),
-            &[],
-        )?;
+            .capture_outputs(
+                true,
+                "svd2rust",
+                Some(&lib_rs_file).filter(|_| {
+                    !matches!(
+                        self.arch,
+                        Target::CortexM | Target::Msp430 | Target::XtensaLX
+                    )
+                }),
+                Some(&svd2rust_err_file),
+                &[],
+            )?;
         process_stderr_paths.push(svd2rust_err_file);
         match self.arch {
             Target::CortexM | Target::Mips | Target::Msp430 | Target::XtensaLX => {
@@ -287,20 +307,19 @@ impl TestCase {
             let new_lib_rs_file = path_helper_base(&chip_dir, &["lib.rs"]);
             std::fs::rename(lib_rs_file, &new_lib_rs_file)
                 .with_context(|| "While moving lib.rs file")?;
-            let output = Command::new(form_bin_path)
+            Command::new(form_bin_path)
                 .arg("--input")
                 .arg(&new_lib_rs_file)
                 .arg("--outdir")
                 .arg(&src_dir)
-                .output()
+                .capture_outputs(
+                    true,
+                    "form",
+                    None,
+                    Some(&form_err_file),
+                    &process_stderr_paths,
+                )
                 .with_context(|| "failed to form")?;
-            output.capture_outputs(
-                true,
-                "form",
-                None,
-                Some(&form_err_file),
-                &process_stderr_paths,
-            )?;
             std::fs::remove_file(&new_lib_rs_file)
                 .with_context(|| "While removing lib.rs file after form")?;
         }
@@ -322,15 +341,14 @@ impl TestCase {
                 let output = Command::new(rustfmt_bin_path)
                     .arg(entry)
                     .args(["--edition", "2021"])
-                    .output()
+                    .capture_outputs(
+                        false,
+                        "rustfmt",
+                        None,
+                        Some(&rustfmt_err_file),
+                        &process_stderr_paths,
+                    )
                     .with_context(|| "failed to format")?;
-                output.capture_outputs(
-                    false,
-                    "rustfmt",
-                    None,
-                    Some(&rustfmt_err_file),
-                    &process_stderr_paths,
-                )?;
             }
 
             process_stderr_paths.push(rustfmt_err_file);

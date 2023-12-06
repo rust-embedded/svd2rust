@@ -7,7 +7,7 @@ pub trait CommandExt {
     fn run(&mut self, hide: bool) -> Result<(), anyhow::Error>;
 
     #[track_caller]
-    fn get_output(&mut self) -> Result<std::process::Output, anyhow::Error>;
+    fn get_output(&mut self, can_fail: bool) -> Result<std::process::Output, anyhow::Error>;
 
     #[track_caller]
     fn get_output_string(&mut self) -> Result<String, anyhow::Error>;
@@ -33,17 +33,11 @@ impl CommandExt for Command {
     }
 
     #[track_caller]
-    fn get_output(&mut self) -> Result<std::process::Output, anyhow::Error> {
-        let output = self.output().with_context(|| {
-            format!(
-                "command `{}{}` couldn't be run",
-                self.get_current_dir()
-                    .map(|d| format!("{} ", d.display()))
-                    .unwrap_or_default(),
-                self.display()
-            )
-        })?;
-        if output.status.success() {
+    fn get_output(&mut self, can_fail: bool) -> Result<std::process::Output, anyhow::Error> {
+        let output = self
+            .output()
+            .with_context(|| format!("command `{}` couldn't be run", self.display()))?;
+        if output.status.success() || can_fail {
             Ok(output)
         } else {
             anyhow::bail!(
@@ -57,12 +51,15 @@ impl CommandExt for Command {
 
     #[track_caller]
     fn get_output_string(&mut self) -> Result<String, anyhow::Error> {
-        String::from_utf8(self.get_output()?.stdout).map_err(Into::into)
+        String::from_utf8(self.get_output(true)?.stdout).map_err(Into::into)
     }
 
     fn display(&self) -> String {
         format!(
-            "{} {}",
+            "{}{} {}",
+            self.get_current_dir()
+                .map(|d| format!("{} ", d.display()))
+                .unwrap_or_default(),
             self.get_program().to_string_lossy(),
             self.get_args()
                 .map(|s| s.to_string_lossy())

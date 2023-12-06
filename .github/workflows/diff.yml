@@ -18,6 +18,8 @@ jobs:
 
       - name: Cache
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "diff"
 
       - run: cargo regress ci
         id: regress-ci
@@ -41,13 +43,14 @@ jobs:
       - name: Cache
         uses: Swatinem/rust-cache@v2
         with:
-          cache-on-failure: true
+          shared-key: "diff"
 
       - uses: taiki-e/install-action@v2
         if: matrix.needs_semver_checks
         with:
           tool: cargo-semver-checks
 
+      # if a new line is added here, make sure to update the `summary` job to reference the new step index
       - uses: taiki-e/install-action@v2
         with:
           tool: git-delta
@@ -59,8 +62,8 @@ jobs:
           GIT_PAGER: delta --hunk-header-style omit
   summary:
     runs-on: ubuntu-latest
-    needs: [diff]
-    if: always()
+    needs: [diff, generate]
+    if: always() && needs.generate.outputs.diffs != '{}' && needs.generate.outputs.diffs != '[]' && needs.generate.outputs.diffs != ''
     steps:
       - uses: actions/checkout@v4
 

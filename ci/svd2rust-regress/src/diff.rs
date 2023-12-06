@@ -13,10 +13,10 @@ pub struct Diffing {
     /// Change the base version by starting with `@` followed by the source.
     ///
     /// supports `@pr` for current pr, `@master` for latest master build, or a version tag like `@v0.30.0`
-    #[clap(global = true, long, alias = "base")]
+    #[clap(global = true, long = "baseline", alias = "base")]
     pub baseline: Option<String>,
 
-    #[clap(global = true, long, alias = "head")]
+    #[clap(global = true, long = "current", alias = "head")]
     pub current: Option<String>,
 
     /// Enable formatting with `rustfmt`
@@ -72,6 +72,17 @@ pub struct Diffing {
 pub enum DiffingMode {
     Semver,
     Diff,
+    Pr,
+}
+
+impl DiffingMode {
+    /// Returns `true` if the diffing mode is [`Pr`].
+    ///
+    /// [`Pr`]: DiffingMode::Pr
+    #[must_use]
+    pub fn is_pr(&self) -> bool {
+        matches!(self, Self::Pr)
+    }
 }
 
 type Source<'s> = Option<&'s str>;
@@ -83,7 +94,7 @@ impl Diffing {
             .make_case(opts)
             .with_context(|| "couldn't setup test case")?;
         match self.sub.unwrap_or(DiffingMode::Diff) {
-            DiffingMode::Diff => {
+            DiffingMode::Diff | DiffingMode::Pr => {
                 let mut command;
                 if let Some(pager) = &self.pager {
                     if self.use_pager_directly {
@@ -156,27 +167,34 @@ impl Diffing {
                 }
             })
             .collect::<Vec<_>>();
-        if tests.len() != 1 {
-            let error = anyhow::anyhow!("diff requires exactly one test case");
-            let len = tests.len();
-            return Err(match len {
-                0 => error.context("matched no tests"),
-                10.. => error.context(format!("matched multiple ({len}) tests")),
-                _ => error.context(format!(
-                    "matched multiple ({len}) tests\n{:?}",
-                    tests.iter().map(|t| t.name()).collect::<Vec<_>>()
-                )),
-            });
-        }
+        let test = match (tests.len(), self.sub) {
+            (1, _) => tests[0],
+            (1.., Some(DiffingMode::Pr)) => tests
+                .iter()
+                .find(|t| t.chip == "STM32F401")
+                .unwrap_or(&tests[0]),
+            _ => {
+                let error = anyhow::anyhow!("diff requires exactly one test case");
+                let len = tests.len();
+                return Err(match len {
+                    0 => error.context("matched no tests"),
+                    10.. => error.context(format!("matched multiple ({len}) tests")),
+                    _ => error.context(format!(
+                        "matched multiple ({len}) tests\n{:?}",
+                        tests.iter().map(|t| t.name()).collect::<Vec<_>>()
+                    )),
+                });
+            }
+        };
 
-        let baseline = tests[0]
+        let baseline = test
             .setup_case(
                 &opts.output_dir.join("baseline"),
                 &baseline_bin,
                 baseline_cmd,
             )
             .with_context(|| "couldn't create head")?;
-        let current = tests[0]
+        let current = test
             .setup_case(&opts.output_dir.join("current"), &current_bin, current_cmd)
             .with_context(|| "couldn't create base")?;
 
