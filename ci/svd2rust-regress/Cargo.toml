@@ -5,8 +5,18 @@ version = "0.1.0"
 authors = ["James Munns <james.munns@gmail.com>", "The svd2rust developers"]
 
 [dependencies]
-clap = { version = "4.1", features = ["color", "derive"] }
+clap = { version = "4.1", features = ["color", "derive", "string", "env"] }
 svd2rust = { path = "../../" }
-reqwest = { version = "0.11", features= ["blocking"] }
+reqwest = { version = "0.11", features = ["blocking"] }
 rayon = "1.4"
-error-chain = "0.12"
+anyhow = "1"
+thiserror = "1"
+serde = "1"
+serde_json = "1"
+serde_yaml = "0.9"
+prettyplease = "0.2"
+syn = "2"
+wildmatch = "2.1.1"
+which = "5.0.0"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt"] }

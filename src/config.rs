@@ -32,7 +32,7 @@ pub struct Config {
 
 #[allow(clippy::upper_case_acronyms)]
 #[allow(non_camel_case_types)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum Target {
     #[cfg_attr(feature = "serde", serde(rename = "cortex-m"))]
@@ -50,6 +50,19 @@ pub enum Target {
     None,
 }
 
+impl std::fmt::Display for Target {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Target::CortexM => "cortex-m",
+            Target::Msp430 => "msp430",
+            Target::RISCV => "riscv",
+            Target::XtensaLX => "xtensa-lx",
+            Target::Mips => "mips",
+            Target::None => "none",
+        })
+    }
+}
+
 impl Target {
     pub fn parse(s: &str) -> Result<Self> {
         Ok(match s {
@@ -61,6 +74,11 @@ impl Target {
             "none" => Target::None,
             _ => bail!("unknown target {}", s),
         })
+    }
+
+    pub const fn all() -> &'static [Target] {
+        use self::Target::*;
+        &[CortexM, Msp430, RISCV, XtensaLX, Mips]
     }
 }
 

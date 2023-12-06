@@ -21,7 +21,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        TARGET: [x86_64-unknown-linux-gnu, x86_64-apple-darwin, x86_64-pc-windows-msvc]
+        TARGET:
+          [
+            x86_64-unknown-linux-gnu,
+            x86_64-apple-darwin,
+            x86_64-pc-windows-msvc,
+          ]
 
     steps:
       - uses: actions/checkout@v4
@@ -171,3 +176,40 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - run: cargo fmt --all -- --check
+
+  artifact:
+    name: Build svd2rust artifact
+    if: github.event_name == 'pull_request'
+    needs: [check]
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runs-on: ubuntu-latest
+          - target: aarch64-apple-darwin
+            runs-on: macos-latest
+          - target: x86_64-pc-windows-msvc
+            runs-on: windows-latest
+            suffix: .exe
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build svd2rust artifact
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - run: mv target/${{ matrix.target }}/release/svd2rust${{ matrix.suffix || '' }} svd2rust-${{ matrix.target }}-$(git rev-parse --short HEAD)${{ matrix.suffix || '' }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: artifact-svd2rust-${{ matrix.target }}
+          path: svd2rust-${{ matrix.target }}*
