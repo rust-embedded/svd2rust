@@ -30,7 +30,7 @@ pub struct Diffing {
     #[clap(subcommand)]
     pub sub: Option<DiffingMode>,
 
-    #[clap(long, short = 'c')]
+    #[clap(global = true, long, short = 'c')]
     pub chip: Vec<String>,
 
     /// Filter by manufacturer, case sensitive, may be combined with other filters
@@ -65,14 +65,23 @@ pub struct Diffing {
     pub use_pager_directly: bool,
 
     #[clap(last = true)]
-    pub args: Option<String>,
+    pub last_args: Option<String>,
 }
 
-#[derive(clap::Parser, Debug, Clone, Copy)]
+#[derive(clap::Parser, Debug, Clone)]
 pub enum DiffingMode {
-    Semver,
-    Diff,
-    Pr,
+    Semver {
+        #[clap(last = true)]
+        last_args: Option<String>,
+    },
+    Diff {
+        #[clap(last = true)]
+        last_args: Option<String>,
+    },
+    Pr {
+        #[clap(last = true)]
+        last_args: Option<String>,
+    },
 }
 
 impl DiffingMode {
@@ -81,7 +90,7 @@ impl DiffingMode {
     /// [`Pr`]: DiffingMode::Pr
     #[must_use]
     pub fn is_pr(&self) -> bool {
-        matches!(self, Self::Pr)
+        matches!(self, Self::Pr { .. })
     }
 }
 
@@ -93,8 +102,8 @@ impl Diffing {
         let [baseline, current] = self
             .make_case(opts)
             .with_context(|| "couldn't setup test case")?;
-        match self.sub.unwrap_or(DiffingMode::Diff) {
-            DiffingMode::Diff | DiffingMode::Pr => {
+        match self.sub.as_ref() {
+            None | Some(DiffingMode::Diff { .. } | DiffingMode::Pr { .. }) => {
                 let mut command;
                 if let Some(pager) = &self.pager {
                     if self.use_pager_directly {
@@ -118,7 +127,7 @@ impl Diffing {
                     .with_context(|| "couldn't run diff")
                     .map(|_| ())
             }
-            DiffingMode::Semver => std::process::Command::new("cargo")
+            Some(DiffingMode::Semver { .. }) => std::process::Command::new("cargo")
                 .args(["semver-checks", "check-release"])
                 .arg("--baseline-root")
                 .arg(baseline.0)
@@ -158,7 +167,7 @@ impl Diffing {
             })
             .filter(|t| {
                 if self.chip.is_empty() {
-                    false
+                    true
                 } else {
                     self.chip.iter().any(|c| {
                         wildmatch::WildMatch::new(&c.to_ascii_lowercase())
@@ -167,9 +176,9 @@ impl Diffing {
                 }
             })
             .collect::<Vec<_>>();
-        let test = match (tests.len(), self.sub) {
+        let test = match (tests.len(), self.sub.as_ref()) {
             (1, _) => tests[0],
-            (1.., Some(DiffingMode::Pr)) => tests
+            (_, Some(DiffingMode::Pr { .. })) => tests
                 .iter()
                 .find(|t| t.chip == "STM32F103")
                 .unwrap_or(&tests[0]),
@@ -187,15 +196,34 @@ impl Diffing {
             }
         };
 
+        let last_args = self.last_args.as_deref().or(match &self.sub {
+            Some(
+                DiffingMode::Diff { last_args }
+                | DiffingMode::Pr { last_args }
+                | DiffingMode::Semver { last_args },
+            ) => last_args.as_deref(),
+            None => None,
+        });
+        let join = |opt1: Option<&str>, opt2: Option<&str>| -> Option<String> {
+            match (opt1, opt2) {
+                (Some(str1), Some(str2)) => Some(format!("{} {}", str1, str2)),
+                (Some(str), None) | (None, Some(str)) => Some(str.to_owned()),
+                (None, None) => None,
+            }
+        };
         let baseline = test
             .setup_case(
                 &opts.output_dir.join("baseline"),
                 &baseline_bin,
-                baseline_cmd,
+                join(baseline_cmd, last_args).as_deref(),
             )
             .with_context(|| "couldn't create head")?;
         let current = test
-            .setup_case(&opts.output_dir.join("current"), &current_bin, current_cmd)
+            .setup_case(
+                &opts.output_dir.join("current"),
+                &current_bin,
+                join(current_cmd, last_args).as_deref(),
+            )
             .with_context(|| "couldn't create base")?;
 
         Ok([baseline, current])
