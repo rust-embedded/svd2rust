@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       diffs: ${{ steps.regress-ci.outputs.diffs }}
-    if: ${{ github.event.issue.pull_request }}
+    if: github.event.issue.pull_request && (contains(github.event.comment.body, '\n/ci') || startsWith(github.event.comment.body, '/ci'))
     steps:
       - uses: actions/checkout@v4
 
@@ -55,7 +55,7 @@ jobs:
         with:
           tool: git-delta
 
-      - run: cargo regress diff ${{ matrix.command }} --use-pager-directly
+      - run: cargo regress diff --use-pager-directly ${{ matrix.command }}
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_PR: ${{ matrix.pr }}
@@ -63,7 +63,7 @@ jobs:
   summary:
     runs-on: ubuntu-latest
     needs: [diff, generate]
-    if: always() && needs.generate.outputs.diffs != '{}' && needs.generate.outputs.diffs != '[]' && needs.generate.outputs.diffs != ''
+    if: always() && needs.generate.outputs.diffs != '{}' && needs.generate.outputs.diffs != '[]' && needs.generate.outputs.diffs != '' && needs.generate.result == 'success'
     steps:
       - uses: actions/checkout@v4
 
