@@ -253,6 +253,7 @@ pub fn render(
             });
         }
         Target::Mips => {}
+        Target::Avr => {}
         Target::None => {}
     }
 
@@ -361,6 +362,7 @@ pub fn render(
             && target != Target::Msp430
             && target != Target::XtensaLX
             && target != Target::Mips
+            && target != Target::Avr
         {
             mod_items.extend(quote! {
                 #[cfg(feature = "rt")]

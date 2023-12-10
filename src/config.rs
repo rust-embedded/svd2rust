@@ -68,6 +68,8 @@ pub enum Target {
     XtensaLX,
     #[cfg_attr(feature = "serde", serde(rename = "mips"))]
     Mips,
+    #[cfg_attr(feature = "serde", serde(rename = "avr"))]
+    Avr,
     #[cfg_attr(feature = "serde", serde(rename = "none"))]
     None,
 }
@@ -80,6 +82,7 @@ impl std::fmt::Display for Target {
             Target::RISCV => "riscv",
             Target::XtensaLX => "xtensa-lx",
             Target::Mips => "mips",
+            Target::Avr => "avr",
             Target::None => "none",
         })
     }
@@ -93,6 +96,7 @@ impl Target {
             "riscv" => Target::RISCV,
             "xtensa-lx" => Target::XtensaLX,
             "mips" => Target::Mips,
+            "avr" => Target::Avr,
             "none" => Target::None,
             _ => bail!("unknown target {}", s),
         })
