@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Add `svd::Device` validation after parsing by `serde`
 - Add `skip-crate-attributes` config flag
 - Better display parsing errors
+- Add an `AVR` target which includes generic code to access configuration change protected registers in a more convenient way
 
 ## [v0.31.2] - 2023-11-29
 
