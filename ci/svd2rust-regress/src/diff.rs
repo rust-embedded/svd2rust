@@ -64,6 +64,10 @@ pub struct Diffing {
     #[clap(long, short = 'P')]
     pub use_pager_directly: bool,
 
+    /// URL for SVD to download
+    #[clap(global = true, long)]
+    pub url: Option<String>,
+
     #[clap(last = true)]
     pub last_args: Option<String>,
 }
@@ -176,12 +180,32 @@ impl Diffing {
                 }
             })
             .collect::<Vec<_>>();
-        let test = match (tests.len(), self.sub.as_ref()) {
-            (1, _) => tests[0],
-            (_, Some(DiffingMode::Pr { .. })) => tests
+
+        let test = match (tests.len(), self.sub.as_ref(), self.url.as_ref()) {
+            (1, _, None) => tests[0].clone(),
+            (_, Some(DiffingMode::Pr { .. }), None) => tests
                 .iter()
                 .find(|t| t.chip == "STM32F103")
-                .unwrap_or(&tests[0]),
+                .map(|t| (*t).clone())
+                .unwrap_or_else(|| tests[0].clone()),
+            (_, _, Some(url)) => crate::tests::TestCase {
+                arch: self
+                    .arch
+                    .clone()
+                    .map(|s| svd2rust::Target::parse(&s))
+                    .transpose()?
+                    .unwrap_or_default(),
+                mfgr: crate::tests::Manufacturer::Unknown,
+                chip: url
+                    .rsplit('/')
+                    .next()
+                    .and_then(|file| file.split('.').next())
+                    .ok_or_else(|| anyhow::anyhow!("couldn't get chip name from url"))?
+                    .to_owned(),
+                svd_url: Some(url.to_owned()),
+                should_pass: true,
+                run_when: crate::tests::RunWhen::Always,
+            },
             _ => {
                 let error = anyhow::anyhow!("diff requires exactly one test case");
                 let len = tests.len();

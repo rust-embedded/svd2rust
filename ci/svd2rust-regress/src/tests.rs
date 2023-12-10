@@ -23,6 +23,7 @@ pub enum Manufacturer {
     SiFive,
     TexasInstruments,
     Espressif,
+    Unknown,
 }
 
 impl Manufacturer {
@@ -54,7 +55,7 @@ impl std::fmt::Display for Manufacturer {
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Default)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Default, Clone, Copy)]
 #[serde(rename_all = "kebab-case")]
 pub enum RunWhen {
     #[default]
@@ -65,17 +66,17 @@ pub enum RunWhen {
     Never,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct TestCase {
     pub arch: Target,
     pub mfgr: Manufacturer,
     pub chip: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    svd_url: Option<String>,
+    pub svd_url: Option<String>,
     #[serde(default = "true_")]
     pub should_pass: bool,
     #[serde(default)]
-    run_when: RunWhen,
+    pub run_when: RunWhen,
 }
 
 fn true_() -> bool {
