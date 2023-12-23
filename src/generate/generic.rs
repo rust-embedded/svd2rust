@@ -67,6 +67,9 @@ pub trait Readable: RegisterSpec {}
 ///
 /// Registers marked with `Readable` can be also be `modify`'ed.
 pub trait Writable: RegisterSpec {
+    /// Is it safe to write any bits to register
+    type Safety;
+
     /// Specifies the register bits that are not changed if you pass `1` and are changed if you pass `0`
     const ZERO_TO_MODIFY_FIELDS_BITMAP: Self::Ux;
 
@@ -390,6 +393,27 @@ where
 /// Used as an argument to the closures in the `write` and `modify` methods of the register.
 pub type W<REG> = raw::W<REG>;
 
+impl<REG: Writable> W<REG> {
+    /// Writes raw bits to the register.
+    ///
+    /// # Safety
+    ///
+    /// Passing incorrect value can cause undefined behaviour. See reference manual
+    #[inline(always)]
+    pub unsafe fn bits(&mut self, bits: REG::Ux) -> &mut Self {
+        self.bits = bits;
+        self
+    }
+}
+impl<REG> W<REG> where REG: Writable<Safety = Safe> {
+    /// Writes raw bits to the register.
+    #[inline(always)]
+    pub fn set(&mut self, bits: REG::Ux) -> &mut Self {
+        self.bits = bits;
+        self
+    }
+}
+
 /// Field reader.
 ///
 /// Result of the `read` methods of fields.
@@ -445,9 +469,9 @@ impl<FI> BitReader<FI> {
     }
 }
 
-#[doc(hidden)]
+/// Marker for register/field writers which can take any value of specified width
 pub struct Safe;
-#[doc(hidden)]
+/// You should check that value is allowed to pass to register/field writer marked with this
 pub struct Unsafe;
 
 /// Write field Proxy with unsafe `bits`
