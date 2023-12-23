@@ -924,7 +924,7 @@ pub fn fields(
                     #[doc = #doc]
                     #inline
                     pub fn #name_snake_case_iter(&self) -> impl Iterator<Item = #reader_ty> + '_ {
-                        (0..#dim).map(|n| #reader_ty::new ( #value ))
+                        (0..#dim).map(move |n| #reader_ty::new ( #value ))
                     }
                 });
 
