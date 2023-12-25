@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add `base-address-shift` config flag
+
 ## [v0.31.5] - 2024-01-04
 
 - `move` in `RegisterBlock::reg_iter` implementation (iterator of register/cluster array)

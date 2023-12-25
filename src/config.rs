@@ -28,6 +28,7 @@ pub struct Config {
     pub reexport_core_peripherals: bool,
     pub reexport_interrupt: bool,
     pub ident_formats: IdentFormats,
+    pub base_address_shift: u64,
 }
 
 #[allow(clippy::upper_case_acronyms)]

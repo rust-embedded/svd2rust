@@ -200,6 +200,17 @@ fn run() -> Result<()> {
                 .help("Reexport interrupt macro from cortex-m-rt like crates"),
         )
         .arg(
+            Arg::new("base_address_shift")
+                .short('b')
+                .long("base-address-shift")
+                .alias("base_address_shift")
+                .action(ArgAction::Set)
+                .help("Add offset to all base addresses on all peripherals in the SVD file.")
+                .long_help("Add offset to all base addresses on all peripherals in the SVD file.
+Useful for soft-cores where the peripheral address range isn't necessarily fixed.
+Ignore this option if you are not building your own FPGA based soft-cores."),
+        )
+        .arg(
             Arg::new("log_level")
                 .long("log")
                 .short('l')
