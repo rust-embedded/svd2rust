@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.31.3] - 2023-12-25
+
 - Add `svd::Device` validation after parsing by `serde`
 - Add `skip-crate-attributes` config flag
 - Better display parsing errors
@@ -852,7 +854,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.31.2...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.31.3...HEAD
+[v0.31.3]: https://github.com/rust-embedded/svd2rust/compare/v0.31.2...v0.31.3
 [v0.31.2]: https://github.com/rust-embedded/svd2rust/compare/v0.31.1...v0.31.2
 [v0.31.1]: https://github.com/rust-embedded/svd2rust/compare/v0.31.0...v0.31.1
 [v0.31.0]: https://github.com/rust-embedded/svd2rust/compare/v0.30.3...v0.31.0
