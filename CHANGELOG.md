@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Add `svd::Device` validation after parsing by `serde`
 - Add `skip-crate-attributes` config flag
 - Better display parsing errors
+- `move` in `R::field_iter` implementation (iterator of field array values)
 
 ## [v0.31.2] - 2023-11-29
 
