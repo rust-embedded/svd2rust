@@ -3,7 +3,6 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 
 use log::debug;
-use std::borrow::Cow;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -247,33 +246,20 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 });
                 exprs.extend(quote!(#feature_attribute #p_ty: #p_ty { _marker: PhantomData },));
             }
-            Peripheral::Array(_p, dim_element) => {
-                let p_names: Vec<Cow<str>> = names(p, dim_element).map(|n| n.into()).collect();
-                let ids_f = p_names
-                    .iter()
-                    .map(|p| ident(p, &config.ident_formats.peripheral, span));
-                let ids_e = ids_f.clone();
-                let feature_attribute = p_names
-                    .iter()
-                    .map(|p_name| {
-                        let p_snake = p_name.to_sanitized_snake_case();
-                        let mut feature_attribute = feature_attribute.clone();
-                        if config.feature_peripheral {
-                            feature_attribute.extend(quote! { #[cfg(feature = #p_snake)] })
-                        };
-                        feature_attribute
-                    })
-                    .collect::<Vec<_>>();
-                fields.extend(quote! {
-                    #(
-                        #[doc = #p_names]
+            Peripheral::Array(p, dim_element) => {
+                for p_name in names(p, dim_element) {
+                    let p_snake = p_name.to_sanitized_snake_case();
+                    let p_ty = ident(&p_name, &config.ident_formats.peripheral, span);
+                    if config.feature_peripheral {
+                        feature_attribute.extend(quote! { #[cfg(feature = #p_snake)] })
+                    };
+                    fields.extend(quote! {
+                        #[doc = #p_name]
                         #feature_attribute
-                        pub #ids_f: #ids_f,
-                    )*
-                });
-                exprs.extend(
-                    quote!(#(#feature_attribute #ids_e: #ids_e { _marker: PhantomData },)*),
-                );
+                        pub #p_ty: #p_ty,
+                    });
+                    exprs.extend(quote!(#feature_attribute #p_ty: #p_ty { _marker: PhantomData },));
+                }
             }
         }
     }
