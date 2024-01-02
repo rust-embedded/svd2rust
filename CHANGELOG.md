@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Custom prefix/case/suffix for identifiers
+
 ## [v0.31.3] - 2023-12-25
 
 - Add `svd::Device` validation after parsing by `serde`

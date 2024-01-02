@@ -1,5 +1,5 @@
 use crate::svd::{array::names, Device, Peripheral};
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 
 use log::debug;
@@ -9,7 +9,7 @@ use std::io::Write;
 use std::path::Path;
 
 use crate::config::{Config, Target};
-use crate::util::{self, ToSanitizedCase};
+use crate::util::{self, ident, ToSanitizedCase};
 use anyhow::{Context, Result};
 
 use crate::generate::{interrupt, peripheral};
@@ -231,26 +231,27 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             feature_attribute.extend(quote! { #[cfg(feature = #feature_name)] })
         };
 
+        let span = Span::call_site();
         match p {
             Peripheral::Single(_p) => {
                 let p_name = util::name_of(p, config.ignore_groups);
                 let p_snake = p_name.to_sanitized_snake_case();
-                let p = p_name.to_sanitized_constant_case();
-                let id = Ident::new(&p, Span::call_site());
+                let p_ty = ident(&p_name, &config.ident_formats.peripheral, span);
                 if config.feature_peripheral {
                     feature_attribute.extend(quote! { #[cfg(feature = #p_snake)] })
                 };
                 fields.extend(quote! {
-                    #[doc = #p]
+                    #[doc = #p_name]
                     #feature_attribute
-                    pub #id: #id,
+                    pub #p_ty: #p_ty,
                 });
-                exprs.extend(quote!(#feature_attribute #id: #id { _marker: PhantomData },));
+                exprs.extend(quote!(#feature_attribute #p_ty: #p_ty { _marker: PhantomData },));
             }
             Peripheral::Array(_p, dim_element) => {
                 let p_names: Vec<Cow<str>> = names(p, dim_element).map(|n| n.into()).collect();
-                let p = p_names.iter().map(|p| p.to_sanitized_constant_case());
-                let ids_f = p.clone().map(|p| Ident::new(&p, Span::call_site()));
+                let ids_f = p_names
+                    .iter()
+                    .map(|p| ident(p, &config.ident_formats.peripheral, span));
                 let ids_e = ids_f.clone();
                 let feature_attribute = p_names
                     .iter()
@@ -265,7 +266,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                     .collect::<Vec<_>>();
                 fields.extend(quote! {
                     #(
-                        #[doc = #p]
+                        #[doc = #p_names]
                         #feature_attribute
                         pub #ids_f: #ids_f,
                     )*

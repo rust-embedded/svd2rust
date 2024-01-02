@@ -171,12 +171,13 @@ fn run() -> Result<()> {
                 .action(ArgAction::SetTrue)
                 .help("Make advanced checks due to parsing SVD"),
         )
+        // TODO: deprecate
         .arg(
             Arg::new("pascal_enum_values")
                 .long("pascal-enum-values")
                 .alias("pascal_enum_values")
                 .action(ArgAction::SetTrue)
-                .help("Use PascalCase in stead of UPPER_CASE for enumerated values"),
+                .help("Use PascalCase in stead of CONSTANT_CASE for enumerated values"),
         )
         .arg(
             Arg::new("source_type")
@@ -248,6 +249,9 @@ fn run() -> Result<()> {
         config.source_type = SourceType::from_path(file)
     }
     let path = config.output_dir.as_deref().unwrap_or(Path::new("."));
+    if config.pascal_enum_values {
+        config.ident_formats.enum_value.case = Some(svd2rust::config::Case::Pascal);
+    }
 
     info!("Parsing device from SVD file");
     let device = load_from(input, &config)?;

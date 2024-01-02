@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+pub use crate::config::{Case, IdentFormat};
 use crate::svd::{Access, Device, Field, RegisterInfo, RegisterProperties};
 use html_escape::encode_text_minimal;
 use inflections::Inflect;
@@ -20,13 +21,6 @@ pub const BITS_PER_BYTE: u32 = 8;
 /// that are not valid in Rust ident
 const BLACKLIST_CHARS: &[char] = &['(', ')', '[', ']', '/', ' ', '-'];
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Case {
-    Constant,
-    Pascal,
-    Snake,
-}
-
 impl Case {
     pub fn cow_to_case<'a>(&self, cow: Cow<'a, str>) -> Cow<'a, str> {
         match self {
@@ -45,14 +39,28 @@ impl Case {
         }
     }
     pub fn sanitize<'a>(&self, s: &'a str) -> Cow<'a, str> {
-        let s = if s.contains(BLACKLIST_CHARS) {
-            Cow::Owned(s.replace(BLACKLIST_CHARS, ""))
-        } else {
-            s.into()
-        };
+        let s = sanitize(s);
 
         self.cow_to_case(s)
     }
+}
+
+fn sanitize(s: &str) -> Cow<'_, str> {
+    if s.contains(BLACKLIST_CHARS) {
+        Cow::Owned(s.replace(BLACKLIST_CHARS, ""))
+    } else {
+        s.into()
+    }
+}
+
+pub fn ident(name: &str, fmt: &IdentFormat, span: Span) -> Ident {
+    let name = match &fmt.case {
+        Some(Case::Constant) => name.to_sanitized_constant_case(),
+        Some(Case::Pascal) => name.to_sanitized_pascal_case(),
+        Some(Case::Snake) => name.to_sanitized_snake_case(),
+        _ => sanitize(name),
+    };
+    Ident::new(&format!("{}{}{}", fmt.prefix, name, fmt.suffix), span)
 }
 
 /// Convert self string into specific case without overlapping to svd2rust internal names

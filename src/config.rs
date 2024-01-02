@@ -1,9 +1,8 @@
 use anyhow::{bail, Result};
 use std::path::{Path, PathBuf};
 
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
-#[cfg_attr(feature = "serde", serde(default))]
 pub struct Config {
     pub target: Target,
     pub atomics: bool,
@@ -28,6 +27,7 @@ pub struct Config {
     pub interrupt_link_section: Option<String>,
     pub reexport_core_peripherals: bool,
     pub reexport_interrupt: bool,
+    pub ident_formats: IdentFormats,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -114,5 +114,105 @@ impl SourceType {
             .and_then(|e| e.to_str())
             .and_then(Self::from_extension)
             .unwrap_or_default()
+    }
+}
+
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize),
+    serde(rename_all = "lowercase")
+)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub enum Case {
+    #[default]
+    Constant,
+    Pascal,
+    Snake,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
+pub struct IdentFormat {
+    pub case: Option<Case>,
+    pub prefix: String,
+    pub suffix: String,
+}
+
+impl IdentFormat {
+    pub fn case(mut self, case: Case) -> Self {
+        self.case = Some(case);
+        self
+    }
+    pub fn constant_case(mut self) -> Self {
+        self.case = Some(Case::Constant);
+        self
+    }
+    pub fn pascal_case(mut self) -> Self {
+        self.case = Some(Case::Pascal);
+        self
+    }
+    pub fn scake_case(mut self) -> Self {
+        self.case = Some(Case::Pascal);
+        self
+    }
+    pub fn prefix(mut self, prefix: &str) -> Self {
+        self.prefix = prefix.into();
+        self
+    }
+    pub fn suffix(mut self, suffix: &str) -> Self {
+        self.suffix = suffix.into();
+        self
+    }
+    pub fn parse(s: &str) -> Result<Self, ()> {
+        let mut it = s.split(":");
+        match (it.next(), it.next(), it.next(), it.next()) {
+            (Some(prefix), Some(case), Some(suffix), None) => {
+                let case = match case {
+                    "C" | "CONSTANT" => Some(Case::Constant),
+                    "P" | "Pascal" => Some(Case::Pascal),
+                    "S" | "snake" => Some(Case::Snake),
+                    "_" => None,
+                    _ => return Err(()),
+                };
+                Ok(Self {
+                    case,
+                    prefix: prefix.into(),
+                    suffix: suffix.into(),
+                })
+            }
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
+pub struct IdentFormats {
+    pub field_reader: IdentFormat,
+    pub field_writer: IdentFormat,
+    pub enum_name: IdentFormat,
+    pub enum_write_name: IdentFormat,
+    pub enum_value: IdentFormat,
+    pub interrupt: IdentFormat,
+    pub cluster: IdentFormat,
+    pub register: IdentFormat,
+    pub register_spec: IdentFormat,
+    pub peripheral: IdentFormat,
+}
+
+impl Default for IdentFormats {
+    fn default() -> Self {
+        Self {
+            field_reader: IdentFormat::default().constant_case().suffix("_R"),
+            field_writer: IdentFormat::default().constant_case().suffix("_W"),
+            enum_name: IdentFormat::default().constant_case().suffix("_A"),
+            enum_write_name: IdentFormat::default().constant_case().suffix("_AW"),
+            enum_value: IdentFormat::default().constant_case(),
+            interrupt: IdentFormat::default().constant_case(),
+            cluster: IdentFormat::default().constant_case(),
+            register: IdentFormat::default().constant_case(),
+            register_spec: IdentFormat::default().constant_case().suffix("_SPEC"),
+            peripheral: IdentFormat::default().constant_case(),
+        }
     }
 }
