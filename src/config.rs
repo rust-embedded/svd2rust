@@ -123,6 +123,7 @@ impl SourceType {
     serde(rename_all = "lowercase")
 )]
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum Case {
     #[default]
     Constant,
