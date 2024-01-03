@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Custom prefix/case/suffix for identifiers
+## [v0.31.4] - 2024-01-03
+
+- Custom prefix/case/suffix for identifiers (by `svd2rust.toml` config file)
 
 ## [v0.31.3] - 2023-12-25
 
@@ -856,7 +858,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.31.3...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.31.4...HEAD
+[v0.31.4]: https://github.com/rust-embedded/svd2rust/compare/v0.31.3...v0.31.4
 [v0.31.3]: https://github.com/rust-embedded/svd2rust/compare/v0.31.2...v0.31.3
 [v0.31.2]: https://github.com/rust-embedded/svd2rust/compare/v0.31.1...v0.31.2
 [v0.31.1]: https://github.com/rust-embedded/svd2rust/compare/v0.31.0...v0.31.1
