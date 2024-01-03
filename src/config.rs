@@ -163,26 +163,6 @@ impl IdentFormat {
         self.suffix = suffix.into();
         self
     }
-    pub fn parse(s: &str) -> Result<Self, ()> {
-        let mut it = s.split(":");
-        match (it.next(), it.next(), it.next(), it.next()) {
-            (Some(prefix), Some(case), Some(suffix), None) => {
-                let case = match case {
-                    "C" | "CONSTANT" => Some(Case::Constant),
-                    "P" | "Pascal" => Some(Case::Pascal),
-                    "S" | "snake" => Some(Case::Snake),
-                    "_" => None,
-                    _ => return Err(()),
-                };
-                Ok(Self {
-                    case,
-                    prefix: prefix.into(),
-                    suffix: suffix.into(),
-                })
-            }
-            _ => Err(()),
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
