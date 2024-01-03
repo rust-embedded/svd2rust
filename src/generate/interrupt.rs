@@ -5,7 +5,7 @@ use crate::svd::Peripheral;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 
-use crate::util::{self, ToSanitizedCase};
+use crate::util::{self, ident, ToSanitizedCase};
 use crate::{Config, Target};
 use anyhow::Result;
 
@@ -46,6 +46,7 @@ pub fn render(
     // Current position in the vector table
     let mut pos = 0;
     let mut mod_items = TokenStream::new();
+    let span = Span::call_site();
     for interrupt in &interrupts {
         while pos < interrupt.0.value {
             elements.extend(quote!(Vector { _reserved: 0 },));
@@ -53,7 +54,7 @@ pub fn render(
         }
         pos += 1;
 
-        let name_constant_case = interrupt.0.name.to_constant_case_ident(Span::call_site());
+        let i_ty = ident(&interrupt.0.name, &config.ident_formats.interrupt, span);
         let description = format!(
             "{} - {}",
             interrupt.0.value,
@@ -89,12 +90,12 @@ pub fn render(
         variants.extend(quote! {
             #[doc = #description]
             #feature_attribute
-            #name_constant_case = #value,
+            #i_ty = #value,
         });
 
         from_arms.extend(quote! {
             #feature_attribute
-            #value => Ok(Interrupt::#name_constant_case),
+            #value => Ok(Interrupt::#i_ty),
         });
 
         if feature_attribute_flag {
@@ -102,12 +103,12 @@ pub fn render(
                 #not_feature_attribute
                 Vector { _reserved: 0 },
                 #feature_attribute
-                Vector { _handler: #name_constant_case },
+                Vector { _handler: #i_ty },
             });
         } else {
-            elements.extend(quote!(Vector { _handler: #name_constant_case },));
+            elements.extend(quote!(Vector { _handler: #i_ty },));
         }
-        names.push(name_constant_case);
+        names.push(i_ty);
         names_cfg_attr.push(feature_attribute);
     }
 

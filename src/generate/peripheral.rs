@@ -16,8 +16,8 @@ use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, Token};
 
 use crate::util::{
-    self, name_to_ty, path_segment, type_path, unsuffixed, zst_type, FullName, ToSanitizedCase,
-    BITS_PER_BYTE,
+    self, ident, name_to_ty, path_segment, type_path, unsuffixed, zst_type, FullName,
+    ToSanitizedCase, BITS_PER_BYTE,
 };
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -38,16 +38,16 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
 
     let name = util::name_of(&p, config.ignore_groups);
     let span = Span::call_site();
-    let name_str = name.to_sanitized_constant_case();
-    let name_constant_case = Ident::new(&name_str, span);
+    let p_ty = ident(&name, &config.ident_formats.peripheral, span);
+    let name_str = p_ty.to_string();
     let address = util::hex(p.base_address);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
-    let name_snake_case = name.to_snake_case_ident(span);
+    let mod_ty = name.to_snake_case_ident(span);
     let (derive_regs, base, path) = if let Some(path) = path {
         (true, path.peripheral.to_snake_case_ident(span), path)
     } else {
-        (false, name_snake_case.clone(), BlockPath::new(&p.name))
+        (false, mod_ty.clone(), BlockPath::new(&p.name))
     };
 
     let mut feature_attribute = TokenStream::new();
@@ -81,8 +81,8 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
             for pi in svd::peripheral::expand(p, dim) {
                 let name = &pi.name;
                 let description = pi.description.as_deref().unwrap_or(&p.name);
-                let name_str = name.to_sanitized_constant_case();
-                let name_constant_case = Ident::new(name, span);
+                let p_ty = ident(name, &config.ident_formats.peripheral, span);
+                let name_str = p_ty.to_string();
                 let address = util::hex(pi.base_address);
                 let p_snake = name.to_sanitized_snake_case();
                 snake_names.push(p_snake.to_string());
@@ -94,13 +94,13 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 out.extend(quote! {
                     #[doc = #description]
                     #feature_attribute_n
-                    pub struct #name_constant_case { _marker: PhantomData<*const ()> }
+                    pub struct #p_ty { _marker: PhantomData<*const ()> }
 
                     #feature_attribute_n
-                    unsafe impl Send for #name_constant_case {}
+                    unsafe impl Send for #p_ty {}
 
                     #feature_attribute_n
-                    impl #name_constant_case {
+                    impl #p_ty {
                         ///Pointer to the register block
                         pub const PTR: *const #base::RegisterBlock = #address as *const _;
 
@@ -114,7 +114,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                     }
 
                     #feature_attribute_n
-                    impl Deref for #name_constant_case {
+                    impl Deref for #p_ty {
                         type Target = #base::RegisterBlock;
 
                         #[inline(always)]
@@ -124,7 +124,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                     }
 
                     #feature_attribute_n
-                    impl core::fmt::Debug for #name_constant_case {
+                    impl core::fmt::Debug for #p_ty {
                         fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                             f.debug_struct(#name_str).finish()
                         }
@@ -141,7 +141,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 out.extend(quote! {
                     #[doc = #description]
                     #feature_any_attribute
-                    pub use self::#base as #name_snake_case;
+                    pub use self::#base as #mod_ty;
                 });
                 return Ok(out);
             }
@@ -155,13 +155,13 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
             out.extend(quote! {
                 #[doc = #description]
                 #feature_attribute
-                pub struct #name_constant_case { _marker: PhantomData<*const ()> }
+                pub struct #p_ty { _marker: PhantomData<*const ()> }
 
                 #feature_attribute
-                unsafe impl Send for #name_constant_case {}
+                unsafe impl Send for #p_ty {}
 
                 #feature_attribute
-                impl #name_constant_case {
+                impl #p_ty {
                     ///Pointer to the register block
                     pub const PTR: *const #base::RegisterBlock = #address as *const _;
 
@@ -175,7 +175,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 }
 
                 #feature_attribute
-                impl Deref for #name_constant_case {
+                impl Deref for #p_ty {
                     type Target = #base::RegisterBlock;
 
                     #[inline(always)]
@@ -185,7 +185,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 }
 
                 #feature_attribute
-                impl core::fmt::Debug for #name_constant_case {
+                impl core::fmt::Debug for #p_ty {
                     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                         f.debug_struct(#name_str).finish()
                     }
@@ -199,7 +199,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 out.extend(quote! {
                     #[doc = #description]
                     #feature_attribute
-                    pub use self::#base as #name_snake_case;
+                    pub use self::#base as #mod_ty;
                 });
                 return Ok(out);
             }
@@ -252,7 +252,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
     out.extend(quote! {
         #[doc = #description]
         #feature_attribute
-        pub mod #name_snake_case #open
+        pub mod #mod_ty #open
     });
 
     out.extend(reg_block);
@@ -630,15 +630,15 @@ fn register_or_cluster_block(
         }
     });
 
-    let name = if let Some(name) = name {
-        name.to_constant_case_ident(span)
+    let block_ty = if let Some(name) = name {
+        ident(name, &config.ident_formats.cluster, span)
     } else {
         Ident::new("RegisterBlock", span)
     };
 
     let accessors = (!accessors.is_empty()).then(|| {
         quote! {
-            impl #name {
+            impl #block_ty {
                 #accessors
             }
         }
@@ -648,7 +648,7 @@ fn register_or_cluster_block(
         ///Register block
         #[repr(C)]
         #derive_debug
-        pub struct #name {
+        pub struct #block_ty {
             #rbfs
         }
 
@@ -1375,8 +1375,8 @@ fn cluster_block(
 
     // name_snake_case needs to take into account array type.
     let span = Span::call_site();
-    let name_snake_case = mod_name.to_snake_case_ident(span);
-    let name_constant_case = mod_name.to_constant_case_ident(span);
+    let mod_ty = mod_name.to_snake_case_ident(span);
+    let block_ty = ident(&mod_name, &config.ident_formats.cluster, span);
 
     if let Some(dpath) = dpath {
         let dparent = dpath.parent().unwrap();
@@ -1387,10 +1387,11 @@ fn cluster_block(
         };
         let dname = util::replace_suffix(&index.clusters.get(&dpath).unwrap().name, "");
         let mut mod_derived = derived.clone();
-        derived
-            .path
-            .segments
-            .push(path_segment(dname.to_constant_case_ident(span)));
+        derived.path.segments.push(path_segment(ident(
+            &dname,
+            &config.ident_formats.cluster,
+            span,
+        )));
         mod_derived
             .path
             .segments
@@ -1398,8 +1399,8 @@ fn cluster_block(
 
         Ok(quote! {
             #[doc = #description]
-            pub use self::#derived as #name_constant_case;
-            pub use self::#mod_derived as #name_snake_case;
+            pub use self::#derived as #block_ty;
+            pub use self::#mod_derived as #mod_ty;
         })
     } else {
         let cpath = path.new_cluster(&c.name);
@@ -1429,11 +1430,11 @@ fn cluster_block(
 
         Ok(quote! {
             #[doc = #description]
-            pub use self::#name_snake_case::#name_constant_case;
+            pub use self::#mod_ty::#block_ty;
 
             ///Cluster
             #[doc = #description]
-            pub mod #name_snake_case {
+            pub mod #mod_ty {
                 #mod_items
             }
         })
