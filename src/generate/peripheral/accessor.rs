@@ -190,7 +190,7 @@ impl ToTokens for RawArrayAccessor {
             #[doc = #doc]
             #[inline(always)]
             pub fn #name_iter(&self) -> impl Iterator<Item=&#ty> {
-                (0..#dim).map(|n| #cast)
+                (0..#dim).map(move |n| #cast)
             }
         }
         .to_tokens(tokens);

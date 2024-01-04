@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Fix `cargo doc` constants generation 
+- `move` in `RegisterBlock::reg_iter` implementation (iterator of register/cluster array)
+- Fix `cargo doc` constants generation
 
 ## [v0.31.4] - 2024-01-03
 
