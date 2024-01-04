@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fix `cargo doc` constants generation 
+
 ## [v0.31.4] - 2024-01-03
 
 - Custom prefix/case/suffix for identifiers (by `svd2rust.toml` config file)
