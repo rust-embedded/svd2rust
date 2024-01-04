@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.31.5] - 2024-01-04
+
 - `move` in `RegisterBlock::reg_iter` implementation (iterator of register/cluster array)
 - Fix `cargo doc` constants generation
 
@@ -861,7 +863,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.31.4...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.31.5...HEAD
+[v0.31.5]: https://github.com/rust-embedded/svd2rust/compare/v0.31.4...v0.31.5
 [v0.31.4]: https://github.com/rust-embedded/svd2rust/compare/v0.31.3...v0.31.4
 [v0.31.3]: https://github.com/rust-embedded/svd2rust/compare/v0.31.2...v0.31.3
 [v0.31.2]: https://github.com/rust-embedded/svd2rust/compare/v0.31.1...v0.31.2
