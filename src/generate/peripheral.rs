@@ -40,7 +40,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
     let span = Span::call_site();
     let p_ty = ident(&name, &config.ident_formats.peripheral, span);
     let name_str = p_ty.to_string();
-    let address = util::hex(p.base_address);
+    let address = util::hex(p.base_address + config.base_address_shift);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
     let mod_ty = name.to_snake_case_ident(span);
@@ -83,7 +83,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 let description = pi.description.as_deref().unwrap_or(&p.name);
                 let p_ty = ident(name, &config.ident_formats.peripheral, span);
                 let name_str = p_ty.to_string();
-                let address = util::hex(pi.base_address);
+                let address = util::hex(pi.base_address + config.base_address_shift);
                 let p_snake = name.to_sanitized_snake_case();
                 snake_names.push(p_snake.to_string());
                 let mut feature_attribute_n = feature_attribute.clone();
