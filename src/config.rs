@@ -7,6 +7,8 @@ pub struct Config {
     pub target: Target,
     pub atomics: bool,
     pub atomics_feature: Option<String>,
+    pub bitbanding: Option<BBAddress>,
+    pub bitbanding_feature: Option<String>,
     pub generic_mod: bool,
     pub make_mod: bool,
     pub skip_crate_attributes: bool,
@@ -29,6 +31,12 @@ pub struct Config {
     pub reexport_interrupt: bool,
     pub ident_formats: IdentFormats,
     pub base_address_shift: u64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BBAddress {
+    peri_bit_band_base: usize,
+    peri_address_start: usize,
 }
 
 #[allow(clippy::upper_case_acronyms)]
