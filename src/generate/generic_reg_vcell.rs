@@ -179,6 +179,16 @@ impl<REG: Writable> Reg<REG> {
 
         result
     }
+
+    /// Writes raw value to register.
+    ///
+    /// # Safety
+    ///
+    /// Unsafe as it passes value without checks.
+    #[inline(always)]
+    pub unsafe fn write_bits(&self, bits: REG::Ux) {
+        self.register.set(bits);
+    }
 }
 
 impl<REG: Readable + Writable> Reg<REG> {
