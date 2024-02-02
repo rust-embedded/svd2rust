@@ -4,30 +4,11 @@ on:
     types: [created]
 
 jobs:
-  debug:
-    runs-on: ubuntu-latest
-    needs: [diff, generate, summary]
-    if: always() && (vars.ACTIONS_RUNNER_DEBUG || vars.ACTIONS_STEP_DEBUG )
-    steps:
-      - name: echo needs
-        run: echo '${{ toJson(needs) }}'
-      - name: echo github
-        run: echo '${{ toJson(github) }}'
-      - name: echo pull request
-        run: echo '${{ github.event.issue.pull_request == 'true' }}'
-      - name: echo comment association
-        run: echo '${{ github.event.comment.author_association }} - ${{ github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'OWNER' }}'
-      - name: echo comment body
-        run: echo '${{ contains(github.event.comment.body, '\n/ci') || startsWith(github.event.comment.body, '/ci') }}'
-      - name: echo generate diffs
-        run: echo '${{ needs.generate.outputs.diffs != '{}' && needs.generate.outputs.diffs != '[]' && needs.generate.outputs.diffs != '' }}'
-      - name: echo generate result
-        run: echo '${{ needs.generate.result == 'success' }}'
   generate:
     runs-on: ubuntu-latest
     outputs:
       diffs: ${{ steps.regress-ci.outputs.diffs }}
-    if: github.event.issue.pull_request && (github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'OWNER') && (contains(github.event.comment.body, '\n/ci') || startsWith(github.event.comment.body, '/ci'))
+    if: github.event.issue.pull_request && (github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'OWNER') && (contains(toJson(github.event.comment.body), '\n/ci') || startsWith(github.event.comment.body, '/ci'))
     steps:
       - uses: actions/checkout@v4
 
