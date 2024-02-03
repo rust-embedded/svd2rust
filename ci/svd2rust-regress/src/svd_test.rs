@@ -259,7 +259,9 @@ impl TestCase {
         let mut svd2rust_bin = Command::new(svd2rust_bin_path);
         if let Some(command) = command {
             if !command.is_empty() {
-                svd2rust_bin.arg(command);
+                svd2rust_bin.args(
+                    shell_words::split(command).context("unable to split command into args")?,
+                );
             }
         }
         svd2rust_bin
