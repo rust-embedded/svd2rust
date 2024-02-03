@@ -11,7 +11,7 @@ pub struct Ci {
     #[clap(env = "GITHUB_COMMENT")]
     pub comment: String,
     #[clap(env = "GITHUB_COMMENT_PR")]
-    pub comment_pr: String,
+    pub comment_pr: usize,
 }
 
 #[derive(serde::Serialize)]
@@ -32,7 +32,7 @@ impl Ci {
             diffs.push(Diff {
                 needs_semver_checks: command.contains("semver"),
                 command: command.to_owned(),
-                pr: self.comment_pr.split('/').last().unwrap().parse()?,
+                pr: self.comment_pr,
             });
         }
         let json = serde_json::to_string(&diffs)?;
