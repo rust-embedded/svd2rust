@@ -16,8 +16,7 @@ use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, Token};
 
 use crate::util::{
-    self, ident, name_to_ty, path_segment, type_path, unsuffixed, zst_type, FullName,
-    ToSanitizedCase, BITS_PER_BYTE,
+    self, ident, name_to_ty, path_segment, type_path, unsuffixed, zst_type, FullName, BITS_PER_BYTE,
 };
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -38,21 +37,26 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
 
     let name = util::name_of(&p, config.ignore_groups);
     let span = Span::call_site();
-    let p_ty = ident(&name, &config.ident_formats.peripheral, span);
+    let p_ty = ident(&name, &config, "peripheral", span);
     let name_str = p_ty.to_string();
     let address = util::hex(p.base_address + config.base_address_shift);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
 
-    let mod_ty = name.to_snake_case_ident(span);
+    let mod_ty = ident(&name, config, "peripheral_mod", span);
     let (derive_regs, base, path) = if let Some(path) = path {
-        (true, path.peripheral.to_snake_case_ident(span), path)
+        (
+            true,
+            ident(&path.peripheral, config, "peripheral_mod", span),
+            path,
+        )
     } else {
         (false, mod_ty.clone(), BlockPath::new(&p.name))
     };
 
     let mut feature_attribute = TokenStream::new();
+    let feature_format = config.ident_formats.get("peripheral_feature").unwrap();
     if config.feature_group && p.group_name.is_some() {
-        let feature_name = p.group_name.as_ref().unwrap().to_sanitized_snake_case();
+        let feature_name = feature_format.apply(p.group_name.as_ref().unwrap());
         feature_attribute.extend(quote! { #[cfg(feature = #feature_name)] });
     };
 
@@ -77,22 +81,24 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
 
     match &p {
         Peripheral::Array(p, dim) => {
-            let mut snake_names = Vec::with_capacity(dim.dim as _);
+            let mut feature_names = Vec::with_capacity(dim.dim as _);
             for pi in svd::peripheral::expand(p, dim) {
                 let name = &pi.name;
                 let description = pi.description.as_deref().unwrap_or(&p.name);
-                let p_ty = ident(name, &config.ident_formats.peripheral, span);
+                let p_ty = ident(name, &config, "peripheral", span);
                 let name_str = p_ty.to_string();
+                let doc_alias = (&name_str != name).then(|| quote!(#[doc(alias = #name)]));
                 let address = util::hex(pi.base_address + config.base_address_shift);
-                let p_snake = name.to_sanitized_snake_case();
-                snake_names.push(p_snake.to_string());
+                let p_feature = feature_format.apply(name);
+                feature_names.push(p_feature.to_string());
                 let mut feature_attribute_n = feature_attribute.clone();
                 if config.feature_peripheral {
-                    feature_attribute_n.extend(quote! { #[cfg(feature = #p_snake)] })
+                    feature_attribute_n.extend(quote! { #[cfg(feature = #p_feature)] })
                 };
                 // Insert the peripherals structure
                 out.extend(quote! {
                     #[doc = #description]
+                    #doc_alias
                     #feature_attribute_n
                     pub struct #p_ty { _marker: PhantomData<*const ()> }
 
@@ -132,7 +138,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 });
             }
 
-            let feature_any_attribute = quote! {#[cfg(any(#(feature = #snake_names),*))]};
+            let feature_any_attribute = quote! {#[cfg(any(#(feature = #feature_names),*))]};
 
             // Derived peripherals may not require re-implementation, and will instead
             // use a single definition of the non-derived version.
@@ -147,9 +153,9 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
             }
         }
         Peripheral::Single(_) => {
-            let p_snake = name.to_sanitized_snake_case();
+            let p_feature = feature_format.apply(&name);
             if config.feature_peripheral {
-                feature_attribute.extend(quote! { #[cfg(feature = #p_snake)] })
+                feature_attribute.extend(quote! { #[cfg(feature = #p_feature)] })
             };
             // Insert the peripheral structure
             out.extend(quote! {
@@ -244,7 +250,8 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         "Pushing {} register or cluster blocks into output",
         ercs.len()
     );
-    let reg_block = register_or_cluster_block(&ercs, &derive_infos, None, None, config)?;
+    let reg_block =
+        register_or_cluster_block(&ercs, &derive_infos, None, "Register block", None, config)?;
 
     let open = Punct::new('{', Spacing::Alone);
     let close = Punct::new('}', Spacing::Alone);
@@ -526,6 +533,7 @@ fn register_or_cluster_block(
     ercs: &[RegisterCluster],
     derive_infos: &[DeriveInfo],
     name: Option<&str>,
+    doc: &str,
     size: Option<u32>,
     config: &Config,
 ) -> Result<TokenStream> {
@@ -630,8 +638,13 @@ fn register_or_cluster_block(
         }
     });
 
+    let mut doc_alias = None;
     let block_ty = if let Some(name) = name {
-        ident(name, &config.ident_formats.cluster, span)
+        let ty = ident(name, &config, "cluster", span);
+        if ty.to_string() != name {
+            doc_alias = Some(quote!(#[doc(alias = #name)]));
+        }
+        ty
     } else {
         Ident::new("RegisterBlock", span)
     };
@@ -645,9 +658,10 @@ fn register_or_cluster_block(
     });
 
     Ok(quote! {
-        ///Register block
         #[repr(C)]
         #derive_debug
+        #[doc = #doc]
+        #doc_alias
         pub struct #block_ty {
             #rbfs
         }
@@ -981,12 +995,13 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
     } else {
         util::replace_suffix(&cluster.name, "")
     };
-    let ty = name_to_ty(&ty_name);
+    let span = Span::call_site();
+    let ty = name_to_ty(ident(&ty_name, &config, "cluster", span));
 
     match cluster {
         Cluster::Single(info) => {
             let doc = make_comment(cluster_size, info.address_offset, &description);
-            let name: Ident = info.name.to_snake_case_ident(Span::call_site());
+            let name: Ident = ident(&info.name, &config, "cluster_accessor", span);
             let syn_field = new_syn_field(name.clone(), ty.clone());
             cluster_expanded.push(RegisterBlockField {
                 syn_field,
@@ -1029,12 +1044,16 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
             let array_convertible = sequential_addresses && convert_list;
 
             if convert_list {
-                let span = Span::call_site();
-                let nb_name_sc = if let Some(dim_name) = array_info.dim_name.as_ref() {
-                    dim_name.to_snake_case_ident(span)
-                } else {
-                    ty_name.to_snake_case_ident(span)
-                };
+                let accessor_name = ident(
+                    if let Some(dim_name) = array_info.dim_name.as_ref() {
+                        dim_name
+                    } else {
+                        &ty_name
+                    },
+                    &config,
+                    "cluster_accessor",
+                    span,
+                );
                 let doc = make_comment(
                     cluster_size * array_info.dim,
                     info.address_offset,
@@ -1044,7 +1063,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 accessors.push(if array_convertible {
                     ArrayAccessor {
                         doc,
-                        name: nb_name_sc.clone(),
+                        name: accessor_name.clone(),
                         ty: ty.clone(),
                         offset: unsuffixed(info.address_offset),
                         dim: unsuffixed(array_info.dim),
@@ -1054,7 +1073,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 } else {
                     RawArrayAccessor {
                         doc,
-                        name: nb_name_sc.clone(),
+                        name: accessor_name.clone(),
                         ty: ty.clone(),
                         offset: unsuffixed(info.address_offset),
                         dim: unsuffixed(array_info.dim),
@@ -1064,7 +1083,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 });
                 if !sequential_indexes_from0 || !ends_with_index {
                     for (i, ci) in svd::cluster::expand(info, array_info).enumerate() {
-                        let idx_name = ci.name.to_snake_case_ident(span);
+                        let idx_name = ident(&ci.name, &config, "cluster_accessor", span);
                         let doc = make_comment(
                             cluster_size,
                             ci.address_offset,
@@ -1076,7 +1095,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                                 doc,
                                 name: idx_name,
                                 ty: ty.clone(),
-                                basename: nb_name_sc.clone(),
+                                basename: accessor_name.clone(),
                                 i,
                             }
                             .into(),
@@ -1088,7 +1107,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 } else {
                     zst_type()
                 };
-                let syn_field = new_syn_field(nb_name_sc, array_ty);
+                let syn_field = new_syn_field(accessor_name, array_ty);
                 cluster_expanded.push(RegisterBlockField {
                     syn_field,
                     offset: info.address_offset,
@@ -1106,7 +1125,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         ci.address_offset,
                         ci.description.as_deref().unwrap_or(&ci.name),
                     );
-                    let name = ci.name.to_snake_case_ident(Span::call_site());
+                    let name = ident(&ci.name, &config, "cluster_accessor", span);
                     let syn_field = new_syn_field(name.clone(), ty.clone());
 
                     cluster_expanded.push(RegisterBlockField {
@@ -1155,8 +1174,9 @@ fn expand_register(
     match register {
         Register::Single(info) => {
             let doc = make_comment(register_size, info.address_offset, &description);
-            let ty = name_to_ty(&ty_name);
-            let name = ty_name.to_snake_case_ident(Span::call_site());
+            let span = Span::call_site();
+            let ty = name_to_ty(ident(&ty_name, &config, "register", span));
+            let name: Ident = ident(&ty_name, &config, "register_accessor", span);
             let syn_field = new_syn_field(name.clone(), ty.clone());
             register_expanded.push(RegisterBlockField {
                 syn_field,
@@ -1210,15 +1230,19 @@ fn expand_register(
             };
             let array_convertible = ac && sequential_addresses;
             let array_proxy_convertible = ac && disjoint_sequential_addresses;
-            let ty = name_to_ty(&ty_name);
+            let span = Span::call_site();
+            let ty = name_to_ty(ident(&ty_name, &config, "register", span));
 
             if array_convertible || array_proxy_convertible {
-                let span = Span::call_site();
-                let nb_name_sc = if let Some(dim_name) = array_info.dim_name.as_ref() {
-                    util::fullname(dim_name, &info.alternate_group, config.ignore_groups)
-                        .to_snake_case_ident(span)
+                let accessor_name = if let Some(dim_name) = array_info.dim_name.as_ref() {
+                    ident(
+                        &util::fullname(dim_name, &info.alternate_group, config.ignore_groups),
+                        &config,
+                        "register_accessor",
+                        span,
+                    )
                 } else {
-                    ty_name.to_snake_case_ident(span)
+                    ident(&ty_name, &config, "register_accessor", span)
                 };
                 let doc = make_comment(
                     register_size * array_info.dim,
@@ -1229,7 +1253,7 @@ fn expand_register(
                 accessors.push(if array_convertible {
                     ArrayAccessor {
                         doc,
-                        name: nb_name_sc.clone(),
+                        name: accessor_name.clone(),
                         ty: ty.clone(),
                         offset: unsuffixed(info.address_offset),
                         dim: unsuffixed(array_info.dim),
@@ -1239,7 +1263,7 @@ fn expand_register(
                 } else {
                     RawArrayAccessor {
                         doc,
-                        name: nb_name_sc.clone(),
+                        name: accessor_name.clone(),
                         ty: ty.clone(),
                         offset: unsuffixed(info.address_offset),
                         dim: unsuffixed(array_info.dim),
@@ -1249,9 +1273,12 @@ fn expand_register(
                 });
                 if !sequential_indexes_from0 || !ends_with_index {
                     for (i, ri) in svd::register::expand(info, array_info).enumerate() {
-                        let idx_name =
-                            util::fullname(&ri.name, &info.alternate_group, config.ignore_groups)
-                                .to_snake_case_ident(span);
+                        let idx_name = ident(
+                            &util::fullname(&ri.name, &info.alternate_group, config.ignore_groups),
+                            &config,
+                            "cluster_accessor",
+                            span,
+                        );
                         let doc = make_comment(
                             register_size,
                             ri.address_offset,
@@ -1263,7 +1290,7 @@ fn expand_register(
                                 doc,
                                 name: idx_name,
                                 ty: ty.clone(),
-                                basename: nb_name_sc.clone(),
+                                basename: accessor_name.clone(),
                                 i,
                             }
                             .into(),
@@ -1275,7 +1302,7 @@ fn expand_register(
                 } else {
                     zst_type()
                 };
-                let syn_field = new_syn_field(nb_name_sc, array_ty);
+                let syn_field = new_syn_field(accessor_name, array_ty);
                 register_expanded.push(RegisterBlockField {
                     syn_field,
                     offset: info.address_offset,
@@ -1293,7 +1320,7 @@ fn expand_register(
                         info.address_offset,
                         ri.description.as_deref().unwrap_or(&ri.name),
                     );
-                    let name = ri.name.to_snake_case_ident(Span::call_site());
+                    let name = ident(&ri.name, &config, "register_accessor", span);
                     let syn_field = new_syn_field(name.clone(), ty.clone());
 
                     register_expanded.push(RegisterBlockField {
@@ -1375,27 +1402,26 @@ fn cluster_block(
 
     // name_snake_case needs to take into account array type.
     let span = Span::call_site();
-    let mod_ty = mod_name.to_snake_case_ident(span);
-    let block_ty = ident(&mod_name, &config.ident_formats.cluster, span);
+    let mod_ty = ident(&mod_name, config, "cluster_mod", span);
+    let block_ty = ident(&mod_name, &config, "cluster", span);
 
     if let Some(dpath) = dpath {
         let dparent = dpath.parent().unwrap();
         let mut derived = if &dparent == path {
             type_path(Punctuated::new())
         } else {
-            util::block_path_to_ty(&dparent, span)
+            util::block_path_to_ty(&dparent, config, span)
         };
         let dname = util::replace_suffix(&index.clusters.get(&dpath).unwrap().name, "");
         let mut mod_derived = derived.clone();
-        derived.path.segments.push(path_segment(ident(
-            &dname,
-            &config.ident_formats.cluster,
-            span,
-        )));
+        derived
+            .path
+            .segments
+            .push(path_segment(ident(&dname, &config, "cluster", span)));
         mod_derived
             .path
             .segments
-            .push(path_segment(dname.to_snake_case_ident(span)));
+            .push(path_segment(ident(&dname, config, "cluster_mod", span)));
 
         Ok(quote! {
             #[doc = #description]
@@ -1418,6 +1444,7 @@ fn cluster_block(
             &c.children,
             &mod_derive_infos,
             Some(&mod_name),
+            &description,
             cluster_size,
             config,
         )?;

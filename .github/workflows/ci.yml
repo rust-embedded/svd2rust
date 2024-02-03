@@ -56,8 +56,8 @@ jobs:
         include:
           - { rust: stable, vendor: Atmel, options: all }
           - { rust: stable, vendor: Atmel, options: "" }
-          - { rust: stable, vendor: Freescale, options: all }
-          - { rust: stable, vendor: Freescale, options: "" }
+          - { rust: stable, vendor: Freescale, options: "--strict --atomics --ident-format register::c:" }
+          - { rust: stable, vendor: Freescale, options: "--ident-format register::c:" }
           - { rust: stable, vendor: Fujitsu, options: "" }
           - { rust: stable, vendor: Fujitsu, options: "--atomics" }
           - { rust: stable, vendor: GD32, options: all }
@@ -80,7 +80,7 @@ jobs:
           - { rust: stable, vendor: Spansion, options: "--atomics" }
           - { rust: stable, vendor: STMicro, options: "" }
           - { rust: stable, vendor: STMicro, options: "--atomics" }
-          - { rust: stable, vendor: STM32-patched, options: "--strict --pascal-enum-values --max-cluster-size --atomics --atomics-feature atomics --impl-debug --impl-defmt defmt" }
+          - { rust: stable, vendor: STM32-patched, options: "--strict --max-cluster-size --atomics --atomics-feature atomics --impl-debug --impl-defmt defmt" }
           - { rust: stable, vendor: Toshiba, options: all }
           - { rust: stable, vendor: Toshiba, options: "" }
           # Test MSRV

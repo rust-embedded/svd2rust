@@ -8,7 +8,7 @@ use std::io::Write;
 use std::path::Path;
 
 use crate::config::{Config, Target};
-use crate::util::{self, ident, ToSanitizedCase};
+use crate::util::{self, ident};
 use anyhow::{Context, Result};
 
 use crate::generate::{interrupt, peripheral};
@@ -192,6 +192,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         config,
     )?);
 
+    let feature_format = config.ident_formats.get("peripheral_feature").unwrap();
     for p in &d.peripherals {
         if config.target == Target::CortexM
             && core_peripherals.contains(&p.name.to_uppercase().as_ref())
@@ -226,7 +227,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
         let mut feature_attribute = TokenStream::new();
         if config.feature_group && p.group_name.is_some() {
-            let feature_name = p.group_name.as_ref().unwrap().to_sanitized_snake_case();
+            let feature_name = feature_format.apply(p.group_name.as_deref().unwrap());
             feature_attribute.extend(quote! { #[cfg(feature = #feature_name)] })
         };
 
@@ -234,31 +235,37 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         match p {
             Peripheral::Single(_p) => {
                 let p_name = util::name_of(p, config.ignore_groups);
-                let p_snake = p_name.to_sanitized_snake_case();
-                let p_ty = ident(&p_name, &config.ident_formats.peripheral, span);
+                let p_feature = feature_format.apply(&p_name);
+                let p_ty = ident(&p_name, &config, "peripheral", span);
+                let p_singleton = ident(&p_name, &config, "peripheral_singleton", span);
                 if config.feature_peripheral {
-                    feature_attribute.extend(quote! { #[cfg(feature = #p_snake)] })
+                    feature_attribute.extend(quote! { #[cfg(feature = #p_feature)] })
                 };
                 fields.extend(quote! {
                     #[doc = #p_name]
                     #feature_attribute
-                    pub #p_ty: #p_ty,
+                    pub #p_singleton: #p_ty,
                 });
-                exprs.extend(quote!(#feature_attribute #p_ty: #p_ty { _marker: PhantomData },));
+                exprs.extend(
+                    quote!(#feature_attribute #p_singleton: #p_ty { _marker: PhantomData },),
+                );
             }
             Peripheral::Array(p, dim_element) => {
                 for p_name in names(p, dim_element) {
-                    let p_snake = p_name.to_sanitized_snake_case();
-                    let p_ty = ident(&p_name, &config.ident_formats.peripheral, span);
+                    let p_feature = feature_format.apply(&p_name);
+                    let p_ty = ident(&p_name, &config, "peripheral", span);
+                    let p_singleton = ident(&p_name, &config, "peripheral_singleton", span);
                     if config.feature_peripheral {
-                        feature_attribute.extend(quote! { #[cfg(feature = #p_snake)] })
+                        feature_attribute.extend(quote! { #[cfg(feature = #p_feature)] })
                     };
                     fields.extend(quote! {
                         #[doc = #p_name]
                         #feature_attribute
-                        pub #p_ty: #p_ty,
+                        pub #p_singleton: #p_ty,
                     });
-                    exprs.extend(quote!(#feature_attribute #p_ty: #p_ty { _marker: PhantomData },));
+                    exprs.extend(
+                        quote!(#feature_attribute #p_singleton: #p_ty { _marker: PhantomData },),
+                    );
                 }
             }
         }

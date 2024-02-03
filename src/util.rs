@@ -1,7 +1,10 @@
 use std::borrow::Cow;
 
 pub use crate::config::{Case, IdentFormat};
-use crate::svd::{Access, Device, Field, RegisterInfo, RegisterProperties};
+use crate::{
+    svd::{Access, Device, Field, RegisterInfo, RegisterProperties},
+    Config,
+};
 use html_escape::encode_text_minimal;
 use inflections::Inflect;
 use proc_macro2::{Ident, Span, TokenStream};
@@ -28,10 +31,33 @@ impl Case {
                 Cow::Borrowed(s) if s.is_constant_case() => cow,
                 _ => cow.to_constant_case().into(),
             },
-            Self::Pascal => match cow {
-                Cow::Borrowed(s) if s.is_pascal_case() => cow,
-                _ => cow.to_pascal_case().into(),
-            },
+            Self::Pascal => {
+                if let Some((first, _)) = cow
+                    .char_indices()
+                    .find(|(_, c)| c != &'_' && !c.is_ascii_digit())
+                {
+                    if first != 0 {
+                        let (prefix, s) = cow.split_at(first);
+                        // Keep trailing "_"
+                        if let Some(s) = s.strip_suffix('_') {
+                            format!("{prefix}{}_", s.to_pascal_case()).into()
+                        } else {
+                            format!("{prefix}{}", s.to_pascal_case()).into()
+                        }
+                    } else {
+                        if let Some(s) = cow.strip_suffix('_') {
+                            format!("{}_", s.to_pascal_case()).into()
+                        } else {
+                            match cow {
+                                Cow::Borrowed(s) if s.is_pascal_case() => cow,
+                                _ => cow.to_pascal_case().into(),
+                            }
+                        }
+                    }
+                } else {
+                    cow
+                }
+            }
             Self::Snake => match cow {
                 Cow::Borrowed(s) if s.is_snake_case() => cow,
                 _ => cow.to_snake_case().into(),
@@ -53,78 +79,49 @@ fn sanitize(s: &str) -> Cow<'_, str> {
     }
 }
 
-pub fn ident(name: &str, fmt: &IdentFormat, span: Span) -> Ident {
+pub fn ident(name: &str, config: &Config, fmt: &str, span: Span) -> Ident {
+    Ident::new(
+        &config
+            .ident_formats
+            .get(fmt)
+            .expect("Missing {fmt} entry")
+            .sanitize(name),
+        span,
+    )
+}
+
+impl IdentFormat {
+    pub fn apply<'a>(&self, name: &'a str) -> Cow<'a, str> {
+        let name = match &self.case {
+            Some(case) => case.sanitize(name),
+            _ => sanitize(name),
+        };
+        if self.prefix.is_empty() && self.suffix.is_empty() {
+            name
+        } else {
+            format!("{}{}{}", self.prefix, name, self.suffix).into()
+        }
+    }
+    pub fn sanitize<'a>(&self, name: &'a str) -> Cow<'a, str> {
+        let s = self.apply(name);
+        let s = if s.as_bytes().first().unwrap_or(&0).is_ascii_digit() {
+            Cow::from(format!("_{}", s))
+        } else {
+            s
+        };
+        match self.case {
+            Some(Case::Snake) | None => sanitize_keyword(s),
+            _ => s,
+        }
+    }
+}
+
+pub fn ident_str(name: &str, fmt: &IdentFormat) -> String {
     let name = match &fmt.case {
-        Some(Case::Constant) => name.to_sanitized_constant_case(),
-        Some(Case::Pascal) => name.to_sanitized_pascal_case(),
-        Some(Case::Snake) => name.to_sanitized_snake_case(),
+        Some(case) => case.sanitize(name),
         _ => sanitize(name),
     };
-    Ident::new(&format!("{}{}{}", fmt.prefix, name, fmt.suffix), span)
-}
-
-/// Convert self string into specific case without overlapping to svd2rust internal names
-pub trait ToSanitizedCase {
-    /// Convert self into PascalCase.
-    ///
-    /// Use on name of enumeration values.
-    fn to_sanitized_pascal_case(&self) -> Cow<str>;
-    fn to_pascal_case_ident(&self, span: Span) -> Ident {
-        Ident::new(&self.to_sanitized_pascal_case(), span)
-    }
-    /// Convert self into CONSTANT_CASE.
-    ///
-    /// Use on name of reader structs, writer structs and enumerations.
-    fn to_sanitized_constant_case(&self) -> Cow<str>;
-    fn to_constant_case_ident(&self, span: Span) -> Ident {
-        Ident::new(&self.to_sanitized_constant_case(), span)
-    }
-    /// Convert self into snake_case, must use only if the target is used with extra prefix or suffix.
-    fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str>; // snake_case
-    /// Convert self into snake_case target and ensure target is not a Rust keyword.
-    ///
-    /// If the sanitized target is a Rust keyword, this function adds an underline `_`
-    /// to it.
-    ///
-    /// Use on name of peripheral modules, register modules and field modules.
-    fn to_sanitized_snake_case(&self) -> Cow<str> {
-        let s = self.to_sanitized_not_keyword_snake_case();
-        sanitize_keyword(s)
-    }
-    fn to_snake_case_ident(&self, span: Span) -> Ident {
-        Ident::new(&self.to_sanitized_snake_case(), span)
-    }
-}
-
-impl ToSanitizedCase for str {
-    fn to_sanitized_pascal_case(&self) -> Cow<str> {
-        let s = Case::Pascal.sanitize(self);
-        if s.as_bytes().first().unwrap_or(&0).is_ascii_digit() {
-            Cow::from(format!("_{}", s))
-        } else {
-            s
-        }
-    }
-    fn to_sanitized_constant_case(&self) -> Cow<str> {
-        let s = Case::Constant.sanitize(self);
-        if s.as_bytes().first().unwrap_or(&0).is_ascii_digit() {
-            Cow::from(format!("_{}", s))
-        } else {
-            s
-        }
-    }
-    fn to_sanitized_not_keyword_snake_case(&self) -> Cow<str> {
-        const INTERNALS: [&str; 4] = ["set_bit", "clear_bit", "bit", "bits"];
-
-        let s = Case::Snake.sanitize(self);
-        if s.as_bytes().first().unwrap_or(&0).is_ascii_digit() {
-            format!("_{}", s).into()
-        } else if INTERNALS.contains(&s.as_ref()) {
-            s + "_"
-        } else {
-            s
-        }
-    }
+    format!("{}{}{}", fmt.prefix, name, fmt.suffix)
 }
 
 pub fn sanitize_keyword(sc: Cow<str>) -> Cow<str> {
@@ -281,28 +278,43 @@ pub fn zst_type() -> Type {
     })
 }
 
-pub fn name_to_ty(name: &str) -> Type {
-    let span = Span::call_site();
+pub fn name_to_ty(name: Ident) -> Type {
     let mut segments = Punctuated::new();
-    segments.push(path_segment(name.to_constant_case_ident(span)));
+    segments.push(path_segment(name));
     syn::Type::Path(type_path(segments))
 }
 
-pub fn block_path_to_ty(bpath: &svd_parser::expand::BlockPath, span: Span) -> TypePath {
+pub fn block_path_to_ty(
+    bpath: &svd_parser::expand::BlockPath,
+    config: &Config,
+    span: Span,
+) -> TypePath {
     let mut segments = Punctuated::new();
     segments.push(path_segment(Ident::new("crate", span)));
-    segments.push(path_segment(bpath.peripheral.to_snake_case_ident(span)));
+    segments.push(path_segment(ident(
+        &bpath.peripheral,
+        config,
+        "peripheral_mod",
+        span,
+    )));
     for ps in &bpath.path {
-        segments.push(path_segment(ps.to_snake_case_ident(span)));
+        segments.push(path_segment(ident(&ps, config, "cluster_mod", span)));
     }
     type_path(segments)
 }
 
-pub fn register_path_to_ty(rpath: &svd_parser::expand::RegisterPath, span: Span) -> TypePath {
-    let mut p = block_path_to_ty(&rpath.block, span);
-    p.path
-        .segments
-        .push(path_segment(rpath.name.to_snake_case_ident(span)));
+pub fn register_path_to_ty(
+    rpath: &svd_parser::expand::RegisterPath,
+    config: &Config,
+    span: Span,
+) -> TypePath {
+    let mut p = block_path_to_ty(&rpath.block, config, span);
+    p.path.segments.push(path_segment(ident(
+        &rpath.name,
+        config,
+        "register_mod",
+        span,
+    )));
     p
 }
 
@@ -436,29 +448,27 @@ impl FullName for PeripheralInfo {
     }
 }
 
-pub fn group_names(d: &Device) -> Vec<Cow<str>> {
+pub fn group_names<'a>(d: &'a Device, feature_format: &'a IdentFormat) -> Vec<Cow<'a, str>> {
     let set: HashSet<_> = d
         .peripherals
         .iter()
         .filter_map(|p| p.group_name.as_ref())
-        .map(|name| name.to_sanitized_snake_case())
+        .map(|name| feature_format.apply(name))
         .collect();
     let mut v: Vec<_> = set.into_iter().collect();
     v.sort();
     v
 }
 
-pub fn peripheral_names(d: &Device) -> Vec<String> {
+pub fn peripheral_names(d: &Device, feature_format: &IdentFormat) -> Vec<String> {
     let mut v = Vec::new();
     for p in &d.peripherals {
         match p {
             Peripheral::Single(info) => {
-                v.push(replace_suffix(&info.name.to_sanitized_snake_case(), ""));
+                v.push(replace_suffix(&feature_format.apply(&info.name), ""));
             }
             Peripheral::Array(info, dim) => {
-                v.extend(
-                    svd_rs::array::names(info, dim).map(|n| n.to_sanitized_snake_case().into()),
-                );
+                v.extend(svd_rs::array::names(info, dim).map(|n| feature_format.apply(&n).into()));
             }
         }
     }

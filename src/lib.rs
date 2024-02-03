@@ -573,6 +573,8 @@ pub struct DeviceSpecific {
 
 use anyhow::{Context, Result};
 
+use crate::config::IdentFormats;
+
 #[derive(Debug, thiserror::Error)]
 pub enum SvdError {
     #[error("Cannot format crate")]
@@ -585,10 +587,15 @@ pub enum SvdError {
 pub fn generate(input: &str, config: &Config) -> Result<Generation> {
     use std::fmt::Write;
 
-    let device = load_from(input, config)?;
+    let mut config = config.clone();
+    let mut ident_formats = IdentFormats::default();
+    ident_formats.extend(config.ident_formats.drain());
+    config.ident_formats = ident_formats;
+
+    let device = load_from(input, &config)?;
     let mut device_x = String::new();
     let items =
-        generate::device::render(&device, config, &mut device_x).map_err(SvdError::Render)?;
+        generate::device::render(&device, &config, &mut device_x).map_err(SvdError::Render)?;
 
     let mut lib_rs = String::new();
     writeln!(
