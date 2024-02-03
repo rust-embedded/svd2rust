@@ -8,7 +8,7 @@ use crate::Opts;
 #[derive(clap::Parser, Debug)]
 #[clap(name = "diff")]
 pub struct Diffing {
-    /// The base version of svd2rust to use and the command input, defaults to latest master build
+    /// The base version of svd2rust to use and the command input, defaults to latest master build: `@master`
     ///
     /// Change the base version by starting with `@` followed by the source.
     ///
@@ -16,6 +16,7 @@ pub struct Diffing {
     #[clap(global = true, long = "baseline", alias = "base")]
     pub baseline: Option<String>,
 
+    /// The head version of svd2rust to use and the command input, defaults to current pr: `@pr`
     #[clap(global = true, long = "current", alias = "head")]
     pub current: Option<String>,
 
@@ -27,14 +28,12 @@ pub struct Diffing {
     #[clap(global = true, long)]
     pub form_split: bool,
 
-    #[clap(subcommand)]
-    pub sub: Option<DiffingMode>,
-
     #[clap(global = true, long, short = 'c')]
     pub chip: Vec<String>,
 
     /// Filter by manufacturer, case sensitive, may be combined with other filters
     #[clap(
+            global = true,
             short = 'm',
             long = "manufacturer",
             ignore_case = true,
@@ -44,6 +43,7 @@ pub struct Diffing {
 
     /// Filter by architecture, case sensitive, may be combined with other filters
     #[clap(
+            global = true,
             short = 'a',
             long = "architecture",
             ignore_case = true,
@@ -54,19 +54,23 @@ pub struct Diffing {
     #[clap(global = true, long)]
     pub diff_folder: Option<PathBuf>,
 
-    #[clap(hide = true, env = "GITHUB_PR")]
+    /// The pr number to use for `@pr`. If not set will try to get the current pr with the command `gh pr`
+    #[clap(env = "GITHUB_PR", global = true, long)]
     pub pr: Option<usize>,
 
-    #[clap(env = "GIT_PAGER", long)]
+    #[clap(env = "GIT_PAGER", global = true, long)]
     pub pager: Option<String>,
 
     /// if set, will use pager directly instead of `git -c core.pager`
-    #[clap(long, short = 'P')]
+    #[clap(global = true, long, short = 'P')]
     pub use_pager_directly: bool,
 
     /// URL for SVD to download
     #[clap(global = true, long)]
     pub url: Option<String>,
+
+    #[clap(subcommand)]
+    pub sub: Option<DiffingMode>,
 
     #[clap(last = true)]
     pub last_args: Option<String>,
