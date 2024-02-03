@@ -50,16 +50,16 @@ jobs:
         with:
           tool: cargo-semver-checks
 
-      # if a new line is added here, make sure to update the `summary` job to reference the new step index
       - uses: taiki-e/install-action@v2
         with:
           tool: git-delta
 
-      - run: cargo regress diff --use-pager-directly ${{ matrix.command }}
+      # if a new line is added here, make sure to update the `summary` job to reference the new step index
+      - run: cargo regress diff ${{ matrix.command }}
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_PR: ${{ matrix.pr }}
-          GIT_PAGER: delta --hunk-header-style omit
+          GIT_PAGER: delta --raw
   summary:
     runs-on: ubuntu-latest
     needs: [diff, generate]

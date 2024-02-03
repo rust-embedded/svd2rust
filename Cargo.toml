@@ -73,4 +73,9 @@ features = ["full","extra-traits"]
 [workspace]
 members = ["ci/svd2rust-regress"]
 default-members = ["."]
-exclude = ["output"]
+exclude = [
+    "output/**",
+# workaround for https://github.com/rust-lang/cargo/pull/12779
+    "output/baseline/**",
+    "output/current/**"
+]
