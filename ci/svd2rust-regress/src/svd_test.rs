@@ -141,11 +141,7 @@ impl TestCase {
         command: Option<&str>,
     ) -> Result<Option<Vec<PathBuf>>, TestError> {
         let (chip_dir, mut process_stderr_paths) = self
-            .setup_case(
-                &opts.output_dir,
-                bin_path,
-                command,
-            )
+            .setup_case(&opts.output_dir, bin_path, command)
             .with_context(|| anyhow!("when setting up case for {}", self.name()))?;
         // Run `cargo check`, capturing stderr to a log file
         let cargo_check_err_file = path_helper_base(&chip_dir, &["cargo-check.err.log"]);

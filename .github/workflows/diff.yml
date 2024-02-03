@@ -5,6 +5,8 @@ on:
 
 jobs:
   generate:
+    name: |
+      Generate matrix. ${{ github.event.comment.user.name }}: ${{ github.event.comment.author_association}}
     runs-on: ubuntu-latest
     outputs:
       diffs: ${{ steps.regress-ci.outputs.diffs }}
