@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use svd2rust::{util::ToSanitizedCase, Target};
+use svd2rust::{util::Case, Target};
 
 use crate::{command::CommandExt, tests::TestCase, Opts, TestAll};
 use std::io::prelude::*;
@@ -176,7 +176,7 @@ impl TestCase {
             Ok(val) => val,
             Err(_) => "rusttester".into(),
         };
-        let chip_dir = output_dir.join(self.name().to_sanitized_snake_case().as_ref());
+        let chip_dir = output_dir.join(Case::Snake.sanitize(&self.name()).as_ref());
         tracing::span::Span::current()
             .record("chip_dir", tracing::field::display(chip_dir.display()));
         if let Err(err) = fs::remove_dir_all(&chip_dir) {
@@ -195,7 +195,7 @@ impl TestCase {
             .env("USER", user)
             .arg("init")
             .arg("--name")
-            .arg(self.name().to_sanitized_snake_case().as_ref())
+            .arg(Case::Snake.sanitize(&self.name()).as_ref())
             .arg("--vcs")
             .arg("none")
             .arg(&chip_dir)

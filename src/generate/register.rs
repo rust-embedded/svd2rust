@@ -16,13 +16,30 @@ use svd_parser::expand::{
 use crate::config::Config;
 use crate::util::{
     self, ident, ident_to_path, path_segment, replace_suffix, type_path, unsuffixed, FullName,
-    ToSanitizedCase, U32Ext,
+    U32Ext,
 };
 use anyhow::{anyhow, Result};
 use syn::punctuated::Punctuated;
 
 fn regspec(name: &str, config: &Config, span: Span) -> Ident {
-    ident(name, &config.ident_formats.register_spec, span)
+    ident(name, &config, "register_spec", span)
+}
+
+fn field_accessor(name: &str, config: &Config, span: Span) -> Ident {
+    const INTERNALS: [&str; 1] = ["bits"];
+    let sc = config
+        .ident_formats
+        .get("field_accessor")
+        .unwrap()
+        .sanitize(name);
+    Ident::new(
+        &(if INTERNALS.contains(&sc.as_ref()) {
+            sc + "_"
+        } else {
+            sc
+        }),
+        span,
+    )
 }
 
 pub fn render(
@@ -43,8 +60,9 @@ pub fn render(
         }
     }
     let span = Span::call_site();
-    let reg_ty = ident(&name, &config.ident_formats.register, span);
-    let mod_ty = name.to_snake_case_ident(span);
+    let reg_ty = ident(&name, &config, "register", span);
+    let doc_alias = (&reg_ty.to_string() != &name).then(|| quote!(#[doc(alias = #name)]));
+    let mod_ty = ident(&name, config, "register_mod", span);
     let description = util::escape_special_chars(
         util::respace(&register.description.clone().unwrap_or_else(|| {
             warn!("Missing description for register {}", register.name);
@@ -57,19 +75,18 @@ pub fn render(
         let mut derived = if &dpath.block == path {
             type_path(Punctuated::new())
         } else {
-            util::block_path_to_ty(&dpath.block, span)
+            util::block_path_to_ty(&dpath.block, config, span)
         };
         let dname = util::name_of(index.registers.get(dpath).unwrap(), config.ignore_groups);
         let mut mod_derived = derived.clone();
-        derived.path.segments.push(path_segment(ident(
-            &dname,
-            &config.ident_formats.register,
-            span,
-        )));
+        derived
+            .path
+            .segments
+            .push(path_segment(ident(&dname, &config, "register", span)));
         mod_derived
             .path
             .segments
-            .push(path_segment(dname.to_snake_case_ident(span)));
+            .push(path_segment(ident(&dname, config, "register_mod", span)));
 
         Ok(quote! {
             pub use #derived as #reg_ty;
@@ -107,6 +124,7 @@ pub fn render(
         let mut out = TokenStream::new();
         out.extend(quote! {
             #[doc = #alias_doc]
+            #doc_alias
             pub type #reg_ty = crate::Reg<#mod_ty::#regspec_ty>;
         });
         let mod_items = render_register_mod(
@@ -201,7 +219,7 @@ pub fn render_register_mod(
     let name = util::name_of(register, config.ignore_groups);
     let span = Span::call_site();
     let regspec_ty = regspec(&name, config, span);
-    let name_snake_case = name.to_snake_case_ident(span);
+    let mod_ty = ident(&name, config, "register_mod", span);
     let rsize = properties
         .size
         .ok_or_else(|| anyhow!("Register {} has no `size` field", register.name))?;
@@ -384,7 +402,7 @@ pub fn render_register_mod(
             can_read,
             can_write,
             can_reset,
-            &name_snake_case,
+            &mod_ty,
             true,
             register.read_action,
         )?
@@ -400,15 +418,14 @@ pub fn render_register_mod(
     });
 
     if can_read {
-        let doc = format!("`read()` method returns [`{name_snake_case}::R`](R) reader structure",);
+        let doc = format!("`read()` method returns [`{mod_ty}::R`](R) reader structure",);
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Readable for #regspec_ty {}
         });
     }
     if can_write {
-        let doc =
-            format!("`write(|w| ..)` method takes [`{name_snake_case}::W`](W) writer structure",);
+        let doc = format!("`write(|w| ..)` method takes [`{mod_ty}::W`](W) writer structure",);
 
         let zero_to_modify_fields_bitmap = util::hex(zero_to_modify_fields_bitmap);
         let one_to_modify_fields_bitmap = util::hex(one_to_modify_fields_bitmap);
@@ -469,8 +486,8 @@ fn render_register_mod_debug(
             if field_access.can_read() && f.read_action.is_none() {
                 if let Field::Array(_, de) = &f {
                     for suffix in de.indexes() {
-                        let f_name_n = util::replace_suffix(&f.name, &suffix)
-                            .to_snake_case_ident(Span::call_site());
+                        let f_name_n =
+                            field_accessor(&util::replace_suffix(&f.name, &suffix), config, span);
                         let f_name_n_s = format!("{f_name_n}");
                         r_debug_impl.extend(quote! {
                             .field(#f_name_n_s, &format_args!("{}", self.#f_name_n().#bit_or_bits()))
@@ -478,7 +495,7 @@ fn render_register_mod_debug(
                     }
                 } else {
                     let f_name = util::replace_suffix(&f.name, "");
-                    let f_name = f_name.to_snake_case_ident(span);
+                    let f_name = field_accessor(&f_name, config, span);
                     let f_name_s = format!("{f_name}");
                     r_debug_impl.extend(quote! {
                         .field(#f_name_s, &format_args!("{}", self.#f_name().#bit_or_bits()))
@@ -559,18 +576,22 @@ pub fn fields(
         }
 
         let name = util::replace_suffix(&f.name, "");
-        let name_snake_case = if let Field::Array(
-            _,
-            DimElement {
-                dim_name: Some(dim_name),
-                ..
+        let name_snake_case = field_accessor(
+            if let Field::Array(
+                _,
+                DimElement {
+                    dim_name: Some(dim_name),
+                    ..
+                },
+            ) = &f
+            {
+                dim_name
+            } else {
+                &name
             },
-        ) = &f
-        {
-            dim_name.to_snake_case_ident(span)
-        } else {
-            name.to_snake_case_ident(span)
-        };
+            config,
+            span,
+        );
         let description_raw = f.description.as_deref().unwrap_or(""); // raw description, if absent using empty string
         let description = util::respace(&util::escape_special_chars(description_raw));
 
@@ -656,7 +677,8 @@ pub fn fields(
             {
                 ident(
                     evs.name.as_deref().unwrap_or(&name),
-                    &config.ident_formats.enum_name,
+                    &config,
+                    "enum_name",
                     span,
                 )
             } else {
@@ -665,7 +687,7 @@ pub fn fields(
             };
 
             // name of read proxy type
-            let reader_ty = ident(&name, &config.ident_formats.field_reader, span);
+            let reader_ty = ident(&name, &config, "field_reader", span);
 
             // if it's enumeratedValues and it's derived from base, don't derive the read proxy
             // as the base has already dealt with this;
@@ -826,16 +848,7 @@ pub fn fields(
                     // for each variant defined, we generate an `is_variant` function.
                     for v in &variants {
                         let pc = &v.pc;
-                        let sc = &v.nksc;
-
-                        let is_variant = Ident::new(
-                            &if sc.to_string().starts_with('_') {
-                                format!("is{sc}")
-                            } else {
-                                format!("is_{sc}")
-                            },
-                            span,
-                        );
+                        let is_variant = &v.is_sc;
 
                         let doc = util::escape_special_chars(&util::respace(&v.doc));
                         enum_items.extend(quote! {
@@ -848,16 +861,7 @@ pub fn fields(
                     }
                     if let Some(v) = def.as_ref() {
                         let pc = &v.pc;
-                        let sc = &v.nksc;
-
-                        let is_variant = Ident::new(
-                            &if sc.to_string().starts_with('_') {
-                                format!("is{sc}")
-                            } else {
-                                format!("is_{sc}")
-                            },
-                            span,
-                        );
+                        let is_variant = &v.is_sc;
 
                         let doc = util::escape_special_chars(&util::respace(&v.doc));
                         enum_items.extend(quote! {
@@ -878,9 +882,9 @@ pub fn fields(
                 evs_r = Some(evs);
                 // generate pub use field_1 reader as field_2 reader
                 let base_field = util::replace_suffix(&base.field.name, "");
-                let base_r = ident(&base_field, &config.ident_formats.field_reader, span);
+                let base_r = ident(&base_field, &config, "field_reader", span);
                 if !reader_derives.contains(&reader_ty) {
-                    let base_path = base_syn_path(base, &fpath, &base_r)?;
+                    let base_path = base_syn_path(base, &fpath, &base_r, config)?;
                     mod_items.extend(quote! {
                         #[doc = #field_reader_brief]
                         pub use #base_path as #reader_ty;
@@ -892,7 +896,7 @@ pub fn fields(
                 if base.register() != fpath.register() {
                     // use the same enum structure name
                     if !enum_derives.contains(&value_read_ty) {
-                        let base_path = base_syn_path(base, &fpath, &value_read_ty)?;
+                        let base_path = base_syn_path(base, &fpath, &value_read_ty, config)?;
                         mod_items.extend(quote! {
                             #[doc = #description]
                             pub use #base_path as #value_read_ty;
@@ -944,7 +948,7 @@ pub fn fields(
                     } else {
                         value
                     };
-                    let name_snake_case_n = fi.name.to_snake_case_ident(Span::call_site());
+                    let name_snake_case_n = field_accessor(&fi.name, config, span);
                     let doc = description_with_bits(
                         fi.description.as_deref().unwrap_or(&fi.name),
                         sub_offset,
@@ -990,18 +994,18 @@ pub fn fields(
                 if let Some((evs, _)) = lookup_filter(&lookup_results, Usage::Write) {
                     let writer_reader_different_enum = evs_r != Some(evs);
                     let fmt = if writer_reader_different_enum {
-                        &config.ident_formats.enum_write_name
+                        "enum_write_name"
                     } else {
-                        &config.ident_formats.enum_name
+                        "enum_name"
                     };
-                    ident(evs.name.as_deref().unwrap_or(&name), fmt, span)
+                    ident(evs.name.as_deref().unwrap_or(&name), &config, fmt, span)
                 } else {
                     // raw_field_value_write_ty
                     fty.clone()
                 };
 
             // name of write proxy type
-            let writer_ty = ident(&name, &config.ident_formats.field_writer, span);
+            let writer_ty = ident(&name, &config, "field_writer", span);
 
             let mut proxy_items = TokenStream::new();
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
@@ -1153,9 +1157,9 @@ pub fn fields(
 
                 // generate pub use field_1 writer as field_2 writer
                 let base_field = util::replace_suffix(&base.field.name, "");
-                let base_w = ident(&base_field, &config.ident_formats.field_writer, span);
+                let base_w = ident(&base_field, &config, "field_writer", span);
                 if !writer_derives.contains(&writer_ty) {
-                    let base_path = base_syn_path(base, &fpath, &base_w)?;
+                    let base_path = base_syn_path(base, &fpath, &base_w, config)?;
                     mod_items.extend(quote! {
                         #[doc = #field_writer_brief]
                         pub use #base_path as #writer_ty;
@@ -1168,7 +1172,7 @@ pub fn fields(
                     if writer_reader_different_enum {
                         // use the same enum structure name
                         if !writer_enum_derives.contains(&value_write_ty) {
-                            let base_path = base_syn_path(base, &fpath, &value_write_ty)?;
+                            let base_path = base_syn_path(base, &fpath, &value_write_ty, config)?;
                             mod_items.extend(quote! {
                                 #[doc = #description]
                                 pub use #base_path as #value_write_ty;
@@ -1201,7 +1205,7 @@ pub fn fields(
 
                 for fi in svd::field::expand(f, de) {
                     let sub_offset = fi.bit_offset() as u64;
-                    let name_snake_case_n = &fi.name.to_snake_case_ident(Span::call_site());
+                    let name_snake_case_n = field_accessor(&fi.name, config, span);
                     let doc = description_with_bits(
                         fi.description.as_deref().unwrap_or(&fi.name),
                         sub_offset,
@@ -1274,7 +1278,7 @@ fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> bool {
 struct Variant {
     doc: String,
     pc: Ident,
-    nksc: Ident,
+    is_sc: Ident,
     sc: Ident,
     value: u64,
 }
@@ -1296,16 +1300,34 @@ impl Variant {
     }
     fn from_value(value: u64, ev: &EnumeratedValue, config: &Config) -> Result<Self> {
         let span = Span::call_site();
-        let nksc = ev.name.to_sanitized_not_keyword_snake_case();
-        let sc = util::sanitize_keyword(nksc.clone());
+        let case = config.ident_formats.get("enum_value_accessor").unwrap();
+        let nksc = case.apply(&ev.name);
+        let is_sc = Ident::new(
+            &if nksc.to_string().starts_with('_') {
+                format!("is{nksc}")
+            } else {
+                format!("is_{nksc}")
+            },
+            span,
+        );
+        let sc = case.sanitize(&ev.name);
+        const INTERNALS: [&str; 4] = ["set_bit", "clear_bit", "bit", "bits"];
+        let sc = Ident::new(
+            &(if INTERNALS.contains(&sc.as_ref()) {
+                sc + "_"
+            } else {
+                sc
+            }),
+            span,
+        );
         Ok(Variant {
             doc: ev
                 .description
                 .clone()
                 .unwrap_or_else(|| format!("`{value:b}`")),
-            pc: ident(&ev.name, &config.ident_formats.enum_value, span),
-            nksc: Ident::new(&nksc, span),
-            sc: Ident::new(&sc, span),
+            pc: ident(&ev.name, &config, "enum_value", span),
+            is_sc,
+            sc,
             value,
         })
     }
@@ -1455,6 +1477,7 @@ fn base_syn_path(
     base: &EnumPath,
     fpath: &FieldPath,
     base_ident: &Ident,
+    config: &Config,
 ) -> Result<syn::TypePath, syn::Error> {
     let span = Span::call_site();
     let path = if base.register() == fpath.register() {
@@ -1462,11 +1485,16 @@ fn base_syn_path(
     } else if base.register().block == fpath.register().block {
         let mut segments = Punctuated::new();
         segments.push(path_segment(Ident::new("super", span)));
-        segments.push(path_segment(base.register().name.to_snake_case_ident(span)));
+        segments.push(path_segment(ident(
+            &replace_suffix(&base.register().name, ""),
+            config,
+            "register_mod",
+            span,
+        )));
         segments.push(path_segment(base_ident.clone()));
         type_path(segments)
     } else {
-        let mut rmod_ = crate::util::register_path_to_ty(base.register(), span);
+        let mut rmod_ = crate::util::register_path_to_ty(base.register(), config, span);
         rmod_.path.segments.push(path_segment(base_ident.clone()));
         rmod_
     };
