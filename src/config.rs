@@ -183,46 +183,43 @@ impl Default for IdentFormats {
         map.insert("field_accessor".into(), IdentFormat::default().snake_case());
         map.insert(
             "field_reader".into(),
-            IdentFormat::default().constant_case().suffix("_R"),
+            IdentFormat::default().pascal_case().suffix("R"),
         );
         map.insert(
             "field_writer".into(),
-            IdentFormat::default().constant_case().suffix("_W"),
+            IdentFormat::default().pascal_case().suffix("W"),
         );
-        map.insert(
-            "enum_name".into(),
-            IdentFormat::default().constant_case().suffix("_A"),
-        );
+        map.insert("enum_name".into(), IdentFormat::default().pascal_case());
         map.insert(
             "enum_write_name".into(),
-            IdentFormat::default().constant_case().suffix("_AW"),
+            IdentFormat::default().pascal_case().suffix("WO"),
         );
-        map.insert("enum_value".into(), IdentFormat::default().constant_case());
+        map.insert("enum_value".into(), IdentFormat::default().pascal_case());
         map.insert(
             "enum_value_accessor".into(),
             IdentFormat::default().snake_case(),
         );
-        map.insert("interrupt".into(), IdentFormat::default().constant_case());
-        map.insert("cluster".into(), IdentFormat::default().constant_case());
+        map.insert("interrupt".into(), IdentFormat::default());
+        map.insert("cluster".into(), IdentFormat::default().pascal_case());
         map.insert(
             "cluster_accessor".into(),
             IdentFormat::default().snake_case(),
         );
         map.insert("cluster_mod".into(), IdentFormat::default().snake_case());
-        map.insert("register".into(), IdentFormat::default().constant_case());
+        map.insert("register".into(), IdentFormat::default().pascal_case());
         map.insert(
             "register_spec".into(),
-            IdentFormat::default().pascal_case().suffix("_SPEC"),
+            IdentFormat::default().pascal_case().suffix("Spec"),
         );
         map.insert(
             "register_accessor".into(),
             IdentFormat::default().snake_case(),
         );
         map.insert("register_mod".into(), IdentFormat::default().snake_case());
-        map.insert("peripheral".into(), IdentFormat::default().constant_case());
+        map.insert("peripheral".into(), IdentFormat::default().pascal_case());
         map.insert(
             "peripheral_singleton".into(),
-            IdentFormat::default().constant_case(),
+            IdentFormat::default().snake_case(),
         );
         map.insert("peripheral_mod".into(), IdentFormat::default().snake_case());
         map.insert(

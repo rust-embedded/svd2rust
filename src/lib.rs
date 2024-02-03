@@ -558,20 +558,30 @@
 //! `CONSTANT_CASE` (pass `constant` or `c`) and `leave_CASE_as_in_SVD` (pass `unchanged` or ``).
 //!
 //! There are identificator formats by default in the table.
+//! Since `svd2rust` 0.32 defaults have been changed.
 //!
-//! | IdentifierType                                                                   | Prefix | Case 0.31 |    Suffix   |
-//! |----------------------------------------------------------------------------------|:------:|:---------:|:-----------:|
-//! | field_reader                                                                     |        |  constant |      _R     |
-//! | field_writer                                                                     |        |  constant |      _W     |
-//! | enum_name                                                                        |        |  constant |      _A     |
-//! | enum_write_name                                                                  |        |  constant |     _AW     |
-//! | enum_value                                                                       |        |  constant |             |
-//! | interrupt                                                                        |        |  constant |             |
-//! | peripheral_singleton                                                             |        |  constant |             |
-//! | peripheral <br> register <br> cluster                                            |        |  constant |             |
-//! | register_spec                                                                    |        |  constant |    _SPEC    |
-//! | cluster_accessor <br> register_accessor<br>field_accessor<br>enum_value_accessor |        |   snake   |             |
-//! | cluster_mod <br> register_mod <br> peripheral_mod                                |        |   snake   |             |
+//! | IdentifierType                                                                   | Prefix |    Case   | Case 0.31 | Suffix | Suffix 0.31 |
+//! |----------------------------------------------------------------------------------|:------:|:---------:|:---------:|:------:|:-----------:|
+//! | field_reader                                                                     |        |   pascal  |  constant |    R   |      _R     |
+//! | field_writer                                                                     |        |   pascal  |  constant |    W   |      _W     |
+//! | enum_name                                                                        |        |   pascal  |  constant |        |      _A     |
+//! | enum_write_name                                                                  |        |   pascal  |  constant |   WO   |     _AW     |
+//! | enum_value                                                                       |        |   pascal  |  constant |        |             |
+//! | interrupt                                                                        |        | unchanged |  constant |        |             |
+//! | peripheral_singleton                                                             |        |   snake   |  constant |        |             |
+//! | peripheral <br> register <br> cluster                                            |        |   pascal  |  constant |        |             |
+//! | register_spec                                                                    |        |   pascal  |  constant |  Spec  |    _SPEC    |
+//! | cluster_accessor <br> register_accessor<br>field_accessor<br>enum_value_accessor |        |   snake   |   snake   |        |             |
+//! | cluster_mod <br> register_mod <br> peripheral_mod                                |        |   snake   |   snake   |        |             |
+//!
+//! To revert old behavior for `field_reader` you need to pass flag `-f field_reader::c:_R`. And repeat similar for other idents.
+//!
+//! Also you can do the same in config file:
+//! ```toml
+//! [ident_formats.field_reader]
+//! case = constant
+//! suffix = "_R"
+//! ```
 #![recursion_limit = "128"]
 
 use quote::quote;
