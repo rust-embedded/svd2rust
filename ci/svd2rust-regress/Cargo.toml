@@ -20,3 +20,4 @@ wildmatch = "2.1.1"
 which = "5.0.0"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt"] }
+shell-words = "1.1"

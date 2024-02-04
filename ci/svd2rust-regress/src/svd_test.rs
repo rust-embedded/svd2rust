@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use svd2rust::{util::ToSanitizedCase, Target};
 
-use crate::{command::CommandExt, tests::TestCase, Opts, TestOpts};
+use crate::{command::CommandExt, tests::TestCase, Opts, TestAll};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::Command;
@@ -133,18 +133,15 @@ impl CommandHelper for Command {
 }
 
 impl TestCase {
-    #[tracing::instrument(skip(self, opts, test_opts), fields(name = %self.name()))]
+    #[tracing::instrument(skip(self, opts), fields(name = %self.name()))]
     pub fn test(
         &self,
         opts: &Opts,
-        test_opts: &TestOpts,
+        bin_path: &Path,
+        command: Option<&str>,
     ) -> Result<Option<Vec<PathBuf>>, TestError> {
         let (chip_dir, mut process_stderr_paths) = self
-            .setup_case(
-                &opts.output_dir,
-                &test_opts.current_bin_path,
-                test_opts.command.as_deref(),
-            )
+            .setup_case(&opts.output_dir, bin_path, command)
             .with_context(|| anyhow!("when setting up case for {}", self.name()))?;
         // Run `cargo check`, capturing stderr to a log file
         let cargo_check_err_file = path_helper_base(&chip_dir, &["cargo-check.err.log"]);
@@ -262,7 +259,9 @@ impl TestCase {
         let mut svd2rust_bin = Command::new(svd2rust_bin_path);
         if let Some(command) = command {
             if !command.is_empty() {
-                svd2rust_bin.arg(command);
+                svd2rust_bin.args(
+                    shell_words::split(command).context("unable to split command into args")?,
+                );
             }
         }
         svd2rust_bin
@@ -355,7 +354,6 @@ impl TestCase {
 
             process_stderr_paths.push(rustfmt_err_file);
         }
-        tracing::info!("Done processing");
         Ok((chip_dir, process_stderr_paths))
     }
 }

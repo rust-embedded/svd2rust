@@ -5,6 +5,8 @@ on:
 
 jobs:
   generate:
+    name: |
+      Generate matrix. ${{ github.event.comment.user.name }}: ${{ github.event.comment.author_association}}
     runs-on: ubuntu-latest
     outputs:
       diffs: ${{ steps.regress-ci.outputs.diffs }}
@@ -25,7 +27,7 @@ jobs:
         id: regress-ci
         env:
           GITHUB_COMMENT: ${{ github.event.comment.body }}
-          GITHUB_COMMENT_PR: ${{ github.event.comment.issue_url }}
+          GITHUB_COMMENT_PR: ${{ github.event.issue.number }}
   diff:
     runs-on: ubuntu-latest
     needs: [generate]
@@ -50,16 +52,17 @@ jobs:
         with:
           tool: cargo-semver-checks
 
-      # if a new line is added here, make sure to update the `summary` job to reference the new step index
       - uses: taiki-e/install-action@v2
         with:
           tool: git-delta
 
-      - run: cargo regress diff --use-pager-directly ${{ matrix.command }}
+      # if a new line is added here, make sure to update the `summary` job to reference the new step index
+      - run: cargo regress diff ${{ matrix.command }}
+      - run: cargo regress diff ${{ matrix.command }}
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_PR: ${{ matrix.pr }}
-          GIT_PAGER: delta --hunk-header-style omit
+          GIT_PAGER: delta --raw
   summary:
     runs-on: ubuntu-latest
     needs: [diff, generate]
@@ -68,9 +71,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - run: |
-          PR_ID=$(echo "${{ github.event.comment.issue_url }}" | grep -o '[0-9]\+$')
           gh run view ${{ github.run_id }} --json jobs | \
-          jq -r '"Diff for [comment]("+$comment+")\n\n" + ([.jobs[] | select(.name | startswith("diff")) | "- [" + (.name | capture("\\((?<name>[^,]+),.*") | .name) + "](" + .url + "?pr=" + $pr_id + "#step:7:45)"] | join("\n"))' --arg pr_id "$PR_ID" --arg comment "${{ github.event.comment.url }}"| \
-          gh pr comment "$PR_ID" --body "$(< /dev/stdin)"
+          jq -r '"Diff for [comment]("+$comment+")\n\n" + ([.jobs[] | select(.name | startswith("diff")) | "- [" + (.name | capture("\\((?<name>[^,]+),.*") | .name) + "](" + .url + "?pr=" + $pr_id + "#step:7:47)"] | join("\n"))' --arg pr_id "${{ github.event.issue.number }}" --arg comment "${{ github.event.comment.url }}"| \
+          gh pr comment "${{ github.event.issue.number }}" --body "$(< /dev/stdin)"
         env:
           GH_TOKEN: ${{ github.token }}

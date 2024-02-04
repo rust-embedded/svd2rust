@@ -66,7 +66,7 @@ pub enum RunWhen {
     Never,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct TestCase {
     pub arch: Target,
     pub mfgr: Manufacturer,

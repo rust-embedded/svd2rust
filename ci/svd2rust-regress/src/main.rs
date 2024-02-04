@@ -50,7 +50,7 @@ pub fn get_cargo_workspace() -> &'static std::path::Path {
 }
 
 #[derive(clap::Parser, Debug)]
-pub struct TestOpts {
+pub struct TestAll {
     /// Run a long test (it's very long)
     #[clap(short = 'l', long)]
     pub long_test: bool,
@@ -59,7 +59,7 @@ pub struct TestOpts {
     #[clap(short = 'c', long)]
     pub chip: Vec<String>,
 
-    /// Filter by manufacturer, case sensitive, may be combined with other filters
+    /// Filter by manufacturer, may be combined with other filters
     #[clap(
     short = 'm',
     long = "manufacturer",
@@ -68,7 +68,7 @@ pub struct TestOpts {
 )]
     pub mfgr: Option<String>,
 
-    /// Filter by architecture, case sensitive, may be combined with other filters
+    /// Filter by architecture, may be combined with other filters
     #[clap(
     short = 'a',
     long = "architecture",
@@ -104,7 +104,97 @@ pub struct TestOpts {
     // TODO: Compile svd2rust?
 }
 
-impl TestOpts {
+#[derive(clap::Parser, Debug)]
+// TODO: Replace with https://github.com/clap-rs/clap/issues/2621 when available
+#[group(id = "svd_source", required = true)]
+pub struct Test {
+    /// Enable formatting with `rustfmt`
+    #[arg(short = 'f', long)]
+    pub format: bool,
+
+    #[arg(long)]
+    /// Enable splitting `lib.rs` with `form`
+    pub form_lib: bool,
+
+    #[arg(
+        short = 'm',
+        long = "manufacturer",
+        ignore_case = true,
+        value_parser = manufacturers(),
+    )]
+    /// Manufacturer
+    pub mfgr: Option<String>,
+    #[arg(
+        short = 'a',
+        long = "architecture",
+        ignore_case = true,
+        value_parser = architectures(),
+    )]
+    /// Architecture
+    pub arch: Option<String>,
+    #[arg(long, group = "svd_source", conflicts_with_all = ["svd_file"], requires = "arch")]
+    /// URL to SVD file to test
+    pub url: Option<String>,
+    #[arg(long = "svd", group = "svd_source")]
+    /// Path to SVD file to test
+    pub svd_file: Option<PathBuf>,
+    #[arg(long, group = "svd_source")]
+    /// Chip to use, use `--url` or `--svd-file` for another way to specify svd
+    pub chip: Option<String>,
+
+    /// Path to an `svd2rust` binary, relative or absolute.
+    /// Defaults to `target/release/svd2rust[.exe]` of this repository
+    /// (which must be already built)
+    #[clap(short = 'p', long = "svd2rust-path", default_value = default_svd2rust())]
+    pub current_bin_path: PathBuf,
+    #[clap(last = true)]
+    pub command: Option<String>,
+}
+
+impl Test {
+    fn run(&self, opts: &Opts) -> Result<(), anyhow::Error> {
+        match self {
+            Self { url: Some(url), .. } => {}
+            Self {
+                svd_file: Some(svd_file),
+                ..
+            } => {}
+            Self {
+                chip: Some(chip), ..
+            } => {}
+            _ => unreachable!("clap should not allow this"),
+        }
+        let test = if let (Some(url), Some(arch)) = (&self.url, &self.arch) {
+            tests::TestCase {
+                arch: svd2rust::Target::parse(&arch)?,
+                mfgr: tests::Manufacturer::Unknown,
+                chip: self
+                    .chip
+                    .as_deref()
+                    .or_else(|| url.rsplit('/').next().and_then(|s| s.strip_suffix(".svd")))
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "could not figure out chip name, specify with `--chip <name>`",
+                        )
+                    })?
+                    .to_owned(),
+                svd_url: Some(url.clone()),
+                should_pass: true,
+                run_when: tests::RunWhen::default(),
+            }
+        } else {
+            tests::tests(Some(&opts.test_cases))?
+                .iter()
+                .find(|t| self.chip.iter().any(|c| WildMatch::new(c).matches(&t.chip)))
+                .ok_or_else(|| anyhow::anyhow!("no test found for chip"))?
+                .to_owned()
+        };
+        test.test(opts, &self.current_bin_path, self.command.as_deref())?;
+        Ok(())
+    }
+}
+
+impl TestAll {
     fn run(&self, opt: &Opts) -> Result<(), anyhow::Error> {
         let tests = tests::tests(Some(&opt.test_cases))?
             .iter()
@@ -152,7 +242,7 @@ impl TestOpts {
         tests.par_iter().for_each(|t| {
             let start = Instant::now();
 
-            match t.test(opt, self) {
+            match t.test(opt, &self.current_bin_path, self.command.as_deref()) {
                 Ok(s) => {
                     if let Some(stderrs) = s {
                         let mut buf = String::new();
@@ -217,7 +307,8 @@ impl TestOpts {
 #[derive(clap::Subcommand, Debug)]
 pub enum Subcommand {
     Diff(Diffing),
-    Tests(TestOpts),
+    Tests(TestAll),
+    Test(Test),
     Ci(Ci),
 }
 
@@ -256,7 +347,8 @@ pub struct Opts {
 impl Opts {
     const fn use_rustfmt(&self) -> bool {
         match self.subcommand {
-            Subcommand::Tests(TestOpts { format, .. })
+            Subcommand::Tests(TestAll { format, .. })
+            | Subcommand::Test(Test { format, .. })
             | Subcommand::Diff(Diffing { format, .. })
             | Subcommand::Ci(Ci { format, .. }) => format,
         }
@@ -264,7 +356,8 @@ impl Opts {
 
     const fn use_form(&self) -> bool {
         match self.subcommand {
-            Subcommand::Tests(TestOpts { form_lib, .. })
+            Subcommand::Tests(TestAll { form_lib, .. })
+            | Subcommand::Test(Test { form_lib, .. })
             | Subcommand::Diff(Diffing {
                 form_split: form_lib,
                 ..
@@ -278,13 +371,10 @@ impl Opts {
 fn default_test_cases() -> std::ffi::OsString {
     std::env::var_os("CARGO_MANIFEST_DIR").map_or_else(
         || std::ffi::OsString::from("tests.yml".to_owned()),
-        |mut e| {
-            e.extend([std::ffi::OsStr::new("/tests.yml")]);
-            std::path::PathBuf::from(e)
-                .strip_prefix(std::env::current_dir().unwrap())
-                .unwrap()
-                .to_owned()
-                .into_os_string()
+        |path| {
+            let path = std::path::PathBuf::from(path);
+            let path = path.join("tests.yml");
+            path.to_owned().into_os_string()
         },
     )
 }
@@ -414,6 +504,13 @@ fn main() -> Result<(), anyhow::Error> {
         }
         Subcommand::Diff(diff) => diff.run(&opt).with_context(|| "failed to run diff"),
         Subcommand::Ci(ci) => ci.run(&opt).with_context(|| "failed to run ci"),
+        Subcommand::Test(test) => {
+            anyhow::ensure!(
+                test.current_bin_path.exists(),
+                "svd2rust binary does not exist"
+            );
+            test.run(&opt).with_context(|| "failed to run test")
+        }
     }
 }
 
