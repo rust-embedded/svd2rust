@@ -57,8 +57,7 @@ jobs:
           tool: git-delta
 
       # if a new line is added here, make sure to update the `summary` job to reference the new step index
-      - run: cargo regress diff ${{ matrix.command }}
-      - run: cargo regress diff ${{ matrix.command }}
+      - run: cargo regress diff --use-pager-directly ${{ matrix.command }}
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_PR: ${{ matrix.pr }}
