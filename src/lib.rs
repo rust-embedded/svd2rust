@@ -548,6 +548,24 @@
 //!
 //! The `--impl-defmt` flag can also be specified to include `defmt::Format` implementations conditionally
 //! behind the supplied feature name.
+//! 
+//! ## the `--ident-format` flag
+//!
+//! The `--ident-format` (`-f`) flag if you want to change default behavior of formatting
+//! rust structure and enum names, register access methods, etc.
+//! Since `svd2rust` 0.32 defaults are changed.
+//! 
+//! | IdentifierType | Prefix |  Case  | Case 0.31 | Suffix | Suffix 0.31 |
+//! |----------------|:------:|:------:|:---------:|:------:|:-----------:|
+//! | field_reader   |        | pascal | constant  | R      | _R          |
+//! |                |        |        |           |        |             |
+//! |                |        |        |           |        |             |
+//! |                |        |        |           |        |             |
+//! |                |        |        |           |        |             |
+//! |                |        |        |           |        |             |
+//! |                |        |        |           |        |             |
+//! |                |        |        |           |        |             |
+//! |                |        |        |           |        |             |
 #![recursion_limit = "128"]
 
 use quote::quote;

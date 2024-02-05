@@ -1,6 +1,6 @@
 #![recursion_limit = "128"]
 
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use svd2rust::config::IdentFormats;
 use svd2rust::util::{Case, IdentFormat};
 
@@ -8,7 +8,7 @@ use std::io::Write;
 use std::process;
 use std::{fs::File, path::Path};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use clap::{Arg, ArgAction, Command};
 
 use svd2rust::{
@@ -46,7 +46,10 @@ fn parse_configs(app: Command) -> Result<Config> {
                     "p" | "pascal" | "type" => Some(Case::Pascal),
                     "s" | "snake" | "lower" => Some(Case::Snake),
                     "c" | "constant" | "upper" => Some(Case::Constant),
-                    _ => return Err(anyhow!("Unknown case")),
+                    _ => {
+                        warn!("Ident case {c} is unknown");
+                        continue;
+                    }
                 };
                 config.ident_formats.insert(
                     n.into(),
@@ -156,7 +159,12 @@ fn run() -> Result<()> {
                 .short('f')
                 .alias("ident_format")
                 .action(ArgAction::Append)
-                .help("Specify prefix, case and suffix for identifier type"),
+                .long_help(
+format!("Specify `-f type:prefix:case:suffix` to change default ident formatting.
+Allowed values of `type` are {:?}.
+Allowed cases are `unchanged` (''), `pascal` ('p'), `constant` ('c') and `snake` ('s').
+", IdentFormats::default().keys().collect::<Vec<_>>())
+),
         )
         .arg(
             Arg::new("max_cluster_size")
