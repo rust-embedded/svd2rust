@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - Add `base-address-shift` config flag
+- Add `write_raw` to all writtable registers
 
 ## [v0.31.5] - 2024-01-04
 

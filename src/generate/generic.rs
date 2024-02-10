@@ -203,6 +203,18 @@ impl<REG: Writable> Reg<REG> {
     }
 }
 
+impl<REG: Writable> Reg<REG> {
+    /// Writes raw value to register.
+    ///
+    /// # Safety
+    ///
+    /// Unsafe as it passes value without checks.
+    #[inline(always)]
+    pub unsafe fn write_raw(&self, bits: REG::Ux) {
+        self.register.set(bits);
+    }
+}
+
 impl<REG: Readable + Writable> Reg<REG> {
     /// Modifies the contents of the register by reading and then writing it.
     ///
@@ -550,7 +562,7 @@ macro_rules! bit_proxy {
             pub const fn width(&self) -> u8 {
                 Self::WIDTH
             }
-        
+
             /// Field offset
             #[inline(always)]
             pub const fn offset(&self) -> u8 {
