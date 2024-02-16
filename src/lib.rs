@@ -572,7 +572,7 @@
 //! | peripheral <br> register <br> cluster                                          |        |   pascal  |  constant |        |             |
 //! | register_spec                                                                  |        |   pascal  |  constant |  Spec  |    _SPEC    |
 //! | cluster_accessor<br>register_accessor<br>field_accessor<br>enum_value_accessor |        |   snake   |   snake   |        |             |
-//! | cluster_mod <br> register_mod <br> peripheral_mod                              |        |   snake   |   snake   |        |             |
+//! | cluster_mod <br> register_mod <br> peripheral_mod <br> peripheral_feature      |        |   snake   |   snake   |        |             |
 //!
 //! To revert old behavior for `field_reader` you need to pass flag `-f field_reader::c:_R`.
 //!
