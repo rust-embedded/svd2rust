@@ -26,7 +26,7 @@ fn regspec(name: &str, config: &Config, span: Span) -> Ident {
 }
 
 fn field_accessor(name: &str, config: &Config, span: Span) -> Ident {
-    const INTERNALS: [&str; 1] = ["bits"];
+    const INTERNALS: [&str; 2] = ["bits", "set"];
     let sc = config
         .ident_formats
         .get("field_accessor")
@@ -355,44 +355,6 @@ pub fn render_register_mod(
 
         mod_items.extend(w_impl_items);
 
-        // the writer can be safe if:
-        // * there is a single field that covers the entire register
-        // * that field can represent all values
-        // * the write constraints of the register allow full range of values
-        let can_write_safe = !unsafety(
-            register
-                .fields
-                .as_ref()
-                .and_then(|fields| fields.first())
-                .and_then(|field| field.write_constraint)
-                .as_ref(),
-            rsize,
-        ) || !unsafety(register.write_constraint.as_ref(), rsize);
-
-        if can_write_safe {
-            mod_items.extend(quote! {
-                #[doc = "Writes raw bits to the register."]
-                #[inline(always)]
-                pub fn bits(&mut self, bits: #rty) -> &mut Self {
-                    self.bits = bits;
-                    self
-                }
-            });
-        } else {
-            mod_items.extend(quote! {
-                /// Writes raw bits to the register.
-                ///
-                /// # Safety
-                ///
-                /// Passing incorrect value can cause undefined behaviour. See reference manual
-                #[inline(always)]
-                pub unsafe fn bits(&mut self, bits: #rty) -> &mut Self {
-                    self.bits = bits;
-                    self
-                }
-            });
-        }
-
         close.to_tokens(&mut mod_items);
     }
 
@@ -425,6 +387,22 @@ pub fn render_register_mod(
         });
     }
     if can_write {
+        // the writer can be safe if:
+        // * there is a single field that covers the entire register
+        // * that field can represent all values
+        // * the write constraints of the register allow full range of values
+        let can_write_safe = !unsafety(
+            register
+                .fields
+                .as_ref()
+                .and_then(|fields| fields.first())
+                .and_then(|field| field.write_constraint)
+                .as_ref(),
+            rsize,
+        ) || !unsafety(register.write_constraint.as_ref(), rsize);
+        let safe_ty = if can_write_safe { "Safe" } else { "Unsafe" };
+        let safe_ty = Ident::new(safe_ty, span);
+
         let doc = format!("`write(|w| ..)` method takes [`{mod_ty}::W`](W) writer structure",);
 
         let zero_to_modify_fields_bitmap = util::hex(zero_to_modify_fields_bitmap);
@@ -433,6 +411,7 @@ pub fn render_register_mod(
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Writable for #regspec_ty {
+                type Safety = crate::#safe_ty;
                 const ZERO_TO_MODIFY_FIELDS_BITMAP: #rty = #zero_to_modify_fields_bitmap;
                 const ONE_TO_MODIFY_FIELDS_BITMAP: #rty = #one_to_modify_fields_bitmap;
             }
