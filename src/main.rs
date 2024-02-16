@@ -1,7 +1,7 @@
 #![recursion_limit = "128"]
 
 use log::{debug, error, info, warn};
-use svd2rust::config::IdentFormats;
+use svd2rust::config::{IdentFormats, IdentFormatsTheme};
 use svd2rust::util::{Case, IdentFormat};
 
 use std::io::Write;
@@ -33,7 +33,10 @@ fn parse_configs(app: Command) -> Result<Config> {
         .load()?;
 
     let mut config: Config = irxconfig.get()?;
-    let mut idf = IdentFormats::default();
+    let mut idf = match config.ident_formats_theme {
+        IdentFormatsTheme::New => IdentFormats::new_theme(),
+        IdentFormatsTheme::Legacy => IdentFormats::legacy_theme(),
+    };
     idf.extend(config.ident_formats.drain());
     config.ident_formats = idf;
 
@@ -166,8 +169,15 @@ fn run() -> Result<()> {
 format!("Specify `-f type:prefix:case:suffix` to change default ident formatting.
 Allowed values of `type` are {:?}.
 Allowed cases are `unchanged` (''), `pascal` ('p'), `constant` ('c') and `snake` ('s').
-", IdentFormats::default().keys().collect::<Vec<_>>())
+", IdentFormats::new_theme().keys().collect::<Vec<_>>())
 ),
+        )
+        .arg(
+            Arg::new("ident_formats_theme")
+                .long("ident-formats-theme")
+                .help("A set of `ident_format` settings. `new` or `legacy`")
+                .action(ArgAction::Set)
+                .value_name("THEME"),
         )
         .arg(
             Arg::new("max_cluster_size")

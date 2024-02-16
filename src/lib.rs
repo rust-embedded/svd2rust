@@ -549,7 +549,7 @@
 //! The `--impl-defmt` flag can also be specified to include `defmt::Format` implementations conditionally
 //! behind the supplied feature name.
 //!
-//! ## the `--ident-format` flag
+//! ## the `--ident-format` and `--ident-formats-theme` flags
 //!
 //! The `--ident-format type:prefix:case:suffix` (`-f`) flag can also be specified if you want to change
 //! default behavior of formatting rust structure and enum names, register access methods, etc.
@@ -560,21 +560,21 @@
 //! There are identificator formats by default in the table.
 //! Since `svd2rust` 0.32 defaults have been changed.
 //!
-//! | IdentifierType                                                                   | Prefix |    Case   | Case 0.31 | Suffix | Suffix 0.31 |
-//! |----------------------------------------------------------------------------------|:------:|:---------:|:---------:|:------:|:-----------:|
-//! | field_reader                                                                     |        |   pascal  |  constant |    R   |      _R     |
-//! | field_writer                                                                     |        |   pascal  |  constant |    W   |      _W     |
-//! | enum_name                                                                        |        |   pascal  |  constant |        |      _A     |
-//! | enum_write_name                                                                  |        |   pascal  |  constant |   WO   |     _AW     |
-//! | enum_value                                                                       |        |   pascal  |  constant |        |             |
-//! | interrupt                                                                        |        | unchanged |  constant |        |             |
-//! | peripheral_singleton                                                             |        |   snake   |  constant |        |             |
-//! | peripheral <br> register <br> cluster                                            |        |   pascal  |  constant |        |             |
-//! | register_spec                                                                    |        |   pascal  |  constant |  Spec  |    _SPEC    |
-//! | cluster_accessor <br> register_accessor<br>field_accessor<br>enum_value_accessor |        |   snake   |   snake   |        |             |
-//! | cluster_mod <br> register_mod <br> peripheral_mod                                |        |   snake   |   snake   |        |             |
+//! | IdentifierType                                                                 | Prefix |    Case   | Case 0.31 | Suffix | Suffix 0.31 |
+//! |--------------------------------------------------------------------------------|:------:|:---------:|:---------:|:------:|:-----------:|
+//! | field_reader                                                                   |        |   pascal  |  constant |    R   |      _R     |
+//! | field_writer                                                                   |        |   pascal  |  constant |    W   |      _W     |
+//! | enum_name                                                                      |        |   pascal  |  constant |        |      _A     |
+//! | enum_write_name                                                                |        |   pascal  |  constant |   WO   |     _AW     |
+//! | enum_value                                                                     |        |   pascal  |  constant |        |             |
+//! | interrupt                                                                      |        | unchanged |  constant |        |             |
+//! | peripheral_singleton                                                           |        |   snake   |  constant |        |             |
+//! | peripheral <br> register <br> cluster                                          |        |   pascal  |  constant |        |             |
+//! | register_spec                                                                  |        |   pascal  |  constant |  Spec  |    _SPEC    |
+//! | cluster_accessor<br>register_accessor<br>field_accessor<br>enum_value_accessor |        |   snake   |   snake   |        |             |
+//! | cluster_mod <br> register_mod <br> peripheral_mod                              |        |   snake   |   snake   |        |             |
 //!
-//! To revert old behavior for `field_reader` you need to pass flag `-f field_reader::c:_R`. And repeat similar for other idents.
+//! To revert old behavior for `field_reader` you need to pass flag `-f field_reader::c:_R`.
 //!
 //! Also you can do the same in config file:
 //! ```toml
@@ -582,6 +582,8 @@
 //! case = constant
 //! suffix = "_R"
 //! ```
+//!
+//! To revert old behavior for all identifiers you may pass `--ident-formats-theme legacy`.
 #![recursion_limit = "128"]
 
 use quote::quote;
@@ -607,7 +609,7 @@ pub struct DeviceSpecific {
 
 use anyhow::{Context, Result};
 
-use crate::config::IdentFormats;
+use crate::config::{IdentFormats, IdentFormatsTheme};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SvdError {
@@ -622,7 +624,10 @@ pub fn generate(input: &str, config: &Config) -> Result<Generation> {
     use std::fmt::Write;
 
     let mut config = config.clone();
-    let mut ident_formats = IdentFormats::default();
+    let mut ident_formats = match config.ident_formats_theme {
+        IdentFormatsTheme::New => IdentFormats::new_theme(),
+        IdentFormatsTheme::Legacy => IdentFormats::legacy_theme(),
+    };
     ident_formats.extend(config.ident_formats.drain());
     config.ident_formats = ident_formats;
 
