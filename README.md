@@ -1,5 +1,5 @@
 ![GitHub top language](https://img.shields.io/github/languages/top/rust-embedded/svd2rust)
-![Minimum Supported Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)
+![Minimum Supported Rust Version](https://img.shields.io/badge/rustc-1.74+-blue.svg)
 [![crates.io](https://img.shields.io/crates/v/svd2rust.svg)](https://crates.io/crates/svd2rust)
 [![crates.io](https://img.shields.io/crates/d/svd2rust.svg)](https://crates.io/crates/svd2rust)
 [![Released API docs](https://docs.rs/svd2rust/badge.svg)](https://docs.rs/svd2rust)

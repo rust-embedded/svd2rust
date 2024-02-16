@@ -5,7 +5,7 @@ use crate::svd::Peripheral;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 
-use crate::util::{self, ident, ToSanitizedCase};
+use crate::util::{self, ident};
 use crate::{Config, Target};
 use anyhow::Result;
 
@@ -47,6 +47,7 @@ pub fn render(
     let mut pos = 0;
     let mut mod_items = TokenStream::new();
     let span = Span::call_site();
+    let feature_format = config.ident_formats.get("peripheral_feature").unwrap();
     for interrupt in &interrupts {
         while pos < interrupt.0.value {
             elements.extend(quote!(Vector { _reserved: 0 },));
@@ -54,7 +55,7 @@ pub fn render(
         }
         pos += 1;
 
-        let i_ty = ident(&interrupt.0.name, &config.ident_formats.interrupt, span);
+        let i_ty = ident(&interrupt.0.name, &config, "interrupt", span);
         let description = format!(
             "{} - {}",
             interrupt.0.value,
@@ -74,13 +75,13 @@ pub fn render(
         let mut feature_attribute = TokenStream::new();
         let mut not_feature_attribute = TokenStream::new();
         if config.feature_group && interrupt.1.is_some() {
-            let feature_name = interrupt.1.as_ref().unwrap().to_sanitized_snake_case();
+            let feature_name = feature_format.apply(interrupt.1.as_ref().unwrap());
             feature_attribute_flag = true;
             feature_attribute.extend(quote! { #[cfg(feature = #feature_name)] });
             not_feature_attribute.extend(quote! { feature = #feature_name, });
         }
         if config.feature_peripheral {
-            let feature_name = interrupt.2.to_sanitized_snake_case();
+            let feature_name = feature_format.apply(&interrupt.2);
             feature_attribute_flag = true;
             feature_attribute.extend(quote! { #[cfg(feature = #feature_name)] });
             not_feature_attribute.extend(quote! { feature = #feature_name, });

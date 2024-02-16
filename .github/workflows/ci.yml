@@ -56,7 +56,7 @@ jobs:
         include:
           - { rust: stable, vendor: Atmel, options: all }
           - { rust: stable, vendor: Atmel, options: "" }
-          - { rust: stable, vendor: Freescale, options: all }
+          - { rust: stable, vendor: Freescale, options: "--strict --atomics" }
           - { rust: stable, vendor: Freescale, options: "" }
           - { rust: stable, vendor: Fujitsu, options: "" }
           - { rust: stable, vendor: Fujitsu, options: "--atomics" }
@@ -80,11 +80,11 @@ jobs:
           - { rust: stable, vendor: Spansion, options: "--atomics" }
           - { rust: stable, vendor: STMicro, options: "" }
           - { rust: stable, vendor: STMicro, options: "--atomics" }
-          - { rust: stable, vendor: STM32-patched, options: "--strict --pascal-enum-values --max-cluster-size --atomics --atomics-feature atomics --impl-debug --impl-defmt defmt" }
+          - { rust: stable, vendor: STM32-patched, options: "--strict -f enum_value::p: --max-cluster-size --atomics --atomics-feature atomics --impl-debug --impl-defmt defmt" }
           - { rust: stable, vendor: Toshiba, options: all }
           - { rust: stable, vendor: Toshiba, options: "" }
           # Test MSRV
-          - { rust: 1.70.0, vendor: Nordic, options: "" }
+          - { rust: 1.74.0, vendor: Nordic, options: "" }
           # Use nightly for architectures which don't support stable
           - { rust: nightly, vendor: MSP430, options: "--atomics" }
           - { rust: nightly, vendor: MSP430, options: "" }

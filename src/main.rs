@@ -1,6 +1,8 @@
 #![recursion_limit = "128"]
 
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
+use svd2rust::config::IdentFormats;
+use svd2rust::util::{Case, IdentFormat};
 
 use std::io::Write;
 use std::process;
@@ -18,6 +20,7 @@ use svd2rust::{
 fn parse_configs(app: Command) -> Result<Config> {
     use irx_config::parsers::{cmd, toml};
     use irx_config::ConfigBuilder;
+    let ident_formats = app.clone().get_matches();
     let irxconfig = ConfigBuilder::default()
         .append_parser(cmd::ParserBuilder::new(app).exit_on_error(true).build()?)
         .append_parser(
@@ -29,7 +32,41 @@ fn parse_configs(app: Command) -> Result<Config> {
         )
         .load()?;
 
-    irxconfig.get().map_err(Into::into)
+    let mut config: Config = irxconfig.get()?;
+    let mut idf = IdentFormats::default();
+    idf.extend(config.ident_formats.drain());
+    config.ident_formats = idf;
+
+    if let Some(ident_formats) = ident_formats.get_many::<String>("ident_format") {
+        for f in ident_formats {
+            let mut f = f.split(":");
+            if let (Some(n), Some(p), Some(c), Some(s)) = (f.next(), f.next(), f.next(), f.next()) {
+                let case = match c {
+                    "" | "unchanged" | "svd" => None,
+                    "p" | "pascal" | "type" => Some(Case::Pascal),
+                    "s" | "snake" | "lower" => Some(Case::Snake),
+                    "c" | "constant" | "upper" => Some(Case::Constant),
+                    _ => {
+                        warn!("Ident case `{c}` is unknown");
+                        continue;
+                    }
+                };
+                if let std::collections::hash_map::Entry::Occupied(mut e) =
+                    config.ident_formats.entry(n.into())
+                {
+                    e.insert(IdentFormat {
+                        case,
+                        prefix: p.into(),
+                        suffix: s.into(),
+                    });
+                } else {
+                    warn!("Ident format name `{n}` is unknown");
+                }
+            }
+        }
+    }
+
+    Ok(config)
 }
 
 fn run() -> Result<()> {
@@ -120,6 +157,19 @@ fn run() -> Result<()> {
                 .help("Use independent cfg feature flags for each peripheral"),
         )
         .arg(
+            Arg::new("ident_format")
+                .long("ident-format")
+                .short('f')
+                .alias("ident_format")
+                .action(ArgAction::Append)
+                .long_help(
+format!("Specify `-f type:prefix:case:suffix` to change default ident formatting.
+Allowed values of `type` are {:?}.
+Allowed cases are `unchanged` (''), `pascal` ('p'), `constant` ('c') and `snake` ('s').
+", IdentFormats::default().keys().collect::<Vec<_>>())
+),
+        )
+        .arg(
             Arg::new("max_cluster_size")
                 .long("max-cluster-size")
                 .alias("max_cluster_size")
@@ -170,14 +220,6 @@ fn run() -> Result<()> {
                 .short('s')
                 .action(ArgAction::SetTrue)
                 .help("Make advanced checks due to parsing SVD"),
-        )
-        // TODO: deprecate
-        .arg(
-            Arg::new("pascal_enum_values")
-                .long("pascal-enum-values")
-                .alias("pascal_enum_values")
-                .action(ArgAction::SetTrue)
-                .help("Use PascalCase in stead of CONSTANT_CASE for enumerated values"),
         )
         .arg(
             Arg::new("source_type")
@@ -260,9 +302,6 @@ Ignore this option if you are not building your own FPGA based soft-cores."),
         config.source_type = SourceType::from_path(file)
     }
     let path = config.output_dir.as_deref().unwrap_or(Path::new("."));
-    if config.pascal_enum_values {
-        config.ident_formats.enum_value.case = Some(svd2rust::config::Case::Pascal);
-    }
 
     info!("Parsing device from SVD file");
     let device = load_from(input, &config)?;
@@ -292,14 +331,15 @@ Ignore this option if you are not building your own FPGA based soft-cores."),
     }
 
     if config.feature_group || config.feature_peripheral {
+        let feature_format = config.ident_formats.get("peripheral_feature").unwrap();
         let mut features = Vec::new();
         if config.feature_group {
             features.extend(
-                util::group_names(&device)
+                util::group_names(&device, &feature_format)
                     .iter()
                     .map(|s| format!("{s} = []\n")),
             );
-            let add_groups: Vec<_> = util::group_names(&device)
+            let add_groups: Vec<_> = util::group_names(&device, &feature_format)
                 .iter()
                 .map(|s| format!("\"{s}\""))
                 .collect();
@@ -307,11 +347,11 @@ Ignore this option if you are not building your own FPGA based soft-cores."),
         }
         if config.feature_peripheral {
             features.extend(
-                util::peripheral_names(&device)
+                util::peripheral_names(&device, &feature_format)
                     .iter()
                     .map(|s| format!("{s} = []\n")),
             );
-            let add_peripherals: Vec<_> = util::peripheral_names(&device)
+            let add_peripherals: Vec<_> = util::peripheral_names(&device, &feature_format)
                 .iter()
                 .map(|s| format!("\"{s}\""))
                 .collect();

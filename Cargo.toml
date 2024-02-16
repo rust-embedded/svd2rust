@@ -25,7 +25,7 @@ name = "svd2rust"
 repository = "https://github.com/rust-embedded/svd2rust/"
 version = "0.31.5"
 readme = "README.md"
-rust-version = "1.70"
+rust-version = "1.74"
 
 [package.metadata.deb]
 section = "rust"

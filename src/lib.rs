@@ -548,6 +548,30 @@
 //!
 //! The `--impl-defmt` flag can also be specified to include `defmt::Format` implementations conditionally
 //! behind the supplied feature name.
+//!
+//! ## the `--ident-format` flag
+//!
+//! The `--ident-format type:prefix:case:suffix` (`-f`) flag can also be specified if you want to change
+//! default behavior of formatting rust structure and enum names, register access methods, etc.
+//! Passingle multiple flags is supported.
+//! Supported cases are `snake_case` (pass `snake` or `s`), `PascalCase` (pass `pascal` or `p`),
+//! `CONSTANT_CASE` (pass `constant` or `c`) and `leave_CASE_as_in_SVD` (pass `unchanged` or ``).
+//!
+//! There are identificator formats by default in the table.
+//!
+//! | IdentifierType                                                                   | Prefix | Case 0.31 |    Suffix   |
+//! |----------------------------------------------------------------------------------|:------:|:---------:|:-----------:|
+//! | field_reader                                                                     |        |  constant |      _R     |
+//! | field_writer                                                                     |        |  constant |      _W     |
+//! | enum_name                                                                        |        |  constant |      _A     |
+//! | enum_write_name                                                                  |        |  constant |     _AW     |
+//! | enum_value                                                                       |        |  constant |             |
+//! | interrupt                                                                        |        |  constant |             |
+//! | peripheral_singleton                                                             |        |  constant |             |
+//! | peripheral <br> register <br> cluster                                            |        |  constant |             |
+//! | register_spec                                                                    |        |  constant |    _SPEC    |
+//! | cluster_accessor <br> register_accessor<br>field_accessor<br>enum_value_accessor |        |   snake   |             |
+//! | cluster_mod <br> register_mod <br> peripheral_mod                                |        |   snake   |             |
 #![recursion_limit = "128"]
 
 use quote::quote;
@@ -573,6 +597,8 @@ pub struct DeviceSpecific {
 
 use anyhow::{Context, Result};
 
+use crate::config::IdentFormats;
+
 #[derive(Debug, thiserror::Error)]
 pub enum SvdError {
     #[error("Cannot format crate")]
@@ -585,10 +611,15 @@ pub enum SvdError {
 pub fn generate(input: &str, config: &Config) -> Result<Generation> {
     use std::fmt::Write;
 
-    let device = load_from(input, config)?;
+    let mut config = config.clone();
+    let mut ident_formats = IdentFormats::default();
+    ident_formats.extend(config.ident_formats.drain());
+    config.ident_formats = ident_formats;
+
+    let device = load_from(input, &config)?;
     let mut device_x = String::new();
     let items =
-        generate::device::render(&device, config, &mut device_x).map_err(SvdError::Render)?;
+        generate::device::render(&device, &config, &mut device_x).map_err(SvdError::Render)?;
 
     let mut lib_rs = String::new();
     writeln!(
