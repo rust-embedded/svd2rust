@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use svd2rust::{util::Case, Target};
 
-use crate::{command::CommandExt, tests::TestCase, Opts, TestAll};
+use crate::{command::CommandExt, tests::TestCase, Opts};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::Command;
