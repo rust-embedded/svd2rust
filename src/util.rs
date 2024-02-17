@@ -33,26 +33,22 @@ fn to_pascal_case(s: &str) -> String {
         if let Some(&"") = parts.peek() {
             string.push('_');
         }
-        loop {
-            if let Some(p) = parts.next() {
-                if p.is_empty() {
-                    continue;
+        while let Some(p) = parts.next() {
+            if p.is_empty() {
+                continue;
+            }
+            string.push_str(&p.to_pascal_case());
+            match parts.peek() {
+                Some(nxt)
+                    if p.ends_with(|s: char| s.is_numeric())
+                        && nxt.starts_with(|s: char| s.is_numeric()) =>
+                {
+                    string.push('_');
                 }
-                string.push_str(&p.to_pascal_case());
-                match parts.peek() {
-                    Some(nxt)
-                        if p.ends_with(|s: char| s.is_numeric())
-                            && nxt.starts_with(|s: char| s.is_numeric()) =>
-                    {
-                        string.push('_');
-                    }
-                    Some(&"") => {
-                        string.push('_');
-                    }
-                    _ => {}
+                Some(&"") => {
+                    string.push('_');
                 }
-            } else {
-                break;
+                _ => {}
             }
         }
         string
@@ -310,7 +306,7 @@ pub fn block_path_to_ty(
         span,
     )));
     for ps in &bpath.path {
-        segments.push(path_segment(ident(&ps, config, "cluster_mod", span)));
+        segments.push(path_segment(ident(ps, config, "cluster_mod", span)));
     }
     type_path(segments)
 }

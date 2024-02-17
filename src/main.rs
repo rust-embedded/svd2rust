@@ -39,7 +39,7 @@ fn parse_configs(app: Command) -> Result<Config> {
 
     if let Some(ident_formats) = ident_formats.get_many::<String>("ident_format") {
         for f in ident_formats {
-            let mut f = f.split(":");
+            let mut f = f.split(':');
             if let (Some(n), Some(p), Some(c), Some(s)) = (f.next(), f.next(), f.next(), f.next()) {
                 let case = match c {
                     "" | "unchanged" | "svd" => None,
@@ -335,11 +335,11 @@ Ignore this option if you are not building your own FPGA based soft-cores."),
         let mut features = Vec::new();
         if config.feature_group {
             features.extend(
-                util::group_names(&device, &feature_format)
+                util::group_names(&device, feature_format)
                     .iter()
                     .map(|s| format!("{s} = []\n")),
             );
-            let add_groups: Vec<_> = util::group_names(&device, &feature_format)
+            let add_groups: Vec<_> = util::group_names(&device, feature_format)
                 .iter()
                 .map(|s| format!("\"{s}\""))
                 .collect();
@@ -347,11 +347,11 @@ Ignore this option if you are not building your own FPGA based soft-cores."),
         }
         if config.feature_peripheral {
             features.extend(
-                util::peripheral_names(&device, &feature_format)
+                util::peripheral_names(&device, feature_format)
                     .iter()
                     .map(|s| format!("{s} = []\n")),
             );
-            let add_peripherals: Vec<_> = util::peripheral_names(&device, &feature_format)
+            let add_peripherals: Vec<_> = util::peripheral_names(&device, feature_format)
                 .iter()
                 .map(|s| format!("\"{s}\""))
                 .collect();

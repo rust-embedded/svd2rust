@@ -236,8 +236,8 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             Peripheral::Single(_p) => {
                 let p_name = util::name_of(p, config.ignore_groups);
                 let p_feature = feature_format.apply(&p_name);
-                let p_ty = ident(&p_name, &config, "peripheral", span);
-                let p_singleton = ident(&p_name, &config, "peripheral_singleton", span);
+                let p_ty = ident(&p_name, config, "peripheral", span);
+                let p_singleton = ident(&p_name, config, "peripheral_singleton", span);
                 if config.feature_peripheral {
                     feature_attribute.extend(quote! { #[cfg(feature = #p_feature)] })
                 };
@@ -253,8 +253,8 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             Peripheral::Array(p, dim_element) => {
                 for p_name in names(p, dim_element) {
                     let p_feature = feature_format.apply(&p_name);
-                    let p_ty = ident(&p_name, &config, "peripheral", span);
-                    let p_singleton = ident(&p_name, &config, "peripheral_singleton", span);
+                    let p_ty = ident(&p_name, config, "peripheral", span);
+                    let p_singleton = ident(&p_name, config, "peripheral_singleton", span);
                     if config.feature_peripheral {
                         feature_attribute.extend(quote! { #[cfg(feature = #p_feature)] })
                     };
