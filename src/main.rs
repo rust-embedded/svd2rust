@@ -34,8 +34,8 @@ fn parse_configs(app: Command) -> Result<Config> {
 
     let mut config: Config = irxconfig.get()?;
     let mut idf = match config.ident_formats_theme {
-        IdentFormatsTheme::New => IdentFormats::new_theme(),
-        IdentFormatsTheme::Legacy => IdentFormats::legacy_theme(),
+        Some(IdentFormatsTheme::Legacy) => IdentFormats::legacy_theme(),
+        _ => IdentFormats::default_theme(),
     };
     idf.extend(config.ident_formats.drain());
     config.ident_formats = idf;
@@ -166,7 +166,7 @@ fn run() -> Result<()> {
 format!("Specify `-f type:prefix:case:suffix` to change default ident formatting.
 Allowed values of `type` are {:?}.
 Allowed cases are `unchanged` (''), `pascal` ('p'), `constant` ('c') and `snake` ('s').
-", IdentFormats::new_theme().keys().collect::<Vec<_>>())
+", IdentFormats::default_theme().keys().collect::<Vec<_>>())
 ),
         )
         .arg(

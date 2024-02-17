@@ -32,7 +32,7 @@ pub struct Config {
     pub reexport_core_peripherals: bool,
     pub reexport_interrupt: bool,
     pub ident_formats: IdentFormats,
-    pub ident_formats_theme: IdentFormatsTheme,
+    pub ident_formats_theme: Option<IdentFormatsTheme>,
     pub base_address_shift: u64,
 }
 
@@ -242,7 +242,7 @@ impl IdentFormats {
         ]))
     }
 
-    pub fn new_theme() -> Self {
+    pub fn default_theme() -> Self {
         let mut map = Self::common();
 
         let pascal = IdentFormat::default().pascal_case();
@@ -304,9 +304,7 @@ impl DerefMut for IdentFormats {
     derive(serde::Deserialize),
     serde(rename_all = "lowercase")
 )]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IdentFormatsTheme {
-    #[default]
-    New,
     Legacy,
 }

@@ -625,8 +625,8 @@ pub fn generate(input: &str, config: &Config) -> Result<Generation> {
 
     let mut config = config.clone();
     let mut ident_formats = match config.ident_formats_theme {
-        IdentFormatsTheme::New => IdentFormats::new_theme(),
-        IdentFormatsTheme::Legacy => IdentFormats::legacy_theme(),
+        Some(IdentFormatsTheme::Legacy) => IdentFormats::legacy_theme(),
+        _ => IdentFormats::default_theme(),
     };
     ident_formats.extend(config.ident_formats.drain());
     config.ident_formats = ident_formats;
