@@ -1,8 +1,8 @@
 #![recursion_limit = "128"]
 
 use log::{debug, error, info, warn};
-use svd2rust::config::{IdentFormats, IdentFormatsTheme};
-use svd2rust::util::{Case, IdentFormat};
+use svd2rust::config::{IdentFormatError, IdentFormats, IdentFormatsTheme};
+use svd2rust::util::IdentFormat;
 
 use std::io::Write;
 use std::process;
@@ -41,30 +41,27 @@ fn parse_configs(app: Command) -> Result<Config> {
     config.ident_formats = idf;
 
     if let Some(ident_formats) = ident_formats.get_many::<String>("ident_format") {
-        for f in ident_formats {
-            let mut f = f.split(':');
-            if let (Some(n), Some(p), Some(c), Some(s)) = (f.next(), f.next(), f.next(), f.next()) {
-                let case = match c {
-                    "" | "unchanged" | "svd" => None,
-                    "p" | "pascal" | "type" => Some(Case::Pascal),
-                    "s" | "snake" | "lower" => Some(Case::Snake),
-                    "c" | "constant" | "upper" => Some(Case::Constant),
-                    _ => {
-                        warn!("Ident case `{c}` is unknown");
-                        continue;
-                    }
-                };
+        for fs in ident_formats {
+            if let Some((n, fmt)) = fs.split_once(':') {
                 if let std::collections::hash_map::Entry::Occupied(mut e) =
                     config.ident_formats.entry(n.into())
                 {
-                    e.insert(IdentFormat {
-                        case,
-                        prefix: p.into(),
-                        suffix: s.into(),
-                    });
+                    match IdentFormat::parse(fmt) {
+                        Ok(ident_format) => {
+                            e.insert(ident_format);
+                        }
+                        Err(IdentFormatError::UnknownCase(c)) => {
+                            warn!("Ident case `{c}` is unknown")
+                        }
+                        Err(IdentFormatError::Other) => {
+                            warn!("Can't parse identifier format string `{fmt}`")
+                        }
+                    }
                 } else {
                     warn!("Ident format name `{n}` is unknown");
                 }
+            } else {
+                warn!("Can't parse identifier format string `{fs}`");
             }
         }
     }
@@ -345,11 +342,11 @@ Ignore this option if you are not building your own FPGA based soft-cores."),
         let mut features = Vec::new();
         if config.feature_group {
             features.extend(
-                util::group_names(&device, feature_format)
+                util::group_names(&device, &feature_format)
                     .iter()
                     .map(|s| format!("{s} = []\n")),
             );
-            let add_groups: Vec<_> = util::group_names(&device, feature_format)
+            let add_groups: Vec<_> = util::group_names(&device, &feature_format)
                 .iter()
                 .map(|s| format!("\"{s}\""))
                 .collect();
@@ -357,11 +354,11 @@ Ignore this option if you are not building your own FPGA based soft-cores."),
         }
         if config.feature_peripheral {
             features.extend(
-                util::peripheral_names(&device, feature_format)
+                util::peripheral_names(&device, &feature_format)
                     .iter()
                     .map(|s| format!("{s} = []\n")),
             );
-            let add_peripherals: Vec<_> = util::peripheral_names(&device, feature_format)
+            let add_peripherals: Vec<_> = util::peripheral_names(&device, &feature_format)
                 .iter()
                 .map(|s| format!("\"{s}\""))
                 .collect();
