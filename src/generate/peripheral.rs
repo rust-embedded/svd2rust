@@ -37,7 +37,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
 
     let name = util::name_of(&p, config.ignore_groups);
     let span = Span::call_site();
-    let p_ty = ident(&name, &config, "peripheral", span);
+    let p_ty = ident(&name, config, "peripheral", span);
     let name_str = p_ty.to_string();
     let address = util::hex(p.base_address + config.base_address_shift);
     let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
@@ -85,7 +85,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
             for pi in svd::peripheral::expand(p, dim) {
                 let name = &pi.name;
                 let description = pi.description.as_deref().unwrap_or(&p.name);
-                let p_ty = ident(name, &config, "peripheral", span);
+                let p_ty = ident(name, config, "peripheral", span);
                 let name_str = p_ty.to_string();
                 let doc_alias = (&name_str != name).then(|| quote!(#[doc(alias = #name)]));
                 let address = util::hex(pi.base_address + config.base_address_shift);
@@ -640,8 +640,8 @@ fn register_or_cluster_block(
 
     let mut doc_alias = None;
     let block_ty = if let Some(name) = name {
-        let ty = ident(name, &config, "cluster", span);
-        if ty.to_string() != name {
+        let ty = ident(name, config, "cluster", span);
+        if ty != name {
             doc_alias = Some(quote!(#[doc(alias = #name)]));
         }
         ty
@@ -996,12 +996,12 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
         util::replace_suffix(&cluster.name, "")
     };
     let span = Span::call_site();
-    let ty = name_to_ty(ident(&ty_name, &config, "cluster", span));
+    let ty = name_to_ty(ident(&ty_name, config, "cluster", span));
 
     match cluster {
         Cluster::Single(info) => {
             let doc = make_comment(cluster_size, info.address_offset, &description);
-            let name: Ident = ident(&info.name, &config, "cluster_accessor", span);
+            let name: Ident = ident(&info.name, config, "cluster_accessor", span);
             let syn_field = new_syn_field(name.clone(), ty.clone());
             cluster_expanded.push(RegisterBlockField {
                 syn_field,
@@ -1050,7 +1050,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                     } else {
                         &ty_name
                     },
-                    &config,
+                    config,
                     "cluster_accessor",
                     span,
                 );
@@ -1083,7 +1083,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 });
                 if !sequential_indexes_from0 || !ends_with_index {
                     for (i, ci) in svd::cluster::expand(info, array_info).enumerate() {
-                        let idx_name = ident(&ci.name, &config, "cluster_accessor", span);
+                        let idx_name = ident(&ci.name, config, "cluster_accessor", span);
                         let doc = make_comment(
                             cluster_size,
                             ci.address_offset,
@@ -1125,7 +1125,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         ci.address_offset,
                         ci.description.as_deref().unwrap_or(&ci.name),
                     );
-                    let name = ident(&ci.name, &config, "cluster_accessor", span);
+                    let name = ident(&ci.name, config, "cluster_accessor", span);
                     let syn_field = new_syn_field(name.clone(), ty.clone());
 
                     cluster_expanded.push(RegisterBlockField {
@@ -1176,8 +1176,8 @@ fn expand_register(
         Register::Single(info) => {
             let doc = make_comment(register_size, info.address_offset, &description);
             let span = Span::call_site();
-            let ty = name_to_ty(ident(&ty_str, &config, "register", span));
-            let name: Ident = ident(&ty_name, &config, "register_accessor", span);
+            let ty = name_to_ty(ident(&ty_str, config, "register", span));
+            let name: Ident = ident(&ty_name, config, "register_accessor", span);
             let syn_field = new_syn_field(name.clone(), ty.clone());
             register_expanded.push(RegisterBlockField {
                 syn_field,
@@ -1232,18 +1232,18 @@ fn expand_register(
             let array_convertible = ac && sequential_addresses;
             let array_proxy_convertible = ac && disjoint_sequential_addresses;
             let span = Span::call_site();
-            let ty = name_to_ty(ident(&ty_str, &config, "register", span));
+            let ty = name_to_ty(ident(&ty_str, config, "register", span));
 
             if array_convertible || array_proxy_convertible {
                 let accessor_name = if let Some(dim_name) = array_info.dim_name.as_ref() {
                     ident(
                         &util::fullname(dim_name, &info.alternate_group, config.ignore_groups),
-                        &config,
+                        config,
                         "register_accessor",
                         span,
                     )
                 } else {
-                    ident(&ty_name, &config, "register_accessor", span)
+                    ident(&ty_name, config, "register_accessor", span)
                 };
                 let doc = make_comment(
                     register_size * array_info.dim,
@@ -1276,7 +1276,7 @@ fn expand_register(
                     for (i, ri) in svd::register::expand(info, array_info).enumerate() {
                         let idx_name = ident(
                             &util::fullname(&ri.name, &info.alternate_group, config.ignore_groups),
-                            &config,
+                            config,
                             "cluster_accessor",
                             span,
                         );
@@ -1321,7 +1321,7 @@ fn expand_register(
                         info.address_offset,
                         ri.description.as_deref().unwrap_or(&ri.name),
                     );
-                    let name = ident(&ri.name, &config, "register_accessor", span);
+                    let name = ident(&ri.name, config, "register_accessor", span);
                     let syn_field = new_syn_field(name.clone(), ty.clone());
 
                     register_expanded.push(RegisterBlockField {
@@ -1404,7 +1404,7 @@ fn cluster_block(
     // name_snake_case needs to take into account array type.
     let span = Span::call_site();
     let mod_ty = ident(&mod_name, config, "cluster_mod", span);
-    let block_ty = ident(&mod_name, &config, "cluster", span);
+    let block_ty = ident(&mod_name, config, "cluster", span);
 
     if let Some(dpath) = dpath {
         let dparent = dpath.parent().unwrap();
@@ -1418,7 +1418,7 @@ fn cluster_block(
         derived
             .path
             .segments
-            .push(path_segment(ident(&dname, &config, "cluster", span)));
+            .push(path_segment(ident(&dname, config, "cluster", span)));
         mod_derived
             .path
             .segments

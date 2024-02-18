@@ -154,19 +154,16 @@ pub struct Test {
 impl Test {
     fn run(&self, opts: &Opts) -> Result<(), anyhow::Error> {
         match self {
-            Self { url: Some(url), .. } => {}
+            Self { url: Some(_), .. } => {}
             Self {
-                svd_file: Some(svd_file),
-                ..
+                svd_file: Some(_), ..
             } => {}
-            Self {
-                chip: Some(chip), ..
-            } => {}
+            Self { chip: Some(_), .. } => {}
             _ => unreachable!("clap should not allow this"),
         }
         let test = if let (Some(url), Some(arch)) = (&self.url, &self.arch) {
             tests::TestCase {
-                arch: svd2rust::Target::parse(&arch)?,
+                arch: svd2rust::Target::parse(arch)?,
                 mfgr: tests::Manufacturer::Unknown,
                 chip: self
                     .chip

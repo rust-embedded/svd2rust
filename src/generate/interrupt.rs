@@ -55,7 +55,7 @@ pub fn render(
         }
         pos += 1;
 
-        let i_ty = ident(&interrupt.0.name, &config, "interrupt", span);
+        let i_ty = ident(&interrupt.0.name, config, "interrupt", span);
         let description = format!(
             "{} - {}",
             interrupt.0.value,

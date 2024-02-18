@@ -22,7 +22,7 @@ use anyhow::{anyhow, Result};
 use syn::punctuated::Punctuated;
 
 fn regspec(name: &str, config: &Config, span: Span) -> Ident {
-    ident(name, &config, "register_spec", span)
+    ident(name, config, "register_spec", span)
 }
 
 fn field_accessor(name: &str, config: &Config, span: Span) -> Ident {
@@ -60,8 +60,8 @@ pub fn render(
         }
     }
     let span = Span::call_site();
-    let reg_ty = ident(&name, &config, "register", span);
-    let doc_alias = (&reg_ty.to_string() != &name).then(|| quote!(#[doc(alias = #name)]));
+    let reg_ty = ident(&name, config, "register", span);
+    let doc_alias = (reg_ty.to_string().as_str() != name).then(|| quote!(#[doc(alias = #name)]));
     let mod_ty = ident(&name, config, "register_mod", span);
     let description = util::escape_special_chars(
         util::respace(&register.description.clone().unwrap_or_else(|| {
@@ -82,7 +82,7 @@ pub fn render(
         derived
             .path
             .segments
-            .push(path_segment(ident(&dname, &config, "register", span)));
+            .push(path_segment(ident(&dname, config, "register", span)));
         mod_derived
             .path
             .segments
@@ -656,7 +656,7 @@ pub fn fields(
             {
                 ident(
                     evs.name.as_deref().unwrap_or(&name),
-                    &config,
+                    config,
                     "enum_name",
                     span,
                 )
@@ -666,7 +666,7 @@ pub fn fields(
             };
 
             // name of read proxy type
-            let reader_ty = ident(&name, &config, "field_reader", span);
+            let reader_ty = ident(&name, config, "field_reader", span);
 
             // if it's enumeratedValues and it's derived from base, don't derive the read proxy
             // as the base has already dealt with this;
@@ -861,7 +861,7 @@ pub fn fields(
                 evs_r = Some(evs);
                 // generate pub use field_1 reader as field_2 reader
                 let base_field = util::replace_suffix(&base.field.name, "");
-                let base_r = ident(&base_field, &config, "field_reader", span);
+                let base_r = ident(&base_field, config, "field_reader", span);
                 if !reader_derives.contains(&reader_ty) {
                     let base_path = base_syn_path(base, &fpath, &base_r, config)?;
                     mod_items.extend(quote! {
@@ -977,14 +977,14 @@ pub fn fields(
                     } else {
                         "enum_name"
                     };
-                    ident(evs.name.as_deref().unwrap_or(&name), &config, fmt, span)
+                    ident(evs.name.as_deref().unwrap_or(&name), config, fmt, span)
                 } else {
                     // raw_field_value_write_ty
                     fty.clone()
                 };
 
             // name of write proxy type
-            let writer_ty = ident(&name, &config, "field_writer", span);
+            let writer_ty = ident(&name, config, "field_writer", span);
 
             let mut proxy_items = TokenStream::new();
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
@@ -1136,7 +1136,7 @@ pub fn fields(
 
                 // generate pub use field_1 writer as field_2 writer
                 let base_field = util::replace_suffix(&base.field.name, "");
-                let base_w = ident(&base_field, &config, "field_writer", span);
+                let base_w = ident(&base_field, config, "field_writer", span);
                 if !writer_derives.contains(&writer_ty) {
                     let base_path = base_syn_path(base, &fpath, &base_w, config)?;
                     mod_items.extend(quote! {
@@ -1304,7 +1304,7 @@ impl Variant {
                 .description
                 .clone()
                 .unwrap_or_else(|| format!("`{value:b}`")),
-            pc: ident(&ev.name, &config, "enum_value", span),
+            pc: ident(&ev.name, config, "enum_value", span),
             is_sc,
             sc,
             value,
