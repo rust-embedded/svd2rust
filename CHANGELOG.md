@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - generic unsafe `W::bits` + safe `W::set`
 - Add `base-address-shift` config flag
 - Use `PascalCase` for type idents, fix case changing bugs, add `--ident-format` (`-f`) option flag
+- Add `enum_read_name` for `read-only` enums
 
 ## [v0.31.5] - 2024-01-04
 

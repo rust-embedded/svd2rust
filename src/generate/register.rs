@@ -612,7 +612,14 @@ pub fn fields(
             lookup_results.push((ev, epath));
         }
 
-        let mut evs_r = None;
+        let read_enum = lookup_filter(&lookup_results, Usage::Read);
+        let write_enum = lookup_filter(&lookup_results, Usage::Write);
+
+        // does the read and the write value has the same name? If we have the same,
+        // we can reuse read value type other than generating a new one.
+        let writer_reader_different_enum = !(can_read
+            && can_write
+            && matches!((read_enum, write_enum), (Some(e1), Some(e2)) if e1.0 == e2.0));
 
         let brief_suffix = if let Field::Array(_, de) = &f {
             if let Some(range) = de.indexes_as_range() {
@@ -652,14 +659,13 @@ pub fn fields(
 
             // get the type of value structure. It can be generated from either name field
             // in enumeratedValues if it's an enumeration, or from field name directly if it's not.
-            let value_read_ty = if let Some((evs, _)) = lookup_filter(&lookup_results, Usage::Read)
-            {
-                ident(
-                    evs.name.as_deref().unwrap_or(&name),
-                    config,
-                    "enum_name",
-                    span,
-                )
+            let value_read_ty = if let Some((evs, _)) = read_enum {
+                let fmt = if writer_reader_different_enum {
+                    "enum_read_name"
+                } else {
+                    "enum_name"
+                };
+                ident(evs.name.as_deref().unwrap_or(&name), config, fmt, span)
             } else {
                 // raw_field_value_read_ty
                 fty.clone()
@@ -674,10 +680,7 @@ pub fn fields(
             // information in enumeratedValues;
             // if it's not enumeratedValues, always derive the read proxy as we do not need to re-export
             // it again from BitReader or FieldReader.
-            let should_derive_reader = matches!(
-                lookup_filter(&lookup_results, Usage::Read),
-                Some((_, None)) | None
-            );
+            let should_derive_reader = matches!(read_enum, Some((_, None)) | None);
 
             // derive the read proxy structure if necessary.
             if should_derive_reader {
@@ -712,11 +715,7 @@ pub fn fields(
 
             // if this is an enumeratedValues not derived from base, generate the enum structure
             // and implement functions for each value in enumeration.
-            if let Some((evs, None)) = lookup_filter(&lookup_results, Usage::Read) {
-                // we have enumeration for read, record this. If the enumeration for write operation
-                // later on is the same as the read enumeration, we reuse and do not generate again.
-                evs_r = Some(evs);
-
+            if let Some((evs, None)) = read_enum {
                 // parse enum variants from enumeratedValues svd record
                 let mut variants = Variant::from_enumerated_values(evs, config)?;
 
@@ -856,9 +855,7 @@ pub fn fields(
 
             // if this value is derived from a base, generate `pub use` code for each read proxy and value
             // if necessary.
-            if let Some((evs, Some(base))) = lookup_filter(&lookup_results, Usage::Read) {
-                // preserve value; if read type equals write type, writer would not generate value type again
-                evs_r = Some(evs);
+            if let Some((_, Some(base))) = read_enum {
                 // generate pub use field_1 reader as field_2 reader
                 let base_field = util::replace_suffix(&base.field.name, "");
                 let base_r = ident(&base_field, config, "field_reader", span);
@@ -969,19 +966,17 @@ pub fn fields(
             // gets a brief of write proxy
             let field_writer_brief = format!("Field `{name}{brief_suffix}` writer - {description}");
 
-            let value_write_ty =
-                if let Some((evs, _)) = lookup_filter(&lookup_results, Usage::Write) {
-                    let writer_reader_different_enum = evs_r != Some(evs);
-                    let fmt = if writer_reader_different_enum {
-                        "enum_write_name"
-                    } else {
-                        "enum_name"
-                    };
-                    ident(evs.name.as_deref().unwrap_or(&name), config, fmt, span)
+            let value_write_ty = if let Some((evs, _)) = write_enum {
+                let fmt = if writer_reader_different_enum {
+                    "enum_write_name"
                 } else {
-                    // raw_field_value_write_ty
-                    fty.clone()
+                    "enum_name"
                 };
+                ident(evs.name.as_deref().unwrap_or(&name), config, fmt, span)
+            } else {
+                // raw_field_value_write_ty
+                fty.clone()
+            };
 
             // name of write proxy type
             let writer_ty = ident(&name, config, "field_writer", span);
@@ -990,7 +985,7 @@ pub fn fields(
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
 
             // if we writes to enumeratedValues, generate its structure if it differs from read structure.
-            if let Some((evs, None)) = lookup_filter(&lookup_results, Usage::Write) {
+            if let Some((evs, None)) = write_enum {
                 // parse variants from enumeratedValues svd record
                 let mut variants = Variant::from_enumerated_values(evs, config)?;
                 let map = enums_to_map(evs);
@@ -1010,10 +1005,6 @@ pub fn fields(
                 if variants.len() == 1 << width {
                     unsafety = false;
                 }
-
-                // does the read and the write value has the same name? If we have the same,
-                // we can reuse read value type other than generating a new one.
-                let writer_reader_different_enum = evs_r != Some(evs);
 
                 // generate write value structure and From conversation if we can't reuse read value structure.
                 if writer_reader_different_enum {
@@ -1056,10 +1047,7 @@ pub fn fields(
 
             // derive writer. We derive writer if the write proxy is in current register module,
             // or writer in different register have different _SPEC structures
-            let should_derive_writer = matches!(
-                lookup_filter(&lookup_results, Usage::Write),
-                Some((_, None)) | None
-            );
+            let should_derive_writer = matches!(write_enum, Some((_, None)) | None);
 
             // derive writer structure by type alias to generic write proxy structure.
             if should_derive_writer {
@@ -1128,7 +1116,7 @@ pub fn fields(
                 });
             }
 
-            if let Some((evs, Some(base))) = lookup_filter(&lookup_results, Usage::Write) {
+            if let Some((_, Some(base))) = write_enum {
                 // if base.register == None, derive write from the same module. This is allowed because both
                 // the generated and source write proxy are in the same module.
                 // we never reuse writer for writer in different module does not have the same _SPEC strcuture,
@@ -1147,7 +1135,6 @@ pub fn fields(
                 }
                 // if base.register == None, it emits pub use structure from same module.
                 if base.register() != fpath.register() {
-                    let writer_reader_different_enum = evs_r != Some(evs);
                     if writer_reader_different_enum {
                         // use the same enum structure name
                         if !writer_enum_derives.contains(&value_write_ty) {

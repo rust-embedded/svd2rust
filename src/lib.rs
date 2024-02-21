@@ -564,7 +564,7 @@
 //! |--------------------------------------------------------------------------------|:------:|:---------:|:---------:|:------:|:-----------:|
 //! | field_reader                                                                   |        |   pascal  |  constant |    R   |      _R     |
 //! | field_writer                                                                   |        |   pascal  |  constant |    W   |      _W     |
-//! | enum_name                                                                      |        |   pascal  |  constant |        |      _A     |
+//! | enum_name <br> enum_read_name                                                  |        |   pascal  |  constant |        |      _A     |
 //! | enum_write_name                                                                |        |   pascal  |  constant |   WO   |     _AW     |
 //! | enum_value                                                                     |        |   pascal  |  constant |        |             |
 //! | interrupt                                                                      |        | unchanged |  constant |        |             |
