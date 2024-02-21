@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Bump MSRV to 1.74
 - generic unsafe `W::bits` + safe `W::set`
 - Add `base-address-shift` config flag
-- Fix case changing bugs, add `--ident-format` (`-f`) option flag
+- Use `PascalCase` for type idents, fix case changing bugs, add `--ident-format` (`-f`) option flag
 
 ## [v0.31.5] - 2024-01-04
 

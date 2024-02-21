@@ -56,7 +56,7 @@ jobs:
         include:
           - { rust: stable, vendor: Atmel, options: all }
           - { rust: stable, vendor: Atmel, options: "" }
-          - { rust: stable, vendor: Freescale, options: "--strict --atomics" }
+          - { rust: stable, vendor: Freescale, options: all }
           - { rust: stable, vendor: Freescale, options: "" }
           - { rust: stable, vendor: Fujitsu, options: "" }
           - { rust: stable, vendor: Fujitsu, options: "--atomics" }
@@ -88,8 +88,9 @@ jobs:
           # Use nightly for architectures which don't support stable
           - { rust: nightly, vendor: MSP430, options: "--atomics" }
           - { rust: nightly, vendor: MSP430, options: "" }
-          - { rust: nightly, vendor: Espressif, options: "--atomics" }
-          - { rust: nightly, vendor: Espressif, options: "" }
+          # Workaround for _1token0
+          - { rust: nightly, vendor: Espressif, options: "--atomics --ident-formats-theme legacy" }
+          - { rust: nightly, vendor: Espressif, options: "--ident-format register:::Reg" }
 
     steps:
       - uses: actions/checkout@v4

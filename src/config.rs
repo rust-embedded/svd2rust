@@ -32,6 +32,7 @@ pub struct Config {
     pub reexport_core_peripherals: bool,
     pub reexport_interrupt: bool,
     pub ident_formats: IdentFormats,
+    pub ident_formats_theme: Option<IdentFormatsTheme>,
     pub base_address_shift: u64,
 }
 
@@ -136,6 +137,26 @@ pub enum Case {
     Snake,
 }
 
+impl Case {
+    pub fn parse(c: &str) -> Result<Option<Self>, IdentFormatError> {
+        Ok(match c {
+            "" | "unchanged" | "svd" => None,
+            "p" | "pascal" | "type" => Some(Case::Pascal),
+            "s" | "snake" | "lower" => Some(Case::Snake),
+            "c" | "constant" | "upper" => Some(Case::Constant),
+            _ => {
+                return Err(IdentFormatError::UnknownCase(c.into()));
+            }
+        })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum IdentFormatError {
+    UnknownCase(String),
+    Other,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
 pub struct IdentFormat {
@@ -170,67 +191,99 @@ impl IdentFormat {
         self.suffix = suffix.into();
         self
     }
+    pub fn parse(s: &str) -> Result<Self, IdentFormatError> {
+        let mut f = s.split(":");
+        match (f.next(), f.next(), f.next()) {
+            (Some(p), Some(c), Some(s)) => {
+                let case = Case::parse(c)?;
+                Ok(Self {
+                    case,
+                    prefix: p.into(),
+                    suffix: s.into(),
+                })
+            }
+            (Some(p), Some(c), None) => {
+                let case = Case::parse(c)?;
+                Ok(Self {
+                    case,
+                    prefix: p.into(),
+                    suffix: "".into(),
+                })
+            }
+            (Some(c), None, None) => {
+                let case = Case::parse(c)?;
+                Ok(Self {
+                    case,
+                    prefix: "".into(),
+                    suffix: "".into(),
+                })
+            }
+            _ => Err(IdentFormatError::Other),
+        }
+    }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
 pub struct IdentFormats(HashMap<String, IdentFormat>);
 
-impl Default for IdentFormats {
-    fn default() -> Self {
-        let mut map = HashMap::new();
+impl IdentFormats {
+    fn common() -> Self {
+        let snake = IdentFormat::default().snake_case();
+        Self(HashMap::from([
+            ("field_accessor".into(), snake.clone()),
+            ("register_accessor".into(), snake.clone()),
+            ("enum_value_accessor".into(), snake.clone()),
+            ("cluster_accessor".into(), snake.clone()),
+            ("register_mod".into(), snake.clone()),
+            ("cluster_mod".into(), snake.clone()),
+            ("peripheral_mod".into(), snake.clone()),
+            ("peripheral_feature".into(), snake),
+        ]))
+    }
 
-        map.insert("field_accessor".into(), IdentFormat::default().snake_case());
-        map.insert(
-            "field_reader".into(),
-            IdentFormat::default().constant_case().suffix("_R"),
-        );
-        map.insert(
-            "field_writer".into(),
-            IdentFormat::default().constant_case().suffix("_W"),
-        );
-        map.insert(
-            "enum_name".into(),
-            IdentFormat::default().constant_case().suffix("_A"),
-        );
-        map.insert(
-            "enum_write_name".into(),
-            IdentFormat::default().constant_case().suffix("_AW"),
-        );
-        map.insert("enum_value".into(), IdentFormat::default().constant_case());
-        map.insert(
-            "enum_value_accessor".into(),
-            IdentFormat::default().snake_case(),
-        );
-        map.insert("interrupt".into(), IdentFormat::default().constant_case());
-        map.insert("cluster".into(), IdentFormat::default().constant_case());
-        map.insert(
-            "cluster_accessor".into(),
-            IdentFormat::default().snake_case(),
-        );
-        map.insert("cluster_mod".into(), IdentFormat::default().snake_case());
-        map.insert("register".into(), IdentFormat::default().constant_case());
-        map.insert(
-            "register_spec".into(),
-            IdentFormat::default().pascal_case().suffix("_SPEC"),
-        );
-        map.insert(
-            "register_accessor".into(),
-            IdentFormat::default().snake_case(),
-        );
-        map.insert("register_mod".into(), IdentFormat::default().snake_case());
-        map.insert("peripheral".into(), IdentFormat::default().constant_case());
-        map.insert(
-            "peripheral_singleton".into(),
-            IdentFormat::default().constant_case(),
-        );
-        map.insert("peripheral_mod".into(), IdentFormat::default().snake_case());
-        map.insert(
-            "peripheral_feature".into(),
-            IdentFormat::default().snake_case(),
-        );
+    pub fn default_theme() -> Self {
+        let mut map = Self::common();
 
-        Self(map)
+        let pascal = IdentFormat::default().pascal_case();
+        map.extend([
+            ("field_reader".into(), pascal.clone().suffix("R")),
+            ("field_writer".into(), pascal.clone().suffix("W")),
+            ("enum_name".into(), pascal.clone()),
+            ("enum_write_name".into(), pascal.clone().suffix("WO")),
+            ("enum_value".into(), pascal.clone()),
+            ("interrupt".into(), IdentFormat::default()),
+            ("register".into(), pascal.clone()),
+            ("cluster".into(), pascal.clone()),
+            ("register_spec".into(), pascal.clone().suffix("Spec")),
+            ("peripheral".into(), pascal),
+            (
+                "peripheral_singleton".into(),
+                IdentFormat::default().snake_case(),
+            ),
+        ]);
+
+        map
+    }
+    pub fn legacy_theme() -> Self {
+        let mut map = Self::common();
+
+        let constant = IdentFormat::default().constant_case();
+        map.extend([
+            ("field_reader".into(), constant.clone().suffix("_R")),
+            ("field_writer".into(), constant.clone().suffix("_W")),
+            ("enum_name".into(), constant.clone().suffix("_A")),
+            ("enum_write_name".into(), constant.clone().suffix("_AW")),
+            ("enum_value".into(), constant.clone()),
+            ("interrupt".into(), constant.clone()),
+            ("cluster".into(), constant.clone()),
+            ("register".into(), constant.clone()),
+            ("register_spec".into(), constant.clone().suffix("_SPEC")),
+            ("peripheral".into(), constant.clone()),
+            ("peripheral_singleton".into(), constant),
+        ]);
+
+        map
     }
 }
 
@@ -244,4 +297,14 @@ impl DerefMut for IdentFormats {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
+}
+
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize),
+    serde(rename_all = "lowercase")
+)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IdentFormatsTheme {
+    Legacy,
 }
