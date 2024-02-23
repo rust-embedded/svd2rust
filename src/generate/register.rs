@@ -535,64 +535,63 @@ impl<'a> From<&'a (EnumeratedValues, Option<EnumPath>)> for EV<'a> {
 
 #[derive(Clone, Copy, Debug)]
 pub enum RWEnum<'a> {
-    ReadAndWriteEnum(EV<'a>),
-    ReadEnumWriteEnum(EV<'a>, EV<'a>),
-    ReadEnumWriteRaw(EV<'a>),
-    ReadRawWriteEnum(EV<'a>),
-    ReadEnum(EV<'a>),
-    ReadRaw,
-    WriteEnum(EV<'a>),
-    WriteRaw,
-    ReadRawWriteRaw,
+    ReadWriteCommon(EV<'a>),
+    ReadWrite(ReadEnum<'a>, WriteEnum<'a>),
+    Read(ReadEnum<'a>),
+    Write(WriteEnum<'a>),
 }
+
+#[derive(Clone, Copy, Debug)]
+pub enum ReadEnum<'a> {
+    Enum(EV<'a>),
+    Raw,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum WriteEnum<'a> {
+    Enum(EV<'a>),
+    Raw,
+}
+
 impl<'a> RWEnum<'a> {
     pub fn different_enums(&self) -> bool {
-        matches!(self, Self::ReadEnumWriteEnum(_, _))
+        matches!(self, Self::ReadWrite(ReadEnum::Enum(_), WriteEnum::Enum(_)))
     }
     pub fn read_write(&self) -> bool {
-        matches!(
-            self,
-            Self::ReadAndWriteEnum(_)
-                | Self::ReadEnumWriteEnum(_, _)
-                | Self::ReadEnumWriteRaw(_)
-                | Self::ReadRawWriteEnum(_)
-                | Self::ReadRawWriteRaw
-        )
+        matches!(self, Self::ReadWriteCommon(_) | Self::ReadWrite(_, _))
     }
     pub fn read_only(&self) -> bool {
-        matches!(self, Self::ReadEnum(_) | Self::ReadRaw)
+        matches!(self, Self::Read(_))
     }
     pub fn can_read(&self) -> bool {
         self.read_write() || self.read_only()
     }
     pub fn write_only(&self) -> bool {
-        matches!(self, Self::WriteEnum(_) | Self::WriteRaw)
+        matches!(self, Self::Write(_))
     }
     pub fn can_write(&self) -> bool {
         self.read_write() || self.write_only()
     }
     pub fn read_enum(&self) -> Option<EV<'a>> {
         match self {
-            Self::ReadAndWriteEnum(e)
-            | Self::ReadEnumWriteEnum(e, _)
-            | Self::ReadEnumWriteRaw(e)
-            | Self::ReadEnum(e) => Some(*e),
+            Self::ReadWriteCommon(e)
+            | Self::ReadWrite(ReadEnum::Enum(e), _)
+            | Self::Read(ReadEnum::Enum(e)) => Some(*e),
             _ => None,
         }
     }
     pub fn write_enum(&self) -> Option<EV<'a>> {
         match self {
-            Self::ReadAndWriteEnum(e)
-            | Self::ReadEnumWriteEnum(_, e)
-            | Self::ReadRawWriteEnum(e)
-            | Self::WriteEnum(e) => Some(*e),
+            Self::ReadWriteCommon(e)
+            | Self::ReadWrite(_, WriteEnum::Enum(e))
+            | Self::Write(WriteEnum::Enum(e)) => Some(*e),
             _ => None,
         }
     }
     pub fn generate_write_enum(&self) -> bool {
         matches!(
             self,
-            Self::ReadEnumWriteEnum(_, _) | Self::ReadRawWriteEnum(_) | Self::WriteEnum(_)
+            Self::ReadWrite(_, WriteEnum::Enum(_)) | Self::Write(WriteEnum::Enum(_))
         )
     }
 }
@@ -705,15 +704,21 @@ pub fn fields(
             can_write,
             lookup_filter(&lookup_results, Usage::Write),
         ) {
-            (true, Some(e1), true, Some(e2)) if e1.0 == e2.0 => RWEnum::ReadAndWriteEnum(e1.into()),
-            (true, Some(e1), true, Some(e2)) => RWEnum::ReadEnumWriteEnum(e1.into(), e2.into()),
-            (true, Some(e), true, None) => RWEnum::ReadEnumWriteRaw(e.into()),
-            (true, None, true, Some(e)) => RWEnum::ReadRawWriteEnum(e.into()),
-            (true, Some(e), false, _) => RWEnum::ReadEnum(e.into()),
-            (true, None, false, _) => RWEnum::ReadRaw,
-            (false, _, true, Some(e)) => RWEnum::WriteEnum(e.into()),
-            (false, _, true, None) => RWEnum::WriteRaw,
-            (true, None, true, None) => RWEnum::ReadRawWriteRaw,
+            (true, Some(e1), true, Some(e2)) if e1.0 == e2.0 => RWEnum::ReadWriteCommon(e1.into()),
+            (true, Some(e1), true, Some(e2)) => {
+                RWEnum::ReadWrite(ReadEnum::Enum(e1.into()), WriteEnum::Enum(e2.into()))
+            }
+            (true, Some(e), true, None) => {
+                RWEnum::ReadWrite(ReadEnum::Enum(e.into()), WriteEnum::Raw)
+            }
+            (true, None, true, Some(e)) => {
+                RWEnum::ReadWrite(ReadEnum::Raw, WriteEnum::Enum(e.into()))
+            }
+            (true, Some(e), false, _) => RWEnum::Read(ReadEnum::Enum(e.into())),
+            (true, None, false, _) => RWEnum::Read(ReadEnum::Raw),
+            (false, _, true, Some(e)) => RWEnum::Write(WriteEnum::Enum(e.into())),
+            (false, _, true, None) => RWEnum::Write(WriteEnum::Raw),
+            (true, None, true, None) => RWEnum::ReadWrite(ReadEnum::Raw, WriteEnum::Raw),
             (false, _, false, _) => {
                 return Err(anyhow!("Field {fpath} is not writtable or readable"))
             }
