@@ -567,7 +567,31 @@ impl<'a> RWEnum<'a> {
             _ => None,
         }
     }
-    pub fn gen_write_enum(&self) -> bool {
+    pub fn generate_reader(&self) -> bool {
+        matches!(
+            self,
+            Self::ReadAndWriteEnum((_, None))
+                | Self::ReadEnumWriteEnum((_, None), _)
+                | Self::ReadEnumWriteRaw((_, None))
+                | Self::ReadRawWriteEnum(_)
+                | Self::ReadEnum((_, None))
+                | Self::ReadRaw
+                | Self::ReadRawWriteRaw
+        )
+    }
+    pub fn generate_writer(&self) -> bool {
+        matches!(
+            self,
+            Self::ReadAndWriteEnum((_, None))
+                | Self::ReadEnumWriteEnum(_, (_, None))
+                | Self::ReadRawWriteEnum((_, None))
+                | Self::ReadEnumWriteRaw(_)
+                | Self::WriteEnum((_, None))
+                | Self::WriteRaw
+                | Self::ReadRawWriteRaw
+        )
+    }
+    pub fn generate_write_enum(&self) -> bool {
         matches!(
             self,
             Self::ReadEnumWriteEnum(_, _) | Self::ReadRawWriteEnum(_) | Self::WriteEnum(_)
@@ -691,7 +715,7 @@ pub fn fields(
             (true, None, false, _) => RWEnum::ReadRaw,
             (false, _, true, Some(e)) => RWEnum::WriteEnum(e),
             (false, _, true, None) => RWEnum::WriteRaw,
-            (true, _, true, _) => RWEnum::ReadRawWriteRaw,
+            (true, None, true, None) => RWEnum::ReadRawWriteRaw,
             (false, _, false, _) => {
                 return Err(anyhow!("Field {fpath} is not writtable or readable"))
             }
@@ -710,29 +734,6 @@ pub fn fields(
 
         // If this field can be read, generate read proxy structure and value structure.
         if can_read {
-            let cast = if width == 1 {
-                quote! { != 0 }
-            } else {
-                quote! { as #fty }
-            };
-            let value = if offset != 0 {
-                let offset = &unsuffixed(offset);
-                quote! { (self.bits >> #offset) }
-            } else {
-                quote! { self.bits }
-            };
-            let value = if use_mask && use_cast {
-                quote! { (#value & #hexmask) #cast }
-            } else if use_mask {
-                quote! { #value & #hexmask }
-            } else {
-                value
-            };
-
-            // get a brief description for this field
-            // the suffix string from field name is removed in brief description.
-            let field_reader_brief = format!("Field `{name}{brief_suffix}` reader - {description}");
-
             // get the type of value structure. It can be generated from either name field
             // in enumeratedValues if it's an enumeration, or from field name directly if it's not.
             let value_read_ty = if let Some((evs, _)) = rwenum.read_enum() {
@@ -746,45 +747,6 @@ pub fn fields(
                 // raw_field_value_read_ty
                 fty.clone()
             };
-
-            // name of read proxy type
-            let reader_ty = ident(&name, config, "field_reader", span);
-
-            // if it's enumeratedValues and it's derived from base, don't derive the read proxy
-            // as the base has already dealt with this;
-            // if it's enumeratedValues but not derived from base, derive the reader from
-            // information in enumeratedValues;
-            // if it's not enumeratedValues, always derive the read proxy as we do not need to re-export
-            // it again from BitReader or FieldReader.
-            let should_derive_reader = matches!(rwenum.read_enum(), Some((_, None)) | None);
-
-            // derive the read proxy structure if necessary.
-            if should_derive_reader {
-                let reader = if width == 1 {
-                    if value_read_ty == "bool" {
-                        quote! { crate::BitReader }
-                    } else {
-                        quote! { crate::BitReader<#value_read_ty> }
-                    }
-                } else if value_read_ty == "u8" {
-                    quote! { crate::FieldReader }
-                } else {
-                    quote! { crate::FieldReader<#value_read_ty> }
-                };
-                let mut readerdoc = field_reader_brief.clone();
-                if let Some(action) = f.read_action {
-                    readerdoc += match action {
-                        ReadAction::Clear => "\n\nThe field is **cleared** (set to zero) following a read operation.",
-                        ReadAction::Set => "\n\nThe field is **set** (set to ones) following a read operation.",
-                        ReadAction::Modify => "\n\nThe field is **modified** in some way after a read operation.",
-                        ReadAction::ModifyExternal => "\n\nOne or more dependent resources other than the current field are immediately affected by a read operation.",
-                    };
-                }
-                mod_items.extend(quote! {
-                    #[doc = #readerdoc]
-                    pub type #reader_ty = #reader;
-                });
-            }
 
             // collect information on items in enumeration to generate it later.
             let mut enum_items = TokenStream::new();
@@ -927,23 +889,9 @@ pub fn fields(
                         });
                     }
                 }
-            }
-
-            // if this value is derived from a base, generate `pub use` code for each read proxy and value
-            // if necessary.
-            if let Some((_, Some(base))) = rwenum.read_enum() {
-                // generate pub use field_1 reader as field_2 reader
-                let base_field = util::replace_suffix(&base.field.name, "");
-                let base_r = ident(&base_field, config, "field_reader", span);
-                if !reader_derives.contains(&reader_ty) {
-                    let base_path = base_syn_path(base, &fpath, &base_r, config)?;
-                    mod_items.extend(quote! {
-                        #[doc = #field_reader_brief]
-                        pub use #base_path as #reader_ty;
-                    });
-                    reader_derives.insert(reader_ty.clone());
-                }
-                // only pub use enum when base.register != None. if base.register == None, it emits
+            } else if let Some((_, Some(base))) = rwenum.read_enum() {
+                // only pub use enum when derived from another register.
+                // If field is in the same register it emits
                 // pub use enum from same module which is not expected
                 if base.register() != fpath.register() {
                     // use the same enum structure name
@@ -957,6 +905,64 @@ pub fn fields(
                     }
                 }
             }
+
+            // get a brief description for this field
+            // the suffix string from field name is removed in brief description.
+            let field_reader_brief = format!("Field `{name}{brief_suffix}` reader - {description}");
+
+            // name of read proxy type
+            let reader_ty = ident(&name, config, "field_reader", span);
+
+            if rwenum.generate_reader() {
+                // Generate the read proxy structure if necessary.
+
+                let reader = if width == 1 {
+                    if value_read_ty == "bool" {
+                        quote! { crate::BitReader }
+                    } else {
+                        quote! { crate::BitReader<#value_read_ty> }
+                    }
+                } else if value_read_ty == "u8" {
+                    quote! { crate::FieldReader }
+                } else {
+                    quote! { crate::FieldReader<#value_read_ty> }
+                };
+                let mut readerdoc = field_reader_brief.clone();
+                if let Some(action) = f.read_action {
+                    readerdoc += match action {
+                        ReadAction::Clear => "\n\nThe field is **cleared** (set to zero) following a read operation.",
+                        ReadAction::Set => "\n\nThe field is **set** (set to ones) following a read operation.",
+                        ReadAction::Modify => "\n\nThe field is **modified** in some way after a read operation.",
+                        ReadAction::ModifyExternal => "\n\nOne or more dependent resources other than the current field are immediately affected by a read operation.",
+                    };
+                }
+                mod_items.extend(quote! {
+                    #[doc = #readerdoc]
+                    pub type #reader_ty = #reader;
+                });
+            } else if let Some((_, Some(base))) = rwenum.read_enum() {
+                // if this value is derived from a base, generate `pub use` code for each read proxy
+                // and value if necessary.
+
+                // generate pub use field_1 reader as field_2 reader
+                let base_field = util::replace_suffix(&base.field.name, "");
+                let base_r = ident(&base_field, config, "field_reader", span);
+                if !reader_derives.contains(&reader_ty) {
+                    let base_path = base_syn_path(base, &fpath, &base_r, config)?;
+                    mod_items.extend(quote! {
+                        #[doc = #field_reader_brief]
+                        pub use #base_path as #reader_ty;
+                    });
+                    reader_derives.insert(reader_ty.clone());
+                }
+            }
+
+            // Generate field reader accessors
+            let cast = if width == 1 {
+                quote! { != 0 }
+            } else {
+                quote! { as #fty }
+            };
 
             if let Field::Array(f, de) = &f {
                 let increment = de.dim_increment;
@@ -1015,6 +1021,20 @@ pub fn fields(
                     });
                 }
             } else {
+                let value = if offset != 0 {
+                    let offset = &unsuffixed(offset);
+                    quote! { (self.bits >> #offset) }
+                } else {
+                    quote! { self.bits }
+                };
+                let value = if use_mask && use_cast {
+                    quote! { (#value & #hexmask) #cast }
+                } else if use_mask {
+                    quote! { #value & #hexmask }
+                } else {
+                    value
+                };
+
                 let doc = description_with_bits(description_raw, offset, width);
                 r_impl_items.extend(quote! {
                     #[doc = #doc]
@@ -1038,10 +1058,6 @@ pub fn fields(
         // If this field can be written, generate write proxy. Generate write value if it differs from
         // the read value, or else we reuse read value.
         if can_write {
-            let mwv = f.modified_write_values.or(rmwv).unwrap_or_default();
-            // gets a brief of write proxy
-            let field_writer_brief = format!("Field `{name}{brief_suffix}` writer - {description}");
-
             let value_write_ty = if let Some((evs, _)) = rwenum.write_enum() {
                 let fmt = if rwenum.different_enums() {
                     "enum_write_name"
@@ -1053,9 +1069,6 @@ pub fn fields(
                 // raw_field_value_write_ty
                 fty.clone()
             };
-
-            // name of write proxy type
-            let writer_ty = ident(&name, config, "field_writer", span);
 
             let mut proxy_items = TokenStream::new();
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
@@ -1083,7 +1096,7 @@ pub fn fields(
                 }
 
                 // generate write value structure and From conversation if we can't reuse read value structure.
-                if rwenum.gen_write_enum() {
+                if rwenum.generate_write_enum() {
                     if variants.is_empty() {
                         add_with_no_variants(
                             mod_items,
@@ -1119,14 +1132,33 @@ pub fn fields(
                         }
                     });
                 }
+            } else if let Some((_, Some(base))) = rwenum.write_enum() {
+                // If field is in the same register it emits pub use structure from same module.
+                if base.register() != fpath.register() {
+                    if rwenum.generate_write_enum() {
+                        // use the same enum structure name
+                        if !writer_enum_derives.contains(&value_write_ty) {
+                            let base_path = base_syn_path(base, &fpath, &value_write_ty, config)?;
+                            mod_items.extend(quote! {
+                                #[doc = #description]
+                                pub use #base_path as #value_write_ty;
+                            });
+                            writer_enum_derives.insert(value_write_ty.clone());
+                        }
+                    }
+                }
             }
 
-            // derive writer. We derive writer if the write proxy is in current register module,
-            // or writer in different register have different _SPEC structures
-            let should_derive_writer = matches!(rwenum.write_enum(), Some((_, None)) | None);
+            let mwv = f.modified_write_values.or(rmwv).unwrap_or_default();
 
-            // derive writer structure by type alias to generic write proxy structure.
-            if should_derive_writer {
+            // gets a brief of write proxy
+            let field_writer_brief = format!("Field `{name}{brief_suffix}` writer - {description}");
+
+            // name of write proxy type
+            let writer_ty = ident(&name, config, "field_writer", span);
+
+            // Generate writer structure by type alias to generic write proxy structure.
+            if rwenum.generate_writer() {
                 let proxy = if width == 1 {
                     use ModifiedWriteValues::*;
                     let wproxy = Ident::new(
@@ -1166,6 +1198,23 @@ pub fn fields(
                     #[doc = #field_writer_brief]
                     pub type #writer_ty<'a, REG> = #proxy;
                 });
+            } else if let Some((_, Some(base))) = rwenum.write_enum() {
+                // if base.register == None, derive write from the same module. This is allowed because both
+                // the generated and source write proxy are in the same module.
+                // we never reuse writer for writer in different module does not have the same _SPEC strcuture,
+                // thus we cannot write to current register using re-exported write proxy.
+
+                // generate pub use field_1 writer as field_2 writer
+                let base_field = util::replace_suffix(&base.field.name, "");
+                let base_w = ident(&base_field, config, "field_writer", span);
+                if !writer_derives.contains(&writer_ty) {
+                    let base_path = base_syn_path(base, &fpath, &base_w, config)?;
+                    mod_items.extend(quote! {
+                        #[doc = #field_writer_brief]
+                        pub use #base_path as #writer_ty;
+                    });
+                    writer_derives.insert(writer_ty.clone());
+                }
             }
 
             // generate proxy items from collected information
@@ -1192,39 +1241,7 @@ pub fn fields(
                 });
             }
 
-            if let Some((_, Some(base))) = rwenum.write_enum() {
-                // if base.register == None, derive write from the same module. This is allowed because both
-                // the generated and source write proxy are in the same module.
-                // we never reuse writer for writer in different module does not have the same _SPEC strcuture,
-                // thus we cannot write to current register using re-exported write proxy.
-
-                // generate pub use field_1 writer as field_2 writer
-                let base_field = util::replace_suffix(&base.field.name, "");
-                let base_w = ident(&base_field, config, "field_writer", span);
-                if !writer_derives.contains(&writer_ty) {
-                    let base_path = base_syn_path(base, &fpath, &base_w, config)?;
-                    mod_items.extend(quote! {
-                        #[doc = #field_writer_brief]
-                        pub use #base_path as #writer_ty;
-                    });
-                    writer_derives.insert(writer_ty.clone());
-                }
-                // if base.register == None, it emits pub use structure from same module.
-                if base.register() != fpath.register() {
-                    if rwenum.gen_write_enum() {
-                        // use the same enum structure name
-                        if !writer_enum_derives.contains(&value_write_ty) {
-                            let base_path = base_syn_path(base, &fpath, &value_write_ty, config)?;
-                            mod_items.extend(quote! {
-                                #[doc = #description]
-                                pub use #base_path as #value_write_ty;
-                            });
-                            writer_enum_derives.insert(value_write_ty.clone());
-                        }
-                    }
-                }
-            }
-
+            // Generate field writer accessors
             if let Field::Array(f, de) = &f {
                 let increment = de.dim_increment;
                 let offset_calc = calculate_offset(increment, offset, false);
@@ -1276,6 +1293,8 @@ pub fn fields(
                     }
                 });
             }
+
+            // Update register modify bit masks
             let bitmask = (u64::MAX >> (64 - width)) << offset;
             use ModifiedWriteValues::*;
             match mwv {
