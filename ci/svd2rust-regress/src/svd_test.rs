@@ -191,6 +191,10 @@ impl TestCase {
             self.name(),
             chip_dir.display()
         );
+        // XXX: Workaround for https://github.com/rust-lang/cargo/issues/6009#issuecomment-1925445245
+        let manifest_path = crate::get_cargo_workspace().join("Cargo.toml");
+        let workspace_toml =
+            fs::read(&manifest_path).context("failed to read workspace Cargo.toml")?;
         Command::new("cargo")
             .env("USER", user)
             .arg("init")
@@ -201,6 +205,9 @@ impl TestCase {
             .arg(&chip_dir)
             .capture_outputs(true, "cargo init", None, None, &[])
             .with_context(|| "Failed to cargo init")?;
+        std::fs::write(manifest_path, workspace_toml)
+            .context("failed to write workspace Cargo.toml")?;
+
         let svd_toml = path_helper_base(&chip_dir, &["Cargo.toml"]);
         let mut file = OpenOptions::new()
             .write(true)

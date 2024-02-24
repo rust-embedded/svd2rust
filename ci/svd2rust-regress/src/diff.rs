@@ -187,7 +187,7 @@ impl Diffing {
 
         let test = match (tests.len(), self.sub.as_ref(), self.url.as_ref()) {
             (1, _, None) => tests[0].clone(),
-            (_, Some(DiffingMode::Pr { .. }), None) => tests
+            (_, Some(DiffingMode::Pr { .. } | DiffingMode::Semver { .. }), None) => tests
                 .iter()
                 .find(|t| t.chip == "STM32F103")
                 .map(|t| (*t).clone())
