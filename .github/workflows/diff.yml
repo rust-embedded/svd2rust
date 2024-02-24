@@ -6,12 +6,18 @@ on:
 jobs:
   generate:
     name: |
-      Generate matrix. ${{ github.event.comment.user.name }}: ${{ github.event.comment.author_association}}
+      Generate matrix.
     runs-on: ubuntu-latest
     outputs:
       diffs: ${{ steps.regress-ci.outputs.diffs }}
-    if: github.event.issue.pull_request && (github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'OWNER') && (contains(toJson(github.event.comment.body), '\n/ci') || startsWith(github.event.comment.body, '/ci'))
+    if: contains(toJson(github.event.comment.body), '\n/ci') || startsWith(github.event.comment.body, '/ci')
     steps:
+      - name: Is member
+        run: |
+          if [[ "${{ github.event.comment.author_association }}" != "MEMBER" && "${{ github.event.comment.author_association }}" != "OWNER" ]]; then
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@master
