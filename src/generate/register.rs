@@ -756,7 +756,11 @@ pub fn fields(
                 // get the type of value structure. It can be generated from either name field
                 // in enumeratedValues if it's an enumeration, or from field name directly if it's not.
                 let value_read_ty = ident(
-                    ev.values().name.as_deref().unwrap_or(&name),
+                    if config.field_names_for_enums {
+                        &name
+                    } else {
+                        ev.values().name.as_deref().unwrap_or(&name)
+                    },
                     config,
                     fmt,
                     span,
@@ -909,7 +913,16 @@ pub fn fields(
                         }
                     }
                     EV::Derived(_, base) => {
-                        let base_ident = ident(&base.name, config, fmt, span);
+                        let base_ident = if config.field_names_for_enums {
+                            ident(
+                                &util::replace_suffix(&base.field().name, ""),
+                                config,
+                                fmt,
+                                span,
+                            )
+                        } else {
+                            ident(&base.name, config, fmt, span)
+                        };
                         if !derives.contains(&value_read_ty) {
                             let base_path = base_syn_path(base, &fpath, &base_ident, config)?;
                             mod_items.extend(quote! {
@@ -1096,7 +1109,11 @@ pub fn fields(
                     fmt = "enum_name";
                 };
                 let value_write_ty = ident(
-                    ev.values().name.as_deref().unwrap_or(&name),
+                    if config.field_names_for_enums {
+                        &name
+                    } else {
+                        ev.values().name.as_deref().unwrap_or(&name)
+                    },
                     config,
                     fmt,
                     span,
@@ -1164,8 +1181,16 @@ pub fn fields(
                         }
                     }
                     EV::Derived(_, base) => {
-                        let base_ident = ident(&base.name, config, fmt, span);
-
+                        let base_ident = if config.field_names_for_enums {
+                            ident(
+                                &util::replace_suffix(&base.field().name, ""),
+                                config,
+                                fmt,
+                                span,
+                            )
+                        } else {
+                            ident(&base.name, config, fmt, span)
+                        };
                         if rwenum.generate_write_enum() && !derives.contains(&value_write_ty) {
                             let base_path = base_syn_path(base, &fpath, &base_ident, config)?;
                             mod_items.extend(quote! {

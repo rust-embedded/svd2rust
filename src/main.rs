@@ -172,9 +172,17 @@ Allowed cases are `unchanged` (''), `pascal` ('p'), `constant` ('c') and `snake`
         .arg(
             Arg::new("ident_formats_theme")
                 .long("ident-formats-theme")
+                .alias("ident_formats_theme")
                 .help("A set of `ident_format` settings. `new` or `legacy`")
                 .action(ArgAction::Set)
                 .value_name("THEME"),
+        )
+        .arg(
+            Arg::new("field_names_for_enums")
+                .long("field-names-for-enums")
+                .alias("field_names_for_enums")
+                .action(ArgAction::SetTrue)
+                .help("Use field name for enumerations even when enumeratedValues has a name"),
         )
         .arg(
             Arg::new("max_cluster_size")
