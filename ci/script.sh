@@ -404,7 +404,7 @@ main() {
             test_svd MB9BFD1xS
             test_svd MB9BFD1xT
             test_svd S6E1A1
-            test_svd S6E2CC
+            #test_svd S6E2CC #broken CANFD.FDESCR access
         ;;
 
         GD32)

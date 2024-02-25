@@ -510,6 +510,92 @@ fn render_register_mod_debug(
     Ok(r_debug_impl)
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum EV<'a> {
+    New(&'a EnumeratedValues),
+    Derived(&'a EnumeratedValues, &'a EnumPath),
+}
+
+impl<'a> EV<'a> {
+    fn values(&self) -> &EnumeratedValues {
+        match self {
+            Self::New(e) | Self::Derived(e, _) => e,
+        }
+    }
+}
+
+impl<'a> From<&'a (EnumeratedValues, Option<EnumPath>)> for EV<'a> {
+    fn from(value: &'a (EnumeratedValues, Option<EnumPath>)) -> Self {
+        match value.1.as_ref() {
+            Some(base) => Self::Derived(&value.0, base),
+            None => Self::New(&value.0),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum RWEnum<'a> {
+    ReadWriteCommon(EV<'a>),
+    ReadWrite(ReadEnum<'a>, WriteEnum<'a>),
+    Read(ReadEnum<'a>),
+    Write(WriteEnum<'a>),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ReadEnum<'a> {
+    Enum(EV<'a>),
+    Raw,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum WriteEnum<'a> {
+    Enum(EV<'a>),
+    Raw,
+}
+
+impl<'a> RWEnum<'a> {
+    pub fn different_enums(&self) -> bool {
+        matches!(self, Self::ReadWrite(ReadEnum::Enum(_), WriteEnum::Enum(_)))
+    }
+    pub fn read_write(&self) -> bool {
+        matches!(self, Self::ReadWriteCommon(_) | Self::ReadWrite(_, _))
+    }
+    pub fn read_only(&self) -> bool {
+        matches!(self, Self::Read(_))
+    }
+    pub fn can_read(&self) -> bool {
+        self.read_write() || self.read_only()
+    }
+    pub fn write_only(&self) -> bool {
+        matches!(self, Self::Write(_))
+    }
+    pub fn can_write(&self) -> bool {
+        self.read_write() || self.write_only()
+    }
+    pub fn read_enum(&self) -> Option<EV<'a>> {
+        match self {
+            Self::ReadWriteCommon(e)
+            | Self::ReadWrite(ReadEnum::Enum(e), _)
+            | Self::Read(ReadEnum::Enum(e)) => Some(*e),
+            _ => None,
+        }
+    }
+    pub fn write_enum(&self) -> Option<EV<'a>> {
+        match self {
+            Self::ReadWriteCommon(e)
+            | Self::ReadWrite(_, WriteEnum::Enum(e))
+            | Self::Write(WriteEnum::Enum(e)) => Some(*e),
+            _ => None,
+        }
+    }
+    pub fn generate_write_enum(&self) -> bool {
+        matches!(
+            self,
+            Self::ReadWrite(_, WriteEnum::Enum(_)) | Self::Write(WriteEnum::Enum(_))
+        )
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn fields(
     mut fields: Vec<&Field>,
@@ -612,14 +698,31 @@ pub fn fields(
             lookup_results.push((ev, epath));
         }
 
-        let read_enum = lookup_filter(&lookup_results, Usage::Read);
-        let write_enum = lookup_filter(&lookup_results, Usage::Write);
-
-        // does the read and the write value has the same name? If we have the same,
-        // we can reuse read value type other than generating a new one.
-        let writer_reader_different_enum = !(can_read
-            && can_write
-            && matches!((read_enum, write_enum), (Some(e1), Some(e2)) if e1.0 == e2.0));
+        let rwenum = match (
+            can_read,
+            lookup_filter(&lookup_results, Usage::Read),
+            can_write,
+            lookup_filter(&lookup_results, Usage::Write),
+        ) {
+            (true, Some(e1), true, Some(e2)) if e1.0 == e2.0 => RWEnum::ReadWriteCommon(e1.into()),
+            (true, Some(e1), true, Some(e2)) => {
+                RWEnum::ReadWrite(ReadEnum::Enum(e1.into()), WriteEnum::Enum(e2.into()))
+            }
+            (true, Some(e), true, None) => {
+                RWEnum::ReadWrite(ReadEnum::Enum(e.into()), WriteEnum::Raw)
+            }
+            (true, None, true, Some(e)) => {
+                RWEnum::ReadWrite(ReadEnum::Raw, WriteEnum::Enum(e.into()))
+            }
+            (true, Some(e), false, _) => RWEnum::Read(ReadEnum::Enum(e.into())),
+            (true, None, false, _) => RWEnum::Read(ReadEnum::Raw),
+            (false, _, true, Some(e)) => RWEnum::Write(WriteEnum::Enum(e.into())),
+            (false, _, true, None) => RWEnum::Write(WriteEnum::Raw),
+            (true, None, true, None) => RWEnum::ReadWrite(ReadEnum::Raw, WriteEnum::Raw),
+            (false, _, false, _) => {
+                return Err(anyhow!("Field {fpath} is not writtable or readable"))
+            }
+        };
 
         let brief_suffix = if let Field::Array(_, de) = &f {
             if let Some(range) = de.indexes_as_range() {
@@ -634,253 +737,257 @@ pub fn fields(
 
         // If this field can be read, generate read proxy structure and value structure.
         if can_read {
-            let cast = if width == 1 {
-                quote! { != 0 }
-            } else {
-                quote! { as #fty }
-            };
-            let value = if offset != 0 {
-                let offset = &unsuffixed(offset);
-                quote! { (self.bits >> #offset) }
-            } else {
-                quote! { self.bits }
-            };
-            let value = if use_mask && use_cast {
-                quote! { (#value & #hexmask) #cast }
-            } else if use_mask {
-                quote! { #value & #hexmask }
-            } else {
-                value
-            };
-
-            // get a brief description for this field
-            // the suffix string from field name is removed in brief description.
-            let field_reader_brief = format!("Field `{name}{brief_suffix}` reader - {description}");
-
             // get the type of value structure. It can be generated from either name field
             // in enumeratedValues if it's an enumeration, or from field name directly if it's not.
-            let value_read_ty = if let Some((evs, _)) = read_enum {
-                let fmt = if writer_reader_different_enum {
+            let value_read_ty = if let Some(ev) = rwenum.read_enum() {
+                let fmt = if rwenum.different_enums() {
                     "enum_read_name"
                 } else {
                     "enum_name"
                 };
-                ident(evs.name.as_deref().unwrap_or(&name), config, fmt, span)
+                ident(
+                    ev.values().name.as_deref().unwrap_or(&name),
+                    config,
+                    fmt,
+                    span,
+                )
             } else {
                 // raw_field_value_read_ty
                 fty.clone()
             };
 
-            // name of read proxy type
-            let reader_ty = ident(&name, config, "field_reader", span);
-
-            // if it's enumeratedValues and it's derived from base, don't derive the read proxy
-            // as the base has already dealt with this;
-            // if it's enumeratedValues but not derived from base, derive the reader from
-            // information in enumeratedValues;
-            // if it's not enumeratedValues, always derive the read proxy as we do not need to re-export
-            // it again from BitReader or FieldReader.
-            let should_derive_reader = matches!(read_enum, Some((_, None)) | None);
-
-            // derive the read proxy structure if necessary.
-            if should_derive_reader {
-                let reader = if width == 1 {
-                    if value_read_ty == "bool" {
-                        quote! { crate::BitReader }
-                    } else {
-                        quote! { crate::BitReader<#value_read_ty> }
-                    }
-                } else if value_read_ty == "u8" {
-                    quote! { crate::FieldReader }
-                } else {
-                    quote! { crate::FieldReader<#value_read_ty> }
-                };
-                let mut readerdoc = field_reader_brief.clone();
-                if let Some(action) = f.read_action {
-                    readerdoc += match action {
-                        ReadAction::Clear => "\n\nThe field is **cleared** (set to zero) following a read operation.",
-                        ReadAction::Set => "\n\nThe field is **set** (set to ones) following a read operation.",
-                        ReadAction::Modify => "\n\nThe field is **modified** in some way after a read operation.",
-                        ReadAction::ModifyExternal => "\n\nOne or more dependent resources other than the current field are immediately affected by a read operation.",
-                    };
-                }
-                mod_items.extend(quote! {
-                    #[doc = #readerdoc]
-                    pub type #reader_ty = #reader;
-                });
-            }
-
             // collect information on items in enumeration to generate it later.
             let mut enum_items = TokenStream::new();
 
-            // if this is an enumeratedValues not derived from base, generate the enum structure
-            // and implement functions for each value in enumeration.
-            if let Some((evs, None)) = read_enum {
-                // parse enum variants from enumeratedValues svd record
-                let mut variants = Variant::from_enumerated_values(evs, config)?;
+            if let Some(ev) = rwenum.read_enum() {
+                match ev {
+                    // if this is an enumeratedValues not derived from base, generate the enum structure
+                    // and implement functions for each value in enumeration.
+                    EV::New(evs) => {
+                        // parse enum variants from enumeratedValues svd record
+                        let mut variants = Variant::from_enumerated_values(evs, config)?;
 
-                let map = enums_to_map(evs);
-                let mut def = evs
-                    .default_value()
-                    .and_then(|def| {
-                        minimal_hole(&map, width).map(|v| Variant::from_value(v, def, config))
-                    })
-                    .transpose()?;
-                if variants.len() == 1 << width {
-                    def = None;
-                } else if variants.len() == (1 << width) - 1 {
-                    if let Some(def) = def.take() {
-                        variants.push(def);
-                    }
-                }
+                        let map = enums_to_map(evs);
+                        let mut def = evs
+                            .default_value()
+                            .and_then(|def| {
+                                minimal_hole(&map, width)
+                                    .map(|v| Variant::from_value(v, def, config))
+                            })
+                            .transpose()?;
+                        if variants.len() == 1 << width {
+                            def = None;
+                        } else if variants.len() == (1 << width) - 1 {
+                            if let Some(def) = def.take() {
+                                variants.push(def);
+                            }
+                        }
 
-                // if there's no variant defined in enumeratedValues, generate enumeratedValues with new-type
-                // wrapper struct, and generate From conversation only.
-                // else, generate enumeratedValues into a Rust enum with functions for each variant.
-                if variants.is_empty() {
-                    // generate struct VALUE_READ_TY_A(fty) and From<fty> for VALUE_READ_TY_A.
-                    add_with_no_variants(mod_items, &value_read_ty, &fty, &description, rv, config);
-                } else {
-                    // do we have finite definition of this enumeration in svd? If not, the later code would
-                    // return an Option when the value read from field does not match any defined values.
-                    let has_reserved_variant;
-
-                    // generate enum VALUE_READ_TY_A { ... each variants ... } and and From<fty> for VALUE_READ_TY_A.
-                    if let Some(def) = def.as_ref() {
-                        add_from_variants(
-                            mod_items,
-                            variants.iter().chain(std::iter::once(def)),
-                            &value_read_ty,
-                            &fty,
-                            &description,
-                            rv,
-                            config,
-                        );
-                        has_reserved_variant = false;
-                    } else {
-                        add_from_variants(
-                            mod_items,
-                            variants.iter(),
-                            &value_read_ty,
-                            &fty,
-                            &description,
-                            rv,
-                            config,
-                        );
-                        has_reserved_variant = evs.values.len() != (1 << width);
-                    }
-
-                    // prepare code for each match arm. If we have reserved variant, the match operation would
-                    // return an Option, thus we wrap the return value with Some.
-                    let mut arms = TokenStream::new();
-                    for v in variants.iter().map(|v| {
-                        let i = util::unsuffixed_or_bool(v.value, width);
-                        let pc = &v.pc;
-
-                        if has_reserved_variant {
-                            quote! { #i => Some(#value_read_ty::#pc), }
+                        // if there's no variant defined in enumeratedValues, generate enumeratedValues with new-type
+                        // wrapper struct, and generate From conversation only.
+                        // else, generate enumeratedValues into a Rust enum with functions for each variant.
+                        if variants.is_empty() {
+                            // generate struct VALUE_READ_TY_A(fty) and From<fty> for VALUE_READ_TY_A.
+                            add_with_no_variants(
+                                mod_items,
+                                &value_read_ty,
+                                &fty,
+                                &description,
+                                rv,
+                                config,
+                            );
                         } else {
-                            quote! { #i => #value_read_ty::#pc, }
+                            // do we have finite definition of this enumeration in svd? If not, the later code would
+                            // return an Option when the value read from field does not match any defined values.
+                            let has_reserved_variant;
+
+                            // generate enum VALUE_READ_TY_A { ... each variants ... } and and From<fty> for VALUE_READ_TY_A.
+                            if let Some(def) = def.as_ref() {
+                                add_from_variants(
+                                    mod_items,
+                                    variants.iter().chain(std::iter::once(def)),
+                                    &value_read_ty,
+                                    &fty,
+                                    &description,
+                                    rv,
+                                    config,
+                                );
+                                has_reserved_variant = false;
+                            } else {
+                                add_from_variants(
+                                    mod_items,
+                                    variants.iter(),
+                                    &value_read_ty,
+                                    &fty,
+                                    &description,
+                                    rv,
+                                    config,
+                                );
+                                has_reserved_variant = evs.values.len() != (1 << width);
+                            }
+
+                            // prepare code for each match arm. If we have reserved variant, the match operation would
+                            // return an Option, thus we wrap the return value with Some.
+                            let mut arms = TokenStream::new();
+                            for v in variants.iter().map(|v| {
+                                let i = util::unsuffixed_or_bool(v.value, width);
+                                let pc = &v.pc;
+
+                                if has_reserved_variant {
+                                    quote! { #i => Some(#value_read_ty::#pc), }
+                                } else {
+                                    quote! { #i => #value_read_ty::#pc, }
+                                }
+                            }) {
+                                arms.extend(v);
+                            }
+
+                            // if we have reserved variant, for all values other than defined we return None.
+                            // if svd suggests it only would return defined variants but FieldReader has
+                            // other values, it's regarded as unreachable and we enter unreachable! macro.
+                            // This situation is rare and only exists if unsafe code casts any illegal value
+                            // into a FieldReader structure.
+                            if has_reserved_variant {
+                                arms.extend(quote! {
+                                    _ => None,
+                                });
+                            } else if let Some(v) = def.as_ref() {
+                                let pc = &v.pc;
+                                arms.extend(quote! {
+                                    _ => #value_read_ty::#pc,
+                                });
+                            } else if 1 << width.to_ty_width()? != variants.len() {
+                                arms.extend(quote! {
+                                    _ => unreachable!(),
+                                });
+                            }
+
+                            // prepare the `variant` function. This function would return field value in
+                            // Rust structure; if we have reserved variant we return by Option.
+                            let ret_ty = if has_reserved_variant {
+                                quote!(Option<#value_read_ty>)
+                            } else {
+                                quote!(#value_read_ty)
+                            };
+                            enum_items.extend(quote! {
+                                #[doc = "Get enumerated values variant"]
+                                #inline
+                                pub const fn variant(&self) -> #ret_ty {
+                                    match self.bits {
+                                        #arms
+                                    }
+                                }
+                            });
+
+                            // for each variant defined, we generate an `is_variant` function.
+                            for v in &variants {
+                                let pc = &v.pc;
+                                let is_variant = &v.is_sc;
+
+                                let doc = util::escape_special_chars(&util::respace(&v.doc));
+                                enum_items.extend(quote! {
+                                    #[doc = #doc]
+                                    #inline
+                                    pub fn #is_variant(&self) -> bool {
+                                        *self == #value_read_ty::#pc
+                                    }
+                                });
+                            }
+                            if let Some(v) = def.as_ref() {
+                                let pc = &v.pc;
+                                let is_variant = &v.is_sc;
+
+                                let doc = util::escape_special_chars(&util::respace(&v.doc));
+                                enum_items.extend(quote! {
+                                    #[doc = #doc]
+                                    #inline
+                                    pub fn #is_variant(&self) -> bool {
+                                        matches!(self.variant(), #value_read_ty::#pc)
+                                    }
+                                });
+                            }
                         }
-                    }) {
-                        arms.extend(v);
                     }
-
-                    // if we have reserved variant, for all values other than defined we return None.
-                    // if svd suggests it only would return defined variants but FieldReader has
-                    // other values, it's regarded as unreachable and we enter unreachable! macro.
-                    // This situation is rare and only exists if unsafe code casts any illegal value
-                    // into a FieldReader structure.
-                    if has_reserved_variant {
-                        arms.extend(quote! {
-                            _ => None,
-                        });
-                    } else if let Some(v) = def.as_ref() {
-                        let pc = &v.pc;
-                        arms.extend(quote! {
-                            _ => #value_read_ty::#pc,
-                        });
-                    } else if 1 << width.to_ty_width()? != variants.len() {
-                        arms.extend(quote! {
-                            _ => unreachable!(),
-                        });
+                    EV::Derived(_, base) => {
+                        // only pub use enum when derived from another register.
+                        // If field is in the same register it emits
+                        // pub use enum from same module which is not expected
+                        if base.register() != fpath.register() {
+                            // use the same enum structure name
+                            if !enum_derives.contains(&value_read_ty) {
+                                let base_path =
+                                    base_syn_path(base, &fpath, &value_read_ty, config)?;
+                                mod_items.extend(quote! {
+                                    #[doc = #description]
+                                    pub use #base_path as #value_read_ty;
+                                });
+                                enum_derives.insert(value_read_ty.clone());
+                            }
+                        }
                     }
+                }
+            }
 
-                    // prepare the `variant` function. This function would return field value in
-                    // Rust structure; if we have reserved variant we return by Option.
-                    let ret_ty = if has_reserved_variant {
-                        quote!(Option<#value_read_ty>)
+            // get a brief description for this field
+            // the suffix string from field name is removed in brief description.
+            let field_reader_brief = format!("Field `{name}{brief_suffix}` reader - {description}");
+
+            // name of read proxy type
+            let reader_ty = ident(&name, config, "field_reader", span);
+
+            match rwenum.read_enum() {
+                Some(EV::New(_)) | None => {
+                    // Generate the read proxy structure if necessary.
+
+                    let reader = if width == 1 {
+                        if value_read_ty == "bool" {
+                            quote! { crate::BitReader }
+                        } else {
+                            quote! { crate::BitReader<#value_read_ty> }
+                        }
+                    } else if value_read_ty == "u8" {
+                        quote! { crate::FieldReader }
                     } else {
-                        quote!(#value_read_ty)
+                        quote! { crate::FieldReader<#value_read_ty> }
                     };
-                    enum_items.extend(quote! {
-                        #[doc = "Get enumerated values variant"]
-                        #inline
-                        pub const fn variant(&self) -> #ret_ty {
-                            match self.bits {
-                                #arms
-                            }
-                        }
-                    });
-
-                    // for each variant defined, we generate an `is_variant` function.
-                    for v in &variants {
-                        let pc = &v.pc;
-                        let is_variant = &v.is_sc;
-
-                        let doc = util::escape_special_chars(&util::respace(&v.doc));
-                        enum_items.extend(quote! {
-                            #[doc = #doc]
-                            #inline
-                            pub fn #is_variant(&self) -> bool {
-                                *self == #value_read_ty::#pc
-                            }
-                        });
+                    let mut readerdoc = field_reader_brief.clone();
+                    if let Some(action) = f.read_action {
+                        readerdoc += match action {
+                            ReadAction::Clear => "\n\nThe field is **cleared** (set to zero) following a read operation.",
+                            ReadAction::Set => "\n\nThe field is **set** (set to ones) following a read operation.",
+                            ReadAction::Modify => "\n\nThe field is **modified** in some way after a read operation.",
+                            ReadAction::ModifyExternal => "\n\nOne or more dependent resources other than the current field are immediately affected by a read operation.",
+                        };
                     }
-                    if let Some(v) = def.as_ref() {
-                        let pc = &v.pc;
-                        let is_variant = &v.is_sc;
-
-                        let doc = util::escape_special_chars(&util::respace(&v.doc));
-                        enum_items.extend(quote! {
-                            #[doc = #doc]
-                            #inline
-                            pub fn #is_variant(&self) -> bool {
-                                matches!(self.variant(), #value_read_ty::#pc)
-                            }
-                        });
-                    }
-                }
-            }
-
-            // if this value is derived from a base, generate `pub use` code for each read proxy and value
-            // if necessary.
-            if let Some((_, Some(base))) = read_enum {
-                // generate pub use field_1 reader as field_2 reader
-                let base_field = util::replace_suffix(&base.field.name, "");
-                let base_r = ident(&base_field, config, "field_reader", span);
-                if !reader_derives.contains(&reader_ty) {
-                    let base_path = base_syn_path(base, &fpath, &base_r, config)?;
                     mod_items.extend(quote! {
-                        #[doc = #field_reader_brief]
-                        pub use #base_path as #reader_ty;
+                        #[doc = #readerdoc]
+                        pub type #reader_ty = #reader;
                     });
-                    reader_derives.insert(reader_ty.clone());
                 }
-                // only pub use enum when base.register != None. if base.register == None, it emits
-                // pub use enum from same module which is not expected
-                if base.register() != fpath.register() {
-                    // use the same enum structure name
-                    if !enum_derives.contains(&value_read_ty) {
-                        let base_path = base_syn_path(base, &fpath, &value_read_ty, config)?;
+                Some(EV::Derived(_, base)) => {
+                    // if this value is derived from a base, generate `pub use` code for each read proxy
+                    // and value if necessary.
+
+                    // generate pub use field_1 reader as field_2 reader
+                    let base_field = util::replace_suffix(&base.field.name, "");
+                    let base_r = ident(&base_field, config, "field_reader", span);
+                    if !reader_derives.contains(&reader_ty) {
+                        let base_path = base_syn_path(base, &fpath, &base_r, config)?;
                         mod_items.extend(quote! {
-                            #[doc = #description]
-                            pub use #base_path as #value_read_ty;
+                            #[doc = #field_reader_brief]
+                            pub use #base_path as #reader_ty;
                         });
-                        enum_derives.insert(value_read_ty.clone());
+                        reader_derives.insert(reader_ty.clone());
                     }
                 }
             }
+
+            // Generate field reader accessors
+            let cast = if width == 1 {
+                quote! { != 0 }
+            } else {
+                quote! { as #fty }
+            };
 
             if let Field::Array(f, de) = &f {
                 let increment = de.dim_increment;
@@ -939,6 +1046,20 @@ pub fn fields(
                     });
                 }
             } else {
+                let value = if offset != 0 {
+                    let offset = &unsuffixed(offset);
+                    quote! { (self.bits >> #offset) }
+                } else {
+                    quote! { self.bits }
+                };
+                let value = if use_mask && use_cast {
+                    quote! { (#value & #hexmask) #cast }
+                } else if use_mask {
+                    quote! { #value & #hexmask }
+                } else {
+                    value
+                };
+
                 let doc = description_with_bits(description_raw, offset, width);
                 r_impl_items.extend(quote! {
                     #[doc = #doc]
@@ -962,134 +1083,178 @@ pub fn fields(
         // If this field can be written, generate write proxy. Generate write value if it differs from
         // the read value, or else we reuse read value.
         if can_write {
-            let mwv = f.modified_write_values.or(rmwv).unwrap_or_default();
-            // gets a brief of write proxy
-            let field_writer_brief = format!("Field `{name}{brief_suffix}` writer - {description}");
-
-            let value_write_ty = if let Some((evs, _)) = write_enum {
-                let fmt = if writer_reader_different_enum {
+            let value_write_ty = if let Some(ev) = rwenum.write_enum() {
+                let fmt = if rwenum.different_enums() {
                     "enum_write_name"
                 } else {
                     "enum_name"
                 };
-                ident(evs.name.as_deref().unwrap_or(&name), config, fmt, span)
+                ident(
+                    ev.values().name.as_deref().unwrap_or(&name),
+                    config,
+                    fmt,
+                    span,
+                )
             } else {
                 // raw_field_value_write_ty
                 fty.clone()
             };
 
-            // name of write proxy type
-            let writer_ty = ident(&name, config, "field_writer", span);
-
             let mut proxy_items = TokenStream::new();
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
 
-            // if we writes to enumeratedValues, generate its structure if it differs from read structure.
-            if let Some((evs, None)) = write_enum {
-                // parse variants from enumeratedValues svd record
-                let mut variants = Variant::from_enumerated_values(evs, config)?;
-                let map = enums_to_map(evs);
-                let mut def = evs
-                    .default_value()
-                    .and_then(|def| {
-                        minimal_hole(&map, width).map(|v| Variant::from_value(v, def, config))
-                    })
-                    .transpose()?;
-                if variants.len() == 1 << width {
-                } else if let Some(def) = def.take() {
-                    variants.push(def);
-                    unsafety = false;
-                }
-
-                // if the write structure is finite, it can be safely written.
-                if variants.len() == 1 << width {
-                    unsafety = false;
-                }
-
-                // generate write value structure and From conversation if we can't reuse read value structure.
-                if writer_reader_different_enum {
-                    if variants.is_empty() {
-                        add_with_no_variants(
-                            mod_items,
-                            &value_write_ty,
-                            &fty,
-                            &description,
-                            rv,
-                            config,
-                        );
-                    } else {
-                        add_from_variants(
-                            mod_items,
-                            variants.iter(),
-                            &value_write_ty,
-                            &fty,
-                            &description,
-                            rv,
-                            config,
-                        );
-                    }
-                }
-
-                // for each variant defined, generate a write function to this field.
-                for v in &variants {
-                    let pc = &v.pc;
-                    let sc = &v.sc;
-                    let doc = util::escape_special_chars(&util::respace(&v.doc));
-                    proxy_items.extend(quote! {
-                        #[doc = #doc]
-                        #inline
-                        pub fn #sc(self) -> &'a mut crate::W<REG> {
-                            self.variant(#value_write_ty::#pc)
+            if let Some(ev) = rwenum.write_enum() {
+                match ev {
+                    // if we writes to enumeratedValues, generate its structure if it differs from read structure.
+                    EV::New(evs) => {
+                        // parse variants from enumeratedValues svd record
+                        let mut variants = Variant::from_enumerated_values(evs, config)?;
+                        let map = enums_to_map(evs);
+                        let mut def = evs
+                            .default_value()
+                            .and_then(|def| {
+                                minimal_hole(&map, width)
+                                    .map(|v| Variant::from_value(v, def, config))
+                            })
+                            .transpose()?;
+                        if variants.len() == 1 << width {
+                        } else if let Some(def) = def.take() {
+                            variants.push(def);
+                            unsafety = false;
                         }
-                    });
+
+                        // if the write structure is finite, it can be safely written.
+                        if variants.len() == 1 << width {
+                            unsafety = false;
+                        }
+
+                        // generate write value structure and From conversation if we can't reuse read value structure.
+                        if rwenum.generate_write_enum() {
+                            if variants.is_empty() {
+                                add_with_no_variants(
+                                    mod_items,
+                                    &value_write_ty,
+                                    &fty,
+                                    &description,
+                                    rv,
+                                    config,
+                                );
+                            } else {
+                                add_from_variants(
+                                    mod_items,
+                                    variants.iter(),
+                                    &value_write_ty,
+                                    &fty,
+                                    &description,
+                                    rv,
+                                    config,
+                                );
+                            }
+                        }
+
+                        // for each variant defined, generate a write function to this field.
+                        for v in &variants {
+                            let pc = &v.pc;
+                            let sc = &v.sc;
+                            let doc = util::escape_special_chars(&util::respace(&v.doc));
+                            proxy_items.extend(quote! {
+                                #[doc = #doc]
+                                #inline
+                                pub fn #sc(self) -> &'a mut crate::W<REG> {
+                                    self.variant(#value_write_ty::#pc)
+                                }
+                            });
+                        }
+                    }
+                    EV::Derived(_, base) => {
+                        // If field is in the same register it emits pub use structure from same module.
+                        if base.register() != fpath.register() {
+                            // use the same enum structure name
+                            if rwenum.generate_write_enum()
+                                && !writer_enum_derives.contains(&value_write_ty)
+                            {
+                                let base_path =
+                                    base_syn_path(base, &fpath, &value_write_ty, config)?;
+                                mod_items.extend(quote! {
+                                    #[doc = #description]
+                                    pub use #base_path as #value_write_ty;
+                                });
+                                writer_enum_derives.insert(value_write_ty.clone());
+                            }
+                        }
+                    }
                 }
             }
 
-            // derive writer. We derive writer if the write proxy is in current register module,
-            // or writer in different register have different _SPEC structures
-            let should_derive_writer = matches!(write_enum, Some((_, None)) | None);
+            let mwv = f.modified_write_values.or(rmwv).unwrap_or_default();
 
-            // derive writer structure by type alias to generic write proxy structure.
-            if should_derive_writer {
-                let proxy = if width == 1 {
-                    use ModifiedWriteValues::*;
-                    let wproxy = Ident::new(
-                        match mwv {
-                            Modify | Set | Clear => "BitWriter",
-                            OneToSet => "BitWriter1S",
-                            ZeroToClear => "BitWriter0C",
-                            OneToClear => "BitWriter1C",
-                            ZeroToSet => "BitWriter0C",
-                            OneToToggle => "BitWriter1T",
-                            ZeroToToggle => "BitWriter0T",
-                        },
-                        span,
-                    );
-                    if value_write_ty == "bool" {
-                        quote! { crate::#wproxy<'a, REG> }
-                    } else {
-                        quote! { crate::#wproxy<'a, REG, #value_write_ty> }
-                    }
-                } else {
-                    let wproxy = Ident::new(
-                        if unsafety {
-                            "FieldWriter"
+            // gets a brief of write proxy
+            let field_writer_brief = format!("Field `{name}{brief_suffix}` writer - {description}");
+
+            // name of write proxy type
+            let writer_ty = ident(&name, config, "field_writer", span);
+
+            // Generate writer structure by type alias to generic write proxy structure.
+            match rwenum.write_enum() {
+                Some(EV::New(_)) | None => {
+                    let proxy = if width == 1 {
+                        use ModifiedWriteValues::*;
+                        let wproxy = Ident::new(
+                            match mwv {
+                                Modify | Set | Clear => "BitWriter",
+                                OneToSet => "BitWriter1S",
+                                ZeroToClear => "BitWriter0C",
+                                OneToClear => "BitWriter1C",
+                                ZeroToSet => "BitWriter0C",
+                                OneToToggle => "BitWriter1T",
+                                ZeroToToggle => "BitWriter0T",
+                            },
+                            span,
+                        );
+                        if value_write_ty == "bool" {
+                            quote! { crate::#wproxy<'a, REG> }
                         } else {
-                            "FieldWriterSafe"
-                        },
-                        span,
-                    );
-                    let width = &unsuffixed(width);
-                    if value_write_ty == "u8" {
-                        quote! { crate::#wproxy<'a, REG, #width> }
+                            quote! { crate::#wproxy<'a, REG, #value_write_ty> }
+                        }
                     } else {
-                        quote! { crate::#wproxy<'a, REG, #width, #value_write_ty> }
+                        let wproxy = Ident::new(
+                            if unsafety {
+                                "FieldWriter"
+                            } else {
+                                "FieldWriterSafe"
+                            },
+                            span,
+                        );
+                        let width = &unsuffixed(width);
+                        if value_write_ty == "u8" {
+                            quote! { crate::#wproxy<'a, REG, #width> }
+                        } else {
+                            quote! { crate::#wproxy<'a, REG, #width, #value_write_ty> }
+                        }
+                    };
+                    mod_items.extend(quote! {
+                        #[doc = #field_writer_brief]
+                        pub type #writer_ty<'a, REG> = #proxy;
+                    });
+                }
+                Some(EV::Derived(_, base)) => {
+                    // if base.register == None, derive write from the same module. This is allowed because both
+                    // the generated and source write proxy are in the same module.
+                    // we never reuse writer for writer in different module does not have the same _SPEC strcuture,
+                    // thus we cannot write to current register using re-exported write proxy.
+
+                    // generate pub use field_1 writer as field_2 writer
+                    let base_field = util::replace_suffix(&base.field.name, "");
+                    let base_w = ident(&base_field, config, "field_writer", span);
+                    if !writer_derives.contains(&writer_ty) {
+                        let base_path = base_syn_path(base, &fpath, &base_w, config)?;
+                        mod_items.extend(quote! {
+                            #[doc = #field_writer_brief]
+                            pub use #base_path as #writer_ty;
+                        });
+                        writer_derives.insert(writer_ty.clone());
                     }
-                };
-                mod_items.extend(quote! {
-                    #[doc = #field_writer_brief]
-                    pub type #writer_ty<'a, REG> = #proxy;
-                });
+                }
             }
 
             // generate proxy items from collected information
@@ -1116,39 +1281,7 @@ pub fn fields(
                 });
             }
 
-            if let Some((_, Some(base))) = write_enum {
-                // if base.register == None, derive write from the same module. This is allowed because both
-                // the generated and source write proxy are in the same module.
-                // we never reuse writer for writer in different module does not have the same _SPEC strcuture,
-                // thus we cannot write to current register using re-exported write proxy.
-
-                // generate pub use field_1 writer as field_2 writer
-                let base_field = util::replace_suffix(&base.field.name, "");
-                let base_w = ident(&base_field, config, "field_writer", span);
-                if !writer_derives.contains(&writer_ty) {
-                    let base_path = base_syn_path(base, &fpath, &base_w, config)?;
-                    mod_items.extend(quote! {
-                        #[doc = #field_writer_brief]
-                        pub use #base_path as #writer_ty;
-                    });
-                    writer_derives.insert(writer_ty.clone());
-                }
-                // if base.register == None, it emits pub use structure from same module.
-                if base.register() != fpath.register() {
-                    if writer_reader_different_enum {
-                        // use the same enum structure name
-                        if !writer_enum_derives.contains(&value_write_ty) {
-                            let base_path = base_syn_path(base, &fpath, &value_write_ty, config)?;
-                            mod_items.extend(quote! {
-                                #[doc = #description]
-                                pub use #base_path as #value_write_ty;
-                            });
-                            writer_enum_derives.insert(value_write_ty.clone());
-                        }
-                    }
-                }
-            }
-
+            // Generate field writer accessors
             if let Field::Array(f, de) = &f {
                 let increment = de.dim_increment;
                 let offset_calc = calculate_offset(increment, offset, false);
@@ -1200,6 +1333,8 @@ pub fn fields(
                     }
                 });
             }
+
+            // Update register modify bit masks
             let bitmask = (u64::MAX >> (64 - width)) << offset;
             use ModifiedWriteValues::*;
             match mwv {

@@ -192,7 +192,7 @@ impl IdentFormat {
         self
     }
     pub fn parse(s: &str) -> Result<Self, IdentFormatError> {
-        let mut f = s.split(":");
+        let mut f = s.split(':');
         match (f.next(), f.next(), f.next()) {
             (Some(p), Some(c), Some(s)) => {
                 let case = Case::parse(c)?;
