@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Add `base-address-shift` config flag
 - Use `PascalCase` for type idents, fix case changing bugs, add `--ident-format` (`-f`) option flag
 - Add `enum_read_name` for `read-only` enums, `RWEnum` helper
+- Reexport enums inside register again
 
 ## [v0.31.5] - 2024-01-04
 

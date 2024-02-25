@@ -33,6 +33,7 @@ pub struct Config {
     pub reexport_interrupt: bool,
     pub ident_formats: IdentFormats,
     pub ident_formats_theme: Option<IdentFormatsTheme>,
+    pub field_names_for_enums: bool,
     pub base_address_shift: u64,
 }
 

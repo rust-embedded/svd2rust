@@ -620,8 +620,9 @@ pub fn fields(
 
     // Hack for #625
     let mut enum_derives = HashSet::new();
+    let mut read_enum_derives = HashSet::new();
+    let mut write_enum_derives = HashSet::new();
     let mut reader_derives = HashSet::new();
-    let mut writer_enum_derives = HashSet::new();
     let mut writer_derives = HashSet::new();
 
     // TODO enumeratedValues
@@ -737,32 +738,35 @@ pub fn fields(
 
         // If this field can be read, generate read proxy structure and value structure.
         if can_read {
-            // get the type of value structure. It can be generated from either name field
-            // in enumeratedValues if it's an enumeration, or from field name directly if it's not.
-            let value_read_ty = if let Some(ev) = rwenum.read_enum() {
-                let fmt = if rwenum.different_enums() {
-                    "enum_read_name"
-                } else {
-                    "enum_name"
-                };
-                ident(
-                    ev.values().name.as_deref().unwrap_or(&name),
-                    config,
-                    fmt,
-                    span,
-                )
-            } else {
-                // raw_field_value_read_ty
-                fty.clone()
-            };
-
             // collect information on items in enumeration to generate it later.
             let mut enum_items = TokenStream::new();
 
-            if let Some(ev) = rwenum.read_enum() {
+            // if this is an enumeratedValues not derived from base, generate the enum structure
+            // and implement functions for each value in enumeration.
+            let value_read_ty = if let Some(ev) = rwenum.read_enum() {
+                let derives;
+                let fmt;
+                if rwenum.different_enums() {
+                    derives = &mut read_enum_derives;
+                    fmt = "enum_read_name";
+                } else {
+                    derives = &mut enum_derives;
+                    fmt = "enum_name";
+                };
+                // get the type of value structure. It can be generated from either name field
+                // in enumeratedValues if it's an enumeration, or from field name directly if it's not.
+                let value_read_ty = ident(
+                    if config.field_names_for_enums {
+                        &name
+                    } else {
+                        ev.values().name.as_deref().unwrap_or(&name)
+                    },
+                    config,
+                    fmt,
+                    span,
+                );
+
                 match ev {
-                    // if this is an enumeratedValues not derived from base, generate the enum structure
-                    // and implement functions for each value in enumeration.
                     EV::New(evs) => {
                         // parse enum variants from enumeratedValues svd record
                         let mut variants = Variant::from_enumerated_values(evs, config)?;
@@ -909,24 +913,31 @@ pub fn fields(
                         }
                     }
                     EV::Derived(_, base) => {
-                        // only pub use enum when derived from another register.
-                        // If field is in the same register it emits
-                        // pub use enum from same module which is not expected
-                        if base.register() != fpath.register() {
-                            // use the same enum structure name
-                            if !enum_derives.contains(&value_read_ty) {
-                                let base_path =
-                                    base_syn_path(base, &fpath, &value_read_ty, config)?;
-                                mod_items.extend(quote! {
-                                    #[doc = #description]
-                                    pub use #base_path as #value_read_ty;
-                                });
-                                enum_derives.insert(value_read_ty.clone());
-                            }
+                        let base_ident = if config.field_names_for_enums {
+                            ident(
+                                &util::replace_suffix(&base.field().name, ""),
+                                config,
+                                fmt,
+                                span,
+                            )
+                        } else {
+                            ident(&base.name, config, fmt, span)
+                        };
+                        if !derives.contains(&value_read_ty) {
+                            let base_path = base_syn_path(base, &fpath, &base_ident, config)?;
+                            mod_items.extend(quote! {
+                                #[doc = #description]
+                                pub use #base_path as #value_read_ty;
+                            });
                         }
                     }
                 }
-            }
+                derives.insert(value_read_ty.clone());
+                value_read_ty
+            } else {
+                // raw_field_value_read_ty
+                fty.clone()
+            };
 
             // get a brief description for this field
             // the suffix string from field name is removed in brief description.
@@ -1083,29 +1094,32 @@ pub fn fields(
         // If this field can be written, generate write proxy. Generate write value if it differs from
         // the read value, or else we reuse read value.
         if can_write {
-            let value_write_ty = if let Some(ev) = rwenum.write_enum() {
-                let fmt = if rwenum.different_enums() {
-                    "enum_write_name"
-                } else {
-                    "enum_name"
-                };
-                ident(
-                    ev.values().name.as_deref().unwrap_or(&name),
-                    config,
-                    fmt,
-                    span,
-                )
-            } else {
-                // raw_field_value_write_ty
-                fty.clone()
-            };
-
             let mut proxy_items = TokenStream::new();
             let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
 
-            if let Some(ev) = rwenum.write_enum() {
+            // if we writes to enumeratedValues, generate its structure if it differs from read structure.
+            let value_write_ty = if let Some(ev) = rwenum.write_enum() {
+                let derives;
+                let fmt;
+                if rwenum.different_enums() {
+                    derives = &mut write_enum_derives;
+                    fmt = "enum_write_name";
+                } else {
+                    derives = &mut enum_derives;
+                    fmt = "enum_name";
+                };
+                let value_write_ty = ident(
+                    if config.field_names_for_enums {
+                        &name
+                    } else {
+                        ev.values().name.as_deref().unwrap_or(&name)
+                    },
+                    config,
+                    fmt,
+                    span,
+                );
+
                 match ev {
-                    // if we writes to enumeratedValues, generate its structure if it differs from read structure.
                     EV::New(evs) => {
                         // parse variants from enumeratedValues svd record
                         let mut variants = Variant::from_enumerated_values(evs, config)?;
@@ -1167,24 +1181,31 @@ pub fn fields(
                         }
                     }
                     EV::Derived(_, base) => {
-                        // If field is in the same register it emits pub use structure from same module.
-                        if base.register() != fpath.register() {
-                            // use the same enum structure name
-                            if rwenum.generate_write_enum()
-                                && !writer_enum_derives.contains(&value_write_ty)
-                            {
-                                let base_path =
-                                    base_syn_path(base, &fpath, &value_write_ty, config)?;
-                                mod_items.extend(quote! {
-                                    #[doc = #description]
-                                    pub use #base_path as #value_write_ty;
-                                });
-                                writer_enum_derives.insert(value_write_ty.clone());
-                            }
+                        let base_ident = if config.field_names_for_enums {
+                            ident(
+                                &util::replace_suffix(&base.field().name, ""),
+                                config,
+                                fmt,
+                                span,
+                            )
+                        } else {
+                            ident(&base.name, config, fmt, span)
+                        };
+                        if rwenum.generate_write_enum() && !derives.contains(&value_write_ty) {
+                            let base_path = base_syn_path(base, &fpath, &base_ident, config)?;
+                            mod_items.extend(quote! {
+                                #[doc = #description]
+                                pub use #base_path as #value_write_ty;
+                            });
                         }
                     }
                 }
-            }
+                derives.insert(value_write_ty.clone());
+                value_write_ty
+            } else {
+                // raw_field_value_write_ty
+                fty.clone()
+            };
 
             let mwv = f.modified_write_values.or(rmwv).unwrap_or_default();
 
@@ -1238,11 +1259,6 @@ pub fn fields(
                     });
                 }
                 Some(EV::Derived(_, base)) => {
-                    // if base.register == None, derive write from the same module. This is allowed because both
-                    // the generated and source write proxy are in the same module.
-                    // we never reuse writer for writer in different module does not have the same _SPEC strcuture,
-                    // thus we cannot write to current register using re-exported write proxy.
-
                     // generate pub use field_1 writer as field_2 writer
                     let base_field = util::replace_suffix(&base.field.name, "");
                     let base_w = ident(&base_field, config, "field_writer", span);
