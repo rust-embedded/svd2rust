@@ -527,7 +527,7 @@ impl<'a> EV<'a> {
 impl<'a> From<&'a (EnumeratedValues, Option<EnumPath>)> for EV<'a> {
     fn from(value: &'a (EnumeratedValues, Option<EnumPath>)) -> Self {
         match value.1.as_ref() {
-            Some(base) => Self::Derived(&value.0, &base),
+            Some(base) => Self::Derived(&value.0, base),
             None => Self::New(&value.0),
         }
     }
@@ -1148,16 +1148,16 @@ pub fn fields(
             } else if let Some(EV::Derived(_, base)) = rwenum.write_enum() {
                 // If field is in the same register it emits pub use structure from same module.
                 if base.register() != fpath.register() {
-                    if rwenum.generate_write_enum() {
-                        // use the same enum structure name
-                        if !writer_enum_derives.contains(&value_write_ty) {
-                            let base_path = base_syn_path(base, &fpath, &value_write_ty, config)?;
-                            mod_items.extend(quote! {
-                                #[doc = #description]
-                                pub use #base_path as #value_write_ty;
-                            });
-                            writer_enum_derives.insert(value_write_ty.clone());
-                        }
+                    // use the same enum structure name
+                    if rwenum.generate_write_enum()
+                        && !writer_enum_derives.contains(&value_write_ty)
+                    {
+                        let base_path = base_syn_path(base, &fpath, &value_write_ty, config)?;
+                        mod_items.extend(quote! {
+                            #[doc = #description]
+                            pub use #base_path as #value_write_ty;
+                        });
+                        writer_enum_derives.insert(value_write_ty.clone());
                     }
                 }
             }
