@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.32.0] - 2024-02-26
+
 - Bump MSRV to 1.74
 - generic unsafe `W::bits` + safe `W::set`
 - Add `base-address-shift` config flag
@@ -871,7 +873,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.31.5...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.32.0...HEAD
+[v0.32.0]: https://github.com/rust-embedded/svd2rust/compare/v0.31.5...v0.32.0
 [v0.31.5]: https://github.com/rust-embedded/svd2rust/compare/v0.31.4...v0.31.5
 [v0.31.4]: https://github.com/rust-embedded/svd2rust/compare/v0.31.3...v0.31.4
 [v0.31.3]: https://github.com/rust-embedded/svd2rust/compare/v0.31.2...v0.31.3
