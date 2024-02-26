@@ -16,7 +16,8 @@ use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, Token};
 
 use crate::util::{
-    self, ident, name_to_ty, path_segment, type_path, unsuffixed, zst_type, FullName, BITS_PER_BYTE,
+    self, ident, name_to_ty, path_segment, type_path, unsuffixed, zst_type, DimSuffix, FullName,
+    BITS_PER_BYTE,
 };
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -212,9 +213,8 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         }
     }
 
-    let description = util::escape_special_chars(
-        util::respace(p.description.as_ref().unwrap_or(&name.as_ref().to_owned())).as_ref(),
-    );
+    let description =
+        util::escape_special_chars(util::respace(p.description.as_ref().unwrap_or(&name)).as_ref());
 
     // Build up an alternate erc list by expanding any derived registers/clusters
     // erc: *E*ither *R*egister or *C*luster
@@ -763,7 +763,7 @@ fn check_erc_derive_infos(
 
                     Register::Array(..) => {
                         // Only match integer indeces when searching for disjoint arrays
-                        let re_string = util::replace_suffix(&info_name, "([0-9]+|%s)");
+                        let re_string = info_name.expand_dim("([0-9]+|%s)");
                         let re = Regex::new(format!("^{re_string}$").as_str()).map_err(|_| {
                             anyhow!("Error creating regex for register {}", register.name)
                         })?;
@@ -991,9 +991,9 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
         .to_string();
 
     let ty_name = if cluster.is_single() {
-        cluster.name.to_string()
+        Cow::Borrowed(cluster.name.as_str())
     } else {
-        util::replace_suffix(&cluster.name, "")
+        cluster.name.remove_dim()
     };
     let span = Span::call_site();
     let ty = name_to_ty(ident(&ty_name, config, "cluster", span));
@@ -1166,9 +1166,9 @@ fn expand_register(
 
     let info_name = register.fullname(config.ignore_groups);
     let mut ty_name = if register.is_single() {
-        info_name.to_string()
+        info_name.clone()
     } else {
-        util::replace_suffix(&info_name, "")
+        info_name.remove_dim()
     };
     let ty_str = ty_name.clone();
 
@@ -1220,11 +1220,11 @@ fn expand_register(
             };
             let ac = match derive_info {
                 DeriveInfo::Implicit(_) => {
-                    ty_name = util::replace_suffix(&info_name, &index);
+                    ty_name = info_name.expand_dim(&index);
                     convert_list && sequential_indexes_from0
                 }
                 DeriveInfo::Explicit(_) => {
-                    ty_name = util::replace_suffix(&info_name, &index);
+                    ty_name = info_name.expand_dim(&index);
                     convert_list && sequential_indexes_from0
                 }
                 _ => convert_list,
@@ -1399,7 +1399,7 @@ fn cluster_block(
 ) -> Result<TokenStream> {
     let description =
         util::escape_special_chars(&util::respace(c.description.as_ref().unwrap_or(&c.name)));
-    let mod_name = util::replace_suffix(&c.name, "");
+    let mod_name = c.name.remove_dim().to_string();
 
     // name_snake_case needs to take into account array type.
     let span = Span::call_site();
@@ -1413,7 +1413,7 @@ fn cluster_block(
         } else {
             util::block_path_to_ty(&dparent, config, span)
         };
-        let dname = util::replace_suffix(&index.clusters.get(&dpath).unwrap().name, "");
+        let dname = index.clusters.get(&dpath).unwrap().name.remove_dim();
         let mut mod_derived = derived.clone();
         derived
             .path

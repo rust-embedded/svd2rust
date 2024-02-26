@@ -15,8 +15,7 @@ use svd_parser::expand::{
 
 use crate::config::Config;
 use crate::util::{
-    self, ident, ident_to_path, path_segment, replace_suffix, type_path, unsuffixed, FullName,
-    U32Ext,
+    self, ident, ident_to_path, path_segment, type_path, unsuffixed, DimSuffix, FullName, U32Ext,
 };
 use anyhow::{anyhow, Result};
 use syn::punctuated::Punctuated;
@@ -55,7 +54,10 @@ pub fn render(
         if let MaybeArray::Array(info, array_info) = register {
             if let Some(dim_index) = &array_info.dim_index {
                 let index: Cow<str> = dim_index.first().unwrap().into();
-                name = replace_suffix(&info.fullname(config.ignore_groups), &index).into()
+                name = info
+                    .fullname(config.ignore_groups)
+                    .expand_dim(&index)
+                    .into()
             }
         }
     }
@@ -465,15 +467,14 @@ fn render_register_mod_debug(
             if field_access.can_read() && f.read_action.is_none() {
                 if let Field::Array(_, de) = &f {
                     for suffix in de.indexes() {
-                        let f_name_n =
-                            field_accessor(&util::replace_suffix(&f.name, &suffix), config, span);
+                        let f_name_n = field_accessor(&f.name.expand_dim(&suffix), config, span);
                         let f_name_n_s = format!("{f_name_n}");
                         r_debug_impl.extend(quote! {
                             .field(#f_name_n_s, &format_args!("{}", self.#f_name_n().#bit_or_bits()))
                         });
                     }
                 } else {
-                    let f_name = util::replace_suffix(&f.name, "");
+                    let f_name = f.name.remove_dim();
                     let f_name = field_accessor(&f_name, config, span);
                     let f_name_s = format!("{f_name}");
                     r_debug_impl.extend(quote! {
@@ -641,7 +642,7 @@ pub fn fields(
             return Err(anyhow!("incorrect field {}", f.name));
         }
 
-        let name = util::replace_suffix(&f.name, "");
+        let name = f.name.remove_dim();
         let name_snake_case = field_accessor(
             if let Field::Array(
                 _,
@@ -694,7 +695,13 @@ pub fn fields(
                     ev = (*index.evs.get(epath).unwrap()).clone();
                 }
             } else if let Some(path) = fdpath.as_ref() {
-                epath = Some(path.new_enum(ev.name.clone().unwrap_or_else(|| path.name.clone())));
+                epath = Some(
+                    path.new_enum(
+                        ev.name
+                            .clone()
+                            .unwrap_or_else(|| path.name.remove_dim().into()),
+                    ),
+                );
             }
             lookup_results.push((ev, epath));
         }
@@ -914,12 +921,7 @@ pub fn fields(
                     }
                     EV::Derived(_, base) => {
                         let base_ident = if config.field_names_for_enums {
-                            ident(
-                                &util::replace_suffix(&base.field().name, ""),
-                                config,
-                                fmt,
-                                span,
-                            )
+                            ident(&base.field().name.remove_dim(), config, fmt, span)
                         } else {
                             ident(&base.name, config, fmt, span)
                         };
@@ -980,7 +982,7 @@ pub fn fields(
                     // and value if necessary.
 
                     // generate pub use field_1 reader as field_2 reader
-                    let base_field = util::replace_suffix(&base.field.name, "");
+                    let base_field = base.field.name.remove_dim();
                     let base_r = ident(&base_field, config, "field_reader", span);
                     if !reader_derives.contains(&reader_ty) {
                         let base_path = base_syn_path(base, &fpath, &base_r, config)?;
@@ -1002,7 +1004,7 @@ pub fn fields(
 
             if let Field::Array(f, de) = &f {
                 let increment = de.dim_increment;
-                let doc = util::replace_suffix(&description, &brief_suffix);
+                let doc = description.expand_dim(&brief_suffix);
                 let first_name = svd::array::names(f, de).next().unwrap();
                 let note = format!("NOTE: `n` is number of field in register. `n == 0` corresponds to `{first_name}` field");
                 let offset_calc = calculate_offset(increment, offset, true);
@@ -1182,12 +1184,7 @@ pub fn fields(
                     }
                     EV::Derived(_, base) => {
                         let base_ident = if config.field_names_for_enums {
-                            ident(
-                                &util::replace_suffix(&base.field().name, ""),
-                                config,
-                                fmt,
-                                span,
-                            )
+                            ident(&base.field().name.remove_dim(), config, fmt, span)
                         } else {
                             ident(&base.name, config, fmt, span)
                         };
@@ -1260,7 +1257,7 @@ pub fn fields(
                 }
                 Some(EV::Derived(_, base)) => {
                     // generate pub use field_1 writer as field_2 writer
-                    let base_field = util::replace_suffix(&base.field.name, "");
+                    let base_field = base.field.name.remove_dim();
                     let base_w = ident(&base_field, config, "field_writer", span);
                     if !writer_derives.contains(&writer_ty) {
                         let base_path = base_syn_path(base, &fpath, &base_w, config)?;
@@ -1301,7 +1298,7 @@ pub fn fields(
             if let Field::Array(f, de) = &f {
                 let increment = de.dim_increment;
                 let offset_calc = calculate_offset(increment, offset, false);
-                let doc = &util::replace_suffix(&description, &brief_suffix);
+                let doc = &description.expand_dim(&brief_suffix);
                 let first_name = svd::array::names(f, de).next().unwrap();
                 let note = format!("NOTE: `n` is number of field in register. `n == 0` corresponds to `{first_name}` field");
                 let dim = unsuffixed(de.dim);
@@ -1603,7 +1600,7 @@ fn base_syn_path(
         let mut segments = Punctuated::new();
         segments.push(path_segment(Ident::new("super", span)));
         segments.push(path_segment(ident(
-            &replace_suffix(&base.register().name, ""),
+            &base.register().name.remove_dim(),
             config,
             "register_mod",
             span,

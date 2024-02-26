@@ -184,18 +184,12 @@ pub fn escape_special_chars(s: &str) -> String {
     escape_brackets(&html_escaped)
 }
 
-pub fn name_of<T: FullName>(maybe_array: &MaybeArray<T>, ignore_group: bool) -> Cow<str> {
-    match maybe_array {
-        MaybeArray::Single(info) => info.fullname(ignore_group),
-        MaybeArray::Array(info, _) => replace_suffix(&info.fullname(ignore_group), "").into(),
-    }
-}
-
-pub fn replace_suffix(name: &str, suffix: &str) -> String {
-    if name.contains("[%s]") {
-        name.replace("[%s]", suffix)
+pub fn name_of<T: FullName>(maybe_array: &MaybeArray<T>, ignore_group: bool) -> String {
+    let fullname = maybe_array.fullname(ignore_group);
+    if maybe_array.is_array() {
+        fullname.remove_dim().into()
     } else {
-        name.replace("%s", suffix)
+        fullname.into()
     }
 }
 
@@ -433,6 +427,27 @@ pub fn build_rs() -> TokenStream {
     }
 }
 
+pub trait DimSuffix {
+    fn expand_dim(&self, suffix: &str) -> Cow<str>;
+    fn remove_dim(&self) -> Cow<str> {
+        self.expand_dim("")
+    }
+}
+
+impl DimSuffix for str {
+    fn expand_dim(&self, suffix: &str) -> Cow<str> {
+        if self.contains("%s") {
+            if self.contains("[%s]") {
+                self.replace("[%s]", suffix).into()
+            } else {
+                self.replace("%s", suffix).into()
+            }
+        } else {
+            self.into()
+        }
+    }
+}
+
 pub trait FullName {
     fn fullname(&self, ignore_group: bool) -> Cow<str>;
 }
@@ -473,7 +488,7 @@ pub fn peripheral_names(d: &Device, feature_format: &IdentFormat) -> Vec<String>
     for p in &d.peripherals {
         match p {
             Peripheral::Single(info) => {
-                v.push(replace_suffix(&feature_format.apply(&info.name), ""));
+                v.push(feature_format.apply(&info.name).remove_dim().into());
             }
             Peripheral::Array(info, dim) => {
                 v.extend(svd_rs::array::names(info, dim).map(|n| feature_format.apply(&n).into()));

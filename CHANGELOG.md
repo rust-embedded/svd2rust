@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Use `PascalCase` for type idents, fix case changing bugs, add `--ident-format` (`-f`) option flag
 - Add `enum_read_name` for `read-only` enums, `RWEnum` helper
 - Reexport enums inside register again
+- Add `DimSuffix` helper trait
 
 ## [v0.31.5] - 2024-01-04
 
