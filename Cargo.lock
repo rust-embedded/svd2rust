@@ -1220,7 +1220,7 @@ dependencies = [
 
 [[package]]
 name = "svd2rust"
-version = "0.31.5"
+version = "0.32.0"
 dependencies = [
  "anyhow",
  "clap",
