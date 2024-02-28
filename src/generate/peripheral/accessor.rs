@@ -55,7 +55,7 @@ impl ToTokens for AccessType {
                     #[doc = #doc]
                     #[inline(always)]
                     pub const fn #name(&self) -> &#ty {
-                        unsafe { &*(self as *const Self).cast::<u8>().add(#offset).cast() }
+                        unsafe { &*core::ptr::from_ref(self).cast::<u8>().add(#offset).cast() }
                     }
                 }
             }
@@ -84,7 +84,7 @@ impl ToTokens for AccessType {
                 increment,
             })) => {
                 let name_iter = Ident::new(&format!("{name}_iter"), Span::call_site());
-                let cast = quote! { unsafe { &*(self as *const Self).cast::<u8>().add(#offset).add(#increment * n).cast() } };
+                let cast = quote! { unsafe { &*core::ptr::from_ref(self).cast::<u8>().add(#offset).add(#increment * n).cast() } };
                 quote! {
                     #[doc = #doc]
                     #[inline(always)]
