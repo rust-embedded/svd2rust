@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fixed re-export of derived enumeration values
+
 ## [v0.32.0] - 2024-02-26
 
 - Bump MSRV to 1.74

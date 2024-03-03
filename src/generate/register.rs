@@ -691,8 +691,13 @@ pub fn fields(
             if let Some(dpath) = dpath {
                 epath = Some(derive_enumerated_values(&mut ev, &dpath, &fpath, index)?);
                 // TODO: remove this hack
-                if let Some(epath) = epath.as_ref() {
-                    ev = (*index.evs.get(epath).unwrap()).clone();
+                //if let Some(epath) = epath.as_ref() {
+                //    ev = (*index.evs.get(epath).unwrap()).clone();
+                //}
+                // The field name is used in the enumerated_value name,
+                // if the enumerated_value does not have a name.
+                if ev.name == None {
+                    ev.name = Some(f.name.clone());
                 }
             } else if let Some(path) = fdpath.as_ref() {
                 epath = Some(
