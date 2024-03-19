@@ -33,9 +33,6 @@ macro_rules! raw_reg {
         const fn $mask<const WI: u8>() -> $U {
             <$U>::MAX >> ($size - WI)
         }
-        impl FieldSpec for $U {
-            type Ux = $U;
-        }
     };
 }
 
@@ -310,7 +307,6 @@ pub mod raw {
     pub struct FieldWriter<'a, REG, const WI: u8, FI = u8, Safety = Unsafe>
     where
         REG: Writable + RegisterSpec,
-        FI: FieldSpec,
     {
         pub(crate) w: &'a mut W<REG>,
         pub(crate) o: u8,
@@ -320,7 +316,6 @@ pub mod raw {
     impl<'a, REG, const WI: u8, FI, Safety> FieldWriter<'a, REG, WI, FI, Safety>
     where
         REG: Writable + RegisterSpec,
-        FI: FieldSpec,
     {
         /// Creates a new instance of the writer
         #[allow(unused)]
@@ -474,16 +469,12 @@ pub struct Safe;
 /// You should check that value is allowed to pass to register/field writer marked with this
 pub struct Unsafe;
 
-/// Write field Proxy with unsafe `bits`
-pub type FieldWriter<'a, REG, const WI: u8, FI = u8> = raw::FieldWriter<'a, REG, WI, FI, Unsafe>;
-/// Write field Proxy with safe `bits`
-pub type FieldWriterSafe<'a, REG, const WI: u8, FI = u8> = raw::FieldWriter<'a, REG, WI, FI, Safe>;
+/// Write field Proxy
+pub type FieldWriter<'a, REG, const WI: u8, FI = u8, Safety = Unsafe> = raw::FieldWriter<'a, REG, WI, FI, Safety>;
 
-impl<'a, REG, const WI: u8, FI> FieldWriter<'a, REG, WI, FI>
+impl<'a, REG, const WI: u8, FI, Safety> FieldWriter<'a, REG, WI, FI, Safety>
 where
-    REG: Writable + RegisterSpec,
-    FI: FieldSpec,
-    REG::Ux: From<FI::Ux>,
+    REG: Writable + RegisterSpec
 {
     /// Field width
     pub const WIDTH: u8 = WI;
@@ -499,7 +490,14 @@ where
     pub const fn offset(&self) -> u8 {
         self.o
     }
+}
 
+impl<'a, REG, const WI: u8, FI, Safety> FieldWriter<'a, REG, WI, FI, Safety>
+where
+    REG: Writable + RegisterSpec,
+    FI: FieldSpec,
+    REG::Ux: From<FI::Ux>,
+{
     /// Writes raw bits to the field
     ///
     /// # Safety
@@ -511,6 +509,7 @@ where
         self.w.bits |= (REG::Ux::from(value) & REG::Ux::mask::<WI>()) << self.o;
         self.w
     }
+
     /// Writes `variant` to the field
     #[inline(always)]
     pub fn variant(self, variant: FI) -> &'a mut W<REG> {
@@ -518,40 +517,60 @@ where
     }
 }
 
-impl<'a, REG, const WI: u8, FI> FieldWriterSafe<'a, REG, WI, FI>
+impl<'a, REG, const WI: u8, FI> FieldWriter<'a, REG, WI, FI, Safe>
 where
     REG: Writable + RegisterSpec,
     FI: FieldSpec,
     REG::Ux: From<FI::Ux>,
 {
-    /// Field width
-    pub const WIDTH: u8 = WI;
-
-    /// Field width
-    #[inline(always)]
-    pub const fn width(&self) -> u8 {
-        WI
-    }
-
-    /// Field offset
-    #[inline(always)]
-    pub const fn offset(&self) -> u8 {
-        self.o
-    }
-
     /// Writes raw bits to the field
     #[inline(always)]
-    pub fn bits(self, value: FI::Ux) -> &'a mut W<REG> {
+    pub fn set(self, value: FI::Ux) -> &'a mut W<REG> {
         self.w.bits &= !(REG::Ux::mask::<WI>() << self.o);
         self.w.bits |= (REG::Ux::from(value) & REG::Ux::mask::<WI>()) << self.o;
         self.w
     }
-    /// Writes `variant` to the field
-    #[inline(always)]
-    pub fn variant(self, variant: FI) -> &'a mut W<REG> {
-        self.bits(FI::Ux::from(variant))
+}
+
+
+macro_rules! impl_bits {
+    ($U:ty) => {
+        impl<'a, REG, const WI: u8, Safety> FieldWriter<'a, REG, WI, $U, Safety>
+        where
+            REG: Writable + RegisterSpec,
+        {
+            /// Writes raw bits to the field
+            ///
+            /// # Safety
+            ///
+            /// Passing incorrect value can cause undefined behaviour. See reference manual
+            #[inline(always)]
+            pub unsafe fn bits(self, value: $U) -> &'a mut W<REG> {
+                self.w.bits &= !(<$U>::mask::<WI>() << self.o);
+                self.w.bits |= (value & <$U>::mask::<WI>()) << self.o;
+                self.w
+            }
+        }
+        
+        impl<'a, REG, const WI: u8> FieldWriter<'a, REG, WI, $U, Safe>
+        where
+            REG: Writable + RegisterSpec,
+        {
+            /// Writes raw bits to the field
+            #[inline(always)]
+            pub fn set(self, value: $U) -> &'a mut W<REG> {
+                self.w.bits &= !(<$U>::mask::<WI>() << self.o);
+                self.w.bits |= (value & <$U>::mask::<WI>()) << self.o;
+                self.w
+            }
+        }
     }
 }
+
+impl_bits!(u8);
+impl_bits!(u16);
+impl_bits!(u32);
+impl_bits!(u64);
 
 macro_rules! bit_proxy {
     ($writer:ident, $mwv:ident) => {

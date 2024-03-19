@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Don't implement `FieldSpec` for `u8` (fix `variant` safety)
+- Make field writer `bits` always `unsafe` add `set` for safe writing
+
 ## [v0.32.0] - 2024-02-26
 
 - Bump MSRV to 1.74

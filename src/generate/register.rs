@@ -1235,19 +1235,14 @@ pub fn fields(
                             quote! { crate::#wproxy<'a, REG, #value_write_ty> }
                         }
                     } else {
-                        let wproxy = Ident::new(
-                            if unsafety {
-                                "FieldWriter"
-                            } else {
-                                "FieldWriterSafe"
-                            },
-                            span,
-                        );
+                        let wproxy = Ident::new("FieldWriter", span);
                         let width = &unsuffixed(width);
                         if value_write_ty == "u8" {
                             quote! { crate::#wproxy<'a, REG, #width> }
-                        } else {
+                        } else if unsafety {
                             quote! { crate::#wproxy<'a, REG, #width, #value_write_ty> }
+                        } else {
+                            quote! { crate::#wproxy<'a, REG, #width, #value_write_ty, crate::Safe> }
                         }
                     };
                     mod_items.extend(quote! {
@@ -1425,7 +1420,7 @@ impl Variant {
             span,
         );
         let sc = case.sanitize(&ev.name);
-        const INTERNALS: [&str; 4] = ["set_bit", "clear_bit", "bit", "bits"];
+        const INTERNALS: [&str; 6] = ["bit", "bits", "clear_bit", "set", "set_bit", "variant"];
         let sc = Ident::new(
             &(if INTERNALS.contains(&sc.as_ref()) {
                 sc + "_"
