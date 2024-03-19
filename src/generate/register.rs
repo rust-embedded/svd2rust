@@ -1223,7 +1223,7 @@ pub fn fields(
                                 OneToSet => "BitWriter1S",
                                 ZeroToClear => "BitWriter0C",
                                 OneToClear => "BitWriter1C",
-                                ZeroToSet => "BitWriter0C",
+                                ZeroToSet => "BitWriter0S",
                                 OneToToggle => "BitWriter1T",
                                 ZeroToToggle => "BitWriter0T",
                             },
