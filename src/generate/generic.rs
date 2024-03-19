@@ -267,10 +267,7 @@ pub mod raw {
         pub(super) _reg: marker::PhantomData<REG>,
     }
 
-    pub struct FieldReader<FI = u8>
-    where
-        FI: FieldSpec,
-    {
+    pub struct FieldReader<FI = u8> {
         pub(crate) bits: FI::Ux,
         _reg: marker::PhantomData<FI>,
     }
@@ -535,6 +532,26 @@ where
 
 macro_rules! impl_bits {
     ($U:ty) => {
+        impl raw::FieldReader<$U> {
+            /// Creates a new instance of the reader.
+            #[allow(unused)]
+            #[inline(always)]
+            pub(crate) const fn new(bits: $U) -> Self {
+                Self {
+                    bits,
+                    _reg: marker::PhantomData,
+                }
+            }
+        }
+
+        impl FieldReader<$U> {
+            /// Reads raw bits from field.
+            #[inline(always)]
+            pub const fn bits(&self) -> $U {
+                self.bits
+            }
+        }
+
         impl<'a, REG, const WI: u8, Safety> FieldWriter<'a, REG, WI, $U, Safety>
         where
             REG: Writable + RegisterSpec,
