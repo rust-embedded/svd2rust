@@ -56,6 +56,9 @@ pub trait FieldSpec: Sized {
     type Ux: Copy + PartialEq + From<Self>;
 }
 
+/// Marker for fields with fixed values
+pub trait IsEnum: FieldSpec {}
+
 /// Trait implemented by readable registers to enable the `read` method.
 ///
 /// Registers marked with `Writable` can be also be `modify`'ed.
@@ -474,16 +477,13 @@ pub struct Safe;
 /// You should check that value is allowed to pass to register/field writer marked with this
 pub struct Unsafe;
 
-/// Write field Proxy with unsafe `bits`
-pub type FieldWriter<'a, REG, const WI: u8, FI = u8> = raw::FieldWriter<'a, REG, WI, FI, Unsafe>;
-/// Write field Proxy with safe `bits`
-pub type FieldWriterSafe<'a, REG, const WI: u8, FI = u8> = raw::FieldWriter<'a, REG, WI, FI, Safe>;
+/// Write field Proxy
+pub type FieldWriter<'a, REG, const WI: u8, FI = u8, Safety = Unsafe> = raw::FieldWriter<'a, REG, WI, FI, Safety>;
 
-impl<'a, REG, const WI: u8, FI> FieldWriter<'a, REG, WI, FI>
+impl<'a, REG, const WI: u8, FI, Safety> FieldWriter<'a, REG, WI, FI, Safety>
 where
     REG: Writable + RegisterSpec,
     FI: FieldSpec,
-    REG::Ux: From<FI::Ux>,
 {
     /// Field width
     pub const WIDTH: u8 = WI;
@@ -499,7 +499,14 @@ where
     pub const fn offset(&self) -> u8 {
         self.o
     }
+}
 
+impl<'a, REG, const WI: u8, FI, Safety> FieldWriter<'a, REG, WI, FI, Safety>
+where
+    REG: Writable + RegisterSpec,
+    FI: FieldSpec,
+    REG::Ux: From<FI::Ux>,
+{
     /// Writes raw bits to the field
     ///
     /// # Safety
@@ -511,45 +518,31 @@ where
         self.w.bits |= (REG::Ux::from(value) & REG::Ux::mask::<WI>()) << self.o;
         self.w
     }
-    /// Writes `variant` to the field
-    #[inline(always)]
-    pub fn variant(self, variant: FI) -> &'a mut W<REG> {
-        unsafe { self.bits(FI::Ux::from(variant)) }
-    }
 }
 
-impl<'a, REG, const WI: u8, FI> FieldWriterSafe<'a, REG, WI, FI>
+impl<'a, REG, const WI: u8, FI> FieldWriter<'a, REG, WI, FI, Safe>
 where
     REG: Writable + RegisterSpec,
     FI: FieldSpec,
     REG::Ux: From<FI::Ux>,
 {
-    /// Field width
-    pub const WIDTH: u8 = WI;
-
-    /// Field width
-    #[inline(always)]
-    pub const fn width(&self) -> u8 {
-        WI
-    }
-
-    /// Field offset
-    #[inline(always)]
-    pub const fn offset(&self) -> u8 {
-        self.o
-    }
-
     /// Writes raw bits to the field
     #[inline(always)]
-    pub fn bits(self, value: FI::Ux) -> &'a mut W<REG> {
-        self.w.bits &= !(REG::Ux::mask::<WI>() << self.o);
-        self.w.bits |= (REG::Ux::from(value) & REG::Ux::mask::<WI>()) << self.o;
-        self.w
+    pub fn set(self, value: FI::Ux) -> &'a mut W<REG> {
+        unsafe { self.bits(value) }
     }
+}
+
+impl<'a, REG, const WI: u8, FI, Safety> FieldWriter<'a, REG, WI, FI, Safety>
+where
+    REG: Writable + RegisterSpec,
+    FI: IsEnum,
+    REG::Ux: From<FI::Ux>,
+{
     /// Writes `variant` to the field
     #[inline(always)]
     pub fn variant(self, variant: FI) -> &'a mut W<REG> {
-        self.bits(FI::Ux::from(variant))
+        unsafe { self.bits(FI::Ux::from(variant)) }
     }
 }
 

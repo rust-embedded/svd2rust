@@ -1235,19 +1235,16 @@ pub fn fields(
                             quote! { crate::#wproxy<'a, REG, #value_write_ty> }
                         }
                     } else {
-                        let wproxy = Ident::new(
-                            if unsafety {
-                                "FieldWriter"
-                            } else {
-                                "FieldWriterSafe"
-                            },
-                            span,
-                        );
+                        let wproxy = Ident::new("FieldWriter", span);
                         let width = &unsuffixed(width);
-                        if value_write_ty == "u8" {
+                        if value_write_ty == "u8" && unsafety {
                             quote! { crate::#wproxy<'a, REG, #width> }
-                        } else {
+                        } else if unsafety {
                             quote! { crate::#wproxy<'a, REG, #width, #value_write_ty> }
+                        } else {
+                            let safe_ty =
+                                Ident::new(if unsafety { "Unsafe" } else { "Safe" }, span);
+                            quote! { crate::#wproxy<'a, REG, #width, #value_write_ty, crate::#safe_ty> }
                         }
                     };
                     mod_items.extend(quote! {
@@ -1425,7 +1422,7 @@ impl Variant {
             span,
         );
         let sc = case.sanitize(&ev.name);
-        const INTERNALS: [&str; 4] = ["set_bit", "clear_bit", "bit", "bits"];
+        const INTERNALS: [&str; 6] = ["bit", "bits", "clear_bit", "set", "set_bit", "variant"];
         let sc = Ident::new(
             &(if INTERNALS.contains(&sc.as_ref()) {
                 sc + "_"
@@ -1552,6 +1549,7 @@ fn add_from_variants<'a>(
             impl crate::FieldSpec for #pc {
                 type Ux = #fty;
             }
+            impl crate::IsEnum for #pc {}
         });
     }
 }
