@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Add `WriteEnum` constraint for `FieldWriter`s (fix `variant` safety)
+- Add `IsEnum` constraint for `FieldWriter`s (fix `variant` safety)
 - Make field writer `bits` always `unsafe` add `set` for safe writing
 - Fix bit writer type for `ModifiedWriteValues::ZeroToSet`
 

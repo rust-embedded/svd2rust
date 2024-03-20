@@ -393,7 +393,7 @@ pub fn render_register_mod(
         // * there is a single field that covers the entire register
         // * that field can represent all values
         // * the write constraints of the register allow full range of values
-        let can_write_safe = !unsafety(
+        let safe_ty = if let Safety::Safe = Safety::get(
             register
                 .fields
                 .as_ref()
@@ -401,9 +401,14 @@ pub fn render_register_mod(
                 .and_then(|field| field.write_constraint)
                 .as_ref(),
             rsize,
-        ) || !unsafety(register.write_constraint.as_ref(), rsize);
-        let safe_ty = if can_write_safe { "Safe" } else { "Unsafe" };
-        let safe_ty = Ident::new(safe_ty, span);
+        ) {
+            Safety::Safe
+        } else if let Safety::Safe = Safety::get(register.write_constraint.as_ref(), rsize) {
+            Safety::Safe
+        } else {
+            Safety::Unsafe
+        };
+        let safe_ty = safe_ty.ident(span);
 
         let doc = format!("`write(|w| ..)` method takes [`{mod_ty}::W`](W) writer structure",);
 
@@ -1097,7 +1102,7 @@ pub fn fields(
         // the read value, or else we reuse read value.
         if can_write {
             let mut proxy_items = TokenStream::new();
-            let mut unsafety = unsafety(f.write_constraint.as_ref(), width);
+            let mut safety = Safety::get(f.write_constraint.as_ref(), width);
 
             // if we writes to enumeratedValues, generate its structure if it differs from read structure.
             let value_write_ty = if let Some(ev) = rwenum.write_enum() {
@@ -1136,12 +1141,12 @@ pub fn fields(
                         if variants.len() == 1 << width {
                         } else if let Some(def) = def.take() {
                             variants.push(def);
-                            unsafety = false;
+                            safety = Safety::Safe;
                         }
 
                         // if the write structure is finite, it can be safely written.
                         if variants.len() == 1 << width {
-                            unsafety = false;
+                            safety = Safety::Safe;
                         }
 
                         // generate write value structure and From conversation if we can't reuse read value structure.
@@ -1237,13 +1242,12 @@ pub fn fields(
                     } else {
                         let wproxy = Ident::new("FieldWriter", span);
                         let width = &unsuffixed(width);
-                        if value_write_ty == "u8" && unsafety {
+                        if value_write_ty == "u8" && safety != Safety::Safe {
                             quote! { crate::#wproxy<'a, REG, #width> }
-                        } else if unsafety {
+                        } else if safety != Safety::Safe {
                             quote! { crate::#wproxy<'a, REG, #width, #value_write_ty> }
                         } else {
-                            let safe_ty =
-                                Ident::new(if unsafety { "Unsafe" } else { "Safe" }, span);
+                            let safe_ty = safety.ident(span);
                             quote! { crate::#wproxy<'a, REG, #width, #value_write_ty, crate::#safe_ty> }
                         }
                     };
@@ -1367,22 +1371,40 @@ pub fn fields(
     ))
 }
 
-fn unsafety(write_constraint: Option<&WriteConstraint>, width: u32) -> bool {
-    match &write_constraint {
-        Some(&WriteConstraint::Range(range))
-            if range.min == 0 && range.max == u64::MAX >> (64 - width) =>
-        {
-            // the SVD has acknowledged that it's safe to write
-            // any value that can fit in the field
-            false
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Safety {
+    Unsafe,
+    Safe,
+}
+
+impl Safety {
+    fn get(write_constraint: Option<&WriteConstraint>, width: u32) -> Self {
+        match &write_constraint {
+            Some(&WriteConstraint::Range(range))
+                if range.min == 0 && range.max == u64::MAX >> (64 - width) =>
+            {
+                // the SVD has acknowledged that it's safe to write
+                // any value that can fit in the field
+                Self::Safe
+            }
+            None if width == 1 => {
+                // the field is one bit wide, so we assume it's legal to write
+                // either value into it or it wouldn't exist; despite that
+                // if a writeConstraint exists then respect it
+                Self::Safe
+            }
+            _ => Self::Unsafe,
         }
-        None if width == 1 => {
-            // the field is one bit wide, so we assume it's legal to write
-            // either value into it or it wouldn't exist; despite that
-            // if a writeConstraint exists then respect it
-            false
-        }
-        _ => true,
+    }
+    fn ident(&self, span: Span) -> Ident {
+        Ident::new(
+            if let Self::Safe = self {
+                "Safe"
+            } else {
+                "Unsafe"
+            },
+            span,
+        )
     }
 }
 
