@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - Fix bit writer type for `ModifiedWriteValues::ZeroToSet`
+- Add `write_sequence`
 
 ## [v0.32.0] - 2024-02-26
 

@@ -181,6 +181,33 @@ impl<REG: Resettable + Writable> Reg<REG> {
             .bits,
         );
     }
+
+    /// Writes bits to a `Writable` register several times changing value on each step.
+    ///
+    /// For example sequence of 2 writes:
+    /// ```ignore
+    /// periph.reg.write([
+    ///     |w| w.field1().bits(newfield1bits).field2().set_bit(),
+    ///     |w| w.field3().variant(VARIANT)
+    /// ]);
+    /// Second write reuse all field values from first write.
+    /// ```
+    #[inline(always)]
+    pub fn write_sequence<F, const N: usize>(&self, seq: [F; N])
+    where
+        F: FnOnce(&mut W<REG>) -> &mut W<REG>,
+    {
+        let mut bits = REG::RESET_VALUE & !REG::ONE_TO_MODIFY_FIELDS_BITMAP
+            | REG::ZERO_TO_MODIFY_FIELDS_BITMAP;
+        for f in seq.into_iter() {
+            bits = f(&mut W {
+                bits,
+                _reg: marker::PhantomData,
+            })
+            .bits;
+            self.register.set(bits);
+        }
+    }
 }
 
 impl<REG: Writable> Reg<REG> {
