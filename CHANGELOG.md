@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.33.0] - 2024-03-26
+
 - Add `IsEnum` constraint for `FieldWriter`s (fix `variant` safety)
-- Make field writer `bits` always `unsafe` add `set` for safe writing
+- Make field writer `bits` always `unsafe`, add `set` for safe writing
 - Fix bit writer type for `ModifiedWriteValues::ZeroToSet`
 
 ## [v0.32.0] - 2024-02-26
@@ -877,7 +879,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.32.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.33.0...HEAD
+[v0.33.0]: https://github.com/rust-embedded/svd2rust/compare/v0.32.0...v0.33.0
 [v0.32.0]: https://github.com/rust-embedded/svd2rust/compare/v0.31.5...v0.32.0
 [v0.31.5]: https://github.com/rust-embedded/svd2rust/compare/v0.31.4...v0.31.5
 [v0.31.4]: https://github.com/rust-embedded/svd2rust/compare/v0.31.3...v0.31.4
