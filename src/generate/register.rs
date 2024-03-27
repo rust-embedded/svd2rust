@@ -1,6 +1,7 @@
 use crate::svd::{
     self, Access, BitRange, DimElement, EnumeratedValue, EnumeratedValues, Field, MaybeArray,
     ModifiedWriteValues, ReadAction, Register, RegisterProperties, Usage, WriteConstraint,
+    WriteConstraintRange,
 };
 use core::u64;
 use log::warn;
@@ -1138,14 +1139,11 @@ pub fn fields(
                                     .map(|v| Variant::from_value(v, def, config))
                             })
                             .transpose()?;
-                        if variants.len() == 1 << width {
-                        } else if let Some(def) = def.take() {
-                            variants.push(def);
-                            safety = Safety::Safe;
-                        }
-
                         // if the write structure is finite, it can be safely written.
                         if variants.len() == 1 << width {
+                            safety = Safety::Safe;
+                        } else if let Some(def) = def.take() {
+                            variants.push(def);
                             safety = Safety::Safe;
                         }
 
@@ -1205,6 +1203,27 @@ pub fn fields(
                 derives.insert(value_write_ty.clone());
                 value_write_ty
             } else {
+                if width != 1 {
+                    if let Safety::Range(range) = safety {
+                        let min = unsuffixed(range.min);
+                        let max = unsuffixed(range.max);
+                        let check = if range.min == 0 {
+                            quote!(assert!(value <= #max);)
+                        } else if range.max == u64::MAX >> (64 - width) {
+                            quote!(assert!(value >= #min);)
+                        } else {
+                            quote!(assert!(value >= #min && value <= #max);)
+                        };
+                        proxy_items.extend(quote! {
+                            /// Writes raw bits to the field, panics if value is not allowed
+                            #inline
+                            pub fn set(self, value: #fty) -> &'a mut crate::W<REG> {
+                                #check
+                                unsafe { self.bits(value) }
+                            }
+                        });
+                    }
+                }
                 // raw_field_value_write_ty
                 fty.clone()
             };
@@ -1371,9 +1390,10 @@ pub fn fields(
     ))
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Safety {
     Unsafe,
+    Range(WriteConstraintRange),
     Safe,
 }
 
@@ -1387,6 +1407,7 @@ impl Safety {
                 // any value that can fit in the field
                 Self::Safe
             }
+            Some(&WriteConstraint::Range(range)) => Self::Range(range),
             None if width == 1 => {
                 // the field is one bit wide, so we assume it's legal to write
                 // either value into it or it wouldn't exist; despite that
