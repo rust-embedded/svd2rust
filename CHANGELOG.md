@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add checked `set` for not full safe fields
+
 ## [v0.33.0] - 2024-03-26
 
 - Add `IsEnum` constraint for `FieldWriter`s (fix `variant` safety)
