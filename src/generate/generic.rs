@@ -476,6 +476,12 @@ impl<FI> BitReader<FI> {
 pub struct Safe;
 /// You should check that value is allowed to pass to register/field writer marked with this
 pub struct Unsafe;
+/// Marker for field writers are safe to write in specified inclusive range
+pub struct Range<const MIN: u64, const MAX: u64>;
+/// Marker for field writers are safe to write in specified inclusive range
+pub struct RangeFrom<const MIN: u64>;
+/// Marker for field writers are safe to write in specified inclusive range
+pub struct RangeTo<const MAX: u64>;
 
 /// Write field Proxy
 pub type FieldWriter<'a, REG, const WI: u8, FI = u8, Safety = Unsafe> = raw::FieldWriter<'a, REG, WI, FI, Safety>;
@@ -529,6 +535,60 @@ where
     /// Writes raw bits to the field
     #[inline(always)]
     pub fn set(self, value: FI::Ux) -> &'a mut W<REG> {
+        unsafe { self.bits(value) }
+    }
+}
+
+impl<'a, REG, const WI: u8, FI, const MIN: u64, const MAX: u64> FieldWriter<'a, REG, WI, FI, Range<MIN, MAX>>
+where
+    REG: Writable + RegisterSpec,
+    FI: FieldSpec,
+    REG::Ux: From<FI::Ux>,
+    u64: From<FI::Ux>,
+{
+    /// Writes raw bits to the field
+    #[inline(always)]
+    pub fn set(self, value: FI::Ux) -> &'a mut W<REG> {
+        {
+            let value = u64::from(value);
+            assert!(value >= MIN && value <= MAX);
+        }
+        unsafe { self.bits(value) }
+    }
+}
+
+impl<'a, REG, const WI: u8, FI, const MIN: u64> FieldWriter<'a, REG, WI, FI, RangeFrom<MIN>>
+where
+    REG: Writable + RegisterSpec,
+    FI: FieldSpec,
+    REG::Ux: From<FI::Ux>,
+    u64: From<FI::Ux>,
+{
+    /// Writes raw bits to the field
+    #[inline(always)]
+    pub fn set(self, value: FI::Ux) -> &'a mut W<REG> {
+        {
+            let value = u64::from(value);
+            assert!(value >= MIN);
+        }
+        unsafe { self.bits(value) }
+    }
+}
+
+impl<'a, REG, const WI: u8, FI, const MAX: u64> FieldWriter<'a, REG, WI, FI, RangeTo<MAX>>
+where
+    REG: Writable + RegisterSpec,
+    FI: FieldSpec,
+    REG::Ux: From<FI::Ux>,
+    u64: From<FI::Ux>,
+{
+    /// Writes raw bits to the field
+    #[inline(always)]
+    pub fn set(self, value: FI::Ux) -> &'a mut W<REG> {
+        {
+            let value = u64::from(value);
+            assert!(value <= MAX);
+        }
         unsafe { self.bits(value) }
     }
 }

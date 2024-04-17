@@ -1,6 +1,7 @@
 use crate::svd::{
     self, Access, BitRange, DimElement, EnumeratedValue, EnumeratedValues, Field, MaybeArray,
     ModifiedWriteValues, ReadAction, Register, RegisterProperties, Usage, WriteConstraint,
+    WriteConstraintRange,
 };
 use core::u64;
 use log::warn;
@@ -408,7 +409,7 @@ pub fn render_register_mod(
         } else {
             Safety::Unsafe
         };
-        let safe_ty = safe_ty.ident(span);
+        let safe_ty = safe_ty.ident(rsize);
 
         let doc = format!("`write(|w| ..)` method takes [`{mod_ty}::W`](W) writer structure",);
 
@@ -1138,14 +1139,11 @@ pub fn fields(
                                     .map(|v| Variant::from_value(v, def, config))
                             })
                             .transpose()?;
-                        if variants.len() == 1 << width {
-                        } else if let Some(def) = def.take() {
-                            variants.push(def);
-                            safety = Safety::Safe;
-                        }
-
                         // if the write structure is finite, it can be safely written.
                         if variants.len() == 1 << width {
+                            safety = Safety::Safe;
+                        } else if let Some(def) = def.take() {
+                            variants.push(def);
                             safety = Safety::Safe;
                         }
 
@@ -1241,14 +1239,14 @@ pub fn fields(
                         }
                     } else {
                         let wproxy = Ident::new("FieldWriter", span);
-                        let width = &unsuffixed(width);
+                        let uwidth = &unsuffixed(width);
                         if value_write_ty == "u8" && safety != Safety::Safe {
-                            quote! { crate::#wproxy<'a, REG, #width> }
+                            quote! { crate::#wproxy<'a, REG, #uwidth> }
                         } else if safety != Safety::Safe {
-                            quote! { crate::#wproxy<'a, REG, #width, #value_write_ty> }
+                            quote! { crate::#wproxy<'a, REG, #uwidth, #value_write_ty> }
                         } else {
-                            let safe_ty = safety.ident(span);
-                            quote! { crate::#wproxy<'a, REG, #width, #value_write_ty, crate::#safe_ty> }
+                            let safe_ty = safety.ident(width);
+                            quote! { crate::#wproxy<'a, REG, #uwidth, #value_write_ty, crate::#safe_ty> }
                         }
                     };
                     mod_items.extend(quote! {
@@ -1371,9 +1369,10 @@ pub fn fields(
     ))
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Safety {
     Unsafe,
+    Range(WriteConstraintRange),
     Safe,
 }
 
@@ -1393,18 +1392,26 @@ impl Safety {
                 // if a writeConstraint exists then respect it
                 Self::Safe
             }
+            Some(&WriteConstraint::Range(range)) => Self::Range(range),
             _ => Self::Unsafe,
         }
     }
-    fn ident(&self, span: Span) -> Ident {
-        Ident::new(
-            if let Self::Safe = self {
-                "Safe"
-            } else {
-                "Unsafe"
-            },
-            span,
-        )
+    fn ident(&self, width: u32) -> TokenStream {
+        match self {
+            Self::Safe => quote!(Safe),
+            Self::Unsafe => quote!(Unsafe),
+            Self::Range(range) => {
+                let min = unsuffixed(range.min);
+                let max = unsuffixed(range.max);
+                if range.min == 0 {
+                    quote!(RangeTo<#max>)
+                } else if range.max == u64::MAX >> (64 - width) {
+                    quote!(RangeFrom<#min>)
+                } else {
+                    quote!(Range<#min, #max>)
+                }
+            }
+        }
     }
 }
 
