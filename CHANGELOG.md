@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Remove unneeded `format_args` in register `Debug` impl
+
 ## [v0.33.1] - 2024-04-20
 
 - Add checked `set` for not full safe fields

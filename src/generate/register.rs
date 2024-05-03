@@ -476,7 +476,7 @@ fn render_register_mod_debug(
                         let f_name_n = field_accessor(&f.name.expand_dim(&suffix), config, span);
                         let f_name_n_s = format!("{f_name_n}");
                         r_debug_impl.extend(quote! {
-                            .field(#f_name_n_s, &format_args!("{}", self.#f_name_n().#bit_or_bits()))
+                            .field(#f_name_n_s, &self.#f_name_n().#bit_or_bits())
                         });
                     }
                 } else {
@@ -484,7 +484,7 @@ fn render_register_mod_debug(
                     let f_name = field_accessor(&f_name, config, span);
                     let f_name_s = format!("{f_name}");
                     r_debug_impl.extend(quote! {
-                        .field(#f_name_s, &format_args!("{}", self.#f_name().#bit_or_bits()))
+                        .field(#f_name_s, &self.#f_name().#bit_or_bits())
                     });
                 }
             }
