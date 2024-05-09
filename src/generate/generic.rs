@@ -1,9 +1,11 @@
 use core::marker;
+use num_traits::{ConstOne, ConstZero};
 
 /// Raw register type (`u8`, `u16`, `u32`, ...)
 pub trait RawReg:
     Copy
-    + Default
+    + ConstOne
+    + ConstZero
     + From<bool>
     + core::ops::BitOr<Output = Self>
     + core::ops::BitAnd<Output = Self>
@@ -14,8 +16,6 @@ pub trait RawReg:
 {
     /// Mask for bits of width `WI`
     fn mask<const WI: u8>() -> Self;
-    /// Mask for bits of width 1
-    fn one() -> Self;
 }
 
 macro_rules! raw_reg {
@@ -24,10 +24,6 @@ macro_rules! raw_reg {
             #[inline(always)]
             fn mask<const WI: u8>() -> Self {
                 $mask::<WI>()
-            }
-            #[inline(always)]
-            fn one() -> Self {
-                1
             }
         }
         const fn $mask<const WI: u8>() -> $U {
@@ -74,10 +70,10 @@ pub trait Writable: RegisterSpec {
     type Safety;
 
     /// Specifies the register bits that are not changed if you pass `1` and are changed if you pass `0`
-    const ZERO_TO_MODIFY_FIELDS_BITMAP: Self::Ux;
+    const ZERO_TO_MODIFY_FIELDS_BITMAP: Self::Ux = Self::Ux::ZERO;
 
     /// Specifies the register bits that are not changed if you pass `0` and are changed if you pass `1`
-    const ONE_TO_MODIFY_FIELDS_BITMAP: Self::Ux;
+    const ONE_TO_MODIFY_FIELDS_BITMAP: Self::Ux = Self::Ux::ZERO;
 }
 
 /// Reset value of the register.
@@ -86,7 +82,7 @@ pub trait Writable: RegisterSpec {
 /// register by using the `reset` method.
 pub trait Resettable: RegisterSpec {
     /// Reset value of the register.
-    const RESET_VALUE: Self::Ux;
+    const RESET_VALUE: Self::Ux = Self::Ux::ZERO;
 
     /// Reset value of the register.
     #[inline(always)]
@@ -247,7 +243,10 @@ impl<REG: Writable> W<REG> {
         self
     }
 }
-impl<REG> W<REG> where REG: Writable<Safety = Safe> {
+impl<REG> W<REG>
+where
+    REG: Writable<Safety = Safe>,
+{
     /// Writes raw bits to the register.
     #[inline(always)]
     pub fn set(&mut self, bits: REG::Ux) -> &mut Self {
@@ -335,7 +334,8 @@ pub struct RangeFrom<const MIN: u64>;
 pub struct RangeTo<const MAX: u64>;
 
 /// Write field Proxy
-pub type FieldWriter<'a, REG, const WI: u8, FI = u8, Safety = Unsafe> = raw::FieldWriter<'a, REG, WI, FI, Safety>;
+pub type FieldWriter<'a, REG, const WI: u8, FI = u8, Safety = Unsafe> =
+    raw::FieldWriter<'a, REG, WI, FI, Safety>;
 
 impl<'a, REG, const WI: u8, FI, Safety> FieldWriter<'a, REG, WI, FI, Safety>
 where
@@ -390,7 +390,8 @@ where
     }
 }
 
-impl<'a, REG, const WI: u8, FI, const MIN: u64, const MAX: u64> FieldWriter<'a, REG, WI, FI, Range<MIN, MAX>>
+impl<'a, REG, const WI: u8, FI, const MIN: u64, const MAX: u64>
+    FieldWriter<'a, REG, WI, FI, Range<MIN, MAX>>
 where
     REG: Writable + RegisterSpec,
     FI: FieldSpec,
@@ -478,7 +479,7 @@ macro_rules! bit_proxy {
             pub const fn width(&self) -> u8 {
                 Self::WIDTH
             }
-        
+
             /// Field offset
             #[inline(always)]
             pub const fn offset(&self) -> u8 {
@@ -488,8 +489,8 @@ macro_rules! bit_proxy {
             /// Writes bit to the field
             #[inline(always)]
             pub fn bit(self, value: bool) -> &'a mut W<REG> {
-                self.w.bits &= !(REG::Ux::one() << self.o);
-                self.w.bits |= (REG::Ux::from(value) & REG::Ux::one()) << self.o;
+                self.w.bits &= !(REG::Ux::ONE << self.o);
+                self.w.bits |= (REG::Ux::from(value) & REG::Ux::ONE) << self.o;
                 self.w
             }
             /// Writes `variant` to the field
@@ -517,13 +518,13 @@ where
     /// Sets the field bit
     #[inline(always)]
     pub fn set_bit(self) -> &'a mut W<REG> {
-        self.w.bits |= REG::Ux::one() << self.o;
+        self.w.bits |= REG::Ux::ONE << self.o;
         self.w
     }
     /// Clears the field bit
     #[inline(always)]
     pub fn clear_bit(self) -> &'a mut W<REG> {
-        self.w.bits &= !(REG::Ux::one() << self.o);
+        self.w.bits &= !(REG::Ux::ONE << self.o);
         self.w
     }
 }
@@ -536,7 +537,7 @@ where
     /// Sets the field bit
     #[inline(always)]
     pub fn set_bit(self) -> &'a mut W<REG> {
-        self.w.bits |= REG::Ux::one() << self.o;
+        self.w.bits |= REG::Ux::ONE << self.o;
         self.w
     }
 }
@@ -549,7 +550,7 @@ where
     /// Clears the field bit
     #[inline(always)]
     pub fn clear_bit(self) -> &'a mut W<REG> {
-        self.w.bits &= !(REG::Ux::one() << self.o);
+        self.w.bits &= !(REG::Ux::ONE << self.o);
         self.w
     }
 }
@@ -562,7 +563,7 @@ where
     ///Clears the field bit by passing one
     #[inline(always)]
     pub fn clear_bit_by_one(self) -> &'a mut W<REG> {
-        self.w.bits |= REG::Ux::one() << self.o;
+        self.w.bits |= REG::Ux::ONE << self.o;
         self.w
     }
 }
@@ -575,7 +576,7 @@ where
     ///Sets the field bit by passing zero
     #[inline(always)]
     pub fn set_bit_by_zero(self) -> &'a mut W<REG> {
-        self.w.bits &= !(REG::Ux::one() << self.o);
+        self.w.bits &= !(REG::Ux::ONE << self.o);
         self.w
     }
 }
@@ -588,7 +589,7 @@ where
     ///Toggle the field bit by passing one
     #[inline(always)]
     pub fn toggle_bit(self) -> &'a mut W<REG> {
-        self.w.bits |= REG::Ux::one() << self.o;
+        self.w.bits |= REG::Ux::ONE << self.o;
         self.w
     }
 }
@@ -601,7 +602,7 @@ where
     ///Toggle the field bit by passing zero
     #[inline(always)]
     pub fn toggle_bit(self) -> &'a mut W<REG> {
-        self.w.bits &= !(REG::Ux::one() << self.o);
+        self.w.bits &= !(REG::Ux::ONE << self.o);
         self.w
     }
 }

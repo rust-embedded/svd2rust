@@ -39,7 +39,7 @@ mod atomic {
 
     impl<REG: Readable + Writable> Reg<REG>
     where
-        REG::Ux: AtomicOperations
+        REG::Ux: AtomicOperations,
     {
         /// Set high every bit in the register that was set in the write proxy. Leave other bits
         /// untouched. The write is done in a single atomic instruction.
@@ -53,7 +53,7 @@ mod atomic {
             F: FnOnce(&mut W<REG>) -> &mut W<REG>,
         {
             let bits = f(&mut W {
-                bits: Default::default(),
+                bits: REG::Ux::ZERO,
                 _reg: marker::PhantomData,
             })
             .bits;
@@ -72,7 +72,7 @@ mod atomic {
             F: FnOnce(&mut W<REG>) -> &mut W<REG>,
         {
             let bits = f(&mut W {
-                bits: !REG::Ux::default(),
+                bits: !REG::Ux::ZERO,
                 _reg: marker::PhantomData,
             })
             .bits;
@@ -91,7 +91,7 @@ mod atomic {
             F: FnOnce(&mut W<REG>) -> &mut W<REG>,
         {
             let bits = f(&mut W {
-                bits: Default::default(),
+                bits: REG::Ux::ZERO,
                 _reg: marker::PhantomData,
             })
             .bits;

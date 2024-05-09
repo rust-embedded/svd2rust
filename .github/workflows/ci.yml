@@ -1,6 +1,6 @@
 on:
   push:
-    branches: master
+    branches: [master]
   pull_request:
   merge_group:
 
@@ -83,7 +83,11 @@ jobs:
           - { rust: stable, vendor: Spansion, options: "--atomics" }
           - { rust: stable, vendor: STMicro, options: "" }
           - { rust: stable, vendor: STMicro, options: "--atomics" }
-          - { rust: stable, vendor: STM32-patched, options: "--strict -f enum_value::p: --max-cluster-size --atomics --atomics-feature atomics --impl-debug --impl-defmt defmt" }
+          - {
+              rust: stable,
+              vendor: STM32-patched,
+              options: "--strict -f enum_value::p: --max-cluster-size --atomics --atomics-feature atomics --impl-debug --impl-defmt defmt",
+            }
           - { rust: stable, vendor: Toshiba, options: all }
           - { rust: stable, vendor: Toshiba, options: "" }
           # Test MSRV
@@ -92,8 +96,16 @@ jobs:
           - { rust: nightly, vendor: MSP430, options: "--atomics" }
           - { rust: nightly, vendor: MSP430, options: "" }
           # Workaround for _1token0
-          - { rust: nightly-2024-09-25, vendor: Espressif, options: "--atomics --ident-formats-theme legacy" }
-          - { rust: nightly-2024-09-25, vendor: Espressif, options: "--ident-format register:::Reg" }
+          - {
+              rust: nightly-2024-09-25,
+              vendor: Espressif,
+              options: "--atomics --ident-formats-theme legacy",
+            }
+          - {
+              rust: nightly-2024-09-25,
+              vendor: Espressif,
+              options: "--ident-format register:::Reg",
+            }
 
     steps:
       - uses: actions/checkout@v4
