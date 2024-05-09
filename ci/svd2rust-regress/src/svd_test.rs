@@ -11,7 +11,11 @@ use std::{
     path::Path,
 };
 
-const CRATES_ALL: &[&str] = &["critical-section = \"1.0\"", "vcell = \"0.1.2\""];
+const CRATES_ALL: &[&str] = &[
+    "critical-section = \"1.0\"",
+    "vcell = \"0.1.2\"",
+    "num-traits = { version = \"0.2.19\", default-features = false }",
+];
 const CRATES_MSP430: &[&str] = &["msp430 = \"0.4.0\"", "msp430-rt = \"0.4.0\""];
 const CRATES_ATOMICS: &[&str] =
     &["portable-atomic = { version = \"0.3.16\", default-features = false }"];
