@@ -13,6 +13,7 @@ use std::{
 
 const CRATES_ALL: &[&str] = &[
     "critical-section = {version = \"1.0\", optional = true}",
+    "num-traits = { version = \"0.2.19\", default-features = false }",
     "vcell = \"0.1.2\"",
 ];
 const CRATES_MSP430: &[&str] = &["msp430 = \"0.4.0\"", "msp430-rt = \"0.4.0\""];
