@@ -53,7 +53,7 @@ pub trait RegisterSpec {
 /// Raw field type
 pub trait FieldSpec: Sized {
     /// Raw field type (`u8`, `u16`, `u32`, ...).
-    type Ux: Copy + PartialEq + From<Self>;
+    type Ux: Copy + core::fmt::Debug + PartialEq + From<Self>;
 }
 
 /// Marker for fields with fixed values
@@ -433,6 +433,12 @@ impl<FI: FieldSpec> FieldReader<FI> {
     }
 }
 
+impl<FI: FieldSpec> core::fmt::Debug for FieldReader<FI> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(&self.bits, f)
+    }
+}
+
 impl<FI> PartialEq<FI> for FieldReader<FI>
 where
     FI: FieldSpec + Copy,
@@ -469,6 +475,12 @@ impl<FI> BitReader<FI> {
     #[inline(always)]
     pub const fn bit_is_set(&self) -> bool {
         self.bit()
+    }
+}
+
+impl<FI> core::fmt::Debug for BitReader<FI> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(&self.bits, f)
     }
 }
 
