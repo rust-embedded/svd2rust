@@ -331,12 +331,6 @@ pub fn render_register_mod(
                     write!(f, "{}", self.bits())
                 }
             }
-            #debug_feature
-            impl core::fmt::Debug for crate::generic::Reg<#regspec_ty> {
-                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                    core::fmt::Debug::fmt(&self.read(), f)
-                }
-            }
         });
     }
 
@@ -491,14 +485,6 @@ fn render_register_mod_debug(
                     .finish()
                 #close
             #close
-        });
-        r_debug_impl.extend(quote! {
-            #debug_feature
-            impl core::fmt::Debug for crate::generic::Reg<#regspec_ty> {
-                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                    core::fmt::Debug::fmt(&self.read(), f)
-                }
-            }
         });
     } else if !access.can_read() || register.read_action.is_some() {
         r_debug_impl.extend(quote! {

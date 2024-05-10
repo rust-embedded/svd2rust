@@ -258,6 +258,15 @@ impl<REG: Readable + Writable> Reg<REG> {
     }
 }
 
+impl<REG: Readable> core::fmt::Debug for crate::generic::Reg<REG>
+where
+    R<REG>: core::fmt::Debug
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(&self.read(), f)
+    }
+}
+
 #[doc(hidden)]
 pub mod raw {
     use super::{marker, BitM, FieldSpec, RegisterSpec, Unsafe, Writable};
