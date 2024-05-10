@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Yet more clean field & register `Debug`
+
 ## [v0.33.2] - 2024-05-07
 
 - Remove unneeded `format_args` in register `Debug` impl

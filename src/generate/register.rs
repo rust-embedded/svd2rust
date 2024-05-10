@@ -331,12 +331,6 @@ pub fn render_register_mod(
                     write!(f, "{}", self.bits())
                 }
             }
-            #debug_feature
-            impl core::fmt::Debug for crate::generic::Reg<#regspec_ty> {
-                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                    core::fmt::Debug::fmt(&self.read(), f)
-                }
-            }
         });
     }
 
@@ -467,8 +461,6 @@ fn render_register_mod_debug(
                 Some(a) => a,
                 None => access,
             };
-            let bit_or_bits = if f.bit_width() > 1 { "bits" } else { "bit" };
-            let bit_or_bits = syn::Ident::new(bit_or_bits, span);
             log::debug!("register={} field={}", name, f.name);
             if field_access.can_read() && f.read_action.is_none() {
                 if let Field::Array(_, de) = &f {
@@ -476,7 +468,7 @@ fn render_register_mod_debug(
                         let f_name_n = field_accessor(&f.name.expand_dim(&suffix), config, span);
                         let f_name_n_s = format!("{f_name_n}");
                         r_debug_impl.extend(quote! {
-                            .field(#f_name_n_s, &self.#f_name_n().#bit_or_bits())
+                            .field(#f_name_n_s, &self.#f_name_n())
                         });
                     }
                 } else {
@@ -484,7 +476,7 @@ fn render_register_mod_debug(
                     let f_name = field_accessor(&f_name, config, span);
                     let f_name_s = format!("{f_name}");
                     r_debug_impl.extend(quote! {
-                        .field(#f_name_s, &self.#f_name().#bit_or_bits())
+                        .field(#f_name_s, &self.#f_name())
                     });
                 }
             }
@@ -493,14 +485,6 @@ fn render_register_mod_debug(
                     .finish()
                 #close
             #close
-        });
-        r_debug_impl.extend(quote! {
-            #debug_feature
-            impl core::fmt::Debug for crate::generic::Reg<#regspec_ty> {
-                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                    core::fmt::Debug::fmt(&self.read(), f)
-                }
-            }
         });
     } else if !access.can_read() || register.read_action.is_some() {
         r_debug_impl.extend(quote! {
