@@ -32,6 +32,13 @@ impl Accessor {
             .into(),
         }
     }
+    pub fn raw_if(self, flag: bool) -> Self {
+        if flag {
+            self.raw()
+        } else {
+            self
+        }
+    }
 }
 
 impl ToTokens for Accessor {
