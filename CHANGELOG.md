@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.33.3] - 2024-05-10
+
 - Yet more clean field & register `Debug`
 
 ## [v0.33.2] - 2024-05-07
@@ -889,7 +891,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.33.2...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.33.3...HEAD
+[v0.33.3]: https://github.com/rust-embedded/svd2rust/compare/v0.33.2...v0.33.3
 [v0.33.2]: https://github.com/rust-embedded/svd2rust/compare/v0.33.1...v0.33.2
 [v0.33.1]: https://github.com/rust-embedded/svd2rust/compare/v0.33.0...v0.33.1
 [v0.33.0]: https://github.com/rust-embedded/svd2rust/compare/v0.32.0...v0.33.0
