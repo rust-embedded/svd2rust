@@ -36,6 +36,7 @@ pub struct Config {
     pub field_names_for_enums: bool,
     pub base_address_shift: u64,
     pub raw_access: bool,
+    pub raw_read_write: bool,
 }
 
 #[allow(clippy::upper_case_acronyms)]
