@@ -1009,7 +1009,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 ty,
                 offset: unsuffixed(info.address_offset),
             })
-            .raw_if(false);
+            .raw_if(config.raw_access);
             cluster_expanded.push(RegisterBlockField {
                 syn_field,
                 offset: info.address_offset,
@@ -1070,7 +1070,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         dim: unsuffixed(array_info.dim),
                         increment: unsuffixed(array_info.dim_increment),
                     })
-                    .raw_if(!array_convertible),
+                    .raw_if(config.raw_access || !array_convertible),
                 );
                 if !sequential_indexes_from0 || !ends_with_index {
                     for (i, ci) in svd::cluster::expand(info, array_info).enumerate() {
@@ -1125,7 +1125,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         ty: ty.clone(),
                         offset: unsuffixed(info.address_offset),
                     })
-                    .raw_if(false);
+                    .raw_if(config.raw_access);
                     cluster_expanded.push(RegisterBlockField {
                         syn_field,
                         offset: ci.address_offset,
@@ -1177,7 +1177,7 @@ fn expand_register(
                 ty,
                 offset: unsuffixed(info.address_offset),
             })
-            .raw_if(false);
+            .raw_if(config.raw_access);
             register_expanded.push(RegisterBlockField {
                 syn_field,
                 offset: info.address_offset,
@@ -1253,7 +1253,7 @@ fn expand_register(
                         dim: unsuffixed(array_info.dim),
                         increment: unsuffixed(array_info.dim_increment),
                     })
-                    .raw_if(!array_convertible),
+                    .raw_if(config.raw_access || !array_convertible),
                 );
                 if !sequential_indexes_from0 || !ends_with_index {
                     for (i, ri) in svd::register::expand(info, array_info).enumerate() {
@@ -1313,7 +1313,7 @@ fn expand_register(
                         ty: ty.clone(),
                         offset: unsuffixed(info.address_offset),
                     })
-                    .raw_if(false);
+                    .raw_if(config.raw_access);
                     register_expanded.push(RegisterBlockField {
                         syn_field,
                         offset: ri.address_offset,

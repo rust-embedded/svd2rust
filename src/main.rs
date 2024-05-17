@@ -243,6 +243,12 @@ Allowed cases are `unchanged` (''), `pascal` ('p'), `constant` ('c') and `snake`
                 .help("Specify file/stream format"),
         )
         .arg(
+            Arg::new("raw_access")
+                .long("raw-access")
+                .alias("raw_access")
+                .help("Always access to registers by address"),
+        )
+        .arg(
             Arg::new("reexport_core_peripherals")
                 .long("reexport-core-peripherals")
                 .alias("reexport_core_peripherals")
