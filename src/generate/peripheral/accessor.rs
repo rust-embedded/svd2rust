@@ -124,8 +124,8 @@ impl ToTokens for RawRegAccessor {
         quote! {
             #[doc = #doc]
             #[inline(always)]
-            pub const fn #name(&self) -> &#ty {
-                unsafe { &*(self as *const Self).cast::<u8>().add(#offset).cast() }
+            pub const fn #name(&self) -> #ty {
+                #ty::new(self.addr + #offset)
             }
         }
         .to_tokens(tokens);
@@ -184,11 +184,11 @@ impl ToTokens for RawArrayAccessor {
             increment,
         } = self;
         let name_iter = Ident::new(&format!("{name}_iter"), Span::call_site());
-        let cast = quote! { unsafe { &*(self as *const Self).cast::<u8>().add(#offset).add(#increment * n).cast() } };
+        let cast = quote! { #ty::new(self.addr + #offset + #increment * n) };
         quote! {
             #[doc = #doc]
             #[inline(always)]
-            pub const fn #name(&self, n: usize) -> &#ty {
+            pub const fn #name(&self, n: usize) -> #ty {
                 #[allow(clippy::no_effect)]
                 [(); #dim][n];
                 #cast
@@ -196,7 +196,7 @@ impl ToTokens for RawArrayAccessor {
             #[doc = "Iterator for array of:"]
             #[doc = #doc]
             #[inline(always)]
-            pub fn #name_iter(&self) -> impl Iterator<Item=&#ty> {
+            pub fn #name_iter(&self) -> impl Iterator<Item=#ty> {
                 (0..#dim).map(move |n| #cast)
             }
         }

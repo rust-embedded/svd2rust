@@ -98,21 +98,28 @@ pub trait Resettable: RegisterSpec {
 /// This structure provides volatile access to registers.
 #[repr(transparent)]
 pub struct Reg<REG: RegisterSpec> {
-    register: vcell::VolatileCell<REG::Ux>,
+    addr: usize,
     _marker: marker::PhantomData<REG>,
 }
 
 unsafe impl<REG: RegisterSpec> Send for Reg<REG> where REG::Ux: Send {}
 
 impl<REG: RegisterSpec> Reg<REG> {
+    pub(crate) const fn new(addr: usize) -> Self {
+        Self {
+            addr,
+            _marker: marker::PhantomData,
+        }
+    }
+
     /// Returns the underlying memory address of register.
     ///
     /// ```ignore
     /// let reg_ptr = periph.reg.as_ptr();
     /// ```
     #[inline(always)]
-    pub fn as_ptr(&self) -> *mut REG::Ux {
-        self.register.as_ptr()
+    pub const fn as_ptr(&self) -> *mut REG::Ux {
+        self.addr as _
     }
 }
 
@@ -130,9 +137,9 @@ impl<REG: Readable> Reg<REG> {
     /// let flag = reader.field2().bit_is_set();
     /// ```
     #[inline(always)]
-    pub fn read(&self) -> R<REG> {
+    pub unsafe fn read(&self) -> R<REG> {
         R {
-            bits: self.register.get(),
+            bits: self.ptr.read_volatile(),
             _reg: marker::PhantomData,
         }
     }
@@ -143,8 +150,8 @@ impl<REG: Resettable + Writable> Reg<REG> {
     ///
     /// Resets the register to its initial state.
     #[inline(always)]
-    pub fn reset(&self) {
-        self.register.set(REG::RESET_VALUE)
+    pub unsafe fn reset(&self) {
+        self.ptr.write_volatile(REG::RESET_VALUE)
     }
 
     /// Writes bits to a `Writable` register.
@@ -175,7 +182,7 @@ impl<REG: Resettable + Writable> Reg<REG> {
     where
         F: FnOnce(&mut W<REG>) -> &mut W<REG>,
     {
-        self.register.set(
+        self.ptr.write_volatile(
             f(&mut W {
                 bits: REG::RESET_VALUE & !REG::ONE_TO_MODIFY_FIELDS_BITMAP
                     | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
@@ -199,7 +206,7 @@ impl<REG: Writable> Reg<REG> {
     where
         F: FnOnce(&mut W<REG>) -> &mut W<REG>,
     {
-        self.register.set(
+        self.ptr.write_volatile(
             f(&mut W {
                 bits: REG::Ux::default(),
                 _reg: marker::PhantomData,
@@ -240,8 +247,8 @@ impl<REG: Readable + Writable> Reg<REG> {
     where
         for<'w> F: FnOnce(&R<REG>, &'w mut W<REG>) -> &'w mut W<REG>,
     {
-        let bits = self.register.get();
-        self.register.set(
+        let bits = self.ptr.read_volatile();
+        self.ptr.write_volatile(
             f(
                 &R {
                     bits,
@@ -260,7 +267,7 @@ impl<REG: Readable + Writable> Reg<REG> {
 
 impl<REG: Readable> core::fmt::Debug for crate::generic::Reg<REG>
 where
-    R<REG>: core::fmt::Debug
+    R<REG>: core::fmt::Debug,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         core::fmt::Debug::fmt(&self.read(), f)
@@ -417,7 +424,10 @@ impl<REG: Writable> W<REG> {
         self
     }
 }
-impl<REG> W<REG> where REG: Writable<Safety = Safe> {
+impl<REG> W<REG>
+where
+    REG: Writable<Safety = Safe>,
+{
     /// Writes raw bits to the register.
     #[inline(always)]
     pub fn set(&mut self, bits: REG::Ux) -> &mut Self {
@@ -505,7 +515,8 @@ pub struct RangeFrom<const MIN: u64>;
 pub struct RangeTo<const MAX: u64>;
 
 /// Write field Proxy
-pub type FieldWriter<'a, REG, const WI: u8, FI = u8, Safety = Unsafe> = raw::FieldWriter<'a, REG, WI, FI, Safety>;
+pub type FieldWriter<'a, REG, const WI: u8, FI = u8, Safety = Unsafe> =
+    raw::FieldWriter<'a, REG, WI, FI, Safety>;
 
 impl<'a, REG, const WI: u8, FI, Safety> FieldWriter<'a, REG, WI, FI, Safety>
 where
@@ -560,7 +571,8 @@ where
     }
 }
 
-impl<'a, REG, const WI: u8, FI, const MIN: u64, const MAX: u64> FieldWriter<'a, REG, WI, FI, Range<MIN, MAX>>
+impl<'a, REG, const WI: u8, FI, const MIN: u64, const MAX: u64>
+    FieldWriter<'a, REG, WI, FI, Range<MIN, MAX>>
 where
     REG: Writable + RegisterSpec,
     FI: FieldSpec,
@@ -648,7 +660,7 @@ macro_rules! bit_proxy {
             pub const fn width(&self) -> u8 {
                 Self::WIDTH
             }
-        
+
             /// Field offset
             #[inline(always)]
             pub const fn offset(&self) -> u8 {

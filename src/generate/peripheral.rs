@@ -113,7 +113,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
 
                         ///Return the pointer to the register block
                         #[inline(always)]
-                        pub const fn ptr() -> *const #base::RegisterBlock {
+                        pub const fn ptr() -> *mut #base::RegisterBlock {
                             Self::PTR
                         }
 
@@ -174,7 +174,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
 
                     ///Return the pointer to the register block
                     #[inline(always)]
-                    pub const fn ptr() -> *const #base::RegisterBlock {
+                    pub const fn ptr() -> *mut #base::RegisterBlock {
                         Self::PTR
                     }
 
