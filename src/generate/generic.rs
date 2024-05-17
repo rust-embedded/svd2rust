@@ -1,9 +1,10 @@
 use core::marker;
+use const_default::ConstDefault;
 
 /// Raw register type (`u8`, `u16`, `u32`, ...)
 pub trait RawReg:
     Copy
-    + Default
+    + ConstDefault
     + From<bool>
     + core::ops::BitOr<Output = Self>
     + core::ops::BitAnd<Output = Self>
@@ -74,10 +75,10 @@ pub trait Writable: RegisterSpec {
     type Safety;
 
     /// Specifies the register bits that are not changed if you pass `1` and are changed if you pass `0`
-    const ZERO_TO_MODIFY_FIELDS_BITMAP: Self::Ux;
+    const ZERO_TO_MODIFY_FIELDS_BITMAP: Self::Ux = Self::Ux::DEFAULT;
 
     /// Specifies the register bits that are not changed if you pass `0` and are changed if you pass `1`
-    const ONE_TO_MODIFY_FIELDS_BITMAP: Self::Ux;
+    const ONE_TO_MODIFY_FIELDS_BITMAP: Self::Ux = Self::Ux::DEFAULT;
 }
 
 /// Reset value of the register.
@@ -86,7 +87,7 @@ pub trait Writable: RegisterSpec {
 /// register by using the `reset` method.
 pub trait Resettable: RegisterSpec {
     /// Reset value of the register.
-    const RESET_VALUE: Self::Ux;
+    const RESET_VALUE: Self::Ux = Self::Ux::DEFAULT;
 
     /// Reset value of the register.
     #[inline(always)]
@@ -201,7 +202,7 @@ impl<REG: Writable> Reg<REG> {
     {
         self.register.set(
             f(&mut W {
-                bits: REG::Ux::default(),
+                bits: REG::Ux::DEFAULT,
                 _reg: marker::PhantomData,
             })
             .bits,

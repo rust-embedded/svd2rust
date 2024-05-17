@@ -62,6 +62,7 @@
 //! - [`cortex-m`](https://crates.io/crates/cortex-m) >=v0.7.6
 //! - [`cortex-m-rt`](https://crates.io/crates/cortex-m-rt) >=v0.6.13
 //! - [`vcell`](https://crates.io/crates/vcell) >=v0.1.2
+//! - [`const-default`](https://crates.io/crates/const-default) >=v1.0
 //!
 //! Furthermore, the "device" feature of `cortex-m-rt` must be enabled when the `rt` feature
 //! is enabled. The `Cargo.toml` of the device crate will look like this:
@@ -126,6 +127,7 @@
 //! - [`msp430`](https://crates.io/crates/msp430) v0.4.x
 //! - [`msp430-rt`](https://crates.io/crates/msp430-rt) v0.4.x
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
+//! - [`const-default`](https://crates.io/crates/const-default) v1.x.x
 //!
 //! The "device" feature of `msp430-rt` must be enabled when the `rt` feature is
 //! enabled. The `Cargo.toml` of the device crate will look like this:
@@ -136,6 +138,7 @@
 //! msp430 = "0.4.0"
 //! msp430-rt = { version = "0.4.0", optional = true }
 //! vcell = "0.1.0"
+//! const-default = { version = "1.0", default-features = false }
 //!
 //! [features]
 //! rt = ["msp430-rt/device"]
@@ -152,6 +155,7 @@
 //! - [`riscv`](https://crates.io/crates/riscv) v0.9.x (if target is RISC-V)
 //! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.9.x (if target is RISC-V)
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
+//! - [`const-default`](https://crates.io/crates/const-default) v1.x.x
 //!
 //! The `*-rt` dependencies must be optional only enabled when the `rt` feature is enabled. The
 //! `Cargo.toml` of the device crate will look like this for a RISC-V target:
@@ -162,6 +166,7 @@
 //! riscv = "0.9.0"
 //! riscv-rt = { version = "0.9.0", optional = true }
 //! vcell = "0.1.0"
+//! const-default = { version = "1.0", default-features = false }
 //!
 //! [features]
 //! rt = ["riscv-rt"]
