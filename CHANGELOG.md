@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump MSRV of generated code to 1.76
+
 ## [v0.33.3] - 2024-05-10
 
 - Yet more clean field & register `Debug`
