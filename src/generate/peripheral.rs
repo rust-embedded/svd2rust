@@ -294,7 +294,7 @@ struct RegisterBlockField {
     syn_field: syn::Field,
     offset: u32,
     size: u32,
-    accessors: Vec<Accessor>,
+    accessors: Vec<AccessType>,
 }
 
 #[derive(Clone, Debug)]
@@ -1003,17 +1003,18 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
             let doc = make_comment(cluster_size, info.address_offset, &description);
             let name: Ident = ident(&info.name, config, "cluster_accessor", span);
             let syn_field = new_syn_field(name.clone(), ty.clone());
+            let accessor = Accessor::Reg(RegAccessor {
+                doc,
+                name,
+                ty,
+                offset: unsuffixed(info.address_offset),
+            })
+            .raw_if(false);
             cluster_expanded.push(RegisterBlockField {
                 syn_field,
                 offset: info.address_offset,
                 size: cluster_size,
-                accessors: vec![RegAccessor {
-                    doc,
-                    name,
-                    ty,
-                    offset: unsuffixed(info.address_offset),
-                }
-                .into()],
+                accessors: vec![accessor],
             })
         }
         Cluster::Array(info, array_info) => {
@@ -1059,28 +1060,18 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                     info.address_offset,
                     &description,
                 );
-                let mut accessors = Vec::<Accessor>::with_capacity((array_info.dim + 1) as _);
-                accessors.push(if array_convertible {
-                    ArrayAccessor {
+                let mut accessors = Vec::with_capacity((array_info.dim + 1) as _);
+                accessors.push(
+                    Accessor::Array(ArrayAccessor {
                         doc,
                         name: accessor_name.clone(),
                         ty: ty.clone(),
                         offset: unsuffixed(info.address_offset),
                         dim: unsuffixed(array_info.dim),
                         increment: unsuffixed(array_info.dim_increment),
-                    }
-                    .into()
-                } else {
-                    RawArrayAccessor {
-                        doc,
-                        name: accessor_name.clone(),
-                        ty: ty.clone(),
-                        offset: unsuffixed(info.address_offset),
-                        dim: unsuffixed(array_info.dim),
-                        increment: unsuffixed(array_info.dim_increment),
-                    }
-                    .into()
-                });
+                    })
+                    .raw_if(!array_convertible),
+                );
                 if !sequential_indexes_from0 || !ends_with_index {
                     for (i, ci) in svd::cluster::expand(info, array_info).enumerate() {
                         let idx_name = ident(&ci.name, config, "cluster_accessor", span);
@@ -1091,14 +1082,14 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         );
                         let i = unsuffixed(i as u64);
                         accessors.push(
-                            ArrayElemAccessor {
+                            Accessor::ArrayElem(ArrayElemAccessor {
                                 doc,
                                 name: idx_name,
                                 ty: ty.clone(),
                                 basename: accessor_name.clone(),
                                 i,
-                            }
-                            .into(),
+                            })
+                            .raw_if(false),
                         );
                     }
                 }
@@ -1128,17 +1119,18 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                     let name = ident(&ci.name, config, "cluster_accessor", span);
                     let syn_field = new_syn_field(name.clone(), ty.clone());
 
+                    let accessor = Accessor::Reg(RegAccessor {
+                        doc,
+                        name,
+                        ty: ty.clone(),
+                        offset: unsuffixed(info.address_offset),
+                    })
+                    .raw_if(false);
                     cluster_expanded.push(RegisterBlockField {
                         syn_field,
                         offset: ci.address_offset,
                         size: cluster_size,
-                        accessors: vec![RegAccessor {
-                            doc,
-                            name,
-                            ty: ty.clone(),
-                            offset: unsuffixed(info.address_offset),
-                        }
-                        .into()],
+                        accessors: vec![accessor],
                     });
                 }
             }
@@ -1179,17 +1171,18 @@ fn expand_register(
             let ty = name_to_ty(ident(&ty_str, config, "register", span));
             let name: Ident = ident(&ty_name, config, "register_accessor", span);
             let syn_field = new_syn_field(name.clone(), ty.clone());
+            let accessor = Accessor::Reg(RegAccessor {
+                doc,
+                name,
+                ty,
+                offset: unsuffixed(info.address_offset),
+            })
+            .raw_if(false);
             register_expanded.push(RegisterBlockField {
                 syn_field,
                 offset: info.address_offset,
                 size: register_size,
-                accessors: vec![RegAccessor {
-                    doc,
-                    name,
-                    ty,
-                    offset: unsuffixed(info.address_offset),
-                }
-                .into()],
+                accessors: vec![accessor],
             })
         }
         Register::Array(info, array_info) => {
@@ -1250,28 +1243,18 @@ fn expand_register(
                     info.address_offset,
                     &description,
                 );
-                let mut accessors = Vec::<Accessor>::with_capacity((array_info.dim + 1) as _);
-                accessors.push(if array_convertible {
-                    ArrayAccessor {
+                let mut accessors = Vec::with_capacity((array_info.dim + 1) as _);
+                accessors.push(
+                    Accessor::Array(ArrayAccessor {
                         doc,
                         name: accessor_name.clone(),
                         ty: ty.clone(),
                         offset: unsuffixed(info.address_offset),
                         dim: unsuffixed(array_info.dim),
                         increment: unsuffixed(array_info.dim_increment),
-                    }
-                    .into()
-                } else {
-                    RawArrayAccessor {
-                        doc,
-                        name: accessor_name.clone(),
-                        ty: ty.clone(),
-                        offset: unsuffixed(info.address_offset),
-                        dim: unsuffixed(array_info.dim),
-                        increment: unsuffixed(array_info.dim_increment),
-                    }
-                    .into()
-                });
+                    })
+                    .raw_if(!array_convertible),
+                );
                 if !sequential_indexes_from0 || !ends_with_index {
                     for (i, ri) in svd::register::expand(info, array_info).enumerate() {
                         let idx_name = ident(
@@ -1287,14 +1270,14 @@ fn expand_register(
                         );
                         let i = unsuffixed(i as u64);
                         accessors.push(
-                            ArrayElemAccessor {
+                            Accessor::ArrayElem(ArrayElemAccessor {
                                 doc,
                                 name: idx_name,
                                 ty: ty.clone(),
                                 basename: accessor_name.clone(),
                                 i,
-                            }
-                            .into(),
+                            })
+                            .raw_if(false),
                         );
                     }
                 };
@@ -1324,17 +1307,18 @@ fn expand_register(
                     let name = ident(&ri.name, config, "register_accessor", span);
                     let syn_field = new_syn_field(name.clone(), ty.clone());
 
+                    let accessor = Accessor::Reg(RegAccessor {
+                        doc,
+                        name,
+                        ty: ty.clone(),
+                        offset: unsuffixed(info.address_offset),
+                    })
+                    .raw_if(false);
                     register_expanded.push(RegisterBlockField {
                         syn_field,
                         offset: ri.address_offset,
                         size: register_size,
-                        accessors: vec![RegAccessor {
-                            doc,
-                            name,
-                            ty: ty.clone(),
-                            offset: unsuffixed(info.address_offset),
-                        }
-                        .into()],
+                        accessors: vec![accessor],
                     });
                 }
             }
