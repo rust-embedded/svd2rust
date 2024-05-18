@@ -1,19 +1,27 @@
 /// This structure provides unsafe volatile access to registers.
 pub struct Reg<REG: RegisterSpec> {
+    ptr: *mut u8,
     _marker: marker::PhantomData<REG>,
 }
 
 unsafe impl<REG: RegisterSpec> Send for Reg<REG> where REG::Ux: Send {}
 
 impl<REG: RegisterSpec> Reg<REG> {
+    #[inline(always)]
+    pub const fn new(ptr: *mut u8) -> Self {
+        Self {
+            ptr,
+            _marker: marker::PhantomData,
+        }
+    }
     /// Returns the underlying memory address of register.
     ///
     /// ```ignore
     /// let reg_ptr = periph.reg.as_ptr();
     /// ```
     #[inline(always)]
-    pub fn as_ptr(&self) -> *mut REG::Ux {
-        (self as *const Self).cast_mut().cast()
+    pub const fn as_ptr(&self) -> *mut REG::Ux {
+        self.ptr.cast()
     }
 }
 
@@ -161,7 +169,7 @@ impl<REG: Readable + Writable> Reg<REG> {
 
 impl<REG: Readable> core::fmt::Debug for crate::generic::Reg<REG>
 where
-    R<REG>: core::fmt::Debug
+    R<REG>: core::fmt::Debug,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         unsafe { core::fmt::Debug::fmt(&self.read(), f) }

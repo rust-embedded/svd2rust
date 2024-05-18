@@ -249,12 +249,6 @@ Allowed cases are `unchanged` (''), `pascal` ('p'), `constant` ('c') and `snake`
                 .help("Always access to registers by address"),
         )
         .arg(
-            Arg::new("raw_read_write")
-                .long("raw-read-write")
-                .alias("raw_read_write")
-                .help("Read/Write/Modify registers without vcell"),
-        )
-        .arg(
             Arg::new("reexport_core_peripherals")
                 .long("reexport-core-peripherals")
                 .alias("reexport_core_peripherals")

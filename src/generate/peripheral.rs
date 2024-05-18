@@ -61,7 +61,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         feature_attribute.extend(quote! { #[cfg(feature = #feature_name)] });
     };
 
-    let steal_fn = quote! {
+    let steal_docs = quote! {
         /// Steal an instance of this peripheral
         ///
         /// # Safety
@@ -75,9 +75,6 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         /// Additionally, other software such as HALs may rely on only one
         /// peripheral instance existing to ensure memory safety; ensure
         /// no stolen instances are passed to such software.
-        pub unsafe fn steal() -> Self {
-            Self { _marker: PhantomData }
-        }
     };
 
     match &p {
@@ -97,39 +94,74 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                     feature_attribute_n.extend(quote! { #[cfg(feature = #p_feature)] })
                 };
                 // Insert the peripherals structure
+                out.extend(if config.raw_access {
+                    quote! {
+                        #[doc = #description]
+                        #doc_alias
+                        #feature_attribute_n
+                        pub struct #p_ty { rb: #base::RegisterBlock }
+
+                        #feature_attribute_n
+                        unsafe impl Send for #p_ty {}
+
+                        #feature_attribute_n
+                        impl #p_ty {
+                            #steal_docs
+                            pub unsafe fn steal() -> Self {
+                                Self { rb: #base::RegisterBlock::new(#address as *mut u8) }
+                            }
+                        }
+
+                        #feature_attribute_n
+                        impl Deref for #p_ty {
+                            type Target = #base::RegisterBlock;
+
+                            #[inline(always)]
+                            fn deref(&self) -> &Self::Target {
+                                &self.rb
+                            }
+                        }
+                    }
+                } else {
+                    quote! {
+                        #[doc = #description]
+                        #doc_alias
+                        #feature_attribute_n
+                        pub struct #p_ty { _marker: PhantomData<*const ()> }
+
+                        #feature_attribute_n
+                        unsafe impl Send for #p_ty {}
+
+                        #feature_attribute_n
+                        impl #p_ty {
+                            ///Pointer to the register block
+                            pub const PTR: *const #base::RegisterBlock = #address as *const _;
+
+                            ///Return the pointer to the register block
+                            #[inline(always)]
+                            pub const fn ptr() -> *const #base::RegisterBlock {
+                                Self::PTR
+                            }
+
+                            #steal_docs
+                            pub unsafe fn steal() -> Self {
+                                Self { _marker: PhantomData }
+                            }
+                        }
+
+                        #feature_attribute_n
+                        impl Deref for #p_ty {
+                            type Target = #base::RegisterBlock;
+
+                            #[inline(always)]
+                            fn deref(&self) -> &Self::Target {
+                                unsafe { &*Self::PTR }
+                            }
+                        }
+                    }
+                });
+
                 out.extend(quote! {
-                    #[doc = #description]
-                    #doc_alias
-                    #feature_attribute_n
-                    pub struct #p_ty { _marker: PhantomData<*const ()> }
-
-                    #feature_attribute_n
-                    unsafe impl Send for #p_ty {}
-
-                    #feature_attribute_n
-                    impl #p_ty {
-                        ///Pointer to the register block
-                        pub const PTR: *const #base::RegisterBlock = #address as *const _;
-
-                        ///Return the pointer to the register block
-                        #[inline(always)]
-                        pub const fn ptr() -> *const #base::RegisterBlock {
-                            Self::PTR
-                        }
-
-                        #steal_fn
-                    }
-
-                    #feature_attribute_n
-                    impl Deref for #p_ty {
-                        type Target = #base::RegisterBlock;
-
-                        #[inline(always)]
-                        fn deref(&self) -> &Self::Target {
-                            unsafe { &*Self::PTR }
-                        }
-                    }
-
                     #feature_attribute_n
                     impl core::fmt::Debug for #p_ty {
                         fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -159,38 +191,72 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 feature_attribute.extend(quote! { #[cfg(feature = #p_feature)] })
             };
             // Insert the peripheral structure
+            out.extend(if config.raw_access {
+                quote! {
+                    #[doc = #description]
+                    #feature_attribute
+                    #[repr(transparent)]
+                    pub struct #p_ty { rb: #base::RegisterBlock }
+
+                    #feature_attribute
+                    unsafe impl Send for #p_ty {}
+
+                    #feature_attribute
+                    impl #p_ty {
+                        #steal_docs
+                        pub unsafe fn steal() -> Self {
+                            Self { rb: #base::RegisterBlock::new(#address as *mut u8) }
+                        }
+                    }
+
+                    #feature_attribute
+                    impl Deref for #p_ty {
+                        type Target = #base::RegisterBlock;
+
+                        #[inline(always)]
+                        fn deref(&self) -> &Self::Target {
+                            &self.rb
+                        }
+                    }
+                }
+            } else {
+                quote! {
+                    #[doc = #description]
+                    #feature_attribute
+                    pub struct #p_ty { _marker: PhantomData<*const ()> }
+
+                    #feature_attribute
+                    unsafe impl Send for #p_ty {}
+
+                    #feature_attribute
+                    impl #p_ty {
+                        ///Pointer to the register block
+                        pub const PTR: *const #base::RegisterBlock = #address as *const _;
+
+                        ///Return the pointer to the register block
+                        #[inline(always)]
+                        pub const fn ptr() -> *const #base::RegisterBlock {
+                            Self::PTR
+                        }
+
+                        #steal_docs
+                        pub unsafe fn steal() -> Self {
+                            Self { _marker: PhantomData }
+                        }
+                    }
+
+                    #feature_attribute
+                    impl Deref for #p_ty {
+                        type Target = #base::RegisterBlock;
+
+                        #[inline(always)]
+                        fn deref(&self) -> &Self::Target {
+                            unsafe { &*Self::PTR }
+                        }
+                    }
+                }
+            });
             out.extend(quote! {
-                #[doc = #description]
-                #feature_attribute
-                pub struct #p_ty { _marker: PhantomData<*const ()> }
-
-                #feature_attribute
-                unsafe impl Send for #p_ty {}
-
-                #feature_attribute
-                impl #p_ty {
-                    ///Pointer to the register block
-                    pub const PTR: *const #base::RegisterBlock = #address as *const _;
-
-                    ///Return the pointer to the register block
-                    #[inline(always)]
-                    pub const fn ptr() -> *const #base::RegisterBlock {
-                        Self::PTR
-                    }
-
-                    #steal_fn
-                }
-
-                #feature_attribute
-                impl Deref for #p_ty {
-                    type Target = #base::RegisterBlock;
-
-                    #[inline(always)]
-                    fn deref(&self) -> &Self::Target {
-                        unsafe { &*Self::PTR }
-                    }
-                }
-
                 #feature_attribute
                 impl core::fmt::Debug for #p_ty {
                     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -649,6 +715,18 @@ fn register_or_cluster_block(
         Ident::new("RegisterBlock", span)
     };
 
+    if config.raw_access {
+        accessors.extend(quote! {
+            pub(crate) const fn new(ptr: *mut u8) -> Self {
+                Self { ptr }
+            }
+            #[inline(always)]
+            pub const fn ptr(&self) -> *mut u8 {
+                self.ptr
+            }
+        })
+    }
+
     let accessors = (!accessors.is_empty()).then(|| {
         quote! {
             impl #block_ty {
@@ -657,16 +735,31 @@ fn register_or_cluster_block(
         }
     });
 
-    Ok(quote! {
-        #[repr(C)]
-        #derive_debug
-        #[doc = #doc]
-        #doc_alias
-        pub struct #block_ty {
-            #rbfs
-        }
+    Ok(if config.raw_access {
+        quote! {
+            #[doc = #doc]
+            #[repr(C)]
+            #derive_debug
+            #doc_alias
+            #[non_exhaustive]
+            pub struct #block_ty {
+                ptr: *mut u8,
+            }
 
-        #accessors
+            #accessors
+        }
+    } else {
+        quote! {
+            #[doc = #doc]
+            #[repr(C)]
+            #derive_debug
+            #doc_alias
+            pub struct #block_ty {
+                #rbfs
+            }
+
+            #accessors
+        }
     })
 }
 
@@ -1009,7 +1102,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 ty,
                 offset: unsuffixed(info.address_offset),
             })
-            .raw_if(config.raw_access);
+            .ptr_or_rawref_if(config.raw_access, false);
             cluster_expanded.push(RegisterBlockField {
                 syn_field,
                 offset: info.address_offset,
@@ -1070,7 +1163,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         dim: unsuffixed(array_info.dim),
                         increment: unsuffixed(array_info.dim_increment),
                     })
-                    .raw_if(config.raw_access || !array_convertible),
+                    .ptr_or_rawref_if(config.raw_access, !array_convertible),
                 );
                 if !sequential_indexes_from0 || !ends_with_index {
                     for (i, ci) in svd::cluster::expand(info, array_info).enumerate() {
@@ -1089,7 +1182,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                                 basename: accessor_name.clone(),
                                 i,
                             })
-                            .raw_if(false),
+                            .ptr_or_rawref_if(config.raw_access, false),
                         );
                     }
                 }
@@ -1125,7 +1218,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         ty: ty.clone(),
                         offset: unsuffixed(info.address_offset),
                     })
-                    .raw_if(config.raw_access);
+                    .ptr_or_rawref_if(config.raw_access, false);
                     cluster_expanded.push(RegisterBlockField {
                         syn_field,
                         offset: ci.address_offset,
@@ -1177,7 +1270,7 @@ fn expand_register(
                 ty,
                 offset: unsuffixed(info.address_offset),
             })
-            .raw_if(config.raw_access);
+            .ptr_or_rawref_if(config.raw_access, false);
             register_expanded.push(RegisterBlockField {
                 syn_field,
                 offset: info.address_offset,
@@ -1253,7 +1346,7 @@ fn expand_register(
                         dim: unsuffixed(array_info.dim),
                         increment: unsuffixed(array_info.dim_increment),
                     })
-                    .raw_if(config.raw_access || !array_convertible),
+                    .ptr_or_rawref_if(config.raw_access, !array_convertible),
                 );
                 if !sequential_indexes_from0 || !ends_with_index {
                     for (i, ri) in svd::register::expand(info, array_info).enumerate() {
@@ -1277,7 +1370,7 @@ fn expand_register(
                                 basename: accessor_name.clone(),
                                 i,
                             })
-                            .raw_if(false),
+                            .ptr_or_rawref_if(config.raw_access, false),
                         );
                     }
                 };
@@ -1313,7 +1406,7 @@ fn expand_register(
                         ty: ty.clone(),
                         offset: unsuffixed(info.address_offset),
                     })
-                    .raw_if(config.raw_access);
+                    .ptr_or_rawref_if(config.raw_access, false);
                     register_expanded.push(RegisterBlockField {
                         syn_field,
                         offset: ri.address_offset,

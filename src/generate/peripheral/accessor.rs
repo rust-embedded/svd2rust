@@ -12,11 +12,14 @@ pub enum Accessor {
 pub enum AccessType {
     Ref(Accessor),
     RawRef(Accessor),
+    Ptr(Accessor),
 }
 
 impl Accessor {
-    pub fn raw_if(self, flag: bool) -> AccessType {
-        if flag {
+    pub fn ptr_or_rawref_if(self, ptr_flag: bool, raw_flag: bool) -> AccessType {
+        if ptr_flag {
+            AccessType::Ptr(self)
+        } else if raw_flag {
             AccessType::RawRef(self)
         } else {
             AccessType::Ref(self)
@@ -27,7 +30,7 @@ impl Accessor {
 impl AccessType {
     pub fn raw(self) -> Self {
         match self {
-            Self::RawRef(_) => self,
+            Self::RawRef(_) | Self::Ptr(_) => self,
             Self::Ref(a) => Self::RawRef(a),
         }
     }
@@ -56,6 +59,20 @@ impl ToTokens for AccessType {
                     #[inline(always)]
                     pub const fn #name(&self) -> &#ty {
                         unsafe { &*(self as *const Self).cast::<u8>().add(#offset).cast() }
+                    }
+                }
+            }
+            Self::Ptr(Accessor::Reg(RegAccessor {
+                doc,
+                name,
+                ty,
+                offset,
+            })) => {
+                quote! {
+                    #[doc = #doc]
+                    #[inline(always)]
+                    pub const fn #name(&self) -> #ty {
+                        #ty::new(unsafe { self.ptr().add(#offset) })
                     }
                 }
             }
@@ -101,18 +118,59 @@ impl ToTokens for AccessType {
                     }
                 }
             }
+            Self::Ptr(Accessor::Array(ArrayAccessor {
+                doc,
+                name,
+                ty,
+                offset,
+                dim,
+                increment,
+            })) => {
+                let name_iter = Ident::new(&format!("{name}_iter"), Span::call_site());
+                let cast = quote! { #ty::new(unsafe { self.ptr().add(#offset).add(#increment * n) }) };
+                quote! {
+                    #[doc = #doc]
+                    #[inline(always)]
+                    pub const fn #name(&self, n: usize) -> #ty {
+                        #[allow(clippy::no_effect)]
+                        [(); #dim][n];
+                        #cast
+                    }
+                    #[doc = "Iterator for array of:"]
+                    #[doc = #doc]
+                    #[inline(always)]
+                    pub fn #name_iter(&self) -> impl Iterator<Item=#ty> + '_ {
+                        (0..#dim).map(move |n| #cast)
+                    }
+                }
+            }
             Self::RawRef(Accessor::ArrayElem(elem)) | Self::Ref(Accessor::ArrayElem(elem)) => {
                 let ArrayElemAccessor {
-                                doc,
-                                name,
-                                ty,
-                                basename,
-                                i,
-                            } = elem;
+                    doc,
+                    name,
+                    ty,
+                    basename,
+                    i,
+                } = elem;
                 quote! {
                     #[doc = #doc]
                     #[inline(always)]
                     pub const fn #name(&self) -> &#ty {
+                        self.#basename(#i)
+                    }
+                }
+            }
+            Self::Ptr(Accessor::ArrayElem(ArrayElemAccessor {
+                    doc,
+                    name,
+                    ty,
+                    basename,
+                    i,
+                })) => {
+                quote! {
+                    #[doc = #doc]
+                    #[inline(always)]
+                    pub const fn #name(&self) -> #ty {
                         self.#basename(#i)
                     }
                 }

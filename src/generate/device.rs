@@ -63,8 +63,12 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
 
     out.extend(quote! {
         use core::ops::Deref;
-        use core::marker::PhantomData;
     });
+    if !config.raw_access {
+        out.extend(quote! {
+            use core::marker::PhantomData;
+        });
+    }
 
     // Retaining the previous assumption
     let mut fpu_present = true;
@@ -140,7 +144,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     }
 
     let generic_file = include_str!("generic.rs");
-    let generic_reg_file = if config.raw_read_write {
+    let generic_reg_file = if config.raw_access {
         include_str!("generic_reg_raw.rs")
     } else {
         include_str!("generic_reg_vcell.rs")
@@ -253,9 +257,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                     #feature_attribute
                     pub #p_singleton: #p_ty,
                 });
-                exprs.extend(
-                    quote!(#feature_attribute #p_singleton: #p_ty { _marker: PhantomData },),
-                );
+                exprs.extend(quote!(#feature_attribute #p_singleton: unsafe { #p_ty::steal() },));
             }
             Peripheral::Array(p, dim_element) => {
                 for p_name in names(p, dim_element) {
@@ -271,7 +273,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                         pub #p_singleton: #p_ty,
                     });
                     exprs.extend(
-                        quote!(#feature_attribute #p_singleton: #p_ty { _marker: PhantomData },),
+                        quote!(#feature_attribute #p_singleton: unsafe { #p_ty::steal() },),
                     );
                 }
             }
