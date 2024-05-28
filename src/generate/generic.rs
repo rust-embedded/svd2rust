@@ -1,5 +1,63 @@
 use core::marker;
 
+macro_rules! reg_doc {
+    (module, $regmod:literal) => {
+        "\n\nFor information about available fields see [`mod@", $regmod, "`] module"
+    },
+    (api) => {
+        "See [API](https://docs.rs/svd2rust/#read--modify--write-api)."
+    },
+    (read, $regmod:literal) => {
+        concat!("You can [`read`](crate::generic::Reg::read) this register and get [`", $regmod, "(::R`](R).")
+    },
+    (write, NoReset, $regmod:literal) => {
+        concat!("You can [`write_with_zero`](crate::generic::Reg::write_with_zero) this register using [`", $regmod, "::W`](W).")
+    },
+    (write, Reset, $regmod:literal) => {
+        concat!("You can [`reset`](crate::generic::Reg::reset), [`write`](crate::generic::Reg::write), [`write_with_zero`](crate::generic::Reg::write_with_zero) this register using [`", $regmod, "::W`](W).")
+    },
+    (modify, $regmod:literal) => {
+        concat!("You can also [`modify`](crate::generic::Reg::modify) this register.")
+    },
+    ($regmod:literal, r:$readaction w:$reset) => {
+        concat!("\n\n", reg_doc!(read, $regmod), " ", reg_doc!(write, $reset, $regmod), " ", reg_doc!(modify, $regmod), reg_doc!(api), reg_doc!(module, $regmod))
+    },
+    ($regmod:literal, r:$readaction) => {
+        concat!("\n\n", reg_doc!(read, $regmod), reg_doc!(api), reg_doc!(module, $regmod))
+    },
+    ($regmod:literal, w:$reset) => {
+        concat!("\n\n", reg_doc!(write, $reset, $regmod), reg_doc!(api), reg_doc!(module, $regmod))
+    },
+}
+pub(crate) use reg_doc;
+macro_rules! regspec_doc {
+    (api) => {
+        "See [API](https://docs.rs/svd2rust/#read--modify--write-api)."
+    },
+    (read, $regmod:literal) => {
+        concat!("You can [`read`](crate::generic::Reg::read) this register and get [`", $regmod, "(::R`].")
+    },
+    (write, $regmod:literal) => {
+        concat!("You can [`write_with_zero`](crate::generic::Reg::write_with_zero) this register using [`", $regmod, "::W`].")
+    },
+    (writereset, $regmod:literal) => {
+        concat!("You can [`reset`](crate::generic::Reg::reset), [`write`](crate::generic::Reg::write), [`write_with_zero`](crate::generic::Reg::write_with_zero) this register using [`", $regmod, "::W`].")
+    },
+    (modify, $regmod:literal) => {
+        concat!("You can also [`modify`](crate::generic::Reg::modify) this register.")
+    },
+    (rw, $regmod:literal) => {
+        concat!("\n\n", reg_doc!(read, $regmod), " ", reg_doc!(write, $regmod), " ", reg_doc!(modify, $regmod), reg_doc!(api))
+    },
+    (ro, $regmod:literal) => {
+        concat!("\n\n", reg_doc!(read, $regmod), reg_doc!(api))
+    },
+    (wo, $regmod:literal) => {
+        concat!("\n\n", reg_doc!(write, $regmod), reg_doc!(api))
+    },
+}
+pub(crate) use reg_doc;
+
 /// Raw register type (`u8`, `u16`, `u32`, ...)
 pub trait RawReg:
     Copy

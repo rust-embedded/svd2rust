@@ -108,8 +108,10 @@ pub fn render(
             return Err(anyhow!("Incorrect access of register {}", register.name));
         };
 
-        let mut alias_doc = format!(
-            "{name} ({accs}) register accessor: {description}\n\n{}",
+        let alias_doc_header = format!(
+            "{name} ({accs}) register accessor: {description}"
+        );
+        let mut alias_doc = 
             api_docs(
                 access.can_read(),
                 access.can_write(),
@@ -117,15 +119,13 @@ pub fn render(
                 &mod_ty,
                 false,
                 register.read_action,
-            )?
-        );
-        if mod_ty != "cfg" {
-            alias_doc +=
-                format!("\n\nFor information about available fields see [`mod@{mod_ty}`] module")
-                    .as_str();
-        }
+            )?;
+        alias_doc +=
+            format!("\n\nFor information about available fields see [`mod@{mod_ty}`] module")
+                .as_str();
         let mut out = TokenStream::new();
         out.extend(quote! {
+            #[doc = #alias_doc_header]
             #[doc = #alias_doc]
             #doc_alias
             pub type #reg_ty = crate::Reg<#mod_ty::#regspec_ty>;
