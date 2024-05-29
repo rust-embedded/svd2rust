@@ -119,11 +119,9 @@ pub fn render(
                 register.read_action,
             )?
         );
-        if mod_ty != "cfg" {
-            alias_doc +=
-                format!("\n\nFor information about available fields see [`mod@{mod_ty}`] module")
-                    .as_str();
-        }
+        alias_doc +=
+            format!("\n\nFor information about available fields see [`mod@{mod_ty}`] module")
+                .as_str();
         let mut out = TokenStream::new();
         out.extend(quote! {
             #[doc = #alias_doc]
@@ -158,7 +156,7 @@ fn api_docs(
     read_action: Option<ReadAction>,
 ) -> Result<String, std::fmt::Error> {
     fn method(s: &str) -> String {
-        format!("[`{s}`](crate::generic::Reg::{s})")
+        format!("[`{s}`](crate::Reg::{s})")
     }
 
     let mut doc = String::new();
@@ -166,13 +164,13 @@ fn api_docs(
     if can_read {
         write!(
             doc,
-            "You can {} this register and get [`{module}::R`]{}. ",
+            "You can {} this register and get [`{module}::R`]{}.",
             method("read"),
             if inmodule { "(R)" } else { "" },
         )?;
 
         if let Some(action) = read_action {
-            doc.push_str("WARN: ");
+            doc.push_str(" WARN: ");
             doc.push_str(match action {
                 ReadAction::Clear => "The register is **cleared** (set to zero) following a read operation.",
                 ReadAction::Set => "The register is **set** (set to ones) following a read operation.",
@@ -203,7 +201,7 @@ fn api_docs(
     }
 
     if can_read && can_write {
-        write!(doc, "You can also {} this register. ", method("modify"),)?;
+        write!(doc, "You can also {} this register. ", method("modify"))?;
     }
 
     doc.push_str("See [API](https://docs.rs/svd2rust/#read--modify--write-api).");
@@ -220,12 +218,13 @@ pub fn render_register_mod(
 ) -> Result<TokenStream> {
     let properties = &register.properties;
     let name = util::name_of(register, config.ignore_groups);
+    let rname = &register.name;
     let span = Span::call_site();
     let regspec_ty = regspec(&name, config, span);
     let mod_ty = ident(&name, config, "register_mod", span);
     let rsize = properties
         .size
-        .ok_or_else(|| anyhow!("Register {} has no `size` field", register.name))?;
+        .ok_or_else(|| anyhow!("Register {rname} has no `size` field"))?;
     let rsize = if rsize < 8 {
         8
     } else if rsize.is_power_of_two() {
@@ -236,7 +235,7 @@ pub fn render_register_mod(
     let rty = rsize.to_ty()?;
     let description = util::escape_special_chars(
         util::respace(&register.description.clone().unwrap_or_else(|| {
-            warn!("Missing description for register {}", register.name);
+            warn!("Missing description for register {rname}");
             Default::default()
         }))
         .as_ref(),
@@ -249,7 +248,7 @@ pub fn render_register_mod(
     let can_reset = properties.reset_value.is_some();
 
     if can_read {
-        let desc = format!("Register `{}` reader", register.name);
+        let desc = format!("Register `{rname}` reader");
         mod_items.extend(quote! {
             #[doc = #desc]
             pub type R = crate::R<#regspec_ty>;
@@ -257,7 +256,7 @@ pub fn render_register_mod(
     }
 
     if can_write {
-        let desc = format!("Register `{}` writer", register.name);
+        let desc = format!("Register `{rname}` writer");
         mod_items.extend(quote! {
             #[doc = #desc]
             pub type W = crate::W<#regspec_ty>;
@@ -663,15 +662,11 @@ pub fn fields(
         let rv = properties.reset_value.map(|rv| (rv >> offset) & mask);
         let fty = width.to_ty()?;
 
-        let use_mask;
-        let use_cast;
-        if let Some(size) = properties.size {
+        let (use_cast, use_mask) = if let Some(size) = properties.size {
             let size = size.to_ty_width()?;
-            use_cast = size != width.to_ty_width()?;
-            use_mask = size != width;
+            (size != width.to_ty_width()?, size != width)
         } else {
-            use_cast = true;
-            use_mask = true;
+            (true, true)
         };
 
         let mut lookup_results = Vec::new();
@@ -724,7 +719,8 @@ pub fn fields(
 
         let brief_suffix = if let Field::Array(_, de) = &f {
             if let Some(range) = de.indexes_as_range() {
-                format!("({}-{})", *range.start(), *range.end())
+                let (start, end) = range.into_inner();
+                format!("({start}-{end})")
             } else {
                 let suffixes: Vec<_> = de.indexes().collect();
                 format!("({})", suffixes.join(","))
@@ -1420,7 +1416,7 @@ impl Variant {
                     .ok_or_else(|| anyhow!("EnumeratedValue {} has no `<value>` entry", ev.name))?;
                 Self::from_value(value, ev, config)
             })
-            .collect::<Result<Vec<_>>>()
+            .collect()
     }
     fn from_value(value: u64, ev: &EnumeratedValue, config: &Config) -> Result<Self> {
         let span = Span::call_site();
