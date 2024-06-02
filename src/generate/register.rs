@@ -109,15 +109,15 @@ pub fn render(
         };
 
         let mut alias_doc = format!(
-            "{name} ({accs}) register accessor: {description}\n\n{}",
+            "{name} ({accs}) register accessor: {description}{}{}",
             api_docs(
                 access.can_read(),
                 access.can_write(),
                 register.properties.reset_value.is_some(),
                 &mod_ty,
                 false,
-                register.read_action,
-            )?
+            )?,
+            read_action_docs(access.can_read(), register.read_action),
         );
         alias_doc +=
             format!("\n\nFor information about available fields see [`mod@{mod_ty}`] module")
@@ -147,38 +147,43 @@ pub fn render(
     }
 }
 
+fn read_action_docs(can_read: bool, read_action: Option<ReadAction>) -> String {
+    let mut doc = String::new();
+    if can_read {
+        if let Some(action) = read_action {
+            doc.push_str("\n\n<div class=\"warning\">");
+            doc.push_str(match action {
+                ReadAction::Clear => "The register is <b>cleared</b> (set to zero) following a read operation.",
+                ReadAction::Set => "The register is <b>set</b> (set to ones) following a read operation.",
+                ReadAction::Modify => "The register is <b>modified</b> in some way after a read operation.",
+                ReadAction::ModifyExternal => "One or more dependent resources other than the current register are immediately affected by a read operation.",
+            });
+            doc.push_str("</div>");
+        }
+    }
+    doc
+}
+
 fn api_docs(
     can_read: bool,
     can_write: bool,
     can_reset: bool,
     module: &Ident,
     inmodule: bool,
-    read_action: Option<ReadAction>,
 ) -> Result<String, std::fmt::Error> {
     fn method(s: &str) -> String {
         format!("[`{s}`](crate::Reg::{s})")
     }
 
-    let mut doc = String::new();
+    let mut doc = String::from("\n\n");
 
     if can_read {
         write!(
             doc,
-            "You can {} this register and get [`{module}::R`]{}.",
+            "You can {} this register and get [`{module}::R`]{}. ",
             method("read"),
             if inmodule { "(R)" } else { "" },
         )?;
-
-        if let Some(action) = read_action {
-            doc.push_str(" WARN: ");
-            doc.push_str(match action {
-                ReadAction::Clear => "The register is **cleared** (set to zero) following a read operation.",
-                ReadAction::Set => "The register is **set** (set to ones) following a read operation.",
-                ReadAction::Modify => "The register is **modified** in some way after a read operation.",
-                ReadAction::ModifyExternal => "One or more dependent resources other than the current register are immediately affected by a read operation.",
-            });
-        }
-        doc.push(' ');
     }
 
     if can_write {
@@ -355,15 +360,9 @@ pub fn render_register_mod(
     }
 
     let doc = format!(
-        "{description}\n\n{}",
-        api_docs(
-            can_read,
-            can_write,
-            can_reset,
-            &mod_ty,
-            true,
-            register.read_action,
-        )?
+        "{description}{}{}",
+        api_docs(can_read, can_write, can_reset, &mod_ty, true)?,
+        read_action_docs(access.can_read(), register.read_action),
     );
 
     mod_items.extend(quote! {
@@ -951,12 +950,14 @@ pub fn fields(
                     };
                     let mut readerdoc = field_reader_brief.clone();
                     if let Some(action) = f.read_action {
-                        readerdoc += match action {
-                            ReadAction::Clear => "\n\nThe field is **cleared** (set to zero) following a read operation.",
-                            ReadAction::Set => "\n\nThe field is **set** (set to ones) following a read operation.",
-                            ReadAction::Modify => "\n\nThe field is **modified** in some way after a read operation.",
-                            ReadAction::ModifyExternal => "\n\nOne or more dependent resources other than the current field are immediately affected by a read operation.",
-                        };
+                        readerdoc.push_str("\n\n<div class=\"warning\">");
+                        readerdoc.push_str(match action {
+                            ReadAction::Clear => "The field is <b>cleared</b> (set to zero) following a read operation.",
+                            ReadAction::Set => "The field is <b>set</b> (set to ones) following a read operation.",
+                            ReadAction::Modify => "The field is <b>modified</b> in some way after a read operation.",
+                            ReadAction::ModifyExternal => "One or more dependent resources other than the current field are immediately affected by a read operation.",
+                        });
+                        readerdoc.push_str("</div>");
                     }
                     mod_items.extend(quote! {
                         #[doc = #readerdoc]
@@ -992,7 +993,7 @@ pub fn fields(
                 let increment = de.dim_increment;
                 let doc = description.expand_dim(&brief_suffix);
                 let first_name = svd::array::names(f, de).next().unwrap();
-                let note = format!("NOTE: `n` is number of field in register. `n == 0` corresponds to `{first_name}` field");
+                let note = format!("<div class=\"warning\">`n` is number of field in register. `n == 0` corresponds to `{first_name}` field.</div>");
                 let offset_calc = calculate_offset(increment, offset, true);
                 let value = quote! { ((self.bits >> #offset_calc) & #hexmask) #cast };
                 let dim = unsuffixed(de.dim);
@@ -1279,7 +1280,7 @@ pub fn fields(
                 let offset_calc = calculate_offset(increment, offset, false);
                 let doc = &description.expand_dim(&brief_suffix);
                 let first_name = svd::array::names(f, de).next().unwrap();
-                let note = format!("NOTE: `n` is number of field in register. `n == 0` corresponds to `{first_name}` field");
+                let note = format!("<div class=\"warning\">`n` is number of field in register. `n == 0` corresponds to `{first_name}` field.</div>");
                 let dim = unsuffixed(de.dim);
                 w_impl_items.extend(quote! {
                     #[doc = #doc]

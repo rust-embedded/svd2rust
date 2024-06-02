@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Use `warning` class in docs
 - Refactor `Accessor`
 
 ## [v0.33.3] - 2024-05-10
