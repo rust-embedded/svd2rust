@@ -109,21 +109,19 @@ pub fn render(
         };
 
         let mut alias_doc = format!(
-            "{name} ({accs}) register accessor: {description}\n\n{}",
+            "{name} ({accs}) register accessor: {description}{}{}",
             api_docs(
                 access.can_read(),
                 access.can_write(),
                 register.properties.reset_value.is_some(),
                 &mod_ty,
                 false,
-                register.read_action,
-            )?
+            )?,
+            read_action_docs(access.can_read(), register.read_action),
         );
-        if mod_ty != "cfg" {
-            alias_doc +=
-                format!("\n\nFor information about available fields see [`mod@{mod_ty}`] module")
-                    .as_str();
-        }
+        alias_doc +=
+            format!("\n\nFor information about available fields see [`mod@{mod_ty}`] module")
+                .as_str();
         let mut out = TokenStream::new();
         out.extend(quote! {
             #[doc = #alias_doc]
@@ -149,19 +147,35 @@ pub fn render(
     }
 }
 
+fn read_action_docs(can_read: bool, read_action: Option<ReadAction>) -> String {
+    let mut doc = String::new();
+    if can_read {
+        if let Some(action) = read_action {
+            doc.push_str("\n\n<div class=\"warning\">");
+            doc.push_str(match action {
+                ReadAction::Clear => "The register is <b>cleared</b> (set to zero) following a read operation.",
+                ReadAction::Set => "The register is <b>set</b> (set to ones) following a read operation.",
+                ReadAction::Modify => "The register is <b>modified</b> in some way after a read operation.",
+                ReadAction::ModifyExternal => "One or more dependent resources other than the current register are immediately affected by a read operation.",
+            });
+            doc.push_str("</div>");
+        }
+    }
+    doc
+}
+
 fn api_docs(
     can_read: bool,
     can_write: bool,
     can_reset: bool,
     module: &Ident,
     inmodule: bool,
-    read_action: Option<ReadAction>,
 ) -> Result<String, std::fmt::Error> {
     fn method(s: &str) -> String {
-        format!("[`{s}`](crate::generic::Reg::{s})")
+        format!("[`{s}`](crate::Reg::{s})")
     }
 
-    let mut doc = String::new();
+    let mut doc = String::from("\n\n");
 
     if can_read {
         write!(
@@ -170,17 +184,6 @@ fn api_docs(
             method("read"),
             if inmodule { "(R)" } else { "" },
         )?;
-
-        if let Some(action) = read_action {
-            doc.push_str("WARN: ");
-            doc.push_str(match action {
-                ReadAction::Clear => "The register is **cleared** (set to zero) following a read operation.",
-                ReadAction::Set => "The register is **set** (set to ones) following a read operation.",
-                ReadAction::Modify => "The register is **modified** in some way after a read operation.",
-                ReadAction::ModifyExternal => "One or more dependent resources other than the current register are immediately affected by a read operation.",
-            });
-        }
-        doc.push(' ');
     }
 
     if can_write {
@@ -203,7 +206,7 @@ fn api_docs(
     }
 
     if can_read && can_write {
-        write!(doc, "You can also {} this register. ", method("modify"),)?;
+        write!(doc, "You can also {} this register. ", method("modify"))?;
     }
 
     doc.push_str("See [API](https://docs.rs/svd2rust/#read--modify--write-api).");
@@ -220,12 +223,13 @@ pub fn render_register_mod(
 ) -> Result<TokenStream> {
     let properties = &register.properties;
     let name = util::name_of(register, config.ignore_groups);
+    let rname = &register.name;
     let span = Span::call_site();
     let regspec_ty = regspec(&name, config, span);
     let mod_ty = ident(&name, config, "register_mod", span);
     let rsize = properties
         .size
-        .ok_or_else(|| anyhow!("Register {} has no `size` field", register.name))?;
+        .ok_or_else(|| anyhow!("Register {rname} has no `size` field"))?;
     let rsize = if rsize < 8 {
         8
     } else if rsize.is_power_of_two() {
@@ -236,7 +240,7 @@ pub fn render_register_mod(
     let rty = rsize.to_ty()?;
     let description = util::escape_special_chars(
         util::respace(&register.description.clone().unwrap_or_else(|| {
-            warn!("Missing description for register {}", register.name);
+            warn!("Missing description for register {rname}");
             Default::default()
         }))
         .as_ref(),
@@ -249,7 +253,7 @@ pub fn render_register_mod(
     let can_reset = properties.reset_value.is_some();
 
     if can_read {
-        let desc = format!("Register `{}` reader", register.name);
+        let desc = format!("Register `{rname}` reader");
         mod_items.extend(quote! {
             #[doc = #desc]
             pub type R = crate::R<#regspec_ty>;
@@ -257,7 +261,7 @@ pub fn render_register_mod(
     }
 
     if can_write {
-        let desc = format!("Register `{}` writer", register.name);
+        let desc = format!("Register `{rname}` writer");
         mod_items.extend(quote! {
             #[doc = #desc]
             pub type W = crate::W<#regspec_ty>;
@@ -356,15 +360,9 @@ pub fn render_register_mod(
     }
 
     let doc = format!(
-        "{description}\n\n{}",
-        api_docs(
-            can_read,
-            can_write,
-            can_reset,
-            &mod_ty,
-            true,
-            register.read_action,
-        )?
+        "{description}{}{}",
+        api_docs(can_read, can_write, can_reset, &mod_ty, true)?,
+        read_action_docs(access.can_read(), register.read_action),
     );
 
     mod_items.extend(quote! {
@@ -663,15 +661,11 @@ pub fn fields(
         let rv = properties.reset_value.map(|rv| (rv >> offset) & mask);
         let fty = width.to_ty()?;
 
-        let use_mask;
-        let use_cast;
-        if let Some(size) = properties.size {
+        let (use_cast, use_mask) = if let Some(size) = properties.size {
             let size = size.to_ty_width()?;
-            use_cast = size != width.to_ty_width()?;
-            use_mask = size != width;
+            (size != width.to_ty_width()?, size != width)
         } else {
-            use_cast = true;
-            use_mask = true;
+            (true, true)
         };
 
         let mut lookup_results = Vec::new();
@@ -724,7 +718,8 @@ pub fn fields(
 
         let brief_suffix = if let Field::Array(_, de) = &f {
             if let Some(range) = de.indexes_as_range() {
-                format!("({}-{})", *range.start(), *range.end())
+                let (start, end) = range.into_inner();
+                format!("({start}-{end})")
             } else {
                 let suffixes: Vec<_> = de.indexes().collect();
                 format!("({})", suffixes.join(","))
@@ -955,12 +950,14 @@ pub fn fields(
                     };
                     let mut readerdoc = field_reader_brief.clone();
                     if let Some(action) = f.read_action {
-                        readerdoc += match action {
-                            ReadAction::Clear => "\n\nThe field is **cleared** (set to zero) following a read operation.",
-                            ReadAction::Set => "\n\nThe field is **set** (set to ones) following a read operation.",
-                            ReadAction::Modify => "\n\nThe field is **modified** in some way after a read operation.",
-                            ReadAction::ModifyExternal => "\n\nOne or more dependent resources other than the current field are immediately affected by a read operation.",
-                        };
+                        readerdoc.push_str("\n\n<div class=\"warning\">");
+                        readerdoc.push_str(match action {
+                            ReadAction::Clear => "The field is <b>cleared</b> (set to zero) following a read operation.",
+                            ReadAction::Set => "The field is <b>set</b> (set to ones) following a read operation.",
+                            ReadAction::Modify => "The field is <b>modified</b> in some way after a read operation.",
+                            ReadAction::ModifyExternal => "One or more dependent resources other than the current field are immediately affected by a read operation.",
+                        });
+                        readerdoc.push_str("</div>");
                     }
                     mod_items.extend(quote! {
                         #[doc = #readerdoc]
@@ -996,7 +993,7 @@ pub fn fields(
                 let increment = de.dim_increment;
                 let doc = description.expand_dim(&brief_suffix);
                 let first_name = svd::array::names(f, de).next().unwrap();
-                let note = format!("NOTE: `n` is number of field in register. `n == 0` corresponds to `{first_name}` field");
+                let note = format!("<div class=\"warning\">`n` is number of field in register. `n == 0` corresponds to `{first_name}` field.</div>");
                 let offset_calc = calculate_offset(increment, offset, true);
                 let value = quote! { ((self.bits >> #offset_calc) & #hexmask) #cast };
                 let dim = unsuffixed(de.dim);
@@ -1283,7 +1280,7 @@ pub fn fields(
                 let offset_calc = calculate_offset(increment, offset, false);
                 let doc = &description.expand_dim(&brief_suffix);
                 let first_name = svd::array::names(f, de).next().unwrap();
-                let note = format!("NOTE: `n` is number of field in register. `n == 0` corresponds to `{first_name}` field");
+                let note = format!("<div class=\"warning\">`n` is number of field in register. `n == 0` corresponds to `{first_name}` field.</div>");
                 let dim = unsuffixed(de.dim);
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
@@ -1420,7 +1417,7 @@ impl Variant {
                     .ok_or_else(|| anyhow!("EnumeratedValue {} has no `<value>` entry", ev.name))?;
                 Self::from_value(value, ev, config)
             })
-            .collect::<Result<Vec<_>>>()
+            .collect()
     }
     fn from_value(value: u64, ev: &EnumeratedValue, config: &Config) -> Result<Self> {
         let span = Span::call_site();

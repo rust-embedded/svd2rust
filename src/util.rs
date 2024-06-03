@@ -356,12 +356,7 @@ impl U32Ext for u32 {
             16 => "u16",
             32 => "u32",
             64 => "u64",
-            _ => {
-                return Err(anyhow!(
-                    "can't convert {} bits into register size type",
-                    *self
-                ))
-            }
+            _ => return Err(anyhow!("can't convert {self} bits into register size type")),
         })
     }
     fn to_ty(&self) -> Result<Ident> {
@@ -374,8 +369,7 @@ impl U32Ext for u32 {
                 33..=64 => "u64",
                 _ => {
                     return Err(anyhow!(
-                        "can't convert {} bits into a Rust integral type",
-                        *self
+                        "can't convert {self} bits into a Rust integral type"
                     ))
                 }
             },
@@ -392,8 +386,7 @@ impl U32Ext for u32 {
             33..=64 => 64,
             _ => {
                 return Err(anyhow!(
-                    "can't convert {} bits into a Rust integral type width",
-                    *self
+                    "can't convert {self} bits into a Rust integral type width"
                 ))
             }
         })
@@ -437,11 +430,8 @@ pub trait DimSuffix {
 impl DimSuffix for str {
     fn expand_dim(&self, suffix: &str) -> Cow<str> {
         if self.contains("%s") {
-            if self.contains("[%s]") {
-                self.replace("[%s]", suffix).into()
-            } else {
-                self.replace("%s", suffix).into()
-            }
+            self.replace(if self.contains("[%s]") { "[%s]" } else { "%s" }, suffix)
+                .into()
         } else {
             self.into()
         }
