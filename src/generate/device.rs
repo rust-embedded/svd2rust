@@ -140,6 +140,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     }
 
     let generic_file = include_str!("generic.rs");
+    let generic_reg_file = include_str!("generic_reg_vcell.rs");
     let generic_atomic_file = include_str!("generic_atomic.rs");
     if config.generic_mod {
         let mut file = File::create(
@@ -150,6 +151,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 .join("generic.rs"),
         )?;
         writeln!(file, "{generic_file}")?;
+        writeln!(file, "{generic_reg_file}")?;
         if config.atomics {
             if let Some(atomics_feature) = config.atomics_feature.as_ref() {
                 writeln!(file, "#[cfg(feature = \"{atomics_feature}\")]")?;
@@ -167,6 +169,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
     } else {
         let mut tokens = syn::parse_file(generic_file)?.into_token_stream();
+        syn::parse_file(generic_reg_file)?.to_tokens(&mut tokens);
         if config.atomics {
             if let Some(atomics_feature) = config.atomics_feature.as_ref() {
                 quote!(#[cfg(feature = #atomics_feature)]).to_tokens(&mut tokens);
@@ -246,9 +249,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                     #feature_attribute
                     pub #p_singleton: #p_ty,
                 });
-                exprs.extend(
-                    quote!(#feature_attribute #p_singleton: #p_ty { _marker: PhantomData },),
-                );
+                exprs.extend(quote!(#feature_attribute #p_singleton: #p_ty::steal(),));
             }
             Peripheral::Array(p, dim_element) => {
                 for p_name in names(p, dim_element) {
@@ -263,9 +264,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                         #feature_attribute
                         pub #p_singleton: #p_ty,
                     });
-                    exprs.extend(
-                        quote!(#feature_attribute #p_singleton: #p_ty { _marker: PhantomData },),
-                    );
+                    exprs.extend(quote!(#feature_attribute #p_singleton: #p_ty::steal(),));
                 }
             }
         }
