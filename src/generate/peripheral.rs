@@ -81,6 +81,11 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         }
     };
 
+    let phtml = config.html_url.as_ref().map(|url| {
+        let doc = format!("See peripheral [structure]({url}#{})", &path.peripheral);
+        quote!(#[doc = ""] #[doc = #doc])
+    });
+
     let per_to_tokens = |out: &mut TokenStream,
                          feature_attribute: &TokenStream,
                          description: &str,
@@ -89,6 +94,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                          address: LitInt| {
         out.extend(quote! {
             #[doc = #description]
+            #phtml
             #doc_alias
             #feature_attribute
             pub struct #p_ty { _marker: PhantomData<*const ()> }

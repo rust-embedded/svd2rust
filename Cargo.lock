@@ -1239,6 +1239,7 @@ dependencies = [
  "svd-rs",
  "syn 2.0.42",
  "thiserror",
+ "url",
 ]
 
 [[package]]
@@ -1547,6 +1548,7 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]
