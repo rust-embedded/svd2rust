@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add `html-url` option to access `svdtools html` files from docs
 - Move `Reg` in separate file
 - Use `warning` class in docs
 - Refactor `Accessor`

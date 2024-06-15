@@ -5,6 +5,7 @@ use std::fmt;
 use svd_parser::expand::{
     derive_cluster, derive_peripheral, derive_register, BlockPath, Index, RegisterPath,
 };
+use syn::LitInt;
 
 use crate::config::Config;
 use crate::svd::{
@@ -80,6 +81,60 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         }
     };
 
+    let phtml = config.html_url.as_ref().map(|url| {
+        let doc = format!("See peripheral [structure]({url}#{})", &path.peripheral);
+        quote!(#[doc = ""] #[doc = #doc])
+    });
+
+    let per_to_tokens = |out: &mut TokenStream,
+                         feature_attribute: &TokenStream,
+                         description: &str,
+                         p_ty: &Ident,
+                         doc_alias: Option<TokenStream>,
+                         address: LitInt| {
+        out.extend(quote! {
+            #[doc = #description]
+            #phtml
+            #doc_alias
+            #feature_attribute
+            pub struct #p_ty { _marker: PhantomData<*const ()> }
+
+            #feature_attribute
+            unsafe impl Send for #p_ty {}
+
+            #feature_attribute
+            impl #p_ty {
+                ///Pointer to the register block
+                pub const PTR: *const #base::RegisterBlock = #address as *const _;
+
+                ///Return the pointer to the register block
+                #[inline(always)]
+                pub const fn ptr() -> *const #base::RegisterBlock {
+                    Self::PTR
+                }
+
+                #steal_fn
+            }
+
+            #feature_attribute
+            impl Deref for #p_ty {
+                type Target = #base::RegisterBlock;
+
+                #[inline(always)]
+                fn deref(&self) -> &Self::Target {
+                    unsafe { &*Self::PTR }
+                }
+            }
+
+            #feature_attribute
+            impl core::fmt::Debug for #p_ty {
+                fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                    f.debug_struct(#name_str).finish()
+                }
+            }
+        });
+    };
+
     match &p {
         Peripheral::Array(p, dim) => {
             let mut feature_names = Vec::with_capacity(dim.dim as _);
@@ -97,46 +152,14 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                     feature_attribute_n.extend(quote! { #[cfg(feature = #p_feature)] })
                 };
                 // Insert the peripherals structure
-                out.extend(quote! {
-                    #[doc = #description]
-                    #doc_alias
-                    #feature_attribute_n
-                    pub struct #p_ty { _marker: PhantomData<*const ()> }
-
-                    #feature_attribute_n
-                    unsafe impl Send for #p_ty {}
-
-                    #feature_attribute_n
-                    impl #p_ty {
-                        ///Pointer to the register block
-                        pub const PTR: *const #base::RegisterBlock = #address as *const _;
-
-                        ///Return the pointer to the register block
-                        #[inline(always)]
-                        pub const fn ptr() -> *const #base::RegisterBlock {
-                            Self::PTR
-                        }
-
-                        #steal_fn
-                    }
-
-                    #feature_attribute_n
-                    impl Deref for #p_ty {
-                        type Target = #base::RegisterBlock;
-
-                        #[inline(always)]
-                        fn deref(&self) -> &Self::Target {
-                            unsafe { &*Self::PTR }
-                        }
-                    }
-
-                    #feature_attribute_n
-                    impl core::fmt::Debug for #p_ty {
-                        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-                            f.debug_struct(#name_str).finish()
-                        }
-                    }
-                });
+                per_to_tokens(
+                    &mut out,
+                    &feature_attribute_n,
+                    description,
+                    &p_ty,
+                    doc_alias,
+                    address,
+                );
             }
 
             let feature_any_attribute = quote! {#[cfg(any(#(feature = #feature_names),*))]};
@@ -159,45 +182,14 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 feature_attribute.extend(quote! { #[cfg(feature = #p_feature)] })
             };
             // Insert the peripheral structure
-            out.extend(quote! {
-                #[doc = #description]
-                #feature_attribute
-                pub struct #p_ty { _marker: PhantomData<*const ()> }
-
-                #feature_attribute
-                unsafe impl Send for #p_ty {}
-
-                #feature_attribute
-                impl #p_ty {
-                    ///Pointer to the register block
-                    pub const PTR: *const #base::RegisterBlock = #address as *const _;
-
-                    ///Return the pointer to the register block
-                    #[inline(always)]
-                    pub const fn ptr() -> *const #base::RegisterBlock {
-                        Self::PTR
-                    }
-
-                    #steal_fn
-                }
-
-                #feature_attribute
-                impl Deref for #p_ty {
-                    type Target = #base::RegisterBlock;
-
-                    #[inline(always)]
-                    fn deref(&self) -> &Self::Target {
-                        unsafe { &*Self::PTR }
-                    }
-                }
-
-                #feature_attribute
-                impl core::fmt::Debug for #p_ty {
-                    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-                        f.debug_struct(#name_str).finish()
-                    }
-                }
-            });
+            per_to_tokens(
+                &mut out,
+                &feature_attribute,
+                &description,
+                &p_ty,
+                None,
+                address,
+            );
 
             // Derived peripherals may not require re-implementation, and will instead
             // use a single definition of the non-derived version.

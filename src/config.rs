@@ -35,6 +35,7 @@ pub struct Config {
     pub ident_formats_theme: Option<IdentFormatsTheme>,
     pub field_names_for_enums: bool,
     pub base_address_shift: u64,
+    pub html_url: Option<url::Url>,
 }
 
 #[allow(clippy::upper_case_acronyms)]
