@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.33.4] - 2024-06-16
+
 - Add `html-url` option to access `svdtools html` files from docs
 - Move `Reg` in separate file
 - Use `warning` class in docs
@@ -896,7 +898,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.33.3...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.33.4...HEAD
+[v0.33.4]: https://github.com/rust-embedded/svd2rust/compare/v0.33.3...v0.33.4
 [v0.33.3]: https://github.com/rust-embedded/svd2rust/compare/v0.33.2...v0.33.3
 [v0.33.2]: https://github.com/rust-embedded/svd2rust/compare/v0.33.1...v0.33.2
 [v0.33.1]: https://github.com/rust-embedded/svd2rust/compare/v0.33.0...v0.33.1
