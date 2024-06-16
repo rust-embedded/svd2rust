@@ -63,8 +63,12 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
 
     out.extend(quote! {
         use core::ops::Deref;
-        use core::marker::PhantomData;
     });
+    if !config.raw_access {
+        out.extend(quote! {
+            use core::marker::PhantomData;
+        });
+    }
 
     // Retaining the previous assumption
     let mut fpu_present = true;
@@ -140,7 +144,11 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     }
 
     let generic_file = include_str!("generic.rs");
-    let generic_reg_file = include_str!("generic_reg_vcell.rs");
+    let generic_reg_file = if config.raw_access {
+        include_str!("generic_reg_raw.rs")
+    } else {
+        include_str!("generic_reg_vcell.rs")
+    };
     let generic_atomic_file = include_str!("generic_atomic.rs");
     if config.generic_mod {
         let mut file = File::create(
