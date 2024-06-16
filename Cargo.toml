@@ -13,17 +13,11 @@ categories = [
 ]
 description = "Generate Rust register maps (`struct`s) from SVD files"
 documentation = "https://docs.rs/svd2rust"
-keywords = [
-    "svd",
-    "embedded",
-    "register",
-    "map",
-    "generator",
-]
+keywords = ["svd", "embedded", "register", "map", "generator"]
 license = "MIT OR Apache-2.0"
 name = "svd2rust"
 repository = "https://github.com/rust-embedded/svd2rust/"
-version = "0.33.3"
+version = "0.33.4"
 readme = "README.md"
 rust-version = "1.74"
 
@@ -44,7 +38,10 @@ yaml = ["dep:serde_yaml"]
 
 [dependencies]
 clap = { version = "4.0", optional = true }
-irx-config = { version = "=3.3.0", features = ["cmd", "toml-parser"], optional = true }
+irx-config = { version = "=3.3.0", features = [
+    "cmd",
+    "toml-parser",
+], optional = true }
 env_logger = { version = "0.11", optional = true }
 inflections = "1.1"
 log = { version = "~0.4", features = ["std"] }
@@ -69,7 +66,7 @@ version = "0.14.8"
 
 [dependencies.syn]
 version = "2.0"
-features = ["full","extra-traits"]
+features = ["full", "extra-traits"]
 
 [workspace]
 members = ["ci/svd2rust-regress"]
@@ -79,5 +76,5 @@ exclude = [
     # workaround for https://github.com/rust-lang/cargo/pull/12779, doesn't work for output though
     # see https://github.com/rust-lang/cargo/issues/6009#issuecomment-1925445245
     "output/baseline/**",
-    "output/current/**"
+    "output/current/**",
 ]
