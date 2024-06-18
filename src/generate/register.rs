@@ -805,7 +805,7 @@ pub fn fields(
                         // if there's no variant defined in enumeratedValues, generate enumeratedValues with new-type
                         // wrapper struct, and generate From conversation only.
                         // else, generate enumeratedValues into a Rust enum with functions for each variant.
-                        if variants.is_empty() {
+                        if variants.is_empty() && def.is_none() {
                             // generate struct VALUE_READ_TY_A(fty) and From<fty> for VALUE_READ_TY_A.
                             add_with_no_variants(
                                 mod_items,

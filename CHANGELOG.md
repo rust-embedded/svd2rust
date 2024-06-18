@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fix `enumeratedValues` with `isDefault` only
+
 ## [v0.33.4] - 2024-06-16
 
 - Add `html-url` option to access `svdtools html` files from docs
