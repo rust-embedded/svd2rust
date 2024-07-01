@@ -57,12 +57,16 @@ html-escape = "0.2"
 url = { version = "2.5", features = ["serde"] }
 
 [dependencies.svd-parser]
+git = "https://github.com/romancardenas/svd.git" # TODO use crates.io
+rev = "71b33bf"
 features = ["expand"]
-version = "0.14.5"
+# version = "0.14.5"
 
 [dependencies.svd-rs]
+git = "https://github.com/romancardenas/svd.git" # TODO use crates.io
+rev = "71b33bf"
 features = ["serde"]
-version = "0.14.8"
+# version = "0.14.8"
 
 [dependencies.syn]
 version = "2.0"
