@@ -11,7 +11,7 @@ use crate::config::{Config, Target};
 use crate::util::{self, ident};
 use anyhow::{Context, Result};
 
-use crate::generate::{interrupt, peripheral};
+use crate::generate::{interrupt, peripheral, riscv};
 
 /// Whole device generation
 pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<TokenStream> {
@@ -188,12 +188,17 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     }
 
     debug!("Rendering interrupts");
-    out.extend(interrupt::render(
-        config.target,
-        &d.peripherals,
-        device_x,
-        config,
-    )?);
+    if config.target != Target::RISCV {
+        out.extend(interrupt::render(
+            config.target,
+            &d.peripherals,
+            device_x,
+            config,
+        )?);
+    } else {
+        let riscv = riscv::render(d.riscv.as_ref(), &d.peripherals, device_x)?;
+        out.extend(riscv);
+    }
 
     let feature_format = config.ident_formats.get("peripheral_feature").unwrap();
     for p in &d.peripherals {
