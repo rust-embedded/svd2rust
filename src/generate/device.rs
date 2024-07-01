@@ -7,11 +7,11 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use crate::config::{Config, Target};
+use crate::config::{Config, Settings, Target};
 use crate::util::{self, ident};
 use anyhow::{Context, Result};
 
-use crate::generate::{interrupt, peripheral};
+use crate::generate::{interrupt, peripheral, riscv};
 
 /// Whole device generation
 pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<TokenStream> {
@@ -26,6 +26,14 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         } else {
             tmp
         }
+    };
+
+    let settings = match config.settings.as_ref() {
+        Some(settings) => {
+            let file = std::fs::read_to_string(settings).context("could not read settings file")?;
+            serde_yaml::from_str(&file).context("could not parse settings file")?
+        }
+        None => Settings::default(),
     };
 
     if config.target == Target::Msp430 {
@@ -187,13 +195,21 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         });
     }
 
-    debug!("Rendering interrupts");
-    out.extend(interrupt::render(
-        config.target,
-        &d.peripherals,
-        device_x,
-        config,
-    )?);
+    match config.target {
+        Target::RISCV => {
+            debug!("Rendering RISC-V specific code");
+            out.extend(riscv::render(&d.peripherals, device_x, &settings)?);
+        }
+        _ => {
+            debug!("Rendering interrupts");
+            out.extend(interrupt::render(
+                config.target,
+                &d.peripherals,
+                device_x,
+                config,
+            )?);
+        }
+    }
 
     let feature_format = config.ident_formats.get("peripheral_feature").unwrap();
     for p in &d.peripherals {
@@ -201,6 +217,10 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             && core_peripherals.contains(&p.name.to_uppercase().as_ref())
         {
             // Core peripherals are handled above
+            continue;
+        }
+        if config.target == Target::RISCV && riscv::is_riscv_peripheral(p, &settings) {
+            // RISC-V specific peripherals are handled above
             continue;
         }
 
