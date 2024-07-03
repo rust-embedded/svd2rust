@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Implement `riscv-pac` traits via experimental `riscv` element in SVD.
+  You must use the `unstable-riscv` feature to use this.
 - Fix `enumeratedValues` with `isDefault` only
 
 ## [v0.33.4] - 2024-06-16

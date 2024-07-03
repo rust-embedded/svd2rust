@@ -1176,7 +1176,7 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 [[package]]
 name = "svd-parser"
 version = "0.14.5"
-source = "git+https://github.com/romancardenas/svd.git?rev=71b33bf#71b33bfa56c51932a685ac7fe91f1cbe9d009fdb"
+source = "git+https://github.com/romancardenas/svd.git?rev=ddc3d99#ddc3d99e9aea74930fb4ae3e401b984a09c7d398"
 dependencies = [
  "anyhow",
  "roxmltree",
@@ -1187,7 +1187,7 @@ dependencies = [
 [[package]]
 name = "svd-rs"
 version = "0.14.8"
-source = "git+https://github.com/romancardenas/svd.git?rev=71b33bf#71b33bfa56c51932a685ac7fe91f1cbe9d009fdb"
+source = "git+https://github.com/romancardenas/svd.git?rev=ddc3d99#ddc3d99e9aea74930fb4ae3e401b984a09c7d398"
 dependencies = [
  "once_cell",
  "regex",

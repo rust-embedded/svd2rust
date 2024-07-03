@@ -11,7 +11,9 @@ use crate::config::{Config, Target};
 use crate::util::{self, ident};
 use anyhow::{Context, Result};
 
-use crate::generate::{interrupt, peripheral, riscv};
+#[cfg(feature = "unstable-riscv")]
+use crate::generate::riscv;
+use crate::generate::{interrupt, peripheral};
 
 /// Whole device generation
 pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<TokenStream> {
@@ -188,16 +190,28 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     }
 
     debug!("Rendering interrupts");
-    if config.target != Target::RISCV {
-        out.extend(interrupt::render(
-            config.target,
-            &d.peripherals,
-            device_x,
-            config,
-        )?);
-    } else {
-        let riscv = riscv::render(d.riscv.as_ref(), &d.peripherals, device_x)?;
-        out.extend(riscv);
+    match config.target {
+        #[cfg(feature = "unstable-riscv")]
+        Target::RISCV => {
+            if let Some(riscv) = d.riscv.as_ref() {
+                out.extend(riscv::render(riscv, &d.peripherals, device_x)?);
+            } else {
+                out.extend(interrupt::render(
+                    config.target,
+                    &d.peripherals,
+                    device_x,
+                    config,
+                )?);
+            }
+        }
+        _ => {
+            out.extend(interrupt::render(
+                config.target,
+                &d.peripherals,
+                device_x,
+                config,
+            )?);
+        }
     }
 
     let feature_format = config.ident_formats.get("peripheral_feature").unwrap();
