@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - Fix `enumeratedValues` with `isDefault` only
+- Generate unique identifier instead of `DEVICE_PERIPHERALS` to solve
+  the link time issue when multiple devices used
 
 ## [v0.33.4] - 2024-06-16
 
