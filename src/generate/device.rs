@@ -1,8 +1,6 @@
 use crate::svd::{array::names, Device, Peripheral};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use regex::Regex;
-use syn::Ident;
 
 use log::debug;
 use std::fs::File;
@@ -272,22 +270,8 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
     }
 
-    // Generate unique identifier to prevent linkage errors when using multiple devices.
-    let mut id = String::from("TAKEN_");
-    let re = Regex::new(r"[^A-Za-z0-9_]").unwrap();
-    let result = re.replace_all(&d.name, "_");
-    for ch in result.chars() {
-        id.extend(ch.to_uppercase());
-    }
-
-    let taken: Ident = syn::parse_str(&id)?;
-
     out.extend(quote! {
-        // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
-        // crate as that would let you `take` the device peripherals more than once (one per minor
-        // version)
-        #[no_mangle]
-        static mut #taken: bool = false;
+        static mut DEVICE_PERIPHERALS: bool = false;
 
         /// All the peripherals.
         #[allow(non_snake_case)]
@@ -302,12 +286,12 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             pub fn take() -> Option<Self> {
                 critical_section::with(|_| {
                     // SAFETY: We are in a critical section, so we have exclusive access
-                    // to `#taken`.
-                    if unsafe { #taken } {
+                    // to `DEVICE_PERIPHERALS`.
+                    if unsafe { DEVICE_PERIPHERALS } {
                         return None
                     }
 
-                    // SAFETY: `#taken` is set to `true` by `Peripherals::steal`,
+                    // SAFETY: `DEVICE_PERIPHERALS` is set to `true` by `Peripherals::steal`,
                     // ensuring the peripherals can only be returned once.
                     Some(unsafe { Peripherals::steal() })
                 })
@@ -320,7 +304,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             /// Each of the returned peripherals must be used at most once.
             #[inline]
             pub unsafe fn steal() -> Self {
-                #taken = true;
+                DEVICE_PERIPHERALS = true;
 
                 Peripherals {
                     #exprs
