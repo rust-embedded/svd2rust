@@ -1,6 +1,7 @@
 use crate::svd::{array::names, Device, Peripheral};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
+use regex::Regex;
 use syn::Ident;
 
 use log::debug;
@@ -273,12 +274,10 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
 
     // Generate unique identifier to prevent linkage errors when using multiple devices.
     let mut id = String::from("TAKEN_");
-    for ch in d.name.chars() {
-        if ch == ' ' || ch == '-' {
-            id.push('_');
-        } else {
-            id.extend(ch.to_uppercase());
-        }
+    let re = Regex::new(r"[^A-Za-z0-9_]").unwrap();
+    let result = re.replace_all(&d.name, "_");
+    for ch in result.chars() {
+        id.extend(ch.to_uppercase());
     }
 
     let taken: Ident = syn::parse_str(&id)?;
