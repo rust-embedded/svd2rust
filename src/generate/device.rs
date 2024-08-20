@@ -189,22 +189,14 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         });
     }
 
-    debug!("Rendering interrupts");
     match config.target {
         #[cfg(feature = "unstable-riscv")]
         Target::RISCV => {
-            if let Some(riscv) = d.riscv.as_ref() {
-                out.extend(riscv::render(riscv, &d.peripherals, device_x)?);
-            } else {
-                out.extend(interrupt::render(
-                    config.target,
-                    &d.peripherals,
-                    device_x,
-                    config,
-                )?);
-            }
+            debug!("Rendering RISC-V specific code");
+            out.extend(riscv::render(d.riscv.as_ref(), &d.peripherals, device_x)?);
         }
         _ => {
+            debug!("Rendering interrupts");
             out.extend(interrupt::render(
                 config.target,
                 &d.peripherals,
@@ -220,6 +212,11 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             && core_peripherals.contains(&p.name.to_uppercase().as_ref())
         {
             // Core peripherals are handled above
+            continue;
+        }
+        #[cfg(feature = "unstable-riscv")]
+        if config.target == Target::RISCV && riscv::is_riscv_peripheral(p) {
+            // RISC-V specific peripherals are handled above
             continue;
         }
 
