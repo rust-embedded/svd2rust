@@ -58,14 +58,14 @@ html-escape = "0.2"
 url = { version = "2.5", features = ["serde"] }
 
 [dependencies.svd-parser]
-git = "https://github.com/romancardenas/svd.git" # TODO use crates.io
-rev = "ddc3d99"
+git = "https://github.com/rust-embedded/svd.git" # TODO use crates.io
+branch = "master"
 features = ["expand"]
 # version = "0.14.5"
 
 [dependencies.svd-rs]
-git = "https://github.com/romancardenas/svd.git" # TODO use crates.io
-rev = "ddc3d99"
+git = "https://github.com/rust-embedded/svd.git" # TODO use crates.io
+branch = "master"
 features = ["serde"]
 # version = "0.14.8"
 

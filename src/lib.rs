@@ -150,7 +150,6 @@
 //!
 //! - [`critical-section`](https://crates.io/crates/critical-section) v1.x
 //! - [`riscv`](https://crates.io/crates/riscv) v0.9.x (if target is RISC-V) TODO update version
-//! - [`riscv-pac`](https://crates.io/crates/riscv-pac) v0.9.x (if target is RISC-V) TODO update version
 //! - [`riscv-peripheral`](https://crates.io/crates/riscv-peripheral) v0.9.x (if target is RISC-V and has standard peripherals) TODO update version
 //! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.9.x (if target is RISC-V) TODO update version
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
@@ -163,7 +162,6 @@
 //! [dependencies]
 //! critical-section = { version = "1.0", optional = true }
 //! riscv = "0.9.0" // TODO update version
-//! riscv-pac = "0.9.0" // TODO update version
 //! riscv-peripheral = "0.9.0" // TODO update version
 //! riscv-rt = { version = "0.9.0", optional = true } // TODO update version
 //! vcell = "0.1.0"
