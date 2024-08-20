@@ -56,8 +56,42 @@ pub fn render(
         mod_items.extend(quote! {pub use riscv::interrupt::Interrupt as CoreInterrupt;});
     }
 
-    // TODO something similar to core interrupts but for exceptions
-    mod_items.extend(quote! { pub use riscv::interrupt::Exception; });
+    if !r.exceptions.is_empty() {
+        writeln!(device_x, "/* Exception sources */")?;
+        let mut exceptions = vec![];
+        for e in r.exceptions.iter() {
+            let name = TokenStream::from_str(&e.name).unwrap();
+            let value = TokenStream::from_str(&format!("{}", e.value)).unwrap();
+            let description = format!(
+                "{} - {}",
+                e.value,
+                e.description
+                    .as_ref()
+                    .map(|s| util::respace(s))
+                    .as_ref()
+                    .map(|s| util::escape_special_chars(s))
+                    .unwrap_or_else(|| e.name.clone())
+            );
+
+            writeln!(device_x, "PROVIDE({name} = ExceptionHandler);")?;
+
+            exceptions.push(quote! {
+                #[doc = #description]
+                #name = #value,
+            });
+        }
+        mod_items.extend(quote! {
+            /// Exception sources in the device.
+            #[riscv::pac_enum(unsafe ExceptionNumber)]
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            pub enum Exception {
+                #(#exceptions)*
+            }
+        });
+    } else {
+        // when no exceptions are defined, we re-export the standard riscv exceptions
+        mod_items.extend(quote! { pub use riscv::interrupt::Exception; });
+    }
 
     let external_interrupts = peripherals
         .iter()
