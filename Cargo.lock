@@ -1192,8 +1192,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "svd-parser"
-version = "0.14.5"
-source = "git+https://github.com/rust-embedded/svd.git?branch=master#5989a867c0845e89d122f4b7f24b2e37d1603df7"
+version = "0.14.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fea184cbe4750f4016297660436b0620b3042369741397978915a462248de175"
 dependencies = [
  "anyhow",
  "roxmltree",
@@ -1203,8 +1204,9 @@ dependencies = [
 
 [[package]]
 name = "svd-rs"
-version = "0.14.8"
-source = "git+https://github.com/rust-embedded/svd.git?branch=master#5989a867c0845e89d122f4b7f24b2e37d1603df7"
+version = "0.14.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e49a90f3c4d03d81687e81d41b00f349fd44ccf9c26e0185ee926968de093bb"
 dependencies = [
  "once_cell",
  "regex",

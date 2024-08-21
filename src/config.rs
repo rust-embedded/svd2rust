@@ -36,6 +36,10 @@ pub struct Config {
     pub field_names_for_enums: bool,
     pub base_address_shift: u64,
     pub html_url: Option<url::Url>,
+    #[cfg(feature = "unstable-riscv")]
+    pub use_riscv_peripheral: bool,
+    #[cfg(feature = "unstable-riscv")]
+    pub riscv_clint_freq: Option<u64>,
 }
 
 #[allow(clippy::upper_case_acronyms)]

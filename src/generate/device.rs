@@ -193,7 +193,12 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         #[cfg(feature = "unstable-riscv")]
         Target::RISCV => {
             debug!("Rendering RISC-V specific code");
-            out.extend(riscv::render(d.riscv.as_ref(), &d.peripherals, device_x)?);
+            out.extend(riscv::render(
+                d.riscv.as_ref(),
+                &d.peripherals,
+                device_x,
+                config,
+            )?);
         }
         _ => {
             debug!("Rendering interrupts");
@@ -215,7 +220,10 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             continue;
         }
         #[cfg(feature = "unstable-riscv")]
-        if config.target == Target::RISCV && riscv::is_riscv_peripheral(p) {
+        if config.target == Target::RISCV
+            && config.use_riscv_peripheral
+            && riscv::is_riscv_peripheral(p)
+        {
             // RISC-V specific peripherals are handled above
             continue;
         }

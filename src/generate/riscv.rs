@@ -1,6 +1,6 @@
 use crate::{
     svd::{Peripheral, Riscv},
-    util,
+    util, Config,
 };
 use anyhow::Result;
 use log::debug;
@@ -16,7 +16,8 @@ pub fn is_riscv_peripheral(p: &Peripheral) -> bool {
 pub fn render(
     r: Option<&Riscv>,
     peripherals: &[Peripheral],
-    device_x: &mut String, // TODO
+    device_x: &mut String,
+    config: &Config,
 ) -> Result<TokenStream> {
     let mut mod_items = TokenStream::new();
 
@@ -236,74 +237,81 @@ pub fn render(
         });
     }
 
-    let harts = match r {
-        Some(r) => r
-            .harts
-            .iter()
-            .map(|h| {
-                let name = TokenStream::from_str(&h.name).unwrap();
-                let value = h.value;
-                (name, value)
-            })
-            .collect::<Vec<_>>(),
-        None => vec![],
-    };
-
     let mut riscv_peripherals = TokenStream::new();
-    for p in peripherals.iter() {
-        match p.name.to_uppercase().as_ref() {
-            "PLIC" => {
-                let base = TokenStream::from_str(&format!("0x{:X}", p.base_address)).unwrap();
-                let ctxs = harts
-                    .iter()
-                    .map(|(name, value)| {
-                        let ctx_name = TokenStream::from_str(&format!("ctx{value}")).unwrap();
-                        let doc = format!("[{value}](crate::interrupt::Hart::{name})");
-                        quote! {#ctx_name = (crate::interrupt::Hart::#name, #doc)}
-                    })
-                    .collect::<Vec<_>>();
-                let ctxs = match ctxs.len() {
-                    0 => quote! {},
-                    _ => quote! {ctxs [ #(#ctxs),* ],},
-                };
+    if config.use_riscv_peripheral {
+        let harts = match r {
+            Some(r) => r
+                .harts
+                .iter()
+                .map(|h| {
+                    let name = TokenStream::from_str(&h.name).unwrap();
+                    let value = h.value;
+                    (name, value)
+                })
+                .collect::<Vec<_>>(),
+            None => vec![],
+        };
+        for p in peripherals.iter() {
+            match p.name.to_uppercase().as_ref() {
+                "PLIC" => {
+                    let base =
+                        TokenStream::from_str(&format!("base 0x{:X},", p.base_address)).unwrap();
+                    let ctxs = harts
+                        .iter()
+                        .map(|(name, value)| {
+                            let ctx_name = TokenStream::from_str(&format!("ctx{value}")).unwrap();
+                            let doc = format!("[{value}](crate::interrupt::Hart::{name})");
+                            quote! {#ctx_name = (crate::interrupt::Hart::#name, #doc)}
+                        })
+                        .collect::<Vec<_>>();
+                    let ctxs = match ctxs.len() {
+                        0 => quote! {},
+                        _ => quote! {ctxs [ #(#ctxs),* ],},
+                    };
 
-                riscv_peripherals.extend(quote! {
-                    riscv_peripheral::plic_codegen!(base #base, #ctxs);
-                });
-            }
-            "CLINT" => {
-                let base = TokenStream::from_str(&format!("0x{:X}", p.base_address)).unwrap();
-                let mtimecmps = harts
-                    .iter()
-                    .map(|(name, value)| {
-                        let mtimecmp_name =
-                            TokenStream::from_str(&format!("mtimecmp{value}")).unwrap();
-                        let doc = format!("[{value}](crate::interrupt::Hart::{name})");
-                        quote! {#mtimecmp_name = (crate::interrupt::Hart::#name, #doc)}
-                    })
-                    .collect::<Vec<_>>();
-                let mtimecmps = match mtimecmps.len() {
-                    0 => quote! {},
-                    _ => quote! {mtimecmps [ #(#mtimecmps),* ],},
-                };
-                let msips = harts
-                    .iter()
-                    .map(|(name, value)| {
-                        let msip_name = TokenStream::from_str(&format!("msip{value}")).unwrap();
-                        let doc = format!("[{value}](crate::interrupt::Hart::{name})");
-                        quote! {#msip_name = (crate::interrupt::Hart::#name, #doc)}
-                    })
-                    .collect::<Vec<_>>();
-                let msips = match msips.len() {
-                    0 => quote! {},
-                    _ => quote! {msips [ #(#msips),* ],},
-                };
+                    riscv_peripherals.extend(quote! {
+                        riscv_peripheral::plic_codegen!(#base #ctxs);
+                    });
+                }
+                "CLINT" => {
+                    let base =
+                        TokenStream::from_str(&format!("base 0x{:X},", p.base_address)).unwrap();
+                    let freq = match config.riscv_clint_freq {
+                        Some(clk) => TokenStream::from_str(&format!("freq {clk},")).unwrap(),
+                        None => quote! {},
+                    };
+                    let mtimecmps = harts
+                        .iter()
+                        .map(|(name, value)| {
+                            let mtimecmp_name =
+                                TokenStream::from_str(&format!("mtimecmp{value}")).unwrap();
+                            let doc = format!("[{value}](crate::interrupt::Hart::{name})");
+                            quote! {#mtimecmp_name = (crate::interrupt::Hart::#name, #doc)}
+                        })
+                        .collect::<Vec<_>>();
+                    let mtimecmps = match mtimecmps.len() {
+                        0 => quote! {},
+                        _ => quote! {mtimecmps [ #(#mtimecmps),* ],},
+                    };
+                    let msips = harts
+                        .iter()
+                        .map(|(name, value)| {
+                            let msip_name = TokenStream::from_str(&format!("msip{value}")).unwrap();
+                            let doc = format!("[{value}](crate::interrupt::Hart::{name})");
+                            quote! {#msip_name = (crate::interrupt::Hart::#name, #doc)}
+                        })
+                        .collect::<Vec<_>>();
+                    let msips = match msips.len() {
+                        0 => quote! {},
+                        _ => quote! {msips [ #(#msips),* ],},
+                    };
 
-                riscv_peripherals.extend(quote! {
-                    riscv_peripheral::clint_codegen!(base #base, #mtimecmps #msips);
-                });
+                    riscv_peripherals.extend(quote! {
+                        riscv_peripheral::clint_codegen!(#base #freq #mtimecmps #msips);
+                    });
+                }
+                _ => {}
             }
-            _ => {}
         }
     }
 
