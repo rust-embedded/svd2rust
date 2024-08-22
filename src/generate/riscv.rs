@@ -1,44 +1,38 @@
-use crate::{
-    svd::{Peripheral, Riscv},
-    util, Config,
-};
+use crate::{svd::Peripheral, util, Config};
 use anyhow::Result;
 use log::debug;
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::{collections::HashMap, fmt::Write, str::FromStr};
 
-pub fn is_riscv_peripheral(p: &Peripheral) -> bool {
-    ["PLIC", "CLINT"].contains(&p.name.to_uppercase().as_ref())
+pub fn is_riscv_peripheral(p: &Peripheral, c: &Config) -> bool {
+    // TODO cleaner implementation of this
+    match &c.riscv_config {
+        Some(c) => {
+            c.clint.as_ref().is_some_and(|clint| clint.name == p.name)
+                || c.plic.as_ref().is_some_and(|plic| plic == &p.name)
+        }
+        _ => false,
+    }
 }
 
 /// Whole RISC-V generation
 pub fn render(
-    r: Option<&Riscv>,
     peripherals: &[Peripheral],
     device_x: &mut String,
     config: &Config,
 ) -> Result<TokenStream> {
     let mut mod_items = TokenStream::new();
 
-    if let Some(r) = r {
-        if !r.core_interrupts.is_empty() {
+    if let Some(c) = config.riscv_config.as_ref() {
+        if let Some(i) = c.core_interrupts.as_ref() {
             debug!("Rendering target-specific core interrupts");
             writeln!(device_x, "/* Core interrupt sources and trap handlers */")?;
             let mut interrupts = vec![];
-            for i in r.core_interrupts.iter() {
-                let name = TokenStream::from_str(&i.name).unwrap();
-                let value = TokenStream::from_str(&format!("{}", i.value)).unwrap();
-                let description = format!(
-                    "{} - {}",
-                    i.value,
-                    i.description
-                        .as_ref()
-                        .map(|s| util::respace(s))
-                        .as_ref()
-                        .map(|s| util::escape_special_chars(s))
-                        .unwrap_or_else(|| i.name.clone())
-                );
+            for interrupt in i.iter() {
+                let name = TokenStream::from_str(&interrupt.name).unwrap();
+                let value = TokenStream::from_str(&format!("{}", interrupt.value)).unwrap();
+                let description = interrupt.description();
 
                 writeln!(device_x, "PROVIDE({name} = DefaultHandler);")?;
                 writeln!(
@@ -64,23 +58,14 @@ pub fn render(
             mod_items.extend(quote! {pub use riscv::interrupt::Interrupt as CoreInterrupt;});
         }
 
-        if !r.exceptions.is_empty() {
+        if let Some(e) = c.exceptions.as_ref() {
             debug!("Rendering target-specific exceptions");
             writeln!(device_x, "/* Exception sources */")?;
             let mut exceptions = vec![];
-            for e in r.exceptions.iter() {
-                let name = TokenStream::from_str(&e.name).unwrap();
-                let value = TokenStream::from_str(&format!("{}", e.value)).unwrap();
-                let description = format!(
-                    "{} - {}",
-                    e.value,
-                    e.description
-                        .as_ref()
-                        .map(|s| util::respace(s))
-                        .as_ref()
-                        .map(|s| util::escape_special_chars(s))
-                        .unwrap_or_else(|| e.name.clone())
-                );
+            for exception in e.iter() {
+                let name = TokenStream::from_str(&exception.name).unwrap();
+                let value = TokenStream::from_str(&format!("{}", exception.value)).unwrap();
+                let description = exception.description();
 
                 writeln!(device_x, "PROVIDE({name} = ExceptionHandler);")?;
 
@@ -102,21 +87,12 @@ pub fn render(
             mod_items.extend(quote! { pub use riscv::interrupt::Exception; });
         }
 
-        if !r.priorities.is_empty() {
+        if let Some(p) = c.priorities.as_ref() {
             debug!("Rendering target-specific priority levels");
-            let priorities = r.priorities.iter().map(|p| {
-                let name = TokenStream::from_str(&p.name).unwrap();
-                let value = TokenStream::from_str(&format!("{}", p.value)).unwrap();
-                let description = format!(
-                    "{} - {}",
-                    p.value,
-                    p.description
-                        .as_ref()
-                        .map(|s| util::respace(s))
-                        .as_ref()
-                        .map(|s| util::escape_special_chars(s))
-                        .unwrap_or_else(|| p.name.clone())
-                );
+            let priorities = p.iter().map(|priority| {
+                let name = TokenStream::from_str(&priority.name).unwrap();
+                let value = TokenStream::from_str(&format!("{}", priority.value)).unwrap();
+                let description = priority.description();
 
                 quote! {
                     #[doc = #description]
@@ -133,21 +109,12 @@ pub fn render(
             });
         }
 
-        if !r.harts.is_empty() {
+        if let Some(h) = c.harts.as_ref() {
             debug!("Rendering target-specific HART IDs");
-            let harts = r.harts.iter().map(|h| {
-                let name = TokenStream::from_str(&h.name).unwrap();
-                let value = TokenStream::from_str(&format!("{}", h.value)).unwrap();
-                let description = format!(
-                    "{} - {}",
-                    h.value,
-                    h.description
-                        .as_ref()
-                        .map(|s| util::respace(s))
-                        .as_ref()
-                        .map(|s| util::escape_special_chars(s))
-                        .unwrap_or_else(|| h.name.clone())
-                );
+            let harts = h.iter().map(|hart| {
+                let name = TokenStream::from_str(&hart.name).unwrap();
+                let value = TokenStream::from_str(&format!("{}", hart.value)).unwrap();
+                let description = hart.description();
 
                 quote! {
                     #[doc = #description]
@@ -238,80 +205,72 @@ pub fn render(
     }
 
     let mut riscv_peripherals = TokenStream::new();
-    if config.use_riscv_peripheral {
-        let harts = match r {
-            Some(r) => r
-                .harts
+    if let Some(c) = &config.riscv_config {
+        let harts = match &c.harts {
+            Some(harts) => harts
                 .iter()
-                .map(|h| {
-                    let name = TokenStream::from_str(&h.name).unwrap();
-                    let value = h.value;
-                    (name, value)
-                })
+                .map(|h| (TokenStream::from_str(&h.name).unwrap(), h.value))
                 .collect::<Vec<_>>(),
             None => vec![],
         };
-        for p in peripherals.iter() {
-            match p.name.to_uppercase().as_ref() {
-                "PLIC" => {
-                    let base =
-                        TokenStream::from_str(&format!("base 0x{:X},", p.base_address)).unwrap();
-                    let ctxs = harts
-                        .iter()
-                        .map(|(name, value)| {
-                            let ctx_name = TokenStream::from_str(&format!("ctx{value}")).unwrap();
-                            let doc = format!("[{value}](crate::interrupt::Hart::{name})");
-                            quote! {#ctx_name = (crate::interrupt::Hart::#name, #doc)}
-                        })
-                        .collect::<Vec<_>>();
-                    let ctxs = match ctxs.len() {
-                        0 => quote! {},
-                        _ => quote! {ctxs [ #(#ctxs),* ],},
-                    };
+        if let Some(clint) = &c.clint {
+            let p = peripherals.iter().find(|&p| p.name == clint.name).unwrap();
+            let base = TokenStream::from_str(&format!("base 0x{:X},", p.base_address)).unwrap();
+            let freq = match clint.freq {
+                Some(clk) => match clint.async_delay {
+                    true => TokenStream::from_str(&format!("freq {clk}, async_delay,")).unwrap(),
+                    false => TokenStream::from_str(&format!("freq {clk},")).unwrap(),
+                },
+                None => quote! {},
+            };
+            let mtimecmps = harts
+                .iter()
+                .map(|(name, value)| {
+                    let mtimecmp_name = TokenStream::from_str(&format!("mtimecmp{value}")).unwrap();
+                    let doc = format!("[{value}](crate::interrupt::Hart::{name})");
+                    quote! {#mtimecmp_name = (crate::interrupt::Hart::#name, #doc)}
+                })
+                .collect::<Vec<_>>();
+            let mtimecmps = match mtimecmps.len() {
+                0 => quote! {},
+                _ => quote! {mtimecmps [ #(#mtimecmps),* ],},
+            };
+            let msips = harts
+                .iter()
+                .map(|(name, value)| {
+                    let msip_name = TokenStream::from_str(&format!("msip{value}")).unwrap();
+                    let doc = format!("[{value}](crate::interrupt::Hart::{name})");
+                    quote! {#msip_name = (crate::interrupt::Hart::#name, #doc)}
+                })
+                .collect::<Vec<_>>();
+            let msips = match msips.len() {
+                0 => quote! {},
+                _ => quote! {msips [ #(#msips),* ],},
+            };
 
-                    riscv_peripherals.extend(quote! {
-                        riscv_peripheral::plic_codegen!(#base #ctxs);
-                    });
-                }
-                "CLINT" => {
-                    let base =
-                        TokenStream::from_str(&format!("base 0x{:X},", p.base_address)).unwrap();
-                    let freq = match config.riscv_clint_freq {
-                        Some(clk) => TokenStream::from_str(&format!("freq {clk},")).unwrap(),
-                        None => quote! {},
-                    };
-                    let mtimecmps = harts
-                        .iter()
-                        .map(|(name, value)| {
-                            let mtimecmp_name =
-                                TokenStream::from_str(&format!("mtimecmp{value}")).unwrap();
-                            let doc = format!("[{value}](crate::interrupt::Hart::{name})");
-                            quote! {#mtimecmp_name = (crate::interrupt::Hart::#name, #doc)}
-                        })
-                        .collect::<Vec<_>>();
-                    let mtimecmps = match mtimecmps.len() {
-                        0 => quote! {},
-                        _ => quote! {mtimecmps [ #(#mtimecmps),* ],},
-                    };
-                    let msips = harts
-                        .iter()
-                        .map(|(name, value)| {
-                            let msip_name = TokenStream::from_str(&format!("msip{value}")).unwrap();
-                            let doc = format!("[{value}](crate::interrupt::Hart::{name})");
-                            quote! {#msip_name = (crate::interrupt::Hart::#name, #doc)}
-                        })
-                        .collect::<Vec<_>>();
-                    let msips = match msips.len() {
-                        0 => quote! {},
-                        _ => quote! {msips [ #(#msips),* ],},
-                    };
+            riscv_peripherals.extend(quote! {
+                riscv_peripheral::clint_codegen!(#base #freq #mtimecmps #msips);
+            });
+        }
+        if let Some(plic) = &c.plic {
+            let p = peripherals.iter().find(|&p| &p.name == plic).unwrap();
+            let base = TokenStream::from_str(&format!("base 0x{:X},", p.base_address)).unwrap();
+            let ctxs = harts
+                .iter()
+                .map(|(name, value)| {
+                    let ctx_name = TokenStream::from_str(&format!("ctx{value}")).unwrap();
+                    let doc = format!("[{value}](crate::interrupt::Hart::{name})");
+                    quote! {#ctx_name = (crate::interrupt::Hart::#name, #doc)}
+                })
+                .collect::<Vec<_>>();
+            let ctxs = match ctxs.len() {
+                0 => quote! {},
+                _ => quote! {ctxs [ #(#ctxs),* ],},
+            };
 
-                    riscv_peripherals.extend(quote! {
-                        riscv_peripheral::clint_codegen!(#base #freq #mtimecmps #msips);
-                    });
-                }
-                _ => {}
-            }
+            riscv_peripherals.extend(quote! {
+                riscv_peripheral::plic_codegen!(#base #ctxs);
+            });
         }
     }
 
