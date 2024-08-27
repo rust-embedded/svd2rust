@@ -325,7 +325,7 @@ pub struct RiscvConfig {
     pub priorities: Option<Vec<RiscvEnumItem>>,
     pub harts: Option<Vec<RiscvEnumItem>>,
     pub clint: Option<RiscvClintConfig>,
-    pub plic: Option<String>,
+    pub plic: Option<RiscvPlicConfig>,
 }
 
 #[cfg(feature = "unstable-riscv")]
@@ -357,4 +357,14 @@ pub struct RiscvClintConfig {
     pub name: String,
     pub freq: Option<usize>,
     pub async_delay: bool,
+}
+
+#[cfg(feature = "unstable-riscv")]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[non_exhaustive]
+pub struct RiscvPlicConfig {
+    pub name: String,
+    pub core_interrupt: Option<String>,
+    pub hart_id: Option<String>,
 }

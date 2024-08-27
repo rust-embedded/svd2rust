@@ -10,7 +10,7 @@ pub fn is_riscv_peripheral(p: &Peripheral, c: &Config) -> bool {
     match &c.riscv_config {
         Some(c) => {
             c.clint.as_ref().is_some_and(|clint| clint.name == p.name)
-                || c.plic.as_ref().is_some_and(|plic| plic == &p.name)
+                || c.plic.as_ref().is_some_and(|plic| plic.name == p.name)
         }
         _ => false,
     }
@@ -253,7 +253,7 @@ pub fn render(
             });
         }
         if let Some(plic) = &c.plic {
-            let p = peripherals.iter().find(|&p| &p.name == plic).unwrap();
+            let p = peripherals.iter().find(|&p| p.name == plic.name).unwrap();
             let base = TokenStream::from_str(&format!("base 0x{:X},", p.base_address)).unwrap();
             let ctxs = harts
                 .iter()
@@ -271,6 +271,27 @@ pub fn render(
             riscv_peripherals.extend(quote! {
                 riscv_peripheral::plic_codegen!(#base #ctxs);
             });
+
+            if let Some(core_interrupt) = &plic.core_interrupt {
+                let core_interrupt = TokenStream::from_str(core_interrupt).unwrap();
+                let ctx = match &plic.hart_id {
+                    Some(hart_id) => {
+                        TokenStream::from_str(&format!("ctx(Hart::{hart_id})")).unwrap()
+                    }
+                    None => quote! { ctx_mhartid() },
+                };
+                mod_items.extend(quote! {
+                    #[cfg(feature = "rt")]
+                    #[riscv_rt::core_interrupt(CoreInterrupt::#core_interrupt)]
+                    fn plic_handler() {
+                        let claim = crate::PLIC::#ctx.claim();
+                        if let Some(s) = claim.claim::<CoreInterrupt>() {
+                            unsafe { _dispatch_core_interrupt(s.number()) }
+                            claim.complete(s);
+                        }
+                    }
+                });
+            }
         }
     }
 
