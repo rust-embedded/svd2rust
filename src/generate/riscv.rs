@@ -139,7 +139,7 @@ pub fn render(
 
     mod_items.extend(quote! {
         pub use riscv::{
-            CoreInterruptNumber, ExceptionNumber, PriorityNumber, HartIdNumber,
+            InterruptNumber, ExceptionNumber, PriorityNumber, HartIdNumber,
             interrupt::{enable, disable, free, nested}
         };
 
@@ -285,7 +285,7 @@ pub fn render(
                     #[riscv_rt::core_interrupt(CoreInterrupt::#core_interrupt)]
                     fn plic_handler() {
                         let claim = crate::PLIC::#ctx.claim();
-                        if let Some(s) = claim.claim::<CoreInterrupt>() {
+                        if let Some(s) = claim.claim::<ExternalInterrupt>() {
                             unsafe { _dispatch_core_interrupt(s.number()) }
                             claim.complete(s);
                         }
