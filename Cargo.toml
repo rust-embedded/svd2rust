@@ -35,6 +35,7 @@ default = ["bin", "json", "yaml"]
 bin = ["dep:clap", "dep:env_logger", "serde", "dep:irx-config"]
 json = ["dep:serde_json"]
 yaml = ["dep:serde_yaml"]
+unstable-riscv = ["irx-config/yaml"]
 
 [dependencies]
 clap = { version = "4.0", optional = true }
@@ -58,11 +59,11 @@ url = { version = "2.5", features = ["serde"] }
 
 [dependencies.svd-parser]
 features = ["expand"]
-version = "0.14.5"
+version = "0.14.6"
 
 [dependencies.svd-rs]
 features = ["serde"]
-version = "0.14.8"
+version = "0.14.9"
 
 [dependencies.syn]
 version = "2.0"

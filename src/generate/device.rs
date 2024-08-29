@@ -11,6 +11,8 @@ use crate::config::{Config, Target};
 use crate::util::{self, ident};
 use anyhow::{Context, Result};
 
+#[cfg(feature = "unstable-riscv")]
+use crate::generate::riscv;
 use crate::generate::{interrupt, peripheral};
 
 /// Whole device generation
@@ -187,13 +189,22 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         });
     }
 
-    debug!("Rendering interrupts");
-    out.extend(interrupt::render(
-        config.target,
-        &d.peripherals,
-        device_x,
-        config,
-    )?);
+    match config.target {
+        #[cfg(feature = "unstable-riscv")]
+        Target::RISCV => {
+            debug!("Rendering RISC-V specific code");
+            out.extend(riscv::render(&d.peripherals, device_x, config)?);
+        }
+        _ => {
+            debug!("Rendering interrupts");
+            out.extend(interrupt::render(
+                config.target,
+                &d.peripherals,
+                device_x,
+                config,
+            )?);
+        }
+    }
 
     let feature_format = config.ident_formats.get("peripheral_feature").unwrap();
     for p in &d.peripherals {
@@ -201,6 +212,11 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             && core_peripherals.contains(&p.name.to_uppercase().as_ref())
         {
             // Core peripherals are handled above
+            continue;
+        }
+        #[cfg(feature = "unstable-riscv")]
+        if config.target == Target::RISCV && riscv::is_riscv_peripheral(p, config) {
+            // RISC-V specific peripherals are handled above
             continue;
         }
 

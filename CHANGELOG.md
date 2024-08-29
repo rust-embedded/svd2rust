@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Use standard `riscv-peripheral` peripherals via experimental `riscv.yaml` configuration file.
+  You must compile `svd2rust` with the `unstable-riscv` feature to use this.
+- Implement `riscv-pac` traits via experimental `riscv.yaml` configuration file.
+  You must compile `svd2rust` with the `unstable-riscv` feature to use this.
 - Fix `enumeratedValues` with `isDefault` only
 
 ## [v0.33.4] - 2024-06-16

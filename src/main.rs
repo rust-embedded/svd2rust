@@ -1,6 +1,8 @@
 #![recursion_limit = "128"]
 
 use log::{debug, error, info, warn};
+#[cfg(feature = "unstable-riscv")]
+use svd2rust::config::RiscvConfig;
 use svd2rust::config::{IdentFormatError, IdentFormats, IdentFormatsTheme};
 use svd2rust::util::IdentFormat;
 
@@ -18,6 +20,8 @@ use svd2rust::{
 };
 
 fn parse_configs(app: Command) -> Result<Config> {
+    #[cfg(feature = "unstable-riscv")]
+    use irx_config::parsers::yaml;
     use irx_config::parsers::{cmd, toml};
     use irx_config::ConfigBuilder;
     let ident_formats = app.clone().get_matches();
@@ -29,10 +33,24 @@ fn parse_configs(app: Command) -> Result<Config> {
                 .path_option("config")
                 .ignore_missing_file(true)
                 .build()?,
-        )
-        .load()?;
+        );
+    #[cfg(feature = "unstable-riscv")]
+    let irxconfig = irxconfig.append_parser(
+        yaml::ParserBuilder::default()
+            .default_path("riscv.yaml")
+            .path_option("riscv_cfg")
+            .ignore_missing_file(true)
+            .build()?,
+    );
+    let irxconfig = irxconfig.load()?;
 
     let mut config: Config = irxconfig.get()?;
+
+    #[cfg(feature = "unstable-riscv")]
+    if let Ok(riscv_config) = irxconfig.get::<RiscvConfig>() {
+        config.riscv_config = Some(riscv_config);
+    }
+
     let mut idf = match config.ident_formats_theme {
         Some(IdentFormatsTheme::Legacy) => IdentFormats::legacy_theme(),
         _ => IdentFormats::default_theme(),
@@ -290,6 +308,15 @@ Ignore this option if you are not building your own FPGA based soft-cores."),
             env!("CARGO_PKG_VERSION"),
             include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
         ));
+    #[cfg(feature = "unstable-riscv")]
+    let app = app.arg(
+        Arg::new("riscv_cfg")
+            .long("riscv_config")
+            .help("RISC-V Config YAML file")
+            .short('r')
+            .action(ArgAction::Set)
+            .value_name("YAML_FILE"),
+    );
 
     let mut config = match parse_configs(app) {
         Ok(config) => {

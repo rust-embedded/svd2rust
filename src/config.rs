@@ -36,6 +36,8 @@ pub struct Config {
     pub field_names_for_enums: bool,
     pub base_address_shift: u64,
     pub html_url: Option<url::Url>,
+    #[cfg(feature = "unstable-riscv")]
+    pub riscv_config: Option<RiscvConfig>,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -311,4 +313,58 @@ impl DerefMut for IdentFormats {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IdentFormatsTheme {
     Legacy,
+}
+
+#[cfg(feature = "unstable-riscv")]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[non_exhaustive]
+pub struct RiscvConfig {
+    pub core_interrupts: Option<Vec<RiscvEnumItem>>,
+    pub exceptions: Option<Vec<RiscvEnumItem>>,
+    pub priorities: Option<Vec<RiscvEnumItem>>,
+    pub harts: Option<Vec<RiscvEnumItem>>,
+    pub clint: Option<RiscvClintConfig>,
+    pub plic: Option<RiscvPlicConfig>,
+}
+
+#[cfg(feature = "unstable-riscv")]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[non_exhaustive]
+pub struct RiscvEnumItem {
+    pub name: String,
+    pub value: usize,
+    pub description: Option<String>,
+}
+
+#[cfg(feature = "unstable-riscv")]
+impl RiscvEnumItem {
+    pub fn description(&self) -> String {
+        let description = match &self.description {
+            Some(d) => d,
+            None => &self.name,
+        };
+        format!("{} - {}", self.value, description)
+    }
+}
+
+#[cfg(feature = "unstable-riscv")]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[non_exhaustive]
+pub struct RiscvClintConfig {
+    pub name: String,
+    pub freq: Option<usize>,
+    pub async_delay: bool,
+}
+
+#[cfg(feature = "unstable-riscv")]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[non_exhaustive]
+pub struct RiscvPlicConfig {
+    pub name: String,
+    pub core_interrupt: Option<String>,
+    pub hart_id: Option<String>,
 }
