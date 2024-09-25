@@ -503,7 +503,7 @@ main() {
             echo '[dependencies.riscv-rt]' >> $td/Cargo.toml
             echo 'version = "0.8.0"' >> $td/Cargo.toml
 
-            test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
+            test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x/e310x.svd
             test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/k210-pac/master/k210.svd
             test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/fu540-pac/master/fu540.svd
         ;;
@@ -572,6 +572,15 @@ main() {
         ;;
 
         STM32-patched)
+            echo '[dependencies.critical-section]' >> $td/Cargo.toml
+            echo 'version = "1.0"' >> $td/Cargo.toml
+            echo 'optional = true' >> $td/Cargo.toml
+
+            echo '[features]' >> $td/Cargo.toml
+            echo 'default = ["critical-section", "rt"]' >> $td/Cargo.toml
+            echo 'rt = ["cortex-m-rt/device"]' >> $td/Cargo.toml
+            echo 'atomics = []' >> $td/Cargo.toml
+
             # OK
             test_patched_stm32 stm32f0x2
             test_patched_stm32 stm32f103

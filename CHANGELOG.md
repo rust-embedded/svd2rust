@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fix STM32-patched CI
 - Fix `enumeratedValues` with `isDefault` only
 
 ## [v0.33.4] - 2024-06-16
