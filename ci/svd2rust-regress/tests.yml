@@ -2102,7 +2102,7 @@
 - arch: riscv
   mfgr: SiFive
   chip: E310x
-  svd_url: https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x.svd
+  svd_url: https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x/e310x.svd
   should_pass: false
   run_when: never
 - arch: msp430
