@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Fix STM32-patched CI
 - Fix `enumeratedValues` with `isDefault` only
+- Fix invalid `Punct` error from `proc_macro2`
 
 ## [v0.33.4] - 2024-06-16
 
