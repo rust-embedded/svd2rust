@@ -89,8 +89,8 @@ jobs:
           - { rust: nightly, vendor: MSP430, options: "--atomics" }
           - { rust: nightly, vendor: MSP430, options: "" }
           # Workaround for _1token0
-          - { rust: nightly, vendor: Espressif, options: "--atomics --ident-formats-theme legacy" }
-          - { rust: nightly, vendor: Espressif, options: "--ident-format register:::Reg" }
+          - { rust: nightly-2024-09-25, vendor: Espressif, options: "--atomics --ident-formats-theme legacy" }
+          - { rust: nightly-2024-09-25, vendor: Espressif, options: "--ident-format register:::Reg" }
 
     steps:
       - uses: actions/checkout@v4

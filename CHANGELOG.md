@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Fix STM32-patched CI
 - Fix `enumeratedValues` with `isDefault` only
+- Fix invalid `Punct` error from `proc_macro2`
+- Run espressif tests on nightly-2024-09-25 to workaround CI failures
 
 ## [v0.33.4] - 2024-06-16
 
