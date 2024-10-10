@@ -5,8 +5,8 @@ use crate::svd::{
 };
 use core::u64;
 use log::warn;
-use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
-use quote::{quote, ToTokens};
+use proc_macro2::{Delimiter, Group, Ident, Span, TokenStream};
+use quote::quote;
 use std::collections::HashSet;
 use std::fmt::Write;
 use std::{borrow::Cow, collections::BTreeMap};
@@ -297,9 +297,6 @@ pub fn render_register_mod(
     let mut zero_to_modify_fields_bitmap = 0;
     let mut one_to_modify_fields_bitmap = 0;
 
-    let open = Punct::new('{', Spacing::Alone);
-    let close = Punct::new('}', Spacing::Alone);
-
     let debug_feature = config
         .impl_debug_feature
         .as_ref()
@@ -362,24 +359,16 @@ pub fn render_register_mod(
     }
 
     if can_read && !r_impl_items.is_empty() {
-        mod_items.extend(quote! {
-            impl R #open #r_impl_items #close
-        });
+        mod_items.extend(quote! { impl R { #r_impl_items }});
     }
     if !r_debug_impl.is_empty() {
-        mod_items.extend(quote! {
-            #r_debug_impl
-        });
+        mod_items.extend(quote! { #r_debug_impl });
     }
 
     if can_write {
         mod_items.extend(quote! {
-            impl W #open
+            impl W { #w_impl_items }
         });
-
-        mod_items.extend(w_impl_items);
-
-        close.to_tokens(&mut mod_items);
     }
 
     let doc = format!(
@@ -461,8 +450,6 @@ fn render_register_mod_debug(
     let name = util::name_of(register, config.ignore_groups);
     let span = Span::call_site();
     let regspec_ty = regspec(&name, config, span);
-    let open = Punct::new('{', Spacing::Alone);
-    let close = Punct::new('}', Spacing::Alone);
     let mut r_debug_impl = TokenStream::new();
     let debug_feature = config
         .impl_debug_feature
@@ -473,8 +460,14 @@ fn render_register_mod_debug(
     if access.can_read() && register.read_action.is_none() {
         r_debug_impl.extend(quote! {
             #debug_feature
-            impl core::fmt::Debug for R #open
-            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result #open
+            impl core::fmt::Debug for R
+        });
+        let mut fmt_outer_impl = TokenStream::new();
+        fmt_outer_impl.extend(quote! {
+            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result
+        });
+        let mut fmt_inner_impl = TokenStream::new();
+        fmt_inner_impl.extend(quote! {
                 f.debug_struct(#name)
         });
         for &f in cur_fields.iter() {
@@ -488,7 +481,7 @@ fn render_register_mod_debug(
                     for suffix in de.indexes() {
                         let f_name_n = field_accessor(&f.name.expand_dim(&suffix), config, span);
                         let f_name_n_s = format!("{f_name_n}");
-                        r_debug_impl.extend(quote! {
+                        fmt_inner_impl.extend(quote! {
                             .field(#f_name_n_s, &self.#f_name_n())
                         });
                     }
@@ -496,17 +489,19 @@ fn render_register_mod_debug(
                     let f_name = f.name.remove_dim();
                     let f_name = field_accessor(&f_name, config, span);
                     let f_name_s = format!("{f_name}");
-                    r_debug_impl.extend(quote! {
+                    fmt_inner_impl.extend(quote! {
                         .field(#f_name_s, &self.#f_name())
                     });
                 }
             }
         }
-        r_debug_impl.extend(quote! {
+        fmt_inner_impl.extend(quote! {
                     .finish()
-                #close
-            #close
         });
+        let fmt_inner_group = Group::new(Delimiter::Brace, fmt_inner_impl);
+        fmt_outer_impl.extend(quote! { #fmt_inner_group });
+        let fmt_outer_group = Group::new(Delimiter::Brace, fmt_outer_impl);
+        r_debug_impl.extend(quote! { #fmt_outer_group });
     } else if !access.can_read() || register.read_action.is_some() {
         r_debug_impl.extend(quote! {
             #debug_feature

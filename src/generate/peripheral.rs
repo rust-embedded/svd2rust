@@ -12,7 +12,7 @@ use crate::svd::{
     self, Cluster, ClusterInfo, MaybeArray, Peripheral, Register, RegisterCluster, RegisterInfo,
 };
 use log::{debug, trace, warn};
-use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream};
+use proc_macro2::{Delimiter, Group, Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, Token};
 
@@ -245,19 +245,18 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
     let reg_block =
         register_or_cluster_block(&ercs, &derive_infos, None, "Register block", None, config)?;
 
-    let open = Punct::new('{', Spacing::Alone);
-    let close = Punct::new('}', Spacing::Alone);
-
     out.extend(quote! {
         #[doc = #description]
         #feature_attribute
-        pub mod #mod_ty #open
+        pub mod #mod_ty
     });
 
-    out.extend(reg_block);
-    out.extend(mod_items);
+    let mut out_items = TokenStream::new();
+    out_items.extend(reg_block);
+    out_items.extend(mod_items);
 
-    close.to_tokens(&mut out);
+    let out_group = Group::new(Delimiter::Brace, out_items);
+    out.extend(quote! { #out_group });
 
     p.registers = Some(ercs);
 
