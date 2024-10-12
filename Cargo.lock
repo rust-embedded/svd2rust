@@ -1022,9 +1022,9 @@ dependencies = [
 
 [[package]]
 name = "roxmltree"
-version = "0.19.0"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cd14fd5e3b777a7422cca79358c57a8f6e3a703d9ac187448d0daf220c2407f"
+checksum = "6c20b6793b5c2fa6553b250154b78d6d0db37e72700ae35fad9387a46f487c97"
 
 [[package]]
 name = "rustc-demangle"
@@ -1196,9 +1196,9 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "svd-parser"
-version = "0.14.5"
+version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d17a2c2ef5aa450e80d714232a5932e7d8a39cac092e9e9ef8411bc833de3c4"
+checksum = "39ba83b8a290ee3a180051e10a043691bb91d1b6be2053a570936fbdbec5ee2b"
 dependencies = [
  "anyhow",
  "roxmltree",
@@ -1208,9 +1208,9 @@ dependencies = [
 
 [[package]]
 name = "svd-rs"
-version = "0.14.8"
+version = "0.14.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6aea8090314157cc490b559da0c66f2228c066b56154f0321ad83b459a0a8278"
+checksum = "3e49a90f3c4d03d81687e81d41b00f349fd44ccf9c26e0185ee926968de093bb"
 dependencies = [
  "once_cell",
  "regex",
@@ -1220,7 +1220,7 @@ dependencies = [
 
 [[package]]
 name = "svd2rust"
-version = "0.33.4"
+version = "0.33.5"
 dependencies = [
  "anyhow",
  "clap",

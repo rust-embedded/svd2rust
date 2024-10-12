@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.33.5] - 2024-10-12
+
 - Fix STM32-patched CI
 - Fix `enumeratedValues` with `isDefault` only
 - Fix invalid `Punct` error from `proc_macro2`
@@ -903,7 +905,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.33.4...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.33.5...HEAD
+[v0.33.5]: https://github.com/rust-embedded/svd2rust/compare/v0.33.4...v0.33.5
 [v0.33.4]: https://github.com/rust-embedded/svd2rust/compare/v0.33.3...v0.33.4
 [v0.33.3]: https://github.com/rust-embedded/svd2rust/compare/v0.33.2...v0.33.3
 [v0.33.2]: https://github.com/rust-embedded/svd2rust/compare/v0.33.1...v0.33.2
