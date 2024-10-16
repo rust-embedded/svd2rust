@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- move `must_use` from methods to generic type
+
 ## [v0.33.5] - 2024-10-12
 
 - Fix STM32-patched CI
