@@ -39,7 +39,7 @@ mod atomic {
 
     impl<REG: Readable + Writable> Reg<REG>
     where
-        REG::Ux: AtomicOperations + Default + core::ops::Not<Output = REG::Ux>,
+        REG::Ux: AtomicOperations
     {
         /// Set high every bit in the register that was set in the write proxy. Leave other bits
         /// untouched. The write is done in a single atomic instruction.

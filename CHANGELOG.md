@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump MSRV of generated code to 1.76
 - move `must_use` from methods to generic type
 
 ## [v0.33.5] - 2024-10-12
@@ -907,9 +908,7 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.33.5...HEAD
-[v0.33.5]: https://github.com/rust-embedded/svd2rust/compare/v0.33.4...v0.33.5
-[v0.33.4]: https://github.com/rust-embedded/svd2rust/compare/v0.33.3...v0.33.4
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.33.3...HEAD
 [v0.33.3]: https://github.com/rust-embedded/svd2rust/compare/v0.33.2...v0.33.3
 [v0.33.2]: https://github.com/rust-embedded/svd2rust/compare/v0.33.1...v0.33.2
 [v0.33.1]: https://github.com/rust-embedded/svd2rust/compare/v0.33.0...v0.33.1
