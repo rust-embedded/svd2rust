@@ -37,7 +37,7 @@
 //!
 //! - `build.rs`, build script that places `device.x` somewhere the linker can find.
 //! - `device.x`, linker script that weakly aliases all the interrupt handlers to the default
-//! exception handler (`DefaultHandler`).
+//!   exception handler (`DefaultHandler`).
 //! - `lib.rs`, the generated code.
 //!
 //! All these files must be included in the same device crate. The `lib.rs` file contains several
@@ -95,7 +95,7 @@
 //!
 //! - `build.rs`, build script that places `device.x` somewhere the linker can find.
 //! - `device.x`, linker script that weakly aliases all the interrupt handlers to the default
-//! exception handler (`DefaultHandler`).
+//!   exception handler (`DefaultHandler`).
 //! - `lib.rs`, the generated code.
 //!
 //! All these files must be included in the same device crate. The `lib.rs` file contains several
