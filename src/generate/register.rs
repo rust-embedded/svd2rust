@@ -222,7 +222,7 @@ fn api_docs(
             let idx = format!("[{idx}]");
             rpath.name.replace("[%s]", &idx).replace("%s", &idx)
         } else {
-            rpath.name.to_string()
+            rpath.name.clone()
         };
         // TODO: support html_urls for registers in cluster
         if rpath.block.path.is_empty() {

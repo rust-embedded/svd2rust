@@ -305,7 +305,7 @@ impl Region {
         let mut idents: Vec<_> = self
             .rbfs
             .iter()
-            .filter_map(|f| f.syn_field.ident.as_ref().map(|ident| ident.to_string()))
+            .filter_map(|f| f.syn_field.ident.as_ref().map(ToString::to_string))
             .collect();
         if idents.is_empty() {
             return None;
@@ -343,7 +343,7 @@ impl Region {
         let idents: Vec<_> = self
             .rbfs
             .iter()
-            .filter_map(|f| f.syn_field.ident.as_ref().map(|ident| ident.to_string()))
+            .filter_map(|f| f.syn_field.ident.as_ref().map(ToString::to_string))
             .collect();
 
         if idents.is_empty() {
@@ -726,7 +726,7 @@ fn check_erc_derive_infos(
                 };
                 match register {
                     Register::Single(_) => {
-                        let ty_name = info_name.to_string();
+                        let ty_name = info_name.clone();
                         *derive_info = match explicit_rpath {
                             None => {
                                 match compare_this_against_prev(
@@ -758,7 +758,7 @@ fn check_erc_derive_infos(
                         let re = Regex::new(format!("^{re_string}$").as_str()).map_err(|_| {
                             anyhow!("Error creating regex for register {}", register.name)
                         })?;
-                        let ty_name = info_name.to_string(); // keep suffix for regex matching
+                        let ty_name = info_name.clone(); // keep suffix for regex matching
                         *derive_info = match explicit_rpath {
                             None => {
                                 match compare_this_against_prev(
@@ -787,7 +787,7 @@ fn check_erc_derive_infos(
             }
             RegisterCluster::Cluster(cluster) => {
                 *derive_info = DeriveInfo::Cluster;
-                ercs_type_info.push((cluster.name.to_string(), None, erc, derive_info));
+                ercs_type_info.push((cluster.name.clone(), None, erc, derive_info));
             }
         };
     }
