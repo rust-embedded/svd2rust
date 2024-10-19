@@ -998,7 +998,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 doc,
                 name,
                 ty,
-                offset: unsuffixed(info.address_offset),
+                offset: info.address_offset,
             })
             .raw_if(false);
             cluster_expanded.push(RegisterBlockField {
@@ -1057,9 +1057,9 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         doc,
                         name: accessor_name.clone(),
                         ty: ty.clone(),
-                        offset: unsuffixed(info.address_offset),
-                        dim: unsuffixed(array_info.dim),
-                        increment: unsuffixed(array_info.dim_increment),
+                        offset: info.address_offset,
+                        dim: array_info.dim,
+                        increment: array_info.dim_increment,
                     })
                     .raw_if(!array_convertible),
                 );
@@ -1071,7 +1071,6 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                             ci.address_offset,
                             ci.description.as_deref().unwrap_or(&ci.name),
                         );
-                        let i = unsuffixed(i as u64);
                         accessors.push(
                             Accessor::ArrayElem(ArrayElemAccessor {
                                 doc,
@@ -1114,7 +1113,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         doc,
                         name,
                         ty: ty.clone(),
-                        offset: unsuffixed(info.address_offset),
+                        offset: info.address_offset,
                     })
                     .raw_if(false);
                     cluster_expanded.push(RegisterBlockField {
@@ -1166,7 +1165,7 @@ fn expand_register(
                 doc,
                 name,
                 ty,
-                offset: unsuffixed(info.address_offset),
+                offset: info.address_offset,
             })
             .raw_if(false);
             register_expanded.push(RegisterBlockField {
@@ -1240,9 +1239,9 @@ fn expand_register(
                         doc,
                         name: accessor_name.clone(),
                         ty: ty.clone(),
-                        offset: unsuffixed(info.address_offset),
-                        dim: unsuffixed(array_info.dim),
-                        increment: unsuffixed(array_info.dim_increment),
+                        offset: info.address_offset,
+                        dim: array_info.dim,
+                        increment: array_info.dim_increment,
                     })
                     .raw_if(!array_convertible),
                 );
@@ -1259,7 +1258,6 @@ fn expand_register(
                             ri.address_offset,
                             ri.description.as_deref().unwrap_or(&ri.name),
                         );
-                        let i = unsuffixed(i as u64);
                         accessors.push(
                             Accessor::ArrayElem(ArrayElemAccessor {
                                 doc,
@@ -1302,7 +1300,7 @@ fn expand_register(
                         doc,
                         name,
                         ty: ty.clone(),
-                        offset: unsuffixed(info.address_offset),
+                        offset: info.address_offset,
                     })
                     .raw_if(false);
                     register_expanded.push(RegisterBlockField {

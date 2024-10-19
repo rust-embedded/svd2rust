@@ -1,6 +1,8 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 
+use crate::util::unsuffixed;
+
 #[derive(Clone, Debug)]
 pub enum Accessor {
     Reg(RegAccessor),
@@ -51,11 +53,12 @@ impl ToTokens for AccessType {
                 ty,
                 offset,
             })) => {
+                let offset = (*offset != 0).then(|| unsuffixed(*offset)).map(|o| quote!(.add(#o)));
                 quote! {
                     #[doc = #doc]
                     #[inline(always)]
                     pub const fn #name(&self) -> &#ty {
-                        unsafe { &*core::ptr::from_ref(self).cast::<u8>().add(#offset).cast() }
+                        unsafe { &*core::ptr::from_ref(self).cast::<u8>() #offset .cast() }
                     }
                 }
             }
@@ -84,7 +87,10 @@ impl ToTokens for AccessType {
                 increment,
             })) => {
                 let name_iter = Ident::new(&format!("{name}_iter"), Span::call_site());
-                let cast = quote! { unsafe { &*core::ptr::from_ref(self).cast::<u8>().add(#offset).add(#increment * n).cast() } };
+                let offset = (*offset != 0).then(|| unsuffixed(*offset)).map(|o| quote!(.add(#o)));
+                let dim = unsuffixed(*dim);
+                let increment = (*increment != 1).then(|| unsuffixed(*increment)).map(|i| quote!(#i *));
+                let cast = quote! { unsafe { &*core::ptr::from_ref(self).cast::<u8>() #offset .add(#increment n).cast() } };
                 quote! {
                     #[doc = #doc]
                     #[inline(always)]
@@ -109,6 +115,7 @@ impl ToTokens for AccessType {
                     basename,
                     i,
                 } = elem;
+                let i = unsuffixed(*i as u64);
                 quote! {
                     #[doc = #doc]
                     #[inline(always)]
@@ -127,7 +134,7 @@ pub struct RegAccessor {
     pub doc: String,
     pub name: Ident,
     pub ty: syn::Type,
-    pub offset: syn::LitInt,
+    pub offset: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -135,9 +142,9 @@ pub struct ArrayAccessor {
     pub doc: String,
     pub name: Ident,
     pub ty: syn::Type,
-    pub offset: syn::LitInt,
-    pub dim: syn::LitInt,
-    pub increment: syn::LitInt,
+    pub offset: u32,
+    pub dim: u32,
+    pub increment: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -146,5 +153,5 @@ pub struct ArrayElemAccessor {
     pub name: Ident,
     pub ty: syn::Type,
     pub basename: Ident,
-    pub i: syn::LitInt,
+    pub i: usize,
 }
