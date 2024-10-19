@@ -62,10 +62,15 @@ impl ToTokens for AccessType {
                     }
                 }
             }
-            Self::Ref(Accessor::Array(ArrayAccessor { doc, name, ty, .. })) => {
+            Self::Ref(Accessor::Array(ArrayAccessor { doc, name, ty, note, .. })) => {
                 let name_iter = Ident::new(&format!("{name}_iter"), Span::call_site());
+                let note = note.as_ref().map(|note| quote! {
+                    #[doc = ""]
+                    #[doc = #note]
+                });
                 quote! {
                     #[doc = #doc]
+                    #note
                     #[inline(always)]
                     pub const fn #name(&self, n: usize) -> &#ty {
                         &self.#name[n]
@@ -85,14 +90,20 @@ impl ToTokens for AccessType {
                 offset,
                 dim,
                 increment,
+                note,
             })) => {
                 let name_iter = Ident::new(&format!("{name}_iter"), Span::call_site());
                 let offset = (*offset != 0).then(|| unsuffixed(*offset)).map(|o| quote!(.add(#o)));
                 let dim = unsuffixed(*dim);
                 let increment = (*increment != 1).then(|| unsuffixed(*increment)).map(|i| quote!(#i *));
+                let note = note.as_ref().map(|note| quote! {
+                    #[doc = ""]
+                    #[doc = #note]
+                });
                 let cast = quote! { unsafe { &*core::ptr::from_ref(self).cast::<u8>() #offset .add(#increment n).cast() } };
                 quote! {
                     #[doc = #doc]
+                    #note
                     #[inline(always)]
                     pub const fn #name(&self, n: usize) -> &#ty {
                         #[allow(clippy::no_effect)]
@@ -145,6 +156,7 @@ pub struct ArrayAccessor {
     pub offset: u32,
     pub dim: u32,
     pub increment: u32,
+    pub note: Option<String>,
 }
 
 #[derive(Clone, Debug)]

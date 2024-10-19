@@ -1052,6 +1052,10 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                     &description,
                 );
                 let mut accessors = Vec::with_capacity((array_info.dim + 1) as _);
+                let first_name = svd::array::names(info, array_info).next().unwrap();
+                let note = (array_info.indexes().next().unwrap() != "0").then(||
+                    format!("<div class=\"warning\">`n` is the index of {0} in the array. `n == 0` corresponds to `{first_name}` {0}.</div>", "cluster")
+                );
                 accessors.push(
                     Accessor::Array(ArrayAccessor {
                         doc,
@@ -1060,6 +1064,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         offset: info.address_offset,
                         dim: array_info.dim,
                         increment: array_info.dim_increment,
+                        note,
                     })
                     .raw_if(!array_convertible),
                 );
@@ -1234,6 +1239,10 @@ fn expand_register(
                     &description,
                 );
                 let mut accessors = Vec::with_capacity((array_info.dim + 1) as _);
+                let first_name = svd::array::names(info, array_info).next().unwrap();
+                let note = (array_info.indexes().next().unwrap() != "0").then(||
+                    format!("<div class=\"warning\">`n` is the index of {0} in the array. `n == 0` corresponds to `{first_name}` {0}.</div>", "register")
+                );
                 accessors.push(
                     Accessor::Array(ArrayAccessor {
                         doc,
@@ -1242,6 +1251,7 @@ fn expand_register(
                         offset: info.address_offset,
                         dim: array_info.dim,
                         increment: array_info.dim_increment,
+                        note,
                     })
                     .raw_if(!array_convertible),
                 );
