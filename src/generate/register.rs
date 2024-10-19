@@ -3,7 +3,6 @@ use crate::svd::{
     ModifiedWriteValues, ReadAction, Register, RegisterProperties, Usage, WriteConstraint,
     WriteConstraintRange,
 };
-use core::u64;
 use log::warn;
 use proc_macro2::{Delimiter, Group, Ident, Span, TokenStream};
 use quote::quote;
@@ -117,7 +116,7 @@ pub fn render(
                 register.properties.reset_value.is_some(),
                 &mod_ty,
                 false,
-                &register,
+                register,
                 &rpath,
                 config,
             )?,
@@ -162,6 +161,7 @@ fn read_action_docs(can_read: bool, read_action: Option<ReadAction>) -> String {
     doc
 }
 
+#[allow(clippy::too_many_arguments)]
 fn api_docs(
     can_read: bool,
     can_write: bool,
@@ -222,7 +222,7 @@ fn api_docs(
             let idx = format!("[{idx}]");
             rpath.name.replace("[%s]", &idx).replace("%s", &idx)
         } else {
-            rpath.name.to_string()
+            rpath.name.clone()
         };
         // TODO: support html_urls for registers in cluster
         if rpath.block.path.is_empty() {
