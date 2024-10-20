@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Revert #711
 - Add warning about indexing register arrays
 - Skip generating `.add(0)` and `1 *` in accessors
 - Bump MSRV of generated code to 1.76
