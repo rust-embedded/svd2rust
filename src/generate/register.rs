@@ -65,13 +65,11 @@ pub fn render(
     let reg_ty = ident(&name, config, "register", span);
     let doc_alias = (reg_ty.to_string().as_str() != name).then(|| quote!(#[doc(alias = #name)]));
     let mod_ty = ident(&name, config, "register_mod", span);
-    let description = util::escape_special_chars(
-        util::respace(&register.description.clone().unwrap_or_else(|| {
-            warn!("Missing description for register {}", register.name);
-            Default::default()
-        }))
-        .as_ref(),
-    );
+    let description = util::respace(register.description.as_deref().unwrap_or_else(|| {
+        warn!("Missing description for register {}", register.name);
+        ""
+    }));
+    let description = util::escape_special_chars(&description);
 
     if let Some(dpath) = dpath.as_ref() {
         let mut derived = if &dpath.block == path {
@@ -261,13 +259,11 @@ pub fn render_register_mod(
         rsize.next_power_of_two()
     };
     let rty = rsize.to_ty()?;
-    let description = util::escape_special_chars(
-        util::respace(&register.description.clone().unwrap_or_else(|| {
-            warn!("Missing description for register {rname}");
-            Default::default()
-        }))
-        .as_ref(),
-    );
+    let description = util::respace(&register.description.as_deref().unwrap_or_else(|| {
+        warn!("Missing description for register {rname}");
+        ""
+    }));
+    let description = util::escape_special_chars(&description);
 
     let mut mod_items = TokenStream::new();
 
@@ -898,7 +894,8 @@ pub fn fields(
                                 let pc = &v.pc;
                                 let is_variant = &v.is_sc;
 
-                                let doc = util::escape_special_chars(&util::respace(&v.doc));
+                                let doc = util::respace(&v.doc);
+                                let doc = util::escape_special_chars(&doc);
                                 enum_items.extend(quote! {
                                     #[doc = #doc]
                                     #inline
@@ -911,7 +908,8 @@ pub fn fields(
                                 let pc = &v.pc;
                                 let is_variant = &v.is_sc;
 
-                                let doc = util::escape_special_chars(&util::respace(&v.doc));
+                                let doc = util::respace(&v.doc);
+                                let doc = util::escape_special_chars(&doc);
                                 enum_items.extend(quote! {
                                     #[doc = #doc]
                                     #inline
@@ -1174,7 +1172,8 @@ pub fn fields(
                         for v in &variants {
                             let pc = &v.pc;
                             let sc = &v.sc;
-                            let doc = util::escape_special_chars(&util::respace(&v.doc));
+                            let doc = util::respace(&v.doc);
+                            let doc = util::escape_special_chars(&doc);
                             proxy_items.extend(quote! {
                                 #[doc = #doc]
                                 #inline
@@ -1545,7 +1544,8 @@ fn add_from_variants<'a>(
 
     let mut vars = TokenStream::new();
     for v in variants.map(|v| {
-        let desc = util::escape_special_chars(&util::respace(&format!("{}: {}", v.value, v.doc)));
+        let desc = util::respace(&format!("{}: {}", v.value, v.doc));
+        let desc = util::escape_special_chars(&desc);
         let pcv = &v.pc;
         let pcval = &unsuffixed(v.value);
         quote! {
