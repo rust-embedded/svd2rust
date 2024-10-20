@@ -74,18 +74,18 @@ impl<REG: Resettable + Writable> Reg<REG> {
     /// ```
     /// In the latter case, other fields will be set to their reset value.
     #[inline(always)]
-    pub fn write<F>(&self, f: F)
+    pub fn write<F>(&self, f: F) -> REG::Ux
     where
         F: FnOnce(&mut W<REG>) -> &mut W<REG>,
     {
-        self.register.set(
-            f(&mut W {
-                bits: REG::RESET_VALUE & !REG::ONE_TO_MODIFY_FIELDS_BITMAP
-                    | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
-                _reg: marker::PhantomData,
-            })
-            .bits,
-        );
+        let value = f(&mut W {
+            bits: REG::RESET_VALUE & !REG::ONE_TO_MODIFY_FIELDS_BITMAP
+                | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
+            _reg: marker::PhantomData,
+        })
+        .bits;
+        self.register.set(value);
+        value
     }
 
     /// Writes bits to a `Writable` register and produce a value.
@@ -143,17 +143,17 @@ impl<REG: Writable> Reg<REG> {
     ///
     /// Unsafe to use with registers which don't allow to write 0.
     #[inline(always)]
-    pub unsafe fn write_with_zero<F>(&self, f: F)
+    pub unsafe fn write_with_zero<F>(&self, f: F) -> REG::Ux
     where
         F: FnOnce(&mut W<REG>) -> &mut W<REG>,
     {
-        self.register.set(
-            f(&mut W {
-                bits: REG::Ux::default(),
-                _reg: marker::PhantomData,
-            })
-            .bits,
-        );
+        let value = f(&mut W {
+            bits: REG::Ux::default(),
+            _reg: marker::PhantomData,
+        })
+        .bits;
+        self.register.set(value);
+        value
     }
 
     /// Writes 0 to a `Writable` register and produces a value.
@@ -208,25 +208,24 @@ impl<REG: Readable + Writable> Reg<REG> {
     /// ```
     /// Other fields will have the value they had before the call to `modify`.
     #[inline(always)]
-    pub fn modify<F>(&self, f: F)
+    pub fn modify<F>(&self, f: F) -> REG::Ux
     where
         for<'w> F: FnOnce(&R<REG>, &'w mut W<REG>) -> &'w mut W<REG>,
     {
         let bits = self.register.get();
-        self.register.set(
-            f(
-                &R {
-                    bits,
-                    _reg: marker::PhantomData,
-                },
-                &mut W {
-                    bits: bits & !REG::ONE_TO_MODIFY_FIELDS_BITMAP
-                        | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
-                    _reg: marker::PhantomData,
-                },
-            )
-            .bits,
-        );
+        let value = f(
+            &R {
+                bits,
+                _reg: marker::PhantomData,
+            },
+            &mut W {
+                bits: bits & !REG::ONE_TO_MODIFY_FIELDS_BITMAP | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
+                _reg: marker::PhantomData,
+            },
+        )
+        .bits;
+        self.register.set(value);
+        value
     }
 
     /// Modifies the contents of the register by reading and then writing it
