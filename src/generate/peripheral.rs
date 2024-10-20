@@ -205,8 +205,8 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         }
     }
 
-    let description =
-        util::escape_special_chars(util::respace(p.description.as_ref().unwrap_or(&name)).as_ref());
+    let description = util::respace(p.description.as_ref().unwrap_or(&name));
+    let description = util::escape_special_chars(&description);
 
     // Build up an alternate erc list by expanding any derived registers/clusters
     // erc: *E*ither *R*egister or *C*luster
@@ -511,7 +511,8 @@ impl FieldRegions {
 }
 
 fn make_comment(size: u32, offset: u32, description: &str) -> String {
-    let desc = util::escape_special_chars(&util::respace(description));
+    let desc = util::respace(description);
+    let desc = util::escape_special_chars(&desc);
     if size > 32 {
         let end = offset + size / 8;
         format!("0x{offset:02x}..0x{end:02x} - {desc}")
@@ -1149,7 +1150,7 @@ fn expand_register(
         .properties
         .size
         .ok_or_else(|| anyhow!("Register {} has no `size` field", register.name))?;
-    let description = register.description.clone().unwrap_or_default();
+    let description = register.description.as_deref().unwrap_or_default();
 
     let info_name = register.fullname(config.ignore_groups);
     let mut ty_name = if register.is_single() {
@@ -1161,7 +1162,7 @@ fn expand_register(
 
     match register {
         Register::Single(info) => {
-            let doc = make_comment(register_size, info.address_offset, &description);
+            let doc = make_comment(register_size, info.address_offset, description);
             let span = Span::call_site();
             let ty = name_to_ty(ident(&ty_str, config, "register", span));
             let name: Ident = ident(&ty_name, config, "register_accessor", span);
@@ -1236,7 +1237,7 @@ fn expand_register(
                 let doc = make_comment(
                     register_size * array_info.dim,
                     info.address_offset,
-                    &description,
+                    description,
                 );
                 let mut accessors = Vec::with_capacity((array_info.dim + 1) as _);
                 let first_name = svd::array::names(info, array_info).next().unwrap();
@@ -1380,8 +1381,8 @@ fn cluster_block(
     index: &Index,
     config: &Config,
 ) -> Result<TokenStream> {
-    let description =
-        util::escape_special_chars(&util::respace(c.description.as_ref().unwrap_or(&c.name)));
+    let description = util::respace(c.description.as_ref().unwrap_or(&c.name));
+    let description = util::escape_special_chars(&description);
     let mod_name = c.name.remove_dim().to_string();
 
     // name_snake_case needs to take into account array type.

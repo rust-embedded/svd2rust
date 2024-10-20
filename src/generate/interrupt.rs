@@ -66,7 +66,7 @@ pub fn render(
                 .map(util::respace)
                 .as_deref()
                 .map(util::escape_special_chars)
-                .unwrap_or_else(|| interrupt.0.name.clone())
+                .unwrap_or_else(|| interrupt.0.name.as_str().into())
         );
 
         let value = util::unsuffixed(interrupt.0.value);
