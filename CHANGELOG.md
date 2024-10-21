@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Compatibility with `riscv` 0.12 and `riscv-rt` 0.13
+- Add `riscv_config` section in `settings.yaml`
+  It uses `riscv-pac` traits and standard `riscv-peripheral` peripherals.
+- Add `settings.yaml` file for target-specific settings.
 - Add warning about indexing register arrays
 - Skip generating `.add(0)` and `1 *` in accessors
 - Bump MSRV of generated code to 1.76

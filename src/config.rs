@@ -36,6 +36,8 @@ pub struct Config {
     pub field_names_for_enums: bool,
     pub base_address_shift: u64,
     pub html_url: Option<url::Url>,
+    /// Path to YAML file with chip-specific settings
+    pub settings: Option<PathBuf>,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -312,3 +314,14 @@ impl DerefMut for IdentFormats {
 pub enum IdentFormatsTheme {
     Legacy,
 }
+
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[non_exhaustive]
+/// Chip-specific settings
+pub struct Settings {
+    /// RISC-V specific settings
+    pub riscv_config: Option<riscv::RiscvConfig>,
+}
+
+pub mod riscv;
