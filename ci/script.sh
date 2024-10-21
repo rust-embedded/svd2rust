@@ -498,10 +498,10 @@ main() {
             echo 'version = "1.0.0"' >> $td/Cargo.toml
 
             echo '[dependencies.riscv]' >> $td/Cargo.toml
-            echo 'version = "0.6.0"' >> $td/Cargo.toml
+            echo 'version = "0.12.1"' >> $td/Cargo.toml
 
             echo '[dependencies.riscv-rt]' >> $td/Cargo.toml
-            echo 'version = "0.8.0"' >> $td/Cargo.toml
+            echo 'version = "0.13.0"' >> $td/Cargo.toml
 
             test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/e310x/master/e310x/e310x.svd
             test_svd_for_target riscv https://raw.githubusercontent.com/riscv-rust/k210-pac/master/k210.svd

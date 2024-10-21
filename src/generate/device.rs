@@ -2,12 +2,12 @@ use crate::svd::{array::names, Device, Peripheral};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 
-use log::debug;
+use log::{debug, warn};
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use crate::config::{Config, Settings, Target};
+use crate::config::{Config, Target};
 use crate::util::{self, ident};
 use anyhow::{Context, Result};
 
@@ -31,9 +31,9 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     let settings = match config.settings.as_ref() {
         Some(settings) => {
             let file = std::fs::read_to_string(settings).context("could not read settings file")?;
-            serde_yaml::from_str(&file).context("could not parse settings file")?
+            Some(serde_yaml::from_str(&file).context("could not parse settings file")?)
         }
-        None => Settings::default(),
+        None => None,
     };
 
     if config.target == Target::Msp430 {
@@ -197,8 +197,23 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
 
     match config.target {
         Target::RISCV => {
-            debug!("Rendering RISC-V specific code");
-            out.extend(riscv::render(&d.peripherals, device_x, &settings)?);
+            if settings.is_none() {
+                warn!("No settings file provided for RISC-V target. Using legacy interrupts rendering");
+                warn!("Please, consider migrating your PAC to riscv 0.12.0 or later");
+                out.extend(interrupt::render(
+                    config.target,
+                    &d.peripherals,
+                    device_x,
+                    config,
+                )?);
+            } else {
+                debug!("Rendering RISC-V specific code");
+                out.extend(riscv::render(
+                    &d.peripherals,
+                    device_x,
+                    settings.as_ref().unwrap(),
+                )?);
+            }
         }
         _ => {
             debug!("Rendering interrupts");
@@ -219,7 +234,10 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             // Core peripherals are handled above
             continue;
         }
-        if config.target == Target::RISCV && riscv::is_riscv_peripheral(p, &settings) {
+        if config.target == Target::RISCV
+            && settings.is_some()
+            && riscv::is_riscv_peripheral(p, settings.as_ref().unwrap())
+        {
             // RISC-V specific peripherals are handled above
             continue;
         }
