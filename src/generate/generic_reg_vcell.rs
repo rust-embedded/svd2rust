@@ -117,7 +117,7 @@ impl<REG: Resettable + Writable> Reg<REG> {
     /// let state = periph.reg.write_and(|w| State::set(w.field1()));
     /// ```
     #[inline(always)]
-    pub fn write_and<F, T>(&self, f: F) -> T
+    pub fn from_write<F, T>(&self, f: F) -> T
     where
         F: FnOnce(&mut W<REG>) -> T,
     {
@@ -164,7 +164,7 @@ impl<REG: Writable> Reg<REG> {
     ///
     /// Unsafe to use with registers which don't allow to write 0.
     #[inline(always)]
-    pub unsafe fn write_with_zero_and<F, T>(&self, f: F) -> T
+    pub unsafe fn from_write_with_zero<F, T>(&self, f: F) -> T
     where
         F: FnOnce(&mut W<REG>) -> T,
     {
@@ -261,7 +261,7 @@ impl<REG: Readable + Writable> Reg<REG> {
     /// ```
     /// Other fields will have the value they had before the call to `modify`.
     #[inline(always)]
-    pub fn modify_and<F, T>(&self, f: F) -> T
+    pub fn from_modify<F, T>(&self, f: F) -> T
     where
         for<'w> F: FnOnce(&R<REG>, &'w mut W<REG>) -> T,
     {
