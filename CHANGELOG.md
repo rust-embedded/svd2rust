@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Compatibility with `riscv` 0.12 and `riscv-rt` 0.13
+- Add `riscv_config` section in `settings.yaml`
+  It uses `riscv-pac` traits and standard `riscv-peripheral` peripherals.
+- Add `settings.yaml` file for target-specific settings.
+- Add warning about indexing register arrays
+- Skip generating `.add(0)` and `1 *` in accessors
+- Bump MSRV of generated code to 1.76
+- move `must_use` from methods to generic type
+
+## [v0.33.5] - 2024-10-12
+
 - Fix STM32-patched CI
 - Fix `enumeratedValues` with `isDefault` only
 - Fix invalid `Punct` error from `proc_macro2`
@@ -903,8 +914,7 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.33.4...HEAD
-[v0.33.4]: https://github.com/rust-embedded/svd2rust/compare/v0.33.3...v0.33.4
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.33.3...HEAD
 [v0.33.3]: https://github.com/rust-embedded/svd2rust/compare/v0.33.2...v0.33.3
 [v0.33.2]: https://github.com/rust-embedded/svd2rust/compare/v0.33.1...v0.33.2
 [v0.33.1]: https://github.com/rust-embedded/svd2rust/compare/v0.33.0...v0.33.1

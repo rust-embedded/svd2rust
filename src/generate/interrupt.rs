@@ -62,10 +62,10 @@ pub fn render(
             interrupt
                 .0
                 .description
-                .as_ref()
-                .map(|s| util::respace(s))
-                .as_ref()
-                .map(|s| util::escape_special_chars(s))
+                .as_deref()
+                .map(util::respace)
+                .as_deref()
+                .map(util::escape_special_chars)
                 .unwrap_or_else(|| interrupt.0.name.clone())
         );
 

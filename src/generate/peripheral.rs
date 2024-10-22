@@ -305,7 +305,7 @@ impl Region {
         let mut idents: Vec<_> = self
             .rbfs
             .iter()
-            .filter_map(|f| f.syn_field.ident.as_ref().map(|ident| ident.to_string()))
+            .filter_map(|f| f.syn_field.ident.as_ref().map(ToString::to_string))
             .collect();
         if idents.is_empty() {
             return None;
@@ -343,7 +343,7 @@ impl Region {
         let idents: Vec<_> = self
             .rbfs
             .iter()
-            .filter_map(|f| f.syn_field.ident.as_ref().map(|ident| ident.to_string()))
+            .filter_map(|f| f.syn_field.ident.as_ref().map(ToString::to_string))
             .collect();
 
         if idents.is_empty() {
@@ -726,7 +726,7 @@ fn check_erc_derive_infos(
                 };
                 match register {
                     Register::Single(_) => {
-                        let ty_name = info_name.to_string();
+                        let ty_name = info_name.clone();
                         *derive_info = match explicit_rpath {
                             None => {
                                 match compare_this_against_prev(
@@ -758,7 +758,7 @@ fn check_erc_derive_infos(
                         let re = Regex::new(format!("^{re_string}$").as_str()).map_err(|_| {
                             anyhow!("Error creating regex for register {}", register.name)
                         })?;
-                        let ty_name = info_name.to_string(); // keep suffix for regex matching
+                        let ty_name = info_name.clone(); // keep suffix for regex matching
                         *derive_info = match explicit_rpath {
                             None => {
                                 match compare_this_against_prev(
@@ -787,7 +787,7 @@ fn check_erc_derive_infos(
             }
             RegisterCluster::Cluster(cluster) => {
                 *derive_info = DeriveInfo::Cluster;
-                ercs_type_info.push((cluster.name.to_string(), None, erc, derive_info));
+                ercs_type_info.push((cluster.name.clone(), None, erc, derive_info));
             }
         };
     }
@@ -998,7 +998,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 doc,
                 name,
                 ty,
-                offset: unsuffixed(info.address_offset),
+                offset: info.address_offset,
             })
             .raw_if(false);
             cluster_expanded.push(RegisterBlockField {
@@ -1052,14 +1052,19 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                     &description,
                 );
                 let mut accessors = Vec::with_capacity((array_info.dim + 1) as _);
+                let first_name = svd::array::names(info, array_info).next().unwrap();
+                let note = (array_info.indexes().next().unwrap() != "0").then(||
+                    format!("<div class=\"warning\">`n` is the index of {0} in the array. `n == 0` corresponds to `{first_name}` {0}.</div>", "cluster")
+                );
                 accessors.push(
                     Accessor::Array(ArrayAccessor {
                         doc,
                         name: accessor_name.clone(),
                         ty: ty.clone(),
-                        offset: unsuffixed(info.address_offset),
-                        dim: unsuffixed(array_info.dim),
-                        increment: unsuffixed(array_info.dim_increment),
+                        offset: info.address_offset,
+                        dim: array_info.dim,
+                        increment: array_info.dim_increment,
+                        note,
                     })
                     .raw_if(!array_convertible),
                 );
@@ -1071,7 +1076,6 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                             ci.address_offset,
                             ci.description.as_deref().unwrap_or(&ci.name),
                         );
-                        let i = unsuffixed(i as u64);
                         accessors.push(
                             Accessor::ArrayElem(ArrayElemAccessor {
                                 doc,
@@ -1114,7 +1118,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         doc,
                         name,
                         ty: ty.clone(),
-                        offset: unsuffixed(info.address_offset),
+                        offset: info.address_offset,
                     })
                     .raw_if(false);
                     cluster_expanded.push(RegisterBlockField {
@@ -1166,7 +1170,7 @@ fn expand_register(
                 doc,
                 name,
                 ty,
-                offset: unsuffixed(info.address_offset),
+                offset: info.address_offset,
             })
             .raw_if(false);
             register_expanded.push(RegisterBlockField {
@@ -1235,14 +1239,19 @@ fn expand_register(
                     &description,
                 );
                 let mut accessors = Vec::with_capacity((array_info.dim + 1) as _);
+                let first_name = svd::array::names(info, array_info).next().unwrap();
+                let note = (array_info.indexes().next().unwrap() != "0").then(||
+                    format!("<div class=\"warning\">`n` is the index of {0} in the array. `n == 0` corresponds to `{first_name}` {0}.</div>", "register")
+                );
                 accessors.push(
                     Accessor::Array(ArrayAccessor {
                         doc,
                         name: accessor_name.clone(),
                         ty: ty.clone(),
-                        offset: unsuffixed(info.address_offset),
-                        dim: unsuffixed(array_info.dim),
-                        increment: unsuffixed(array_info.dim_increment),
+                        offset: info.address_offset,
+                        dim: array_info.dim,
+                        increment: array_info.dim_increment,
+                        note,
                     })
                     .raw_if(!array_convertible),
                 );
@@ -1259,7 +1268,6 @@ fn expand_register(
                             ri.address_offset,
                             ri.description.as_deref().unwrap_or(&ri.name),
                         );
-                        let i = unsuffixed(i as u64);
                         accessors.push(
                             Accessor::ArrayElem(ArrayElemAccessor {
                                 doc,
@@ -1302,7 +1310,7 @@ fn expand_register(
                         doc,
                         name,
                         ty: ty.clone(),
-                        offset: unsuffixed(info.address_offset),
+                        offset: info.address_offset,
                     })
                     .raw_if(false);
                     register_expanded.push(RegisterBlockField {

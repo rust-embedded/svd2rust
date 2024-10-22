@@ -147,6 +147,7 @@ pub mod raw {
         }
     }
 
+    #[must_use = "after creating `FieldWriter` you need to call field value setting method"]
     pub struct FieldWriter<'a, REG, const WI: u8, FI = u8, Safety = Unsafe>
     where
         REG: Writable + RegisterSpec,
@@ -174,6 +175,7 @@ pub mod raw {
         }
     }
 
+    #[must_use = "after creating `BitWriter` you need to call bit setting method"]
     pub struct BitWriter<'a, REG, FI = bool, M = BitM>
     where
         REG: Writable + RegisterSpec,

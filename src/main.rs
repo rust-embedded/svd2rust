@@ -29,10 +29,12 @@ fn parse_configs(app: Command) -> Result<Config> {
                 .path_option("config")
                 .ignore_missing_file(true)
                 .build()?,
-        )
-        .load()?;
+        );
+
+    let irxconfig = irxconfig.load()?;
 
     let mut config: Config = irxconfig.get()?;
+
     let mut idf = match config.ident_formats_theme {
         Some(IdentFormatsTheme::Legacy) => IdentFormats::legacy_theme(),
         _ => IdentFormats::default_theme(),
@@ -97,6 +99,13 @@ fn run() -> Result<()> {
                 .short('c')
                 .action(ArgAction::Set)
                 .value_name("TOML_FILE"),
+        )
+        .arg(
+            Arg::new("settings")
+                .long("settings")
+                .help("Target-specific settings YAML file")
+                .action(ArgAction::Set)
+                .value_name("YAML_FILE"),
         )
         .arg(
             Arg::new("target")
