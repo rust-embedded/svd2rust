@@ -164,7 +164,7 @@ impl<REG: Writable> Reg<REG> {
     ///
     /// Unsafe to use with registers which don't allow to write 0.
     #[inline(always)]
-    pub unsafe fn write_with_zero<F, T>(&self, f: F) -> T
+    pub unsafe fn write_with_zero_and<F, T>(&self, f: F) -> T
     where
         F: FnOnce(&mut W<REG>) -> T,
     {
