@@ -74,18 +74,20 @@ impl<REG: Resettable + Writable> Reg<REG> {
     /// ```
     /// In the latter case, other fields will be set to their reset value.
     #[inline(always)]
-    pub fn write<F>(&self, f: F)
+    pub fn write<F, T>(&self, f: F) -> T
     where
-        F: FnOnce(&mut W<REG>) -> &mut W<REG>,
+        F: FnOnce(&mut W<REG>) -> T,
     {
-        self.register.set(
-            f(&mut W {
-                bits: REG::RESET_VALUE & !REG::ONE_TO_MODIFY_FIELDS_BITMAP
-                    | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
-                _reg: marker::PhantomData,
-            })
-            .bits,
-        );
+        let mut writer = W {
+            bits: REG::RESET_VALUE & !REG::ONE_TO_MODIFY_FIELDS_BITMAP
+                | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
+            _reg: marker::PhantomData,
+        };
+        let result = f(&mut writer);
+
+        self.register.set(writer.bits);
+
+        result
     }
 }
 
@@ -98,17 +100,20 @@ impl<REG: Writable> Reg<REG> {
     ///
     /// Unsafe to use with registers which don't allow to write 0.
     #[inline(always)]
-    pub unsafe fn write_with_zero<F>(&self, f: F)
+    pub unsafe fn write_with_zero<F, T>(&self, f: F) -> T
     where
-        F: FnOnce(&mut W<REG>) -> &mut W<REG>,
+        F: FnOnce(&mut W<REG>) -> T,
     {
-        self.register.set(
-            f(&mut W {
-                bits: REG::Ux::default(),
-                _reg: marker::PhantomData,
-            })
-            .bits,
-        );
+        let mut writer = W {
+            bits: REG::Ux::default(),
+            _reg: marker::PhantomData,
+        };
+
+        let result = f(&mut writer);
+
+        self.register.set(writer.bits);
+
+        result
     }
 }
 
@@ -139,31 +144,34 @@ impl<REG: Readable + Writable> Reg<REG> {
     /// ```
     /// Other fields will have the value they had before the call to `modify`.
     #[inline(always)]
-    pub fn modify<F>(&self, f: F)
+    pub fn modify<F, T>(&self, f: F) -> T
     where
-        for<'w> F: FnOnce(&R<REG>, &'w mut W<REG>) -> &'w mut W<REG>,
+        for<'w> F: FnOnce(&R<REG>, &'w mut W<REG>) -> T,
     {
         let bits = self.register.get();
-        self.register.set(
-            f(
-                &R {
-                    bits,
-                    _reg: marker::PhantomData,
-                },
-                &mut W {
-                    bits: bits & !REG::ONE_TO_MODIFY_FIELDS_BITMAP
-                        | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
-                    _reg: marker::PhantomData,
-                },
-            )
-            .bits,
+
+        let mut writer = W {
+            bits: bits & !REG::ONE_TO_MODIFY_FIELDS_BITMAP | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
+            _reg: marker::PhantomData,
+        };
+
+        let result = f(
+            &R {
+                bits,
+                _reg: marker::PhantomData,
+            },
+            &mut writer,
         );
+
+        self.register.set(writer.bits);
+
+        result
     }
 }
 
 impl<REG: Readable> core::fmt::Debug for crate::generic::Reg<REG>
 where
-    R<REG>: core::fmt::Debug
+    R<REG>: core::fmt::Debug,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         core::fmt::Debug::fmt(&self.read(), f)
