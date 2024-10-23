@@ -28,6 +28,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
     };
 
+    #[cfg(feature = "yaml")]
     let settings = match config.settings.as_ref() {
         Some(settings) => {
             let file = std::fs::read_to_string(settings).context("could not read settings file")?;
@@ -35,6 +36,8 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
         None => None,
     };
+    #[cfg(not(feature = "yaml"))]
+    let settings = None;
 
     if config.target == Target::Msp430 {
         out.extend(quote! {

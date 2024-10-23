@@ -37,6 +37,7 @@ pub struct Config {
     pub base_address_shift: u64,
     pub html_url: Option<url::Url>,
     /// Path to YAML file with chip-specific settings
+    #[cfg(feature = "yaml")]
     pub settings: Option<PathBuf>,
 }
 
