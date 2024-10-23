@@ -42,6 +42,9 @@ jobs:
         with:
           key: ${{ matrix.TARGET }}
 
+      - run: cargo check --target ${{ matrix.TARGET }} --no-default-features
+        env:
+          RUSTFLAGS: -D warnings
       - run: cargo check --target ${{ matrix.TARGET }}
         env:
           RUSTFLAGS: -D warnings
