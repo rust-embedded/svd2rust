@@ -9,7 +9,7 @@ use std::path::Path;
 
 use crate::config::{Config, Target};
 use crate::util::{self, ident};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 
 use crate::generate::{interrupt, peripheral, riscv};
 
@@ -36,7 +36,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
         #[cfg(not(feature = "yaml"))]
         Some(_) => {
-            return Err(anyhow!("Support for yaml config files is not available because svd2rust was compiled without the yaml feature"));
+            return Err(anyhow::anyhow!("Support for yaml config files is not available because svd2rust was compiled without the yaml feature"));
         }
         None => None,
     };
