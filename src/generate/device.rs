@@ -9,7 +9,7 @@ use std::path::Path;
 
 use crate::config::{Config, Target};
 use crate::util::{self, ident};
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 
 use crate::generate::{interrupt, peripheral, riscv};
 
@@ -29,9 +29,14 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     };
 
     let settings = match config.settings.as_ref() {
+        #[cfg(feature = "yaml")]
         Some(settings) => {
             let file = std::fs::read_to_string(settings).context("could not read settings file")?;
             Some(serde_yaml::from_str(&file).context("could not parse settings file")?)
+        }
+        #[cfg(not(feature = "yaml"))]
+        Some(_) => {
+            return Err(anyhow!("Support for yaml config files is not available because svd2rust was compiled without the yaml feature"));
         }
         None => None,
     };
