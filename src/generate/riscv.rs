@@ -184,7 +184,7 @@ pub fn render(
                     .map(|s| util::respace(s))
                     .as_ref()
                     .map(|s| util::escape_special_chars(s))
-                    .unwrap_or_else(|| i.name.clone())
+                    .unwrap_or_else(|| i.name.as_str().into())
             );
 
             writeln!(device_x, "PROVIDE({name} = DefaultHandler);")?;

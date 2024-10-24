@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Revert #711
 - Fix calculating `modifiedWriteValues` bitmasks with field arrays
 - Fix building without `yaml` feature
 - Compatibility with `riscv` 0.12 and `riscv-rt` 0.13

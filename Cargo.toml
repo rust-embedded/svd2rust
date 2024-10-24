@@ -54,7 +54,6 @@ serde = { version = "1.0", optional = true }
 serde_json = { version = "1.0.85", optional = true }
 serde_yaml = { version = "0.9.11", optional = true }
 regex = "1.10.0"
-html-escape = "0.2"
 url = { version = "2.5", features = ["serde"] }
 
 [dependencies.svd-parser]
