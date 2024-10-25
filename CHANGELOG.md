@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - Use marker struct instead of address in `Periph` with `PeripheralSpec` trait
+- Disable whitespace merging in `respace`
 
 ## [v0.37.1] - 2025-10-17
 
