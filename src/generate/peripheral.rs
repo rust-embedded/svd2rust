@@ -42,7 +42,8 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
     let p_ty = ident(&name, config, "peripheral", span);
     let name_str = p_ty.to_string();
     let address = util::hex(p.base_address + config.base_address_shift);
-    let description = util::respace(p.description.as_ref().unwrap_or(&p.name));
+    let doc = util::respace(p.description.as_ref().unwrap_or(&name));
+    let doc = util::escape_special_chars(&doc);
 
     let mod_ty = ident(&name, config, "peripheral_mod", span);
     let (derive_regs, base, path) = if let Some(path) = path {
@@ -88,12 +89,12 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
 
     let per_to_tokens = |out: &mut TokenStream,
                          feature_attribute: &TokenStream,
-                         description: &str,
+                         doc: &str,
                          p_ty: &Ident,
                          doc_alias: Option<TokenStream>,
                          address: LitInt| {
         out.extend(quote! {
-            #[doc = #description]
+            #[doc = #doc]
             #phtml
             #doc_alias
             #feature_attribute
@@ -140,7 +141,8 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
             let mut feature_names = Vec::with_capacity(dim.dim as _);
             for pi in svd::peripheral::expand(p, dim) {
                 let name = &pi.name;
-                let description = pi.description.as_deref().unwrap_or(&p.name);
+                let doc = util::respace(pi.description.as_ref().unwrap_or(&pi.name));
+                let doc = util::escape_special_chars(&doc);
                 let p_ty = ident(name, config, "peripheral", span);
                 let name_str = p_ty.to_string();
                 let doc_alias = (&name_str != name).then(|| quote!(#[doc(alias = #name)]));
@@ -155,7 +157,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 per_to_tokens(
                     &mut out,
                     &feature_attribute_n,
-                    description,
+                    &doc,
                     &p_ty,
                     doc_alias,
                     address,
@@ -169,7 +171,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
             if derive_regs {
                 // re-export the base module to allow deriveFrom this one
                 out.extend(quote! {
-                    #[doc = #description]
+                    #[doc = #doc]
                     #feature_any_attribute
                     pub use self::#base as #mod_ty;
                 });
@@ -182,21 +184,14 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 feature_attribute.extend(quote! { #[cfg(feature = #p_feature)] })
             };
             // Insert the peripheral structure
-            per_to_tokens(
-                &mut out,
-                &feature_attribute,
-                &description,
-                &p_ty,
-                None,
-                address,
-            );
+            per_to_tokens(&mut out, &feature_attribute, &doc, &p_ty, None, address);
 
             // Derived peripherals may not require re-implementation, and will instead
             // use a single definition of the non-derived version.
             if derive_regs {
                 // re-export the base module to allow deriveFrom this one
                 out.extend(quote! {
-                    #[doc = #description]
+                    #[doc = #doc]
                     #feature_attribute
                     pub use self::#base as #mod_ty;
                 });
@@ -204,9 +199,6 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
             }
         }
     }
-
-    let description = util::respace(p.description.as_ref().unwrap_or(&name));
-    let description = util::escape_special_chars(&description);
 
     // Build up an alternate erc list by expanding any derived registers/clusters
     // erc: *E*ither *R*egister or *C*luster
@@ -246,7 +238,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         register_or_cluster_block(&ercs, &derive_infos, None, "Register block", None, config)?;
 
     out.extend(quote! {
-        #[doc = #description]
+        #[doc = #doc]
         #feature_attribute
         pub mod #mod_ty
     });
@@ -1381,8 +1373,9 @@ fn cluster_block(
     index: &Index,
     config: &Config,
 ) -> Result<TokenStream> {
-    let description = util::respace(c.description.as_ref().unwrap_or(&c.name));
-    let description = util::escape_special_chars(&description);
+    let doc = c.description.as_ref().unwrap_or(&c.name);
+    let doc = util::respace(doc);
+    let doc = util::escape_special_chars(&doc);
     let mod_name = c.name.remove_dim().to_string();
 
     // name_snake_case needs to take into account array type.
@@ -1409,7 +1402,7 @@ fn cluster_block(
             .push(path_segment(ident(&dname, config, "cluster_mod", span)));
 
         Ok(quote! {
-            #[doc = #description]
+            #[doc = #doc]
             pub use #derived as #block_ty;
             pub use #mod_derived as #mod_ty;
         })
@@ -1429,7 +1422,7 @@ fn cluster_block(
             &c.children,
             &mod_derive_infos,
             Some(&mod_name),
-            &description,
+            &doc,
             cluster_size,
             config,
         )?;
@@ -1441,11 +1434,11 @@ fn cluster_block(
         };
 
         Ok(quote! {
-            #[doc = #description]
+            #[doc = #doc]
             pub use self::#mod_ty::#block_ty;
 
             ///Cluster
-            #[doc = #description]
+            #[doc = #doc]
             pub mod #mod_ty {
                 #mod_items
             }
