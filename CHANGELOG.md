@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Added `#![cfg_attr(docsrs, feature(doc_auto_cfg))]` to the generated library code. This
   adds a display of the feature gates in the documentation of the generated library
 - Split on the start of attribute instead of the end
+- Disable whitespace merging in `respace`
 
 ## [v0.35.0] - 2024-11-12
 
