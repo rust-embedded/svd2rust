@@ -148,10 +148,13 @@ pub fn sanitize_keyword(sc: Cow<str>) -> Cow<str> {
 }
 
 pub fn respace(s: &str) -> String {
-    s//.split_whitespace()
-    //    .collect::<Vec<_>>()
-    //    .join(" ")
-        .replace(r"\n", "\n")
+    let s = if s.matches("\n").count() == 1 {
+        // Special case for STM32
+        s.split_whitespace().collect::<Vec<_>>().join(" ")
+    } else {
+        s.into()
+    };
+    s.replace(r"\n", "\n")
 }
 
 pub fn escape_brackets(s: &str) -> String {

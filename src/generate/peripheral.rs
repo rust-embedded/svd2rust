@@ -184,14 +184,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 feature_attribute.extend(quote! { #[cfg(feature = #p_feature)] })
             };
             // Insert the peripheral structure
-            per_to_tokens(
-                &mut out,
-                &feature_attribute,
-                &doc,
-                &p_ty,
-                None,
-                address,
-            );
+            per_to_tokens(&mut out, &feature_attribute, &doc, &p_ty, None, address);
 
             // Derived peripherals may not require re-implementation, and will instead
             // use a single definition of the non-derived version.
