@@ -316,6 +316,7 @@ pub fn render(
                     }
 
                     /// TryFromInterruptError
+                    #defmt
                     #[derive(Debug, Copy, Clone)]
                     pub struct TryFromInterruptError(());
 
@@ -337,6 +338,7 @@ pub fn render(
                     #interrupt_enum
 
                     /// TryFromInterruptError
+                    #defmt
                     #[derive(Debug, Copy, Clone)]
                     pub struct TryFromInterruptError(());
 

@@ -1,4 +1,4 @@
-use crate::{svd::Peripheral, util, Settings};
+use crate::{svd::Peripheral, util, Config, Settings};
 use anyhow::Result;
 use log::debug;
 use proc_macro2::TokenStream;
@@ -21,8 +21,14 @@ pub fn render(
     peripherals: &[Peripheral],
     device_x: &mut String,
     settings: &Settings,
+    config: &Config,
 ) -> Result<TokenStream> {
     let mut mod_items = TokenStream::new();
+
+    let defmt = config
+        .impl_defmt
+        .as_ref()
+        .map(|feature| quote!(#[cfg_attr(feature = #feature, derive(defmt::Format))]));
 
     if let Some(c) = settings.riscv_config.as_ref() {
         if !c.core_interrupts.is_empty() {
@@ -48,6 +54,7 @@ pub fn render(
             mod_items.extend(quote! {
                 /// Core interrupts. These interrupts are handled by the core itself.
                 #[riscv::pac_enum(unsafe CoreInterruptNumber)]
+                #defmt
                 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
                 pub enum CoreInterrupt {
                     #(#interrupts)*
@@ -77,6 +84,7 @@ pub fn render(
             mod_items.extend(quote! {
                 /// Exception sources in the device.
                 #[riscv::pac_enum(unsafe ExceptionNumber)]
+                #defmt
                 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
                 pub enum Exception {
                     #(#exceptions)*
@@ -102,6 +110,7 @@ pub fn render(
             mod_items.extend(quote! {
                 /// Priority levels in the device
                 #[riscv::pac_enum(unsafe PriorityNumber)]
+                #defmt
                 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
                 pub enum Priority {
                     #(#priorities)*
@@ -124,6 +133,7 @@ pub fn render(
             mod_items.extend(quote! {
                 /// HARTs in the device
                 #[riscv::pac_enum(unsafe HartIdNumber)]
+                #defmt
                 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
                 pub enum Hart {
                     #(#harts)*
@@ -197,6 +207,7 @@ pub fn render(
         mod_items.extend(quote! {
             /// External interrupts. These interrupts are handled by the external peripherals.
             #[riscv::pac_enum(unsafe ExternalInterruptNumber)]
+            #defmt
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             pub enum ExternalInterrupt {
                 #(#interrupts)*
