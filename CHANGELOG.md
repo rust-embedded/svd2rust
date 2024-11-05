@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - *breaking change* Return raw writtened value
 - Add `from_write`, `from_write_with_zero`, and `from_modify` register modifiers
   with generic return value
+- `InterruptNumber` is no longer implemented for Xtensa peripheral interrupts
 
 ## [v0.33.5] - 2024-10-12
 

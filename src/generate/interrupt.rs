@@ -308,13 +308,6 @@ pub fn render(
                 root.extend(quote! {
                     #interrupt_enum
 
-                    unsafe impl xtensa_lx::interrupt::InterruptNumber for Interrupt {
-                        #[inline(always)]
-                        fn number(#self_token) -> u16 {
-                            #nr_expr
-                        }
-                    }
-
                     /// TryFromInterruptError
                     #defmt
                     #[derive(Debug, Copy, Clone)]
