@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add unsafe `write_bits` to all writtable registers
 - Revert #711
 - Add `defmt` impls for `TryFromInterruptError`, riscv interrupt enums
 - Fix calculating `modifiedWriteValues` bitmasks with field arrays
