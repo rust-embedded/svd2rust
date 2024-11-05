@@ -217,6 +217,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                     &d.peripherals,
                     device_x,
                     settings.as_ref().unwrap(),
+                    config,
                 )?);
             }
         }
