@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Use `ConstDefault::DEFAULT` instead of `Default::default()` to force const
+
 ## [v0.34.0] - 2024-11-05
 
 - Revert #711
