@@ -36,6 +36,7 @@ pub struct Config {
     pub field_names_for_enums: bool,
     pub base_address_shift: u64,
     pub html_url: Option<url::Url>,
+    pub raw_access: bool,
     /// Path to YAML file with chip-specific settings
     pub settings: Option<PathBuf>,
 }
