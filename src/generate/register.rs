@@ -3,6 +3,7 @@ use crate::svd::{
     ModifiedWriteValues, ReadAction, Register, RegisterProperties, Usage, WriteConstraint,
     WriteConstraintRange,
 };
+use crate::Settings;
 use log::warn;
 use proc_macro2::{Delimiter, Group, Ident, Span, TokenStream};
 use quote::quote;
@@ -46,6 +47,7 @@ pub fn render(
     path: &BlockPath,
     dpath: Option<RegisterPath>,
     index: &Index,
+    settings: &Settings,
     config: &Config,
 ) -> Result<TokenStream> {
     let mut name = util::name_of(register, config.ignore_groups);
@@ -116,7 +118,7 @@ pub fn render(
                 false,
                 register,
                 &rpath,
-                config,
+                settings,
             )?,
             read_action_docs(access.can_read(), register.read_action),
         );
@@ -129,7 +131,7 @@ pub fn render(
             #doc_alias
             pub type #reg_ty = crate::Reg<#mod_ty::#regspec_ty>;
         });
-        let mod_items = render_register_mod(register, access, &rpath, index, config)?;
+        let mod_items = render_register_mod(register, access, &rpath, index, settings, config)?;
 
         out.extend(quote! {
             #[doc = #description]
@@ -168,7 +170,7 @@ fn api_docs(
     inmodule: bool,
     register: &Register,
     rpath: &RegisterPath,
-    config: &Config,
+    settings: &Settings,
 ) -> Result<String, std::fmt::Error> {
     fn method(s: &str) -> String {
         format!("[`{s}`](crate::Reg::{s})")
@@ -210,7 +212,7 @@ fn api_docs(
 
     doc.push_str("See [API](https://docs.rs/svd2rust/#read--modify--write-api).");
 
-    if let Some(url) = config.html_url.as_ref() {
+    if let Some(url) = settings.html_url.as_ref() {
         let first_idx = if let Register::Array(_, dim) = &register {
             dim.indexes().next()
         } else {
@@ -240,6 +242,7 @@ pub fn render_register_mod(
     access: Access,
     rpath: &RegisterPath,
     index: &Index,
+    settings: &Settings,
     config: &Config,
 ) -> Result<TokenStream> {
     let properties = &register.properties;
@@ -369,7 +372,7 @@ pub fn render_register_mod(
 
     let doc = format!(
         "{description}{}{}",
-        api_docs(can_read, can_write, can_reset, &mod_ty, true, register, rpath, config)?,
+        api_docs(can_read, can_write, can_reset, &mod_ty, true, register, rpath, settings)?,
         read_action_docs(access.can_read(), register.read_action),
     );
 

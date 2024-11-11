@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Move `html_url` into `Settings`
 - Fix MSP430 PAC inner attribute generation when used with the `-m` switch.
 
 ## [v0.34.0] - 2024-11-05

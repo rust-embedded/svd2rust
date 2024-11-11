@@ -11,6 +11,7 @@ use crate::config::Config;
 use crate::svd::{
     self, Cluster, ClusterInfo, MaybeArray, Peripheral, Register, RegisterCluster, RegisterInfo,
 };
+use crate::Settings;
 use log::{debug, trace, warn};
 use proc_macro2::{Delimiter, Group, Ident, Punct, Spacing, Span, TokenStream};
 use quote::{quote, ToTokens};
@@ -27,7 +28,12 @@ use crate::generate::register;
 mod accessor;
 use accessor::*;
 
-pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result<TokenStream> {
+pub fn render(
+    p_original: &Peripheral,
+    index: &Index,
+    settings: &Settings,
+    config: &Config,
+) -> Result<TokenStream> {
     let mut out = TokenStream::new();
 
     let mut p = p_original.clone();
@@ -81,7 +87,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         }
     };
 
-    let phtml = config.html_url.as_ref().map(|url| {
+    let phtml = settings.html_url.as_ref().map(|url| {
         let doc = format!("See peripheral [structure]({url}#{})", &path.peripheral);
         quote!(#[doc = ""] #[doc = #doc])
     });
@@ -235,7 +241,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
     debug!("Pushing cluster & register information into output");
     // Push all cluster & register related information into the peripheral module
 
-    let mod_items = render_ercs(&mut ercs, &derive_infos, &path, index, config)?;
+    let mod_items = render_ercs(&mut ercs, &derive_infos, &path, index, settings, config)?;
 
     // Push any register or cluster blocks into the output
     debug!(
@@ -1333,6 +1339,7 @@ fn render_ercs(
     derive_infos: &[DeriveInfo],
     path: &BlockPath,
     index: &Index,
+    settings: &Settings,
     config: &Config,
 ) -> Result<TokenStream> {
     let mut mod_items = TokenStream::new();
@@ -1348,7 +1355,7 @@ fn render_ercs(
                 if let Some(dpath) = dpath {
                     cpath = derive_cluster(c, &dpath, path, index)?;
                 }
-                mod_items.extend(cluster_block(c, path, cpath, index, config)?);
+                mod_items.extend(cluster_block(c, path, cpath, index, settings, config)?);
             }
 
             // Generate definition for each of the registers.
@@ -1364,7 +1371,7 @@ fn render_ercs(
                     }
                 }
                 let reg_name = &reg.name;
-                let rendered_reg = register::render(reg, path, rpath, index, config)
+                let rendered_reg = register::render(reg, path, rpath, index, settings, config)
                     .with_context(|| format!("can't render register '{reg_name}'"))?;
                 mod_items.extend(rendered_reg)
             }
@@ -1379,6 +1386,7 @@ fn cluster_block(
     path: &BlockPath,
     dpath: Option<BlockPath>,
     index: &Index,
+    settings: &Settings,
     config: &Config,
 ) -> Result<TokenStream> {
     let description = util::respace(c.description.as_ref().unwrap_or(&c.name));
@@ -1416,7 +1424,14 @@ fn cluster_block(
     } else {
         let cpath = path.new_cluster(&c.name);
         let mod_derive_infos = check_erc_derive_infos(&mut c.children, &cpath, index, config)?;
-        let mod_items = render_ercs(&mut c.children, &mod_derive_infos, &cpath, index, config)?;
+        let mod_items = render_ercs(
+            &mut c.children,
+            &mod_derive_infos,
+            &cpath,
+            index,
+            settings,
+            config,
+        )?;
 
         // Generate the register block.
         let cluster_size = match c {
