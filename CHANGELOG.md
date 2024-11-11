@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fix MSP430 PAC inner attribute generation when used with the `-m` switch.
+
 ## [v0.34.0] - 2024-11-05
 
 - Revert #711
