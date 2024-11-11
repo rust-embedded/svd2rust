@@ -210,7 +210,7 @@ fn api_docs(
 
     doc.push_str("See [API](https://docs.rs/svd2rust/#read--modify--write-api).");
 
-    if let Some(url) = config.html_url.as_ref() {
+    if let Some(url) = config.settings.html_url.as_ref() {
         let first_idx = if let Register::Array(_, dim) = &register {
             dim.indexes().next()
         } else {
