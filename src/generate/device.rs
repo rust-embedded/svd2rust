@@ -41,7 +41,8 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         None => None,
     };
 
-    if config.target == Target::Msp430 {
+    // make_mod option explicitly disables inner attributes.
+    if config.target == Target::Msp430 && !config.make_mod {
         out.extend(quote! {
             #![feature(abi_msp430_interrupt)]
         });
