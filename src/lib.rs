@@ -628,6 +628,22 @@ pub fn generate(input: &str, config: &Config) -> Result<Generation> {
     use std::fmt::Write;
 
     let mut config = config.clone();
+
+    match config.settings_file.as_ref() {
+        #[cfg(feature = "yaml")]
+        Some(settings) => {
+            let file = std::fs::read_to_string(settings).context("could not read settings file")?;
+            config
+                .settings
+                .update_from(serde_yaml::from_str(&file).context("could not parse settings file")?)
+        }
+        #[cfg(not(feature = "yaml"))]
+        Some(_) => {
+            return Err(anyhow::anyhow!("Support for yaml config files is not available because svd2rust was compiled without the yaml feature"));
+        }
+        None => {}
+    };
+
     let mut ident_formats = match config.ident_formats_theme {
         Some(IdentFormatsTheme::Legacy) => IdentFormats::legacy_theme(),
         _ => IdentFormats::default_theme(),

@@ -293,18 +293,18 @@ pub fn block_path_to_ty(
     config: &Config,
     span: Span,
 ) -> TypePath {
-    let mut segments = Punctuated::new();
-    segments.push(path_segment(Ident::new("crate", span)));
-    segments.push(path_segment(ident(
+    let mut path = config.settings.crate_path.clone().unwrap_or_default().0;
+    path.segments.push(path_segment(ident(
         &bpath.peripheral,
         config,
         "peripheral_mod",
         span,
     )));
     for ps in &bpath.path {
-        segments.push(path_segment(ident(ps, config, "cluster_mod", span)));
+        path.segments
+            .push(path_segment(ident(ps, config, "cluster_mod", span)));
     }
-    type_path(segments)
+    TypePath { qself: None, path }
 }
 
 pub fn register_path_to_ty(

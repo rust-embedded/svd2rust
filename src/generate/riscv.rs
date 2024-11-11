@@ -20,7 +20,6 @@ pub fn is_riscv_peripheral(p: &Peripheral, s: &Settings) -> bool {
 pub fn render(
     peripherals: &[Peripheral],
     device_x: &mut String,
-    settings: &Settings,
     config: &Config,
 ) -> Result<TokenStream> {
     let mut mod_items = TokenStream::new();
@@ -30,7 +29,7 @@ pub fn render(
         .as_ref()
         .map(|feature| quote!(#[cfg_attr(feature = #feature, derive(defmt::Format))]));
 
-    if let Some(c) = settings.riscv_config.as_ref() {
+    if let Some(c) = config.settings.riscv_config.as_ref() {
         if !c.core_interrupts.is_empty() {
             debug!("Rendering target-specific core interrupts");
             writeln!(device_x, "/* Core interrupt sources and trap handlers */")?;
@@ -216,7 +215,7 @@ pub fn render(
     }
 
     let mut riscv_peripherals = TokenStream::new();
-    if let Some(c) = &settings.riscv_config {
+    if let Some(c) = config.settings.riscv_config.as_ref() {
         let harts = match c.harts.is_empty() {
             true => vec![],
             false => c

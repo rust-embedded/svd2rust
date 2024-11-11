@@ -28,19 +28,6 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
     };
 
-    let settings = match config.settings.as_ref() {
-        #[cfg(feature = "yaml")]
-        Some(settings) => {
-            let file = std::fs::read_to_string(settings).context("could not read settings file")?;
-            Some(serde_yaml::from_str(&file).context("could not parse settings file")?)
-        }
-        #[cfg(not(feature = "yaml"))]
-        Some(_) => {
-            return Err(anyhow::anyhow!("Support for yaml config files is not available because svd2rust was compiled without the yaml feature"));
-        }
-        None => None,
-    };
-
     // make_mod option explicitly disables inner attributes.
     if config.target == Target::Msp430 && !config.make_mod {
         out.extend(quote! {
@@ -203,7 +190,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
 
     match config.target {
         Target::RISCV => {
-            if settings.is_none() {
+            if config.settings.riscv_config.is_none() {
                 warn!("No settings file provided for RISC-V target. Using legacy interrupts rendering");
                 warn!("Please, consider migrating your PAC to riscv 0.12.0 or later");
                 out.extend(interrupt::render(
@@ -214,12 +201,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 )?);
             } else {
                 debug!("Rendering RISC-V specific code");
-                out.extend(riscv::render(
-                    &d.peripherals,
-                    device_x,
-                    settings.as_ref().unwrap(),
-                    config,
-                )?);
+                out.extend(riscv::render(&d.peripherals, device_x, config)?);
             }
         }
         _ => {
@@ -241,10 +223,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             // Core peripherals are handled above
             continue;
         }
-        if config.target == Target::RISCV
-            && settings.is_some()
-            && riscv::is_riscv_peripheral(p, settings.as_ref().unwrap())
-        {
+        if config.target == Target::RISCV && riscv::is_riscv_peripheral(p, &config.settings) {
             // RISC-V specific peripherals are handled above
             continue;
         }

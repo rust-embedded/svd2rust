@@ -81,7 +81,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         }
     };
 
-    let phtml = config.html_url.as_ref().map(|url| {
+    let phtml = config.settings.html_url.as_ref().map(|url| {
         let doc = format!("See peripheral [structure]({url}#{})", &path.peripheral);
         quote!(#[doc = ""] #[doc = #doc])
     });
