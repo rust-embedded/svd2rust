@@ -375,7 +375,7 @@ impl<'de> serde::Deserialize<'de> for CratePath {
 impl FromStr for CratePath {
     type Err = syn::Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        syn::parse_str(&s).map(Self)
+        syn::parse_str(s).map(Self)
     }
 }
 
