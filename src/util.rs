@@ -180,7 +180,7 @@ pub fn escape_brackets(s: &str) -> String {
 /// Escape basic html tags and brackets
 pub fn escape_special_chars(s: &str) -> Cow<'_, str> {
     if s.contains('[') {
-        escape_brackets(&s).into()
+        escape_brackets(s).into()
     } else {
         s.into()
     }

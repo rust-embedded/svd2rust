@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.35.0] - 2024-11-12
+
 - Add `crate_path` setting
 - Inline `Settings` into `Config`, add `settings_file`
 - Fix MSP430 PAC inner attribute generation when used with the `-m` switch.
@@ -928,7 +930,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.34.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.35.0...HEAD
+[v0.35.0]: https://github.com/rust-embedded/svd2rust/compare/v0.34.0...v0.35.0
 [v0.34.0]: https://github.com/rust-embedded/svd2rust/compare/v0.33.5...v0.34.0
 [v0.33.5]: https://github.com/rust-embedded/svd2rust/compare/v0.33.4...v0.33.5
 [v0.33.4]: https://github.com/rust-embedded/svd2rust/compare/v0.33.3...v0.33.4

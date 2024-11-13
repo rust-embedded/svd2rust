@@ -259,7 +259,7 @@ pub fn render_register_mod(
         rsize.next_power_of_two()
     };
     let rty = rsize.to_ty()?;
-    let description = util::respace(&register.description.as_deref().unwrap_or_else(|| {
+    let description = util::respace(register.description.as_deref().unwrap_or_else(|| {
         warn!("Missing description for register {rname}");
         ""
     }));
