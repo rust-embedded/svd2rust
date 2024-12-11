@@ -144,7 +144,7 @@ pub fn render(
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
                 #link_section_attr
-                #[no_mangle]
+                #[unsafe(no_mangle)]
                 pub static __INTERRUPTS: [Vector; #n] = [
                     #elements
                 ];
@@ -179,7 +179,7 @@ pub fn render(
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
                 #link_section_attr
-                #[no_mangle]
+                #[unsafe(no_mangle)]
                 #[used]
                 pub static __INTERRUPTS:
                     [Vector; #n] = [
@@ -214,7 +214,7 @@ pub fn render(
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
                 #link_section_attr
-                #[no_mangle]
+                #[unsafe(no_mangle)]
                 pub static __EXTERNAL_INTERRUPTS: [Vector; #n] = [
                     #elements
                 ];
@@ -414,7 +414,7 @@ pub fn render(
                         }
 
                         #[allow(non_snake_case)]
-                        #[no_mangle]
+                        #[unsafe(no_mangle)]
                         pub extern #abi fn $NAME() {
                             // check that the handler exists
                             let _ = $crate::interrupt::Interrupt::$NAME;
@@ -433,7 +433,7 @@ pub fn render(
                     };
                     ($NAME:ident, $path:path) => {
                         #[allow(non_snake_case)]
-                        #[no_mangle]
+                        #[unsafe(no_mangle)]
                         pub extern #abi fn $NAME() {
                             // check that the handler exists
                             let _ = $crate::interrupt::Interrupt::$NAME;
