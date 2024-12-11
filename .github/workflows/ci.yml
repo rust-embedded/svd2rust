@@ -92,7 +92,7 @@ jobs:
           - { vendor: TexasInstruments }
           - { vendor: TexasInstruments, options: "-- --atomics" }
           - { vendor: Espressif }
-          - { vendor: Espressif, options: "-- --atomics" }
+          - { vendor: Espressif, options: "-- --atomics --edition=2024" }
           - { vendor: Vorago }
           - { vendor: Vorago, options: "-- --strict --atomics" }
           - { vendor: Renesas }

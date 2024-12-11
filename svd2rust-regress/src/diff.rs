@@ -260,8 +260,8 @@ impl Diffing {
         Ok([baseline, current])
     }
 
-    fn get_source_and_command(&self) -> [Option<(Source, Command)>; 2] {
-        fn split(s: &str) -> (Source, Command) {
+    fn get_source_and_command(&self) -> [Option<(Source<'_>, Command<'_>)>; 2] {
+        fn split(s: &str) -> (Source<'_>, Command<'_>) {
             if let Some(s) = s.strip_prefix('@') {
                 if let Some((source, cmd)) = s.split_once(' ') {
                     (Some(source), Some(cmd.trim()))
@@ -279,7 +279,10 @@ impl Diffing {
         [baseline, current]
     }
 
-    pub fn svd2rust_setup(&self, opts: &Opts) -> Result<[(PathBuf, Command); 2], anyhow::Error> {
+    pub fn svd2rust_setup(
+        &self,
+        opts: &Opts,
+    ) -> Result<[(PathBuf, Command<'_>); 2], anyhow::Error> {
         // FIXME: refactor this to be less ugly
         let [baseline_sc, current_sc] = self.get_source_and_command();
         let baseline = match baseline_sc.and_then(|(source, _)| source) {

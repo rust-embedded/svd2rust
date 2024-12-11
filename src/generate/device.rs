@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use crate::config::{Config, Target};
+use crate::config::{Config, RustEdition, Target};
 use crate::util::{self, ident};
 use anyhow::{Context, Result};
 
@@ -266,7 +266,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                     #feature_attribute
                     pub #p_singleton: #p_ty,
                 });
-                exprs.extend(quote!(#feature_attribute #p_singleton: #p_ty::steal(),));
+                exprs.extend(quote!(#feature_attribute #p_singleton: unsafe { #p_ty::steal() },));
             }
             Peripheral::Array(p, dim_element) => {
                 for p_name in names(p, dim_element) {
@@ -281,17 +281,25 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                         #feature_attribute
                         pub #p_singleton: #p_ty,
                     });
-                    exprs.extend(quote!(#feature_attribute #p_singleton: #p_ty::steal(),));
+                    exprs.extend(
+                        quote!(#feature_attribute #p_singleton: unsafe { #p_ty::steal() },),
+                    );
                 }
             }
         }
     }
 
+    let nomangle = if config.edition >= RustEdition::E2024 {
+        quote!(#[unsafe(no_mangle)])
+    } else {
+        quote!(#[no_mangle])
+    };
+
     out.extend(quote! {
         // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
         // crate as that would let you `take` the device peripherals more than once (one per minor
         // version)
-        #[no_mangle]
+        #nomangle
         static mut DEVICE_PERIPHERALS: bool = false;
 
         /// All the peripherals.

@@ -14,6 +14,7 @@ use crate::util::path_segment;
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 #[non_exhaustive]
 pub struct Config {
+    pub edition: RustEdition,
     pub target: Target,
     pub atomics: bool,
     pub atomics_feature: Option<String>,
@@ -50,6 +51,16 @@ impl Config {
     pub fn extra_build(&self) -> Option<TokenStream> {
         self.settings.extra_build()
     }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+pub enum RustEdition {
+    #[default]
+    #[cfg_attr(feature = "serde", serde(rename = "2021"))]
+    E2021,
+    #[cfg_attr(feature = "serde", serde(rename = "2024"))]
+    E2024,
 }
 
 #[allow(clippy::upper_case_acronyms)]
