@@ -43,6 +43,7 @@ main() {
     echo 'cortex-m = "0.7.7"'    >> $td/Cargo.toml
     echo 'cortex-m-rt = "0.7.3"' >> $td/Cargo.toml
     echo 'vcell = "0.1.3"'       >> $td/Cargo.toml
+    echo 'num-traits = { version = "0.2.19", default-features = false }' >> $td/Cargo.toml
     if [[ "$options" == *"--atomics"* ]]; then
         echo 'portable-atomic = { version = "1.4", default-features = false }' >> $td/Cargo.toml
     fi

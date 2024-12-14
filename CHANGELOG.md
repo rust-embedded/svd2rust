@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Use `ConstZero::ZERO` instead of `Default::default()` to force const
 - Force using rust edition 2021 in CI
 
 ## [v0.35.0] - 2024-11-12
