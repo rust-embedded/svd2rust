@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Force using rust edition 2021 in CI
+
 ## [v0.35.0] - 2024-11-12
 
 - Add `crate_path` setting
