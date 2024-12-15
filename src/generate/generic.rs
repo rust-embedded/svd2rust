@@ -15,19 +15,15 @@ pub trait RawReg:
     + core::ops::Shl<u8, Output = Self>
 {
     /// Mask for bits of width `WI`
-    fn mask<const WI: u8>() -> Self;
+    #[rustfmt::skip]
+    const MASK<const WI: u8>: Self;
 }
 
 macro_rules! raw_reg {
     ($U:ty, $size:literal, $mask:ident) => {
         impl RawReg for $U {
-            #[inline(always)]
-            fn mask<const WI: u8>() -> Self {
-                $mask::<WI>()
-            }
-        }
-        const fn $mask<const WI: u8>() -> $U {
-            <$U>::MAX >> ($size - WI)
+            #[rustfmt::skip]
+            const MASK<const WI: u8>: Self = <$U>::MAX >> ($size - WI);
         }
         impl FieldSpec for $U {
             type Ux = $U;
@@ -371,8 +367,8 @@ where
     /// Passing incorrect value can cause undefined behaviour. See reference manual
     #[inline(always)]
     pub unsafe fn bits(self, value: FI::Ux) -> &'a mut W<REG> {
-        self.w.bits &= !(REG::Ux::mask::<WI>() << self.o);
-        self.w.bits |= (REG::Ux::from(value) & REG::Ux::mask::<WI>()) << self.o;
+        self.w.bits &= !(REG::Ux::MASK::<WI> << self.o);
+        self.w.bits |= (REG::Ux::from(value) & REG::Ux::MASK::<WI>) << self.o;
         self.w
     }
 }
