@@ -72,6 +72,11 @@ pub fn render(
     let description = util::escape_special_chars(&description);
 
     if let Some(dpath) = dpath.as_ref() {
+        let dsource = *index
+            .registers
+            .get(dpath)
+            .ok_or_else(|| anyhow!(format!("Missing derive source {dpath}")))?;
+
         let mut derived = if &dpath.block == path {
             type_path(Punctuated::new())
         } else {
@@ -79,19 +84,19 @@ pub fn render(
         };
         let dname = util::name_of(index.registers.get(dpath).unwrap(), config.ignore_groups);
         let mut mod_derived = derived.clone();
-        derived
-            .path
-            .segments
-            .push(path_segment(ident(&dname, config, "register", span)));
-        mod_derived
-            .path
-            .segments
-            .push(path_segment(ident(&dname, config, "register_mod", span)));
+        let segment = path_segment(ident(&dname, config, "register_mod", span));
+        mod_derived.path.segments.push(segment);
+        if dsource.properties == register.properties {
+            let segment = path_segment(ident(&dname, config, "register", span));
+            derived.path.segments.push(segment);
 
-        Ok(quote! {
-            pub use #derived as #reg_ty;
-            pub use #mod_derived as #mod_ty;
-        })
+            Ok(quote! {
+                pub use #derived as #reg_ty;
+                pub use #mod_derived as #mod_ty;
+            })
+        } else {
+            // Add new spec
+        }
     } else {
         let regspec_ty = regspec(&name, config, span);
         let access = util::access_of(&register.properties, register.fields.as_deref());

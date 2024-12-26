@@ -257,7 +257,7 @@ impl Diffing {
         Ok([baseline, current])
     }
 
-    fn get_source_and_command<'s>(&'s self) -> [Option<(Source, Command)>; 2] {
+    fn get_source_and_command(&'s self) -> [Option<(Source, Command)>; 2] {
         let split = |s: &'s str| -> (Source, Command) {
             if let Some(s) = s.strip_prefix('@') {
                 if let Some((source, cmd)) = s.split_once(' ') {
