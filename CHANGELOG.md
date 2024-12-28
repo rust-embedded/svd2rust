@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Mark peripheral with `non_exhaustive`
 - Force using rust edition 2021 in CI
 
 ## [v0.35.0] - 2024-11-12

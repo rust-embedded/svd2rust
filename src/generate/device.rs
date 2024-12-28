@@ -64,7 +64,6 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
 
     out.extend(quote! {
         use core::ops::Deref;
-        use core::marker::PhantomData;
     });
 
     // Retaining the previous assumption
@@ -273,7 +272,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                     #feature_attribute
                     pub #p_singleton: #p_ty,
                 });
-                exprs.extend(quote!(#feature_attribute #p_singleton: #p_ty::steal(),));
+                exprs.extend(quote!(#feature_attribute #p_singleton: #p_ty,));
             }
             Peripheral::Array(p, dim_element) => {
                 for p_name in names(p, dim_element) {
@@ -288,7 +287,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                         #feature_attribute
                         pub #p_singleton: #p_ty,
                     });
-                    exprs.extend(quote!(#feature_attribute #p_singleton: #p_ty::steal(),));
+                    exprs.extend(quote!(#feature_attribute #p_singleton: #p_ty,));
                 }
             }
         }

@@ -77,7 +77,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         /// peripheral instance existing to ensure memory safety; ensure
         /// no stolen instances are passed to such software.
         pub unsafe fn steal() -> Self {
-            Self { _marker: PhantomData }
+            Self
         }
     };
 
@@ -97,7 +97,8 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
             #phtml
             #doc_alias
             #feature_attribute
-            pub struct #p_ty { _marker: PhantomData<*const ()> }
+            #[non_exhaustive]
+            pub struct #p_ty;
 
             #feature_attribute
             unsafe impl Send for #p_ty {}
