@@ -138,7 +138,7 @@ pub struct Test {
     #[arg(long = "svd", group = "svd_source")]
     /// Path to SVD file to test
     pub svd_file: Option<PathBuf>,
-    #[arg(long, group = "svd_source")]
+    #[arg(short = 'c', long, group = "svd_source")]
     /// Chip to use, use `--url` or `--svd-file` for another way to specify svd
     pub chip: Option<String>,
 

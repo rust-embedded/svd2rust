@@ -257,8 +257,8 @@ impl Diffing {
         Ok([baseline, current])
     }
 
-    fn get_source_and_command<'s>(&'s self) -> [Option<(Source, Command)>; 2] {
-        let split = |s: &'s str| -> (Source, Command) {
+    fn get_source_and_command(&self) -> [Option<(Source, Command)>; 2] {
+        fn split(s: &str) -> (Source, Command) {
             if let Some(s) = s.strip_prefix('@') {
                 if let Some((source, cmd)) = s.split_once(' ') {
                     (Some(source), Some(cmd.trim()))
@@ -268,7 +268,7 @@ impl Diffing {
             } else {
                 (None, Some(s.trim()))
             }
-        };
+        }
 
         let baseline = self.baseline.as_deref().map(split);
 
