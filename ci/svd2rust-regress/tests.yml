@@ -1863,8 +1863,8 @@
   svd_url: https://stm32-rs.github.io/stm32-rs/stm32f469.svd.patched
 - arch: cortex-m
   mfgr: STMicro
-  chip: STM32F7x3
-  svd_url: https://stm32-rs.github.io/stm32-rs/stm32f7x3.svd.patched
+  chip: STM32F723
+  svd_url: https://stm32-rs.github.io/stm32-rs/stm32f723.svd.patched
 - arch: cortex-m
   mfgr: STMicro
   chip: STM32G070

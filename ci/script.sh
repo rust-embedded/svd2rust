@@ -586,7 +586,7 @@ main() {
             test_patched_stm32 stm32f103
             test_patched_stm32 stm32f411
             test_patched_stm32 stm32f469
-            test_patched_stm32 stm32f7x3
+            test_patched_stm32 stm32f723
             test_patched_stm32 stm32g070
             test_patched_stm32 stm32g473
             test_patched_stm32 stm32h743
