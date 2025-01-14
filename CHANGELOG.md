@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - Force using rust edition 2021 in CI
+- Added lifetime ellision for `FieldWriter` where the explicit lifetimes are not necessary, which
+  fixes the `clippy::needless_lifetimes` warning on rustc 1.84
 
 ## [v0.35.0] - 2024-11-12
 
