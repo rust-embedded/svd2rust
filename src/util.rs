@@ -255,6 +255,11 @@ pub fn hex(n: u64) -> LitInt {
     )
 }
 
+/// Turns non-zero `n` into an unsuffixed separated hex token
+pub fn hex_nonzero(n: u64) -> Option<LitInt> {
+    (n != 0).then(|| hex(n))
+}
+
 /// Turns `n` into an unsuffixed token
 pub fn unsuffixed(n: impl Into<u64>) -> LitInt {
     LitInt::new(&n.into().to_string(), Span::call_site())
