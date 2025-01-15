@@ -40,36 +40,11 @@ If all test cases passed, the return code will be `0`. If any test cases failed,
 
 ### Options
 
-Here are the options for running `svd2rust-regress`:
-
+You can display options for `svd2rust-regress` by running:
 
 ```text
-svd2rust-regress 0.1.0
-James Munns <james.munns@gmail.com>:The svd2rust developers
-
-USAGE:
-    svd2rust-regress [FLAGS] [OPTIONS]
-
-FLAGS:
-    -b, --bad-tests    Include tests expected to fail (will cause a non-zero return code)
-    -f, --format       Enable formatting with `rustfmt`
-    -h, --help         Prints help information
-    -l, --long-test    Run a long test (it's very long)
-    -V, --version      Prints version information
-    -v, --verbose      Use verbose output
-
-OPTIONS:
-    -a, --architecture <arch>
-            Filter by architecture, case sensitive, may be combined with other filters Options are: "CortexM", "RiscV", "Msp430", "Mips" and "XtensaLX"
-    -p, --svd2rust-path <bin_path>
-            Path to an `svd2rust` binary, relative or absolute. Defaults to `target/release/svd2rust[.exe]` of this
-            repository (which must be already built)
-    -c, --chip <chip>                            Filter by chip name, case sensitive, may be combined with other filters
-    -m, --manufacturer <mfgr>
-            Filter by manufacturer, case sensitive, may be combined with other filters
-
-        --rustfmt_bin_path <rustfmt_bin_path>
-            Path to an `rustfmt` binary, relative or absolute. Defaults to `$(rustup which rustfmt)`
+# in the ci/svd2rust-regress folder
+cargo regress help
 ```
 
 ### Filters
@@ -80,28 +55,16 @@ For example, to run all `RiscV` tests:
 
 ```bash
 # in the ci/svd2rust-regress folder
-cargo run --release -- -a RiscV
-    Finished release [optimized] target(s) in 0.0 secs
-     Running `target/release/svd2rust-regress -a RiscV`
-Passed: si_five_e310x - 7 seconds
+cargo regress tests --architecture riscv
 ```
 
 To run against any chip named `MB9AF12xK`:
 
 ```bash
-cargo run --release -- --long-test -c MB9AF12xK
-    Finished release [optimized] target(s) in 0.0 secs
-     Running `target/release/svd2rust-regress --long-test -c MB9AF12xK`
-Passed: spansion_mb9af12x_k - 23 seconds
-Passed: fujitsu_mb9af12x_k - 25 seconds
+cargo regress test -c MB9AF12xK
 ```
 
 To run against specifically the `Fujitsu` `MB9AF12xK`:
 ```bash
-cargo run --release -- --long-test -c MB9AF12xK -m Fujitsu
-    Finished release [optimized] target(s) in 0.0 secs
-     Running `target/release/svd2rust-regress --long-test -c MB9AF12xK -m Fujitsu`
-Passed: fujitsu_mb9af12x_k - 19 seconds
+cargo regress test -c MB9AF12xK -m Fujitsu
 ```
-
-Note that you may have to pass `--long-test` to enable some chips as they are known to take a long time to compile.
