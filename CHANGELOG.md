@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Added lifetime ellision for `FieldWriter` where the explicit lifetimes are not necessary, which
   fixes the `clippy::needless_lifetimes` warning on rustc 1.84
 - Some fixes for the `svd2rust-regress` tool and update of its documentation
+- Added `#![cfg_attr(docsrs, feature(doc_auto_cfg))]` to the generated library code. This
+  adds a display of the feature gates in the documentation of the generated library
 
 ## [v0.35.0] - 2024-11-12
 
