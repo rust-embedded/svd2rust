@@ -93,7 +93,7 @@ fn find_executable(dir: &Path, begins: &str) -> Result<Option<PathBuf>, anyhow::
                     .path()
                     .extension()
                     .is_some_and(|s| s == std::env::consts::EXE_EXTENSION))
-            && !entry.path().extension().is_some_and(|s| s == "gz")
+            && entry.path().extension().is_none_or(|s| s != "gz")
         {
             Ok(Some(entry.path()))
         } else {

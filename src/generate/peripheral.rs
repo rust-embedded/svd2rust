@@ -411,7 +411,7 @@ impl FieldRegions {
         let mut indices = Vec::new();
 
         let rbf_start = rbf.offset;
-        let rbf_end = rbf_start + (rbf.size + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
+        let rbf_end = rbf_start + rbf.size.div_ceil(BITS_PER_BYTE);
 
         // The region that we're going to insert
         let mut new_region = Region {
