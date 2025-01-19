@@ -17,6 +17,7 @@ pub struct Config {
     pub target: Target,
     pub atomics: bool,
     pub atomics_feature: Option<String>,
+    pub bit_banding: bool,
     pub generic_mod: bool,
     pub make_mod: bool,
     pub skip_crate_attributes: bool,
