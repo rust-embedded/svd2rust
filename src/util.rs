@@ -295,14 +295,18 @@ pub fn block_path_to_ty(
 ) -> TypePath {
     let mut path = config.settings.crate_path.clone().unwrap_or_default().0;
     path.segments.push(path_segment(ident(
-        &bpath.peripheral,
+        &bpath.peripheral.remove_dim(),
         config,
         "peripheral_mod",
         span,
     )));
     for ps in &bpath.path {
-        path.segments
-            .push(path_segment(ident(ps, config, "cluster_mod", span)));
+        path.segments.push(path_segment(ident(
+            &ps.remove_dim(),
+            config,
+            "cluster_mod",
+            span,
+        )));
     }
     TypePath { qself: None, path }
 }
@@ -314,7 +318,7 @@ pub fn register_path_to_ty(
 ) -> TypePath {
     let mut p = block_path_to_ty(&rpath.block, config, span);
     p.path.segments.push(path_segment(ident(
-        &rpath.name,
+        &rpath.name.remove_dim(),
         config,
         "register_mod",
         span,
