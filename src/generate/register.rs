@@ -519,7 +519,7 @@ pub enum EV<'a> {
     Derived(&'a EnumeratedValues, &'a EnumPath),
 }
 
-impl<'a> EV<'a> {
+impl EV<'_> {
     fn values(&self) -> &EnumeratedValues {
         match self {
             Self::New(e) | Self::Derived(e, _) => e,
