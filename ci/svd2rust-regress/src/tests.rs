@@ -72,9 +72,15 @@ pub struct TestCase {
     pub mfgr: Manufacturer,
     pub chip: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suffix: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opts: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub svd_url: Option<String>,
     #[serde(default = "true_")]
     pub should_pass: bool,
+    #[serde(default)]
+    pub skip_check: bool,
     #[serde(default)]
     pub run_when: RunWhen,
 }
@@ -103,7 +109,12 @@ impl TestCase {
     }
 
     pub fn name(&self) -> String {
-        format!("{:?}-{}", self.mfgr, self.chip.replace('.', "_"))
+        let mut base_name = format!("{:?}-{}", self.mfgr, self.chip.replace('.', "_"));
+        if let Some(suffix) = &self.suffix {
+            base_name.push('-');
+            base_name.push_str(suffix);
+        }
+        base_name
     }
 }
 

@@ -71,9 +71,9 @@ impl Case {
             },
         }
     }
+
     pub fn sanitize<'a>(&self, s: &'a str) -> Cow<'a, str> {
         let s = sanitize(s);
-
         self.cow_to_case(s)
     }
 }
