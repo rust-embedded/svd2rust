@@ -52,7 +52,7 @@ jobs:
         if: ${{ matrix.os == 'windows-latest' }}
         run: mv target/${{ matrix.target }}/release/svd2rust${{ matrix.suffix }} svd2rust-${{ matrix.target }}${{ matrix.suffix }}
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: svd2rust-${{ matrix.target }}
           path: svd2rust-${{ matrix.target }}${{ matrix.suffix }}
@@ -63,7 +63,7 @@ jobs:
     needs: [build]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           path: artifacts
       - run: ls -R ./artifacts
@@ -76,7 +76,7 @@ jobs:
         with:
           version: ${{ (github.ref_type == 'tag' && github.ref_name) || 'Unreleased' }}
 
-      - uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.changelog-reader.outputs.version }}
           name: ${{ (github.ref_type == 'tag' && steps.changelog-reader.outputs.version) || format('Prereleased {0}', env.CURRENT_DATE) }}

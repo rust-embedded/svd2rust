@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fix reexport path when "%s" inside "derivedFrom"
 - Force using rust edition 2021 in CI
 - Added lifetime ellision for `FieldWriter` where the explicit lifetimes are not necessary, which
   fixes the `clippy::needless_lifetimes` warning on rustc 1.84

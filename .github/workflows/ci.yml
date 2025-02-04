@@ -197,7 +197,7 @@ jobs:
             runs-on: windows-latest
             suffix: .exe
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -213,7 +213,7 @@ jobs:
       - run: mv target/${{ matrix.target }}/release/svd2rust${{ matrix.suffix || '' }} svd2rust-${{ matrix.target }}-$(git rev-parse --short HEAD)${{ matrix.suffix || '' }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: artifact-svd2rust-${{ matrix.target }}
           path: svd2rust-${{ matrix.target }}*
