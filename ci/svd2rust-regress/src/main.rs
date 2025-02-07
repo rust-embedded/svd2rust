@@ -17,6 +17,7 @@ use std::path::PathBuf;
 use std::process::{exit, Command};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
+use svd_test::WorkspaceTomlGuard;
 use wildmatch::WildMatch;
 
 #[derive(Debug, serde::Deserialize)]
@@ -61,20 +62,20 @@ pub struct TestAll {
 
     /// Filter by manufacturer, may be combined with other filters
     #[clap(
-    short = 'm',
-    long = "manufacturer",
-    ignore_case = true,
-    value_parser = manufacturers(),
-)]
+        short = 'm',
+        long = "manufacturer",
+        ignore_case = true,
+        value_parser = manufacturers(),
+    )]
     pub mfgr: Option<String>,
 
     /// Filter by architecture, may be combined with other filters
     #[clap(
-    short = 'a',
-    long = "architecture",
-    ignore_case = true,
-    value_parser = architectures(),
-)]
+        short = 'a',
+        long = "architecture",
+        ignore_case = true,
+        value_parser = architectures(),
+    )]
     pub arch: Option<String>,
 
     /// Include tests expected to fail (will cause a non-zero return code)
@@ -99,7 +100,7 @@ pub struct TestAll {
     #[clap(short = 'p', long = "svd2rust-path", default_value = default_svd2rust())]
     pub current_bin_path: PathBuf,
     #[clap(last = true)]
-    pub command: Option<String>,
+    pub passthrough_opts: Option<Vec<String>>,
     // TODO: Specify smaller subset of tests? Maybe with tags?
     // TODO: Compile svd2rust?
 }
@@ -148,7 +149,7 @@ pub struct Test {
     #[clap(short = 'p', long = "svd2rust-path", default_value = default_svd2rust())]
     pub current_bin_path: PathBuf,
     #[clap(last = true)]
-    pub command: Option<String>,
+    pub passthrough_opts: Option<Vec<String>>,
 }
 
 impl Test {
@@ -161,6 +162,7 @@ impl Test {
             Self { chip: Some(_), .. } => {}
             _ => unreachable!("clap should not allow this"),
         }
+        let _toml_guard = WorkspaceTomlGuard::new()?;
         let test = if let (Some(url), Some(arch)) = (&self.url, &self.arch) {
             tests::TestCase {
                 arch: svd2rust::Target::parse(arch)?,
@@ -177,6 +179,9 @@ impl Test {
                     .to_owned(),
                 svd_url: Some(url.clone()),
                 should_pass: true,
+                skip_check: false,
+                suffix: Default::default(),
+                opts: Default::default(),
                 run_when: tests::RunWhen::default(),
             }
         } else {
@@ -186,7 +191,7 @@ impl Test {
                 .ok_or_else(|| anyhow::anyhow!("no test found for chip"))?
                 .to_owned()
         };
-        test.test(opts, &self.current_bin_path, self.command.as_deref())?;
+        test.test(opts, &self.current_bin_path, &self.passthrough_opts)?;
         Ok(())
     }
 }
@@ -235,11 +240,14 @@ impl TestAll {
                 "No tests run, you might want to use `--bad-tests` and/or `--long-test`"
             );
         }
+
+        let toml_guard = WorkspaceTomlGuard::new()?;
+
         let any_fails = AtomicBool::new(false);
         tests.par_iter().for_each(|t| {
             let start = Instant::now();
 
-            match t.test(opt, &self.current_bin_path, self.command.as_deref()) {
+            match t.test(opt, &self.current_bin_path, &self.passthrough_opts) {
                 Ok(s) => {
                     if let Some(stderrs) = s {
                         let mut buf = String::new();
@@ -293,6 +301,8 @@ impl TestAll {
                 }
             }
         });
+        drop(toml_guard);
+
         if any_fails.load(Ordering::Acquire) {
             exit(1);
         } else {

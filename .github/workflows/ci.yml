@@ -54,53 +54,47 @@ jobs:
     runs-on: ubuntu-latest
     needs: [check]
     strategy:
+      fail-fast: false
       matrix:
-        # Options are all, none, strict and const
         include:
-          - { rust: stable, vendor: Atmel, options: all }
-          - { rust: stable, vendor: Atmel, options: "" }
-          - { rust: stable, vendor: Freescale, options: all }
-          - { rust: stable, vendor: Freescale, options: "" }
-          - { rust: stable, vendor: Fujitsu, options: "" }
-          - { rust: stable, vendor: Fujitsu, options: "--atomics" }
-          - { rust: stable, vendor: GD32, options: all }
-          - { rust: stable, vendor: GD32, options: "" }
-          - { rust: stable, vendor: Holtek, options: all }
-          - { rust: stable, vendor: Holtek, options: "" }
-          - { rust: stable, vendor: Microchip, options: "" }
-          - { rust: stable, vendor: Microchip, options: "--atomics" }
-          - { rust: stable, vendor: Nordic, options: all }
-          - { rust: stable, vendor: Nordic, options: "" }
-          - { rust: stable, vendor: Nuvoton, options: "" }
-          - { rust: stable, vendor: Nuvoton, options: "--atomics" }
-          - { rust: stable, vendor: NXP, options: all }
-          - { rust: stable, vendor: NXP, options: "" }
-          - { rust: stable, vendor: RISC-V, options: "" }
-          - { rust: stable, vendor: RISC-V, options: "--atomics" }
-          - { rust: stable, vendor: SiliconLabs, options: all }
-          - { rust: stable, vendor: SiliconLabs, options: "" }
-          - { rust: stable, vendor: Spansion, options: "" }
-          - { rust: stable, vendor: Spansion, options: "--atomics" }
-          - { rust: stable, vendor: STMicro, options: "" }
-          - { rust: stable, vendor: STMicro, options: "--atomics" }
-          - { rust: stable, vendor: STM32-patched, options: "--strict -f enum_value::p: --max-cluster-size --atomics --atomics-feature atomics --impl-debug --impl-defmt defmt" }
-          - { rust: stable, vendor: Toshiba, options: all }
-          - { rust: stable, vendor: Toshiba, options: "" }
-          # Test MSRV
-          - { rust: 1.76.0, vendor: Nordic, options: "" }
-          # Use nightly for architectures which don't support stable
-          - { rust: nightly, vendor: MSP430, options: "--atomics" }
-          - { rust: nightly, vendor: MSP430, options: "" }
-          # Workaround for _1token0
-          - { rust: nightly-2024-09-25, vendor: Espressif, options: "--atomics --ident-formats-theme legacy" }
-          - { rust: nightly-2024-09-25, vendor: Espressif, options: "--ident-format register:::Reg" }
+          - { vendor: Atmel }
+          - { vendor: Atmel, options: "-- --strict --atomics" }
+          - { vendor: Freescale }
+          - { vendor: Freescale, options: "-- --strict --atomics" }
+          - { vendor: Fujitsu }
+          - { vendor: Fujitsu, options: "-- --atomics" }
+          - { vendor: Holtek }
+          - { vendor: Holtek, options: "-- --strict --atomics" }
+          - { vendor: Atmel }
+          - { vendor: Atmel, options: "-- --strict --atomics" }
+          - { vendor: Microchip }
+          - { vendor: Microchip, options: "-- --atomics" }
+          - { vendor: Nordic }
+          - { vendor: Nordic, options: "-- --strict --atomics" }
+          - { vendor: Nuvoton }
+          - { vendor: Nuvoton, options: "-- --atomics" }
+          - { vendor: NXP }
+          - { vendor: NXP, options: "-- --strict --atomics" }
+          - { vendor: SiFive }
+          - { vendor: SiFive, options: "-- --atomics" }
+          - { vendor: SiliconLabs, options: "" }
+          - { vendor: SiliconLabs, options: "-- --strict --atomics" }
+          - { vendor: Spansion }
+          - { vendor: Spansion, options: "-- --atomics" }
+          - { vendor: STMicro }
+          - { vendor: STMicro, options: "-- --atomics" }
+          - { vendor: STMicro, options: "-- --strict -f enum_value::p: --max-cluster-size --atomics --atomics-feature atomics --impl-debug --impl-defmt defmt" }
+          - { vendor: Toshiba }
+          - { vendor: Toshiba, options: "-- --strict --atomics" }
+          - { vendor: TexasInstruments }
+          - { vendor: TexasInstruments, options: "-- --atomics" }
+          - { vendor: Espressif }
+          - { vendor: Espressif, options: "-- --atomics" }
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache
         uses: Swatinem/rust-cache@v2
@@ -109,13 +103,25 @@ jobs:
         run: |
           cargo install svd2rust --path .
 
-      - name: Run CI script for `${{ matrix.vendor }}` under rust `${{ matrix.rust }}` with options=`${{ matrix.options }}`
-        env:
-          VENDOR: ${{ matrix.vendor }}
-          OPTIONS: ${{ matrix.options }}
-          COMMAND: check
-          RUST_TOOLCHAIN: ${{ matrix.rust }}
-        run: bash ci/script.sh
+      - name: Run regression tool
+        run: cargo regress tests -m ${{ matrix.vendor }} ${{ matrix.options }}
+
+  ci-msrv-check:
+    runs-on: ubuntu-latest
+    needs: [check]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Self install
+        run: |
+          cargo install svd2rust --path .
+
+      # Install the MSRV toolchain
+      - uses: dtolnay/rust-toolchain@1.76.0
+      - name: Run reression tool with MSRV
+        # The MSRV only applies to the generated crate. The regress tool should still be run with
+        # stable.
+        run: cargo +stable regress tests --toolchain 1.76.0 -m Nordic -- --strict --atomics
 
   ci-clippy:
     runs-on: ubuntu-latest

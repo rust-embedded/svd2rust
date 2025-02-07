@@ -17,15 +17,14 @@ const CRATES_ALL: &[&str] = &[
 ];
 const CRATES_MSP430: &[&str] = &["msp430 = \"0.4.0\"", "msp430-rt = \"0.4.0\""];
 const CRATES_ATOMICS: &[&str] =
-    &["portable-atomic = { version = \"0.3.16\", default-features = false }"];
+    &["portable-atomic = { version = \"1\", default-features = false }"];
 const CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.7.6\"", "cortex-m-rt = \"0.7\""];
 const CRATES_RISCV: &[&str] = &["riscv = \"0.12.1\"", "riscv-rt = \"0.13.0\""];
-const CRATES_XTENSALX: &[&str] = &["xtensa-lx-rt = \"0.9.0\"", "xtensa-lx = \"0.6.0\""];
 const CRATES_MIPS: &[&str] = &["mips-mcu = \"0.1.0\""];
 const PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
 const FEATURES_ALL: &[&str] = &["[features]"];
 const FEATURES_CORTEX_M: &[&str] = &["rt = [\"cortex-m-rt/device\"]"];
-const FEATURES_XTENSALX: &[&str] = &["default = [\"xtensa-lx/esp32\", \"xtensa-lx-rt/esp32\"]"];
+const FEATURES_XTENSA_LX: &[&str] = &["rt = []"];
 const WORKSPACE_EXCLUDE: &[&str] = &["[workspace]"];
 
 fn path_helper_base(base: &Path, input: &[&str]) -> PathBuf {
@@ -143,25 +142,27 @@ impl TestCase {
         &self,
         opts: &Opts,
         bin_path: &Path,
-        command: Option<&str>,
+        cli_opts: &Option<Vec<String>>,
     ) -> Result<Option<Vec<PathBuf>>, TestError> {
         let (chip_dir, mut process_stderr_paths) = self
-            .setup_case(&opts.output_dir, bin_path, command)
+            .setup_case(&opts.output_dir, bin_path, cli_opts)
             .with_context(|| anyhow!("when setting up case for {}", self.name()))?;
         // Run `cargo check`, capturing stderr to a log file
-        let cargo_check_err_file = path_helper_base(&chip_dir, &["cargo-check.err.log"]);
-        Command::new("cargo")
-            .arg("check")
-            .current_dir(&chip_dir)
-            .capture_outputs(
-                true,
-                "cargo check",
-                None,
-                Some(&cargo_check_err_file),
-                &process_stderr_paths,
-            )
-            .with_context(|| "failed to check")?;
-        process_stderr_paths.push(cargo_check_err_file);
+        if !self.skip_check {
+            let cargo_check_err_file = path_helper_base(&chip_dir, &["cargo-check.err.log"]);
+            Command::new("cargo")
+                .arg("check")
+                .current_dir(&chip_dir)
+                .capture_outputs(
+                    true,
+                    "cargo check",
+                    None,
+                    Some(&cargo_check_err_file),
+                    &process_stderr_paths,
+                )
+                .with_context(|| "failed to check")?;
+            process_stderr_paths.push(cargo_check_err_file);
+        }
         Ok(if opts.verbose > 1 {
             Some(process_stderr_paths)
         } else {
@@ -175,13 +176,15 @@ impl TestCase {
         &self,
         output_dir: &Path,
         svd2rust_bin_path: &Path,
-        command: Option<&str>,
+        command: &Option<Vec<String>>,
     ) -> Result<(PathBuf, Vec<PathBuf>), TestError> {
         let user = match std::env::var("USER") {
             Ok(val) => val,
             Err(_) => "rusttester".into(),
         };
-        let chip_dir = output_dir.join(Case::Snake.sanitize(&self.name()).as_ref());
+        let mut chip_name = self.name();
+        chip_name = Case::Snake.cow_to_case(chip_name.into()).to_string();
+        let chip_dir = output_dir.join(&chip_name);
         tracing::span::Span::current()
             .record("chip_dir", tracing::field::display(chip_dir.display()));
         if let Err(err) = fs::remove_dir_all(&chip_dir) {
@@ -196,104 +199,34 @@ impl TestCase {
             self.name(),
             chip_dir.display()
         );
-        // XXX: Workaround for https://github.com/rust-lang/cargo/issues/6009#issuecomment-1925445245
-        let manifest_path = crate::get_cargo_workspace().join("Cargo.toml");
-        let workspace_toml =
-            fs::read(&manifest_path).context("failed to read workspace Cargo.toml")?;
+        println!("chip_dir: {}", chip_dir.display());
         Command::new("cargo")
             .env("USER", user)
             .arg("init")
             .arg("--name")
-            .arg(Case::Snake.sanitize(&self.name()).as_ref())
+            .arg(chip_name)
             .arg("--vcs")
             .arg("none")
+            .arg("--lib")
             .arg(&chip_dir)
             .capture_outputs(true, "cargo init", None, None, &[])
             .with_context(|| "Failed to cargo init")?;
-        std::fs::write(manifest_path, workspace_toml)
-            .context("failed to write workspace Cargo.toml")?;
 
-        let svd_toml = path_helper_base(&chip_dir, &["Cargo.toml"]);
-        let mut file = OpenOptions::new()
-            .append(true)
-            .open(svd_toml)
-            .with_context(|| "Failed to open Cargo.toml for appending")?;
+        self.prepare_chip_test_toml(&chip_dir, command)?;
+        let chip_svd = self.prepare_svd_file(&chip_dir)?;
+        self.prepare_rust_toolchain_file(&chip_dir)?;
 
-        let crates = CRATES_ALL
-            .iter()
-            .chain(match &self.arch {
-                Target::CortexM => CRATES_CORTEX_M.iter(),
-                Target::RISCV => CRATES_RISCV.iter(),
-                Target::Mips => CRATES_MIPS.iter(),
-                Target::Msp430 => CRATES_MSP430.iter(),
-                Target::XtensaLX => CRATES_XTENSALX.iter(),
-                Target::None => unreachable!(),
-            })
-            .chain(if command.unwrap_or_default().contains("--atomics") {
-                CRATES_ATOMICS.iter()
-            } else {
-                [].iter()
-            })
-            .chain(PROFILE_ALL.iter())
-            .chain(FEATURES_ALL.iter())
-            .chain(match &self.arch {
-                Target::XtensaLX => FEATURES_XTENSALX.iter(),
-                Target::CortexM => FEATURES_CORTEX_M.iter(),
-                _ => [].iter(),
-            })
-            .chain(WORKSPACE_EXCLUDE.iter());
-        for c in crates {
-            writeln!(file, "{}", c).with_context(|| "Failed to append to file!")?;
-        }
-        tracing::info!("Downloading SVD");
-        // FIXME: Avoid downloading multiple times, especially if we're using the diff command
-        let svd_url = &self.svd_url();
-        let svd = reqwest::blocking::get(svd_url)
-            .with_context(|| format!("Failed to get svd URL: {svd_url}"))?
-            .error_for_status()
-            .with_context(|| anyhow!("Response is not ok for svd url"))?
-            .text()
-            .with_context(|| "SVD is bad text")?;
-
-        let chip_svd = format!("{}.svd", &self.chip);
-        let svd_file = path_helper_base(&chip_dir, &[&chip_svd]);
-        file_helper(&svd, &svd_file)?;
         let lib_rs_file = path_helper_base(&chip_dir, &["src", "lib.rs"]);
         let src_dir = path_helper_base(&chip_dir, &["src"]);
         let svd2rust_err_file = path_helper_base(&chip_dir, &["svd2rust.err.log"]);
-        let target = match self.arch {
-            Target::CortexM => "cortex-m",
-            Target::Msp430 => "msp430",
-            Target::Mips => "mips",
-            Target::RISCV => "riscv",
-            Target::XtensaLX => "xtensa-lx",
-            Target::None => unreachable!(),
-        };
-        tracing::info!("Running svd2rust");
-        let mut svd2rust_bin = Command::new(svd2rust_bin_path);
-        if let Some(command) = command {
-            if !command.is_empty() {
-                svd2rust_bin.args(
-                    shell_words::split(command).context("unable to split command into args")?,
-                );
-            }
-        }
-        svd2rust_bin
-            .args(["-i", &chip_svd])
-            .args(["--target", target])
-            .current_dir(&chip_dir)
-            .capture_outputs(
-                true,
-                "svd2rust",
-                Some(&lib_rs_file).filter(|_| {
-                    !matches!(
-                        self.arch,
-                        Target::CortexM | Target::Msp430 | Target::XtensaLX
-                    )
-                }),
-                Some(&svd2rust_err_file),
-                &[],
-            )?;
+        self.run_svd2rust(
+            svd2rust_bin_path,
+            &chip_svd,
+            &chip_dir,
+            &lib_rs_file,
+            &svd2rust_err_file,
+            command,
+        )?;
         process_stderr_paths.push(svd2rust_err_file);
         match self.arch {
             Target::CortexM | Target::Mips | Target::Msp430 | Target::XtensaLX => {
@@ -309,6 +242,7 @@ impl TestCase {
             .with_context(|| format!("couldn't parse {}", lib_rs_file.display()))?;
         File::options()
             .write(true)
+            .truncate(true)
             .open(&lib_rs_file)
             .with_context(|| format!("couldn't open {}", lib_rs_file.display()))?
             .write(prettyplease::unparse(&file).as_bytes())
@@ -370,6 +304,132 @@ impl TestCase {
         }
         Ok((chip_dir, process_stderr_paths))
     }
+
+    fn prepare_rust_toolchain_file(&self, chip_dir: &Path) -> Result<(), TestError> {
+        // Could be extended to let cargo install and use a specific toolchain.
+        let channel: Option<String> = None;
+
+        if let Some(channel) = channel {
+            let toolchain_file = path_helper_base(chip_dir, &["rust-toolchain.toml"]);
+            let mut file = OpenOptions::new()
+                .create(true)
+                .truncate(true)
+                .write(true)
+                .open(&toolchain_file)
+                .with_context(|| "failed to create toolchain file")?;
+
+            writeln!(file, "[toolchain]\nchannel = \"{}\"", channel)
+                .with_context(|| "writing toolchain file failed")?;
+        }
+
+        Ok(())
+    }
+
+    fn prepare_chip_test_toml(
+        &self,
+        chip_dir: &Path,
+        opts: &Option<Vec<String>>,
+    ) -> Result<(), TestError> {
+        let svd_toml = path_helper_base(chip_dir, &["Cargo.toml"]);
+        let mut file = OpenOptions::new()
+            .append(true)
+            .open(svd_toml)
+            .with_context(|| "Failed to open Cargo.toml for appending")?;
+
+        let cargo_toml_fragments = CRATES_ALL
+            .iter()
+            .chain(match &self.arch {
+                Target::CortexM => CRATES_CORTEX_M.iter(),
+                Target::RISCV => CRATES_RISCV.iter(),
+                Target::Mips => CRATES_MIPS.iter(),
+                Target::Msp430 => CRATES_MSP430.iter(),
+                Target::XtensaLX => [].iter(),
+                Target::None => unreachable!(),
+            })
+            .chain(if let Some(opts) = opts {
+                if opts.iter().any(|v| v.contains("atomics")) {
+                    CRATES_ATOMICS.iter()
+                } else {
+                    [].iter()
+                }
+            } else {
+                [].iter()
+            })
+            .chain(PROFILE_ALL.iter())
+            .chain(FEATURES_ALL.iter())
+            .chain(match &self.arch {
+                Target::CortexM => FEATURES_CORTEX_M.iter(),
+                Target::XtensaLX => FEATURES_XTENSA_LX.iter(),
+                _ => [].iter(),
+            })
+            .chain(WORKSPACE_EXCLUDE.iter());
+        for fragments in cargo_toml_fragments {
+            writeln!(file, "{}", fragments).with_context(|| "Failed to append to file!")?;
+        }
+        Ok(())
+    }
+
+    fn prepare_svd_file(&self, chip_dir: &Path) -> Result<String, TestError> {
+        tracing::info!("Downloading SVD");
+        // FIXME: Avoid downloading multiple times, especially if we're using the diff command
+        let svd_url = &self.svd_url();
+        let svd = reqwest::blocking::get(svd_url)
+            .with_context(|| format!("Failed to get svd URL: {svd_url}"))?
+            .error_for_status()
+            .with_context(|| anyhow!("Response is not ok for svd url"))?
+            .text()
+            .with_context(|| "SVD is bad text")?;
+
+        let chip_svd = format!("{}.svd", &self.chip);
+        let svd_file = path_helper_base(chip_dir, &[&chip_svd]);
+        file_helper(&svd, &svd_file)?;
+        Ok(chip_svd)
+    }
+
+    fn run_svd2rust(
+        &self,
+        svd2rust_bin_path: &Path,
+        chip_svd: &str,
+        chip_dir: &Path,
+        lib_rs_file: &PathBuf,
+        svd2rust_err_file: &PathBuf,
+        cli_opts: &Option<Vec<String>>,
+    ) -> Result<(), TestError> {
+        tracing::info!("Running svd2rust");
+
+        let target = match self.arch {
+            Target::CortexM => "cortex-m",
+            Target::Msp430 => "msp430",
+            Target::Mips => "mips",
+            Target::RISCV => "riscv",
+            Target::XtensaLX => "xtensa-lx",
+            Target::None => unreachable!(),
+        };
+        let mut svd2rust_bin = Command::new(svd2rust_bin_path);
+
+        let base_cmd = svd2rust_bin
+            .args(["-i", chip_svd])
+            .args(["--target", target]);
+        if let Some(cli_opts) = cli_opts {
+            base_cmd.args(cli_opts);
+        }
+        if let Some(opts) = self.opts.as_ref() {
+            base_cmd.args(opts);
+        }
+        base_cmd.current_dir(chip_dir).capture_outputs(
+            true,
+            "svd2rust",
+            Some(lib_rs_file).filter(|_| {
+                !matches!(
+                    self.arch,
+                    Target::CortexM | Target::Msp430 | Target::XtensaLX
+                )
+            }),
+            Some(svd2rust_err_file),
+            &[],
+        )?;
+        Ok(())
+    }
 }
 
 fn visit_dirs(dir: &Path, cb: &mut dyn FnMut(&fs::DirEntry)) -> std::io::Result<()> {
@@ -385,4 +445,34 @@ fn visit_dirs(dir: &Path, cb: &mut dyn FnMut(&fs::DirEntry)) -> std::io::Result<
         }
     }
     Ok(())
+}
+
+pub struct WorkspaceTomlGuard {
+    pub unmodified_toml: Vec<u8>,
+    pub manifest_path: PathBuf,
+}
+
+impl WorkspaceTomlGuard {
+    pub fn new() -> Result<Self, anyhow::Error> {
+        // XXX: Workaround for
+        // https://github.com/rust-lang/cargo/issues/6009#issuecomment-1925445245
+        // Calling cargo init will add the chip test directory to the workspace members, regardless
+        // of the exclude list. The unmodified manifest path is stored here and written
+        // back after cargo init.
+        let manifest_path = crate::get_cargo_workspace().join("Cargo.toml");
+        let unmodified_toml =
+            fs::read(&manifest_path).with_context(|| "error reading manifest file")?;
+        Ok(Self {
+            unmodified_toml,
+            manifest_path,
+        })
+    }
+}
+
+impl Drop for WorkspaceTomlGuard {
+    fn drop(&mut self) {
+        if let Err(e) = std::fs::write(self.manifest_path.clone(), &self.unmodified_toml) {
+            tracing::error!("Failed to write back to manifest Cargo.toml: {}", e);
+        }
+    }
 }

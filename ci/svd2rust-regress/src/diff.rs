@@ -208,6 +208,9 @@ impl Diffing {
                     .to_owned(),
                 svd_url: Some(url.to_owned()),
                 should_pass: true,
+                skip_check: false,
+                suffix: Default::default(),
+                opts: Default::default(),
                 run_when: crate::tests::RunWhen::Always,
             },
             _ => {
@@ -232,10 +235,10 @@ impl Diffing {
             ) => last_args.as_deref(),
             None => None,
         });
-        let join = |opt1: Option<&str>, opt2: Option<&str>| -> Option<String> {
+        let join = |opt1: Option<&str>, opt2: Option<&str>| -> Option<Vec<String>> {
             match (opt1, opt2) {
-                (Some(str1), Some(str2)) => Some(format!("{} {}", str1, str2)),
-                (Some(str), None) | (None, Some(str)) => Some(str.to_owned()),
+                (Some(str1), Some(str2)) => vec![str1.to_owned(), str2.to_owned()].into(),
+                (Some(str), None) | (None, Some(str)) => Some(vec![str.to_owned()]),
                 (None, None) => None,
             }
         };
@@ -243,14 +246,14 @@ impl Diffing {
             .setup_case(
                 &opts.output_dir.join("baseline"),
                 &baseline_bin,
-                join(baseline_cmd, last_args).as_deref(),
+                &join(baseline_cmd, last_args),
             )
             .with_context(|| "couldn't create head")?;
         let current = test
             .setup_case(
                 &opts.output_dir.join("current"),
                 &current_bin,
-                join(current_cmd, last_args).as_deref(),
+                &join(current_cmd, last_args),
             )
             .with_context(|| "couldn't create base")?;
 
