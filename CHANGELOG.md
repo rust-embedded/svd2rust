@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Some fixes for the `svd2rust-regress` tool and update of its documentation
 - Other internal clippy fixes for `clippy::manual_div_ceil`, `clippy::nonminimal_bool` and
   `clippy::needless_lifetimes`
+- Update `svd-rs` to 0.14.11
 
 ## [v0.35.0] - 2024-11-12
 
