@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add `mtvec_align` field to `riscv_config` to configure the byte alignment of interrupt vector table.
 - Fix reexport path when "%s" inside "derivedFrom"
 - Force using rust edition 2021 in CI
 - Added lifetime ellision for `FieldWriter` where the explicit lifetimes are not necessary, which

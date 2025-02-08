@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
 use std::{
     collections::HashMap,
     ops::{Deref, DerefMut},
@@ -44,6 +44,12 @@ pub struct Config {
     pub settings_file: Option<PathBuf>,
     /// Chip-specific settings
     pub settings: Settings,
+}
+
+impl Config {
+    pub fn extra_build(&self) -> Option<TokenStream> {
+        self.settings.extra_build()
+    }
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -344,6 +350,10 @@ impl Settings {
         if source.riscv_config.is_some() {
             self.riscv_config = source.riscv_config;
         }
+    }
+
+    pub fn extra_build(&self) -> Option<TokenStream> {
+        self.riscv_config.as_ref().and_then(|cfg| cfg.extra_build())
     }
 }
 

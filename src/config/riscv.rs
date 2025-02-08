@@ -1,3 +1,6 @@
+use proc_macro2::TokenStream;
+use quote::quote;
+
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 #[non_exhaustive]
@@ -8,6 +11,22 @@ pub struct RiscvConfig {
     pub harts: Vec<RiscvEnumItem>,
     pub clint: Option<RiscvClintConfig>,
     pub plic: Option<RiscvPlicConfig>,
+    pub mtvec_align: Option<usize>,
+}
+
+impl RiscvConfig {
+    pub fn extra_build(&self) -> Option<TokenStream> {
+        self.mtvec_align.map(|align| {
+            quote! {
+                // set environment variable RISCV_MTVEC_ALIGN enfoce correct byte alignment of interrupt vector.
+                println!(
+                    "cargo:rustc-env=RISCV_MTVEC_ALIGN={}",
+                    #align
+                );
+                println!("cargo:rerun-if-env-changed=RISCV_MTVEC_ALIGN");
+            }
+        })
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
