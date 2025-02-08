@@ -366,7 +366,11 @@ Ignore this option if you are not building your own FPGA based soft-cores."),
     .contains(&config.target)
     {
         writeln!(File::create(path.join("device.x"))?, "{device_x}")?;
-        writeln!(File::create(path.join("build.rs"))?, "{}", build_rs())?;
+        writeln!(
+            File::create(path.join("build.rs"))?,
+            "{}",
+            build_rs(&config)
+        )?;
     }
 
     if config.feature_group || config.feature_peripheral {

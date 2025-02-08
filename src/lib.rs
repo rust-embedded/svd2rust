@@ -671,7 +671,7 @@ pub fn generate(input: &str, config: &Config) -> Result<Generation> {
     } else {
         Some(DeviceSpecific {
             device_x,
-            build_rs: util::build_rs().to_string(),
+            build_rs: util::build_rs(&config).to_string(),
         })
     };
 
