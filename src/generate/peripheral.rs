@@ -1410,8 +1410,8 @@ fn cluster_block(
 
         Ok(quote! {
             #[doc = #description]
-            pub use self::#derived as #block_ty;
-            pub use self::#mod_derived as #mod_ty;
+            pub use #derived as #block_ty;
+            pub use #mod_derived as #mod_ty;
         })
     } else {
         let cpath = path.new_cluster(&c.name);
