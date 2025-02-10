@@ -22,6 +22,7 @@ pub enum Manufacturer {
     Toshiba,
     SiFive,
     TexasInstruments,
+    Vorago,
     Espressif,
     Unknown,
 }
@@ -40,6 +41,7 @@ impl Manufacturer {
             NXP,
             SiliconLabs,
             Spansion,
+            Vorago,
             STMicro,
             Toshiba,
             SiFive,

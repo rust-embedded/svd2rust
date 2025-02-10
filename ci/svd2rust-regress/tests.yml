@@ -689,3 +689,9 @@
   mfgr: Espressif
   chip: esp32c3
   svd_url: https://raw.githubusercontent.com/espressif/svd/main/svd/esp32c3.svd
+
+# Vorago
+- arch: cortex-m
+  mfgr: Vorago
+  chip: va108xx
+  svd_url: https://raw.githubusercontent.com/us-irs/va108xx-rs/refs/heads/main/va108xx/svd/va108xx.svd.patched
