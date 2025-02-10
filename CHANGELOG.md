@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Some fixes for the `svd2rust-regress` tool and update of its documentation
 - Other internal clippy fixes for `clippy::manual_div_ceil`, `clippy::nonminimal_bool` and
   `clippy::needless_lifetimes`
+- Added '%' to the blacklisted characters which are removed from names for ident conversion
 
 ## [v0.35.0] - 2024-11-12
 
