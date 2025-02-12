@@ -1341,24 +1341,15 @@ pub fn fields(
                 });
             }
 
-            // Update register modify bit masks
-            let offsets = match f {
-                MaybeArray::Array(info, dim) => (0..dim.dim)
-                    .map(|i| i * dim.dim_increment + info.bit_offset())
-                    .collect(),
-                MaybeArray::Single(info) => vec![info.bit_offset()],
-            };
-            for o in offsets {
-                let bitmask = (u64::MAX >> (64 - width)) << o;
-                use ModifiedWriteValues::*;
-                match mwv {
-                    Modify | Set | Clear => {}
-                    OneToSet | OneToClear | OneToToggle => {
-                        one_to_modify_fields_bitmap |= bitmask;
-                    }
-                    ZeroToClear | ZeroToSet | ZeroToToggle => {
-                        zero_to_modify_fields_bitmap |= bitmask;
-                    }
+            let bitmask = f.bitmask();
+            use ModifiedWriteValues::*;
+            match mwv {
+                Modify | Set | Clear => {}
+                OneToSet | OneToClear | OneToToggle => {
+                    one_to_modify_fields_bitmap |= bitmask;
+                }
+                ZeroToClear | ZeroToSet | ZeroToToggle => {
+                    zero_to_modify_fields_bitmap |= bitmask;
                 }
             }
         }
