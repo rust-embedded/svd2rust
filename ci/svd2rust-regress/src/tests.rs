@@ -24,6 +24,7 @@ pub enum Manufacturer {
     TexasInstruments,
     Vorago,
     Espressif,
+    RaspberryPi,
     Unknown,
 }
 
@@ -45,6 +46,7 @@ impl Manufacturer {
             STMicro,
             Toshiba,
             SiFive,
+            RaspberryPi,
             TexasInstruments,
             Espressif,
         ]
