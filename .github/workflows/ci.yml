@@ -92,6 +92,8 @@ jobs:
           - { vendor: Espressif, options: "-- --atomics" }
           - { vendor: Vorago }
           - { vendor: Vorago, options: "-- --strict --atomics" }
+          - { vendor: RaspberryPi }
+          - { vendor: RaspberryPi, options: "-- --atomics" }
 
     steps:
       - uses: actions/checkout@v4
