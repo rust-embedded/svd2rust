@@ -137,7 +137,7 @@ impl CommandHelper for Command {
 }
 
 impl TestCase {
-    #[tracing::instrument(skip(self, opts), fields(name = %self.name()))]
+    #[tracing::instrument(skip(self, opts), fields(name = %self.name(), svd=%self.svd_url()))]
     pub fn test(
         &self,
         opts: &Opts,
