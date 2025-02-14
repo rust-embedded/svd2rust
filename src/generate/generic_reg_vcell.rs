@@ -148,7 +148,7 @@ impl<REG: Writable> Reg<REG> {
         F: FnOnce(&mut W<REG>) -> &mut W<REG>,
     {
         let value = f(&mut W {
-            bits: REG::Ux::default(),
+            bits: REG::Ux::ZERO,
             _reg: marker::PhantomData,
         })
         .bits;
@@ -169,7 +169,7 @@ impl<REG: Writable> Reg<REG> {
         F: FnOnce(&mut W<REG>) -> T,
     {
         let mut writer = W {
-            bits: REG::Ux::default(),
+            bits: REG::Ux::ZERO,
             _reg: marker::PhantomData,
         };
 
