@@ -62,11 +62,6 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         });
     }
 
-    out.extend(quote! {
-        use core::ops::Deref;
-        use core::marker::PhantomData;
-    });
-
     // Retaining the previous assumption
     let mut fpu_present = true;
 
