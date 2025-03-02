@@ -203,6 +203,7 @@ impl TestCase {
         Command::new("cargo")
             .env("USER", user)
             .arg("init")
+            .args(["--edition", "2021"])
             .arg("--name")
             .arg(chip_name)
             .arg("--vcs")
