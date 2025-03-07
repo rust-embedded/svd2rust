@@ -353,7 +353,7 @@ Ignore this option if you are not building your own FPGA based soft-cores."),
     let filename = if config.make_mod { "mod.rs" } else { "lib.rs" };
     let mut file = File::create(path.join(filename)).expect("Couldn't create output file");
 
-    let data = items.to_string().replace("] ", "]\n");
+    let data = items.to_string().replace(" # [", "\n#[");
     file.write_all(data.as_ref())
         .expect("Could not write code to lib.rs");
 

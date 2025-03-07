@@ -144,8 +144,7 @@ jobs:
           - { chip: MKW22D5 }
           - { chip: MK02F12810 }
           # Silicon Labs
-          # TODO: fix doc rendering bug when math `>` is present in description
-          #- { chip: SIM3L1x8_SVD }
+          - { chip: SIM3L1x8_SVD }
           # Nordic chips
           - { chip: nrf51, options: "-- -f register_mod::s:_mod" }
           - { chip: nrf52, options: "-- -f register_mod::s:_mod" }
