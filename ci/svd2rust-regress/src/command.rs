@@ -7,7 +7,8 @@ pub trait CommandExt {
     fn run(&mut self, hide: bool) -> Result<(), anyhow::Error>;
 
     #[track_caller]
-    fn get_output(&mut self, can_fail: bool) -> Result<std::process::Output, anyhow::Error>;
+    fn run_and_get_output(&mut self, can_fail: bool)
+        -> Result<std::process::Output, anyhow::Error>;
 
     #[track_caller]
     fn get_output_string(&mut self) -> Result<String, anyhow::Error>;
@@ -33,7 +34,10 @@ impl CommandExt for Command {
     }
 
     #[track_caller]
-    fn get_output(&mut self, can_fail: bool) -> Result<std::process::Output, anyhow::Error> {
+    fn run_and_get_output(
+        &mut self,
+        can_fail: bool,
+    ) -> Result<std::process::Output, anyhow::Error> {
         let output = self
             .output()
             .with_context(|| format!("command `{}` couldn't be run", self.display()))?;
@@ -51,7 +55,7 @@ impl CommandExt for Command {
 
     #[track_caller]
     fn get_output_string(&mut self) -> Result<String, anyhow::Error> {
-        String::from_utf8(self.get_output(true)?.stdout).map_err(Into::into)
+        String::from_utf8(self.run_and_get_output(true)?.stdout).map_err(Into::into)
     }
 
     fn display(&self) -> String {

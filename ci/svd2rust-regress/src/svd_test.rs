@@ -71,7 +71,7 @@ impl std::fmt::Debug for ProcessFailed {
 }
 
 trait CommandHelper {
-    fn capture_outputs(
+    fn run_and_capture_outputs(
         &mut self,
         cant_fail: bool,
         name: &str,
@@ -79,11 +79,27 @@ trait CommandHelper {
         stderr: Option<&PathBuf>,
         previous_processes_stderr: &[PathBuf],
     ) -> Result<(), TestError>;
+
+    fn run_and_capture_stderr(
+        &mut self,
+        cant_fail: bool,
+        name: &str,
+        stderr: &PathBuf,
+        previous_processes_stderr: &[PathBuf],
+    ) -> Result<(), TestError> {
+        self.run_and_capture_outputs(
+            cant_fail,
+            name,
+            None,
+            Some(stderr),
+            previous_processes_stderr,
+        )
+    }
 }
 
 impl CommandHelper for Command {
     #[tracing::instrument(skip_all, fields(stdout = tracing::field::Empty, stderr = tracing::field::Empty))]
-    fn capture_outputs(
+    fn run_and_capture_outputs(
         &mut self,
         cant_fail: bool,
         name: &str,
@@ -91,7 +107,7 @@ impl CommandHelper for Command {
         stderr: Option<&PathBuf>,
         previous_processes_stderr: &[PathBuf],
     ) -> Result<(), TestError> {
-        let output = self.get_output(true)?;
+        let output = self.run_and_get_output(true)?;
         let out_payload = String::from_utf8_lossy(&output.stdout);
         if let Some(out) = stdout {
             file_helper(&out_payload, out)?;
@@ -142,10 +158,13 @@ impl TestCase {
         &self,
         opts: &Opts,
         bin_path: &Path,
-        cli_opts: &Option<Vec<String>>,
+        run_clippy: bool,
+        run_docs_stable: bool,
+        run_docs_nightly: bool,
+        cli_passthrough_opts: &Option<Vec<String>>,
     ) -> Result<Option<Vec<PathBuf>>, TestError> {
         let (chip_dir, mut process_stderr_paths) = self
-            .setup_case(&opts.output_dir, bin_path, cli_opts)
+            .setup_case(&opts.output_dir, bin_path, cli_passthrough_opts)
             .with_context(|| anyhow!("when setting up case for {}", self.name()))?;
         // Run `cargo check`, capturing stderr to a log file
         if !self.skip_check {
@@ -153,15 +172,69 @@ impl TestCase {
             Command::new("cargo")
                 .arg("check")
                 .current_dir(&chip_dir)
-                .capture_outputs(
+                .run_and_capture_stderr(
                     true,
                     "cargo check",
-                    None,
-                    Some(&cargo_check_err_file),
+                    &cargo_check_err_file,
                     &process_stderr_paths,
                 )
-                .with_context(|| "failed to check")?;
+                .with_context(|| "failed to check with cargo check")?;
             process_stderr_paths.push(cargo_check_err_file);
+        }
+        if run_docs_nightly {
+            tracing::info!("Checking docs build with nightly");
+            let cargo_docs_err_file = path_helper_base(&chip_dir, &["cargo-docs-nightly.err.log"]);
+            // Docs are built like docs.rs would build them. Additionally, build with all features.
+
+            // Set the RUSTDOCFLAGS environment variable
+            let rustdocflags = "--cfg docsrs --generate-link-to-definition -Z unstable-options";
+            Command::new("cargo")
+                .arg("+nightly")
+                .arg("doc")
+                .arg("--all-features")
+                .env("RUSTDOCFLAGS", rustdocflags) // Set the environment variable
+                .current_dir(&chip_dir)
+                .run_and_capture_stderr(
+                    true,
+                    "cargo docs nightly",
+                    &cargo_docs_err_file,
+                    &process_stderr_paths,
+                )
+                .with_context(|| "failed to generate docs with cargo docs")?;
+        }
+        if run_docs_stable {
+            tracing::info!("Checking docs build with stable");
+            let cargo_docs_err_file = path_helper_base(&chip_dir, &["cargo-docs-stable.err.log"]);
+            // Docs are built like docs.rs would build them. Additionally, build with all features.
+            Command::new("cargo")
+                .arg("+stable")
+                .arg("doc")
+                .arg("--all-features")
+                .current_dir(&chip_dir)
+                .run_and_capture_stderr(
+                    true,
+                    "cargo docs stable",
+                    &cargo_docs_err_file,
+                    &process_stderr_paths,
+                )
+                .with_context(|| "failed to generate docs with cargo docs")?;
+        }
+        if run_clippy {
+            tracing::info!("Checking with clippy");
+            let cargo_clippy_err_file = path_helper_base(&chip_dir, &["cargo-clippy.err.log"]);
+            Command::new("cargo")
+                .arg("clippy")
+                .arg("--")
+                .arg("-D")
+                .arg("warnings")
+                .current_dir(&chip_dir)
+                .run_and_capture_stderr(
+                    true,
+                    "cargo clippy",
+                    &cargo_clippy_err_file,
+                    &process_stderr_paths,
+                )
+                .with_context(|| "failed to check with cargo clippy")?;
         }
         Ok(if opts.verbose > 1 {
             Some(process_stderr_paths)
@@ -170,13 +243,13 @@ impl TestCase {
         })
     }
 
-    #[tracing::instrument(skip(self, output_dir, command), fields(name = %self.name(), chip_dir = tracing::field::Empty))]
+    #[tracing::instrument(skip(self, output_dir, passthrough_opts), fields(name = %self.name(), chip_dir = tracing::field::Empty))]
 
     pub fn setup_case(
         &self,
         output_dir: &Path,
         svd2rust_bin_path: &Path,
-        command: &Option<Vec<String>>,
+        passthrough_opts: &Option<Vec<String>>,
     ) -> Result<(PathBuf, Vec<PathBuf>), TestError> {
         let user = match std::env::var("USER") {
             Ok(val) => val,
@@ -210,10 +283,10 @@ impl TestCase {
             .arg("none")
             .arg("--lib")
             .arg(&chip_dir)
-            .capture_outputs(true, "cargo init", None, None, &[])
+            .run_and_capture_outputs(true, "cargo init", None, None, &[])
             .with_context(|| "Failed to cargo init")?;
 
-        self.prepare_chip_test_toml(&chip_dir, command)?;
+        self.prepare_chip_test_toml(&chip_dir, passthrough_opts)?;
         let chip_svd = self.prepare_svd_file(&chip_dir)?;
         self.prepare_rust_toolchain_file(&chip_dir)?;
 
@@ -226,7 +299,7 @@ impl TestCase {
             &chip_dir,
             &lib_rs_file,
             &svd2rust_err_file,
-            command,
+            passthrough_opts,
         )?;
         process_stderr_paths.push(svd2rust_err_file);
         match self.arch {
@@ -262,7 +335,7 @@ impl TestCase {
                 .arg(&new_lib_rs_file)
                 .arg("--outdir")
                 .arg(&src_dir)
-                .capture_outputs(
+                .run_and_capture_outputs(
                     true,
                     "form",
                     None,
@@ -291,7 +364,7 @@ impl TestCase {
                 Command::new(rustfmt_bin_path)
                     .arg(entry)
                     .args(["--edition", "2021"])
-                    .capture_outputs(
+                    .run_and_capture_outputs(
                         false,
                         "rustfmt",
                         None,
@@ -417,7 +490,7 @@ impl TestCase {
         if let Some(opts) = self.opts.as_ref() {
             base_cmd.args(opts);
         }
-        base_cmd.current_dir(chip_dir).capture_outputs(
+        base_cmd.current_dir(chip_dir).run_and_capture_outputs(
             true,
             "svd2rust",
             Some(lib_rs_file).filter(|_| {

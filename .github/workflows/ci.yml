@@ -10,7 +10,7 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
-    needs: [check, ci-linux, ci-clippy, ci-serde]
+    needs: [check, ci-linux, ci-docs-clippy, ci-serde]
     if: always()
     steps:
       - name: Done
@@ -127,15 +127,33 @@ jobs:
         # stable.
         run: cargo +stable regress tests --toolchain 1.76.0 -m Nordic -- --strict --atomics
 
-  ci-clippy:
+  ci-docs-clippy:
     runs-on: ubuntu-latest
     needs: [check]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # STMicro
+          - { chip: STM32F030 }
+          - { chip: STM32F410 }
+          - { chip: STM32L1xx }
+          # Espressif
+          - { chip: esp32c3 }
+          # Freescale
+          - { chip: MKW22D5 }
+          - { chip: MK02F12810 }
+          # Silicon Labs
+          # TODO: fix doc rendering bug when math `>` is present in description
+          #- { chip: SIM3L1x8_SVD }
+          # Nordic chips
+          - { chip: nrf51, options: "-- -f register_mod::s:_mod" }
+          - { chip: nrf52, options: "-- -f register_mod::s:_mod" }
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache
         uses: Swatinem/rust-cache@v2
@@ -144,12 +162,8 @@ jobs:
         run: |
           cargo install svd2rust --path .
 
-      - name: Run CI script
-        env:
-          VENDOR: RISC-V
-          OPTIONS: ""
-          COMMAND: clippy
-        run: bash ci/script.sh
+      - name: Check docs and clippy on generated PACs
+        run: cargo regress test -c ${{ matrix.chip }} --docs-stable --docs-nightly --clippy ${{ matrix.options }}
 
   ci-serde:
     runs-on: ubuntu-latest

@@ -90,6 +90,18 @@ pub struct TestAll {
     /// Enable splitting `lib.rs` with `form`
     pub form_lib: bool,
 
+    /// Check generated crates with clippy.
+    #[clap(long)]
+    pub clippy: bool,
+
+    /// Check documentation build with stable.
+    #[clap(long)]
+    pub docs_stable: bool,
+
+    /// Check documentation build with nightly settings (docs.rs equivalent).
+    #[clap(long)]
+    pub docs_nightly: bool,
+
     /// Print all available test using the specified filters
     #[clap(long)]
     pub list: bool,
@@ -143,6 +155,18 @@ pub struct Test {
     /// Chip to use, use `--url` or `--svd-file` for another way to specify svd
     pub chip: Option<String>,
 
+    /// Check generated crate with clippy.
+    #[arg(long)]
+    pub clippy: bool,
+
+    /// Check documentation build with stable.
+    #[clap(long)]
+    pub docs_stable: bool,
+
+    /// Check documentation build with nightly settings (docs.rs equivalent).
+    #[clap(long)]
+    pub docs_nightly: bool,
+
     /// Path to an `svd2rust` binary, relative or absolute.
     /// Defaults to `target/release/svd2rust[.exe]` of this repository
     /// (which must be already built)
@@ -191,7 +215,14 @@ impl Test {
                 .ok_or_else(|| anyhow::anyhow!("no test found for chip"))?
                 .to_owned()
         };
-        test.test(opts, &self.current_bin_path, &self.passthrough_opts)?;
+        test.test(
+            opts,
+            &self.current_bin_path,
+            self.clippy,
+            self.docs_stable,
+            self.docs_nightly,
+            &self.passthrough_opts,
+        )?;
         Ok(())
     }
 }
@@ -247,7 +278,14 @@ impl TestAll {
         tests.par_iter().for_each(|t| {
             let start = Instant::now();
 
-            match t.test(opt, &self.current_bin_path, &self.passthrough_opts) {
+            match t.test(
+                opt,
+                &self.current_bin_path,
+                self.clippy,
+                self.docs_stable,
+                self.docs_nightly,
+                &self.passthrough_opts,
+            ) {
                 Ok(s) => {
                     if let Some(stderrs) = s {
                         let mut buf = String::new();
