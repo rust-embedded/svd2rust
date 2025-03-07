@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `clippy::needless_lifetimes`
 - Add missing `escape_special_chars` for peripheral description
 - Update `svd-rs` to 0.14.11
+- Added `#![cfg_attr(docsrs, feature(doc_auto_cfg))]` to the generated library code. This
+  adds a display of the feature gates in the documentation of the generated library
 
 ## [v0.35.0] - 2024-11-12
 

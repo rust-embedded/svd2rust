@@ -171,6 +171,23 @@
 //! v-trap = ["rt", "riscv-rt/v-trap"]
 //! ```
 //!
+//! ## Generating documentation
+//!
+//! You can generate the documentation for the generated library using the following command:
+//!
+//! ```sh
+//! RUSTDOCFLAGS="--cfg docsrs --generate-link-to-definition -Z unstable-options" cargo +nightly doc --all-features --open
+//! ```
+//!
+//! It is recommended to add the following block in the `Cargo.toml` of the generated library
+//! if you plan to host the library documentaion on `docs.rs`
+//!
+//! ```toml
+//! [package.metadata.docs.rs]
+//! all-features = true
+//! rustdoc-args = ["--generate-link-to-definition"]
+//! ```
+//!
 //! # Peripheral API
 //!
 //! To use a peripheral first you must get an *instance* of the peripheral. All the device

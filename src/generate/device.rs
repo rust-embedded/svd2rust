@@ -59,6 +59,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             #![allow(non_camel_case_types)]
             #![allow(non_snake_case)]
             #![no_std]
+            #![cfg_attr(docsrs, feature(doc_auto_cfg))]
         });
     }
 
