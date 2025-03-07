@@ -413,24 +413,31 @@ pub fn render_register_mod(
 
         let doc = format!("`write(|w| ..)` method takes [`{mod_ty}::W`](W) writer structure",);
 
-        let zero_to_modify_fields_bitmap = util::hex(zero_to_modify_fields_bitmap);
-        let one_to_modify_fields_bitmap = util::hex(one_to_modify_fields_bitmap);
+        let zero_to_modify_fields_bitmap = util::hex_nonzero(zero_to_modify_fields_bitmap)
+            .map(|bm| quote!(const ZERO_TO_MODIFY_FIELDS_BITMAP: #rty = #bm;));
+        let one_to_modify_fields_bitmap = util::hex_nonzero(one_to_modify_fields_bitmap)
+            .map(|bm| quote!(const ONE_TO_MODIFY_FIELDS_BITMAP: #rty = #bm;));
 
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Writable for #regspec_ty {
                 type Safety = crate::#safe_ty;
-                const ZERO_TO_MODIFY_FIELDS_BITMAP: #rty = #zero_to_modify_fields_bitmap;
-                const ONE_TO_MODIFY_FIELDS_BITMAP: #rty = #one_to_modify_fields_bitmap;
+                #zero_to_modify_fields_bitmap
+                #one_to_modify_fields_bitmap
             }
         });
     }
-    if let Some(rv) = properties.reset_value.map(util::hex) {
-        let doc = format!("`reset()` method sets {} to value {rv}", register.name);
+    if let Some(rv) = properties.reset_value.map(util::hex_nonzero) {
+        let doc = if let Some(rv) = &rv {
+            format!("`reset()` method sets {} to value {rv}", register.name)
+        } else {
+            format!("`reset()` method sets {} to value 0", register.name)
+        };
+        let rv = rv.map(|rv| quote!(const RESET_VALUE: #rty = #rv;));
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Resettable for #regspec_ty {
-                const RESET_VALUE: #rty = #rv;
+                #rv
             }
         });
     }

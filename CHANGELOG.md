@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - Generic `Periph<RB, A>`
+- use `ConstZero::ZERO` instead of `Default::default()` to force const
 - Add `mtvec_align` field to `riscv_config` to configure the byte alignment of interrupt vector table.
 - Fix reexport path when "%s" inside "derivedFrom"
 - Force using rust edition 2021 in CI
