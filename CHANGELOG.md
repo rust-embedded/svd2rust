@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.35.0] - 2025-03-08
+
 - Generic `Periph<RB, A>`
 - Add `mtvec_align` field to `riscv_config` to configure the byte alignment of interrupt vector table.
 - Fix reexport path when "%s" inside "derivedFrom"
@@ -945,7 +947,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.35.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.36.0...HEAD
+[v0.36.0]: https://github.com/rust-embedded/svd2rust/compare/v0.35.0...v0.36.0
 [v0.35.0]: https://github.com/rust-embedded/svd2rust/compare/v0.34.0...v0.35.0
 [v0.34.0]: https://github.com/rust-embedded/svd2rust/compare/v0.33.5...v0.34.0
 [v0.33.5]: https://github.com/rust-embedded/svd2rust/compare/v0.33.4...v0.33.5
