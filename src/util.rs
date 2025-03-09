@@ -147,8 +147,18 @@ pub fn sanitize_keyword(sc: Cow<str>) -> Cow<str> {
     }
 }
 
-pub fn respace(s: &str) -> String {
-    s.replace(r"\n", "\n")
+pub fn respace(s: &str) -> Cow<'_, str> {
+    let s: Cow<_> = if s.contains(r"\n") {
+        s.replace(r"\n", "\n").into()
+    } else {
+        s.into()
+    };
+    if s.contains("\n\n ") {
+        let ss: Vec<_> = s.split("\n\n").map(|s| s.trim_start()).collect();
+        ss.join("\n\n").into()
+    } else {
+        s
+    }
 }
 
 pub fn escape_brackets(s: &str) -> String {
