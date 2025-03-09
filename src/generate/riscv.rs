@@ -190,9 +190,9 @@ pub fn render(
                 i.value,
                 i.description
                     .as_ref()
-                    .map(|s| util::respace(s))
-                    .as_ref()
                     .map(|s| util::escape_special_chars(s))
+                    .as_ref()
+                    .map(|s| util::respace(s))
                     .unwrap_or_else(|| i.name.as_str().into())
             );
 
