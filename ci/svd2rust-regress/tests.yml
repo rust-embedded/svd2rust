@@ -703,3 +703,4 @@
 - arch: cortex-m
   mfgr: RaspberryPi
   chip: rp2350
+  svd_url: https://raw.githubusercontent.com/rp-rs/rp235x-pac/refs/heads/main/svd/RP2350.svd.patched
