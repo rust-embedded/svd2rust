@@ -42,8 +42,9 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
     let p_ty = ident(&name, config, "peripheral", span);
     let name_str = p_ty.to_string();
     let address = util::hex(p.base_address + config.base_address_shift);
-    let doc = util::respace(p.description.as_ref().unwrap_or(&name));
-    let doc = util::escape_special_chars(&doc);
+    let doc = util::escape_special_chars(p.description.as_ref().unwrap_or(&name));
+    let doc = util::respace(&doc);
+    let doc = quote! { #[doc = #doc] };
 
     let mod_ty = ident(&name, config, "peripheral_mod", span);
     let (derive_regs, base, path) = if let Some(path) = path {
@@ -65,17 +66,17 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
 
     let phtml = config.settings.html_url.as_ref().map(|url| {
         let doc = format!("See peripheral [structure]({url}#{})", &path.peripheral);
-        quote!(#[doc = ""] #[doc = #doc])
+        quote!(#[doc = ""] #doc)
     });
 
     let per_to_tokens = |out: &mut TokenStream,
                          feature_attribute: &TokenStream,
-                         doc: &str,
+                         doc: &TokenStream,
                          p_ty: &Ident,
                          doc_alias: Option<TokenStream>,
                          address: LitInt| {
         out.extend(quote! {
-            #[doc = #doc]
+            #doc
             #phtml
             #doc_alias
             #feature_attribute
@@ -95,8 +96,9 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
             let mut feature_names = Vec::with_capacity(dim.dim as _);
             for pi in svd::peripheral::expand(p, dim) {
                 let name = &pi.name;
-                let doc = util::respace(pi.description.as_ref().unwrap_or(&pi.name));
-                let doc = util::escape_special_chars(&doc);
+                let doc = util::escape_special_chars(pi.description.as_ref().unwrap_or(&pi.name));
+                let doc = util::respace(&doc);
+                let doc = quote! { #[doc = #doc] };
                 let p_ty = ident(name, config, "peripheral", span);
                 let name_str = p_ty.to_string();
                 let doc_alias = (&name_str != name).then(|| quote!(#[doc(alias = #name)]));
@@ -125,7 +127,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
             if derive_regs {
                 // re-export the base module to allow deriveFrom this one
                 out.extend(quote! {
-                    #[doc = #doc]
+                    #doc
                     #feature_any_attribute
                     pub use self::#base as #mod_ty;
                 });
@@ -145,7 +147,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
             if derive_regs {
                 // re-export the base module to allow deriveFrom this one
                 out.extend(quote! {
-                    #[doc = #doc]
+                    #doc
                     #feature_attribute
                     pub use self::#base as #mod_ty;
                 });
@@ -188,11 +190,17 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         "Pushing {} register or cluster blocks into output",
         ercs.len()
     );
-    let reg_block =
-        register_or_cluster_block(&ercs, &derive_infos, None, "Register block", None, config)?;
+    let reg_block = register_or_cluster_block(
+        &ercs,
+        &derive_infos,
+        None,
+        &quote! { #[doc = "Register block"] },
+        None,
+        config,
+    )?;
 
     out.extend(quote! {
-        #[doc = #doc]
+        #doc
         #feature_attribute
         pub mod #mod_ty
     });
@@ -457,8 +465,8 @@ impl FieldRegions {
 }
 
 fn make_comment(size: u32, offset: u32, description: &str) -> String {
-    let desc = util::respace(description);
-    let desc = util::escape_special_chars(&desc);
+    let desc = util::escape_special_chars(description);
+    let desc = util::respace(&desc);
     if size > 32 {
         let end = offset + size / 8;
         format!("0x{offset:02x}..0x{end:02x} - {desc}")
@@ -471,7 +479,7 @@ fn register_or_cluster_block(
     ercs: &[RegisterCluster],
     derive_infos: &[DeriveInfo],
     name: Option<&str>,
-    doc: &str,
+    doc: &TokenStream,
     size: Option<u32>,
     config: &Config,
 ) -> Result<TokenStream> {
@@ -598,7 +606,7 @@ fn register_or_cluster_block(
     Ok(quote! {
         #[repr(C)]
         #derive_debug
-        #[doc = #doc]
+        #doc
         #doc_alias
         pub struct #block_ty {
             #rbfs
@@ -1328,8 +1336,9 @@ fn cluster_block(
     config: &Config,
 ) -> Result<TokenStream> {
     let doc = c.description.as_ref().unwrap_or(&c.name);
-    let doc = util::respace(doc);
-    let doc = util::escape_special_chars(&doc);
+    let doc = util::escape_special_chars(doc);
+    let doc = util::respace(&doc);
+    let doc = quote! { #[doc = #doc] };
     let mod_name = c.name.remove_dim().to_string();
 
     // name_snake_case needs to take into account array type.
@@ -1356,7 +1365,7 @@ fn cluster_block(
             .push(path_segment(ident(&dname, config, "cluster_mod", span)));
 
         Ok(quote! {
-            #[doc = #doc]
+            #doc
             pub use #derived as #block_ty;
             pub use #mod_derived as #mod_ty;
         })
@@ -1388,11 +1397,11 @@ fn cluster_block(
         };
 
         Ok(quote! {
-            #[doc = #doc]
+            #doc
             pub use self::#mod_ty::#block_ty;
 
             ///Cluster
-            #[doc = #doc]
+            #doc
             pub mod #mod_ty {
                 #mod_items
             }
