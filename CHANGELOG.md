@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Update `irx-config`
+
 ## [v0.36.0] - 2025-03-09
 
 - Generic `Periph<RB, A>`
