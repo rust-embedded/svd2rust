@@ -177,6 +177,7 @@ pub mod raw {
     }
 
     impl<REG: RegisterSpec> FromBits<REG::Ux> for R<REG> {
+        #[inline(always)]
         unsafe fn from_bits(bits: REG::Ux) -> Self {
             Self {
                 bits,
@@ -192,6 +193,7 @@ pub mod raw {
     }
 
     impl<REG: RegisterSpec> FromBits<REG::Ux> for W<REG> {
+        #[inline(always)]
         unsafe fn from_bits(bits: REG::Ux) -> Self {
             Self {
                 bits,
@@ -201,6 +203,7 @@ pub mod raw {
     }
 
     impl<REG: RegisterSpec> ToBits<REG::Ux> for W<REG> {
+        #[inline(always)]
         fn to_bits(&self) -> REG::Ux {
             self.bits
         }
