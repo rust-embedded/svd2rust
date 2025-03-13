@@ -63,9 +63,9 @@ pub fn render(
                 .0
                 .description
                 .as_deref()
-                .map(util::respace)
-                .as_deref()
                 .map(util::escape_special_chars)
+                .as_deref()
+                .map(util::respace)
                 .unwrap_or_else(|| interrupt.0.name.as_str().into())
         );
 
