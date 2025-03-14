@@ -104,10 +104,23 @@ pub trait FieldSpec: Sized {
 /// Marker for fields with fixed values
 pub trait IsEnum: FieldSpec {}
 
+#[doc(hidden)]
+pub trait FromBits<U> {
+    unsafe fn from_bits(b: U) -> Self;
+}
+
+#[doc(hidden)]
+pub trait ToBits<U> {
+    fn to_bits(&self) -> U;
+}
+
 /// Trait implemented by readable registers to enable the `read` method.
 ///
 /// Registers marked with `Writable` can be also be `modify`'ed.
-pub trait Readable: RegisterSpec {}
+pub trait Readable: RegisterSpec {
+    /// Reader struct associated with register
+    type Reader: FromBits<Self::Ux>;
+}
 
 /// Trait implemented by writeable registers.
 ///
@@ -115,6 +128,9 @@ pub trait Readable: RegisterSpec {}
 ///
 /// Registers marked with `Readable` can be also be `modify`'ed.
 pub trait Writable: RegisterSpec {
+    /// Writer struct associated with register
+    type Writer: FromBits<Self::Ux> + ToBits<Self::Ux>;
+
     /// Is it safe to write any bits to register
     type Safety;
 
@@ -140,19 +156,57 @@ pub trait Resettable: RegisterSpec {
     }
 }
 
+/// Marker for register/field writers which can take any value of specified width
+pub struct Safe;
+/// You should check that value is allowed to pass to register/field writer marked with this
+pub struct Unsafe;
+/// Marker for field writers are safe to write in specified inclusive range
+pub struct Range<const MIN: u64, const MAX: u64>;
+/// Marker for field writers are safe to write in specified inclusive range
+pub struct RangeFrom<const MIN: u64>;
+/// Marker for field writers are safe to write in specified inclusive range
+pub struct RangeTo<const MAX: u64>;
+
 #[doc(hidden)]
 pub mod raw {
-    use super::{marker, BitM, FieldSpec, RegisterSpec, Unsafe, Writable};
+    use super::{marker, BitM, FieldSpec, FromBits, RegisterSpec, ToBits, Unsafe, Writable};
 
     pub struct R<REG: RegisterSpec> {
         pub(crate) bits: REG::Ux,
         pub(super) _reg: marker::PhantomData<REG>,
     }
 
+    impl<REG: RegisterSpec> FromBits<REG::Ux> for R<REG> {
+        #[inline(always)]
+        unsafe fn from_bits(bits: REG::Ux) -> Self {
+            Self {
+                bits,
+                _reg: marker::PhantomData,
+            }
+        }
+    }
+
     pub struct W<REG: RegisterSpec> {
         ///Writable bits
         pub(crate) bits: REG::Ux,
         pub(super) _reg: marker::PhantomData<REG>,
+    }
+
+    impl<REG: RegisterSpec> FromBits<REG::Ux> for W<REG> {
+        #[inline(always)]
+        unsafe fn from_bits(bits: REG::Ux) -> Self {
+            Self {
+                bits,
+                _reg: marker::PhantomData,
+            }
+        }
+    }
+
+    impl<REG: RegisterSpec> ToBits<REG::Ux> for W<REG> {
+        #[inline(always)]
+        fn to_bits(&self) -> REG::Ux {
+            self.bits
+        }
     }
 
     pub struct FieldReader<FI = u8>
@@ -370,17 +424,6 @@ impl<FI> core::fmt::Debug for BitReader<FI> {
         core::fmt::Debug::fmt(&self.bits, f)
     }
 }
-
-/// Marker for register/field writers which can take any value of specified width
-pub struct Safe;
-/// You should check that value is allowed to pass to register/field writer marked with this
-pub struct Unsafe;
-/// Marker for field writers are safe to write in specified inclusive range
-pub struct Range<const MIN: u64, const MAX: u64>;
-/// Marker for field writers are safe to write in specified inclusive range
-pub struct RangeFrom<const MIN: u64>;
-/// Marker for field writers are safe to write in specified inclusive range
-pub struct RangeTo<const MAX: u64>;
 
 /// Write field Proxy
 pub type FieldWriter<'a, REG, const WI: u8, FI = u8, Safety = Unsafe> =
