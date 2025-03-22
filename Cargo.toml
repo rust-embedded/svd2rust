@@ -69,7 +69,7 @@ version = "2.0"
 features = ["full", "extra-traits"]
 
 [workspace]
-members = ["ci/svd2rust-regress"]
+members = ["svd2rust-regress"]
 default-members = ["."]
 exclude = [
     "output",
