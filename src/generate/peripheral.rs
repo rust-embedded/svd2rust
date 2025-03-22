@@ -74,13 +74,57 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                          p_ty: &Ident,
                          doc_alias: Option<TokenStream>,
                          address: LitInt| {
-        out.extend(quote! {
-            #[doc = #doc]
-            #phtml
-            #doc_alias
-            #feature_attribute
-            pub type #p_ty = crate::Periph<#base::RegisterBlock, #address>;
+        out.extend(if config.raw_access {
+            quote! {
+                #[doc = #doc]
+                #phtml
+                #doc_alias
+                #feature_attribute
+                pub struct #p_ty { rb: #base::RegisterBlock }
 
+                #feature_attribute
+                unsafe impl Send for #p_ty {}
+
+                #feature_attribute
+                impl #p_ty {
+                    /// Steal an instance of this peripheral
+                    ///
+                    /// # Safety
+                    ///
+                    /// Ensure that the new instance of the peripheral cannot be used in a way
+                    /// that may race with any existing instances, for example by only
+                    /// accessing read-only or write-only registers, or by consuming the
+                    /// original peripheral and using critical sections to coordinate
+                    /// access between multiple new instances.
+                    ///
+                    /// Additionally, other software such as HALs may rely on only one
+                    /// peripheral instance existing to ensure memory safety; ensure
+                    /// no stolen instances are passed to such software.
+                    pub unsafe fn steal() -> Self {
+                        Self { rb: #base::RegisterBlock::new(#address as *mut u8) }
+                    }
+                }
+
+                #feature_attribute
+                impl core::ops::Deref for #p_ty {
+                    type Target = #base::RegisterBlock;
+
+                    #[inline(always)]
+                    fn deref(&self) -> &Self::Target {
+                        &self.rb
+                    }
+                }
+            }
+        } else {
+            quote! {
+                #[doc = #doc]
+                #phtml
+                #doc_alias
+                #feature_attribute
+                pub type #p_ty = crate::Periph<#base::RegisterBlock, #address>;
+            }
+        });
+        out.extend(quote! {
             #feature_attribute
             impl core::fmt::Debug for #p_ty {
                 fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -587,6 +631,18 @@ fn register_or_cluster_block(
         Ident::new("RegisterBlock", span)
     };
 
+    if config.raw_access {
+        accessors.extend(quote! {
+            pub(crate) const fn new(ptr: *mut u8) -> Self {
+                Self { ptr }
+            }
+            #[inline(always)]
+            pub const fn ptr(&self) -> *mut u8 {
+                self.ptr
+            }
+        })
+    }
+
     let accessors = (!accessors.is_empty()).then(|| {
         quote! {
             impl #block_ty {
@@ -595,16 +651,31 @@ fn register_or_cluster_block(
         }
     });
 
-    Ok(quote! {
-        #[repr(C)]
-        #derive_debug
-        #[doc = #doc]
-        #doc_alias
-        pub struct #block_ty {
-            #rbfs
-        }
+    Ok(if config.raw_access {
+        quote! {
+            #[doc = #doc]
+            #[repr(C)]
+            #derive_debug
+            #doc_alias
+            #[non_exhaustive]
+            pub struct #block_ty {
+                ptr: *mut u8,
+            }
 
-        #accessors
+            #accessors
+        }
+    } else {
+        quote! {
+            #[doc = #doc]
+            #[repr(C)]
+            #derive_debug
+            #doc_alias
+            pub struct #block_ty {
+                #rbfs
+            }
+
+            #accessors
+        }
     })
 }
 
@@ -947,7 +1018,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                 ty,
                 offset: info.address_offset,
             })
-            .raw_if(false);
+            .ptr_or_rawref_if(config.raw_access, false);
             cluster_expanded.push(RegisterBlockField {
                 syn_field,
                 offset: info.address_offset,
@@ -1013,7 +1084,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         increment: array_info.dim_increment,
                         note,
                     })
-                    .raw_if(!array_convertible),
+                    .ptr_or_rawref_if(config.raw_access, !array_convertible),
                 );
                 if !sequential_indexes_from0 || !ends_with_index {
                     for (i, ci) in svd::cluster::expand(info, array_info).enumerate() {
@@ -1031,7 +1102,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                                 basename: accessor_name.clone(),
                                 i,
                             })
-                            .raw_if(false),
+                            .ptr_or_rawref_if(config.raw_access, false),
                         );
                     }
                 }
@@ -1067,7 +1138,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
                         ty: ty.clone(),
                         offset: info.address_offset,
                     })
-                    .raw_if(false);
+                    .ptr_or_rawref_if(config.raw_access, false);
                     cluster_expanded.push(RegisterBlockField {
                         syn_field,
                         offset: ci.address_offset,
@@ -1119,7 +1190,7 @@ fn expand_register(
                 ty,
                 offset: info.address_offset,
             })
-            .raw_if(false);
+            .ptr_or_rawref_if(config.raw_access, false);
             register_expanded.push(RegisterBlockField {
                 syn_field,
                 offset: info.address_offset,
@@ -1200,7 +1271,7 @@ fn expand_register(
                         increment: array_info.dim_increment,
                         note,
                     })
-                    .raw_if(!array_convertible),
+                    .ptr_or_rawref_if(config.raw_access, !array_convertible),
                 );
                 if !sequential_indexes_from0 || !ends_with_index {
                     for (i, ri) in svd::register::expand(info, array_info).enumerate() {
@@ -1223,7 +1294,7 @@ fn expand_register(
                                 basename: accessor_name.clone(),
                                 i,
                             })
-                            .raw_if(false),
+                            .ptr_or_rawref_if(config.raw_access, false),
                         );
                     }
                 };
@@ -1259,7 +1330,7 @@ fn expand_register(
                         ty: ty.clone(),
                         offset: info.address_offset,
                     })
-                    .raw_if(false);
+                    .ptr_or_rawref_if(config.raw_access, false);
                     register_expanded.push(RegisterBlockField {
                         syn_field,
                         offset: ri.address_offset,
