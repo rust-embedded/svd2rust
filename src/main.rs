@@ -115,20 +115,6 @@ fn run() -> Result<()> {
                 .value_name("ARCH"),
         )
         .arg(
-            Arg::new("atomics")
-                .long("atomics")
-                .action(ArgAction::SetTrue)
-                .help("Generate atomic register modification API"),
-        )
-        .arg(
-            Arg::new("atomics_feature")
-                .long("atomics-feature")
-                .alias("atomics_feature")
-                .help("add feature gating for atomic register modification API")
-                .action(ArgAction::Set)
-                .value_name("FEATURE"),
-        )
-        .arg(
             Arg::new("ignore_groups")
                 .long("ignore-groups")
                 .alias("ignore_groups")

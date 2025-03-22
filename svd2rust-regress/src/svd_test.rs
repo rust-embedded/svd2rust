@@ -16,8 +16,6 @@ const CRATES_ALL: &[&str] = &[
     "vcell = \"0.1.2\"",
 ];
 const CRATES_MSP430: &[&str] = &["msp430 = \"0.4.0\"", "msp430-rt = \"0.4.0\""];
-const CRATES_ATOMICS: &[&str] =
-    &["portable-atomic = { version = \"1\", default-features = false }"];
 const CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.7.6\"", "cortex-m-rt = \"0.7\""];
 const CRATES_RISCV: &[&str] = &["riscv = \"0.12.1\"", "riscv-rt = \"0.13.0\""];
 const CRATES_MIPS: &[&str] = &["mips-mcu = \"0.1.0\""];
@@ -410,6 +408,19 @@ impl TestCase {
             .open(svd_toml)
             .with_context(|| "Failed to open Cargo.toml for appending")?;
 
+        let reg_crate = format!(
+            "reg = {{ path = {:?} {}}}",
+            crate::get_cargo_workspace().join("reg"),
+            if let Some(opts) = opts {
+                if opts.iter().any(|v| v.contains("atomics")) {
+                    "features = [\"atomics\"]"
+                } else {
+                    ""
+                }
+            } else {
+                ""
+            }
+        );
         let cargo_toml_fragments = CRATES_ALL
             .iter()
             .chain(match &self.arch {
@@ -420,15 +431,6 @@ impl TestCase {
                 Target::XtensaLX => [].iter(),
                 Target::None => unreachable!(),
             })
-            .chain(if let Some(opts) = opts {
-                if opts.iter().any(|v| v.contains("atomics")) {
-                    CRATES_ATOMICS.iter()
-                } else {
-                    [].iter()
-                }
-            } else {
-                [].iter()
-            })
             .chain(PROFILE_ALL.iter())
             .chain(FEATURES_ALL.iter())
             .chain(match &self.arch {
@@ -437,6 +439,7 @@ impl TestCase {
                 _ => [].iter(),
             })
             .chain(WORKSPACE_EXCLUDE.iter());
+        writeln!(file, "{reg_crate}").with_context(|| "Failed to append to file!")?;
         for fragments in cargo_toml_fragments {
             writeln!(file, "{}", fragments).with_context(|| "Failed to append to file!")?;
         }
