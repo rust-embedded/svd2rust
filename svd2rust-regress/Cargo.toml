@@ -7,7 +7,7 @@ rust-version = "1.82.0"
 
 [dependencies]
 clap = { version = "4.1", features = ["color", "derive", "string", "env"] }
-svd2rust = { path = "../../" }
+svd2rust = { path = "../" }
 reqwest = { version = "0.12", features = ["blocking", "native-tls-vendored"] }
 rayon = "1.4"
 anyhow = "1"

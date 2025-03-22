@@ -412,7 +412,7 @@ impl Opts {
     }
 }
 
-/// Hack to use ci/tests.yml as default value when running as `cargo run`
+/// Hack to use svd2rust-regress/tests.yml as default value when running as `cargo run`
 fn default_test_cases() -> std::ffi::OsString {
     std::env::var_os("CARGO_MANIFEST_DIR").map_or_else(
         || std::ffi::OsString::from("tests.yml".to_owned()),
