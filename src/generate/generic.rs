@@ -432,9 +432,6 @@ where
 
 macro_rules! bit_proxy {
     ($writer:ident, $mwv:ident) => {
-        #[doc(hidden)]
-        pub struct $mwv;
-
         /// Bit-wise write field proxy
         pub type $writer<'a, REG, FI = bool> = raw::BitWriter<'a, REG, FI, $mwv>;
 

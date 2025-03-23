@@ -130,3 +130,18 @@ pub struct Range<const MIN: u64, const MAX: u64>;
 pub struct RangeFrom<const MIN: u64>;
 /// Marker for field writers are safe to write in specified inclusive range
 pub struct RangeTo<const MAX: u64>;
+
+/// After a write operation all bit in the field may be modified
+pub struct BitM;
+/// write data bit of one shall set (set to one) the corresponding bit in the field
+pub struct Bit1S;
+/// Write data bit of zero shall clear (set to zero) the corresponding bit in the field
+pub struct Bit0C;
+/// Write data bit of one shall clear (set to zero) the corresponding bit in the field
+pub struct Bit1C;
+/// Write data bit of zero shall set (set to one) the corresponding bit in the field
+pub struct Bit0S;
+/// Write data bit of one shall toggle (invert) the corresponding bit in the field
+pub struct Bit1T;
+/// Write data bit of zero shall toggle (invert) the corresponding bit in the field
+pub struct Bit0T;
