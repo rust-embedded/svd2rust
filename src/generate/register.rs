@@ -1,21 +1,21 @@
 use crate::svd::{
-    self, Access, BitRange, DimElement, EnumeratedValue, EnumeratedValues, Field, MaybeArray,
+    self, Access, BitRange, DimElement, EnumeratedValue, EnumeratedValues, Field,
     ModifiedWriteValues, ReadAction, Register, RegisterProperties, Usage, WriteConstraint,
     WriteConstraintRange,
 };
 use log::warn;
 use proc_macro2::{Delimiter, Group, Ident, Span, TokenStream};
 use quote::quote;
+use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::fmt::Write;
-use std::{borrow::Cow, collections::BTreeMap};
 use svd_parser::expand::{
     derive_enumerated_values, derive_field, BlockPath, EnumPath, FieldPath, Index, RegisterPath,
 };
 
 use crate::config::Config;
 use crate::util::{
-    self, ident, ident_to_path, path_segment, type_path, unsuffixed, DimSuffix, FullName, U32Ext,
+    self, ident, ident_to_path, path_segment, type_path, unsuffixed, DimSuffix, U32Ext,
 };
 use anyhow::{anyhow, Result};
 use syn::punctuated::Punctuated;
@@ -48,19 +48,7 @@ pub fn render(
     index: &Index,
     config: &Config,
 ) -> Result<TokenStream> {
-    let mut name = util::name_of(register, config.ignore_groups);
-    // Rename if this is a derived array
-    if dpath.is_some() {
-        if let MaybeArray::Array(info, array_info) = register {
-            if let Some(dim_index) = &array_info.dim_index {
-                let index: Cow<str> = dim_index.first().unwrap().into();
-                name = info
-                    .fullname(config.ignore_groups)
-                    .expand_dim(&index)
-                    .into()
-            }
-        }
-    }
+    let name = util::name_of(register, config.ignore_groups);
     let span = Span::call_site();
     let reg_ty = ident(&name, config, "register", span);
     let doc_alias = (reg_ty.to_string().as_str() != name).then(|| quote!(#[doc(alias = #name)]));
