@@ -1145,6 +1145,28 @@ fn expand_register(
                 .filter(|r| *r.start() == 0)
                 .is_some();
 
+            let span = Span::call_site();
+            let accessor_name = if let Some(dim_name) = array_info.dim_name.as_ref() {
+                ident(
+                    &util::fullname(dim_name, &info.alternate_group, config.ignore_groups),
+                    config,
+                    "register_accessor",
+                    span,
+                )
+            } else {
+                ident(&ty_name, config, "register_accessor", span)
+            };
+            let doc = make_comment(
+                register_size * array_info.dim,
+                info.address_offset,
+                description,
+            );
+            let mut accessors = Vec::<AccessType>::with_capacity((array_info.dim + 1) as _);
+            let first_name = svd::array::names(info, array_info).next().unwrap();
+            let note = (array_info.indexes().next().unwrap() != "0").then(||
+                    format!("<div class=\"warning\">`n` is the index of {0} in the array. `n == 0` corresponds to `{first_name}` {0}.</div>", "register")
+                );
+
             // force expansion and rename if we're deriving an array that doesnt start at 0 so we don't get name collisions
             let index: Cow<str> = if let Some(dim_index) = &array_info.dim_index {
                 dim_index[0].as_str().into()
@@ -1154,42 +1176,22 @@ fn expand_register(
                 "".into()
             };
             let ac = match derive_info {
-                DeriveInfo::Implicit(_) => {
-                    ty_name = info_name.expand_dim(&index);
-                    convert_list && sequential_indexes_from0
-                }
-                DeriveInfo::Explicit(_) => {
-                    ty_name = info_name.expand_dim(&index);
-                    convert_list && sequential_indexes_from0
+                DeriveInfo::Implicit(_) | DeriveInfo::Explicit(_) => {
+                    ty_name = info_name.remove_dim();
+                    convert_list // && sequential_indexes_from0
                 }
                 _ => convert_list,
             };
             let array_convertible = ac && sequential_addresses;
             let array_proxy_convertible = ac && disjoint_sequential_addresses;
-            let span = Span::call_site();
             let ty = name_to_ty(ident(&ty_str, config, "register", span));
 
-            if array_convertible || array_proxy_convertible {
-                let accessor_name = if let Some(dim_name) = array_info.dim_name.as_ref() {
-                    ident(
-                        &util::fullname(dim_name, &info.alternate_group, config.ignore_groups),
-                        config,
-                        "register_accessor",
-                        span,
-                    )
-                } else {
-                    ident(&ty_name, config, "register_accessor", span)
-                };
-                let doc = make_comment(
-                    register_size * array_info.dim,
-                    info.address_offset,
-                    description,
-                );
-                let mut accessors = Vec::with_capacity((array_info.dim + 1) as _);
-                let first_name = svd::array::names(info, array_info).next().unwrap();
-                let note = (array_info.indexes().next().unwrap() != "0").then(||
-                    format!("<div class=\"warning\">`n` is the index of {0} in the array. `n == 0` corresponds to `{first_name}` {0}.</div>", "register")
-                );
+            if (array_convertible || array_proxy_convertible)
+                && accessors
+                    .iter()
+                    .find(|&a| matches!(a.access(), Accessor::Array(a) if a.name == accessor_name))
+                    .is_none()
+            {
                 accessors.push(
                     Accessor::Array(ArrayAccessor {
                         doc,
@@ -1207,7 +1209,7 @@ fn expand_register(
                         let idx_name = ident(
                             &util::fullname(&ri.name, &info.alternate_group, config.ignore_groups),
                             config,
-                            "cluster_accessor",
+                            "register_accessor",
                             span,
                         );
                         let doc = make_comment(
@@ -1300,15 +1302,16 @@ fn render_ercs(
             // Generate definition for each of the registers.
             RegisterCluster::Register(reg) => {
                 trace!("Register: {}, DeriveInfo: {}", reg.name, derive_info);
-                let mut rpath = None;
-                if let DeriveInfo::Implicit(rp) = derive_info {
-                    rpath = Some(rp.clone());
+                let rpath = if let DeriveInfo::Implicit(rp) = derive_info {
+                    Some(rp.clone())
                 } else {
                     let dpath = reg.derived_from.take();
                     if let Some(dpath) = dpath {
-                        rpath = derive_register(reg, &dpath, path, index)?;
+                        derive_register(reg, &dpath, path, index)?
+                    } else {
+                        None
                     }
-                }
+                };
                 let reg_name = &reg.name;
                 let rendered_reg = register::render(reg, path, rpath, index, config)
                     .with_context(|| format!("can't render register '{reg_name}'"))?;

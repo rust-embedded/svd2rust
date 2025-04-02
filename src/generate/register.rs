@@ -76,9 +76,13 @@ pub fn render(
             .segments
             .push(path_segment(ident(&dname, config, "register_mod", span)));
 
-        Ok(quote! {
-            pub use #derived as #reg_ty;
-            pub use #mod_derived as #mod_ty;
+        Ok(if name == dname && path == &dpath.block {
+            quote! {}
+        } else {
+            quote! {
+                pub use #derived as #reg_ty;
+                pub use #mod_derived as #mod_ty;
+            }
         })
     } else {
         let regspec_ty = regspec(&name, config, span);

@@ -33,6 +33,11 @@ impl AccessType {
             Self::Ref(a) => Self::RawRef(a),
         }
     }
+    pub fn access(&self) -> &Accessor {
+        match self {
+            Self::Ref(a) | Self::RawRef(a) => a,
+        }
+    }
 }
 
 impl ToTokens for AccessType {
