@@ -1104,7 +1104,7 @@ fn expand_register(
     } else {
         info_name.remove_dim()
     };
-    let ty_str = ty_name.clone();
+    let mut ty_str = ty_name.clone();
 
     match register {
         Register::Single(info) => {
@@ -1154,12 +1154,9 @@ fn expand_register(
                 "".into()
             };
             let ac = match derive_info {
-                DeriveInfo::Implicit(_) => {
+                DeriveInfo::Implicit(_) | DeriveInfo::Explicit(_) => {
                     ty_name = info_name.expand_dim(&index);
-                    convert_list && sequential_indexes_from0
-                }
-                DeriveInfo::Explicit(_) => {
-                    ty_name = info_name.expand_dim(&index);
+                    ty_str = ty_name.clone();
                     convert_list && sequential_indexes_from0
                 }
                 _ => convert_list,
@@ -1207,7 +1204,7 @@ fn expand_register(
                         let idx_name = ident(
                             &util::fullname(&ri.name, &info.alternate_group, config.ignore_groups),
                             config,
-                            "cluster_accessor",
+                            "register_accessor",
                             span,
                         );
                         let doc = make_comment(
