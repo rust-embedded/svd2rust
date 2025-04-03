@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Update `irx-config`
 - Fix register array derive regression
+- Sanitize `gen` keyword (new in Rust 2024 edition)
 
 ## [v0.36.0] - 2025-03-09
 
