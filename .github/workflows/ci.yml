@@ -83,7 +83,10 @@ jobs:
           - { vendor: Spansion, options: "-- --atomics" }
           - { vendor: STMicro }
           - { vendor: STMicro, options: "-- --atomics" }
-          - { vendor: STMicro, options: "-- --strict -f enum_value::p: --max-cluster-size --atomics --atomics-feature atomics --impl-debug --impl-defmt defmt" }
+          - {
+              vendor: STMicro,
+              options: "-- --strict -f enum_value::p: --max-cluster-size --atomics --atomics-feature atomics --impl-debug --impl-defmt defmt",
+            }
           - { vendor: Toshiba }
           - { vendor: Toshiba, options: "-- --strict --atomics" }
           - { vendor: TexasInstruments }
@@ -92,6 +95,7 @@ jobs:
           - { vendor: Espressif, options: "-- --atomics" }
           - { vendor: Vorago }
           - { vendor: Vorago, options: "-- --strict --atomics" }
+          - { vendor: Renesas }
           - { vendor: RaspberryPi }
           - { vendor: RaspberryPi, options: "-- --atomics" }
 
@@ -176,11 +180,11 @@ jobs:
       - name: Cache
         uses: Swatinem/rust-cache@v2
         with:
-          key: svdtools-0.3.19
+          key: svdtools-0.4.6
 
       - name: Install svdtools
         run: |
-          cargo install svdtools --version 0.3.19 --target-dir target
+          cargo install svdtools --version 0.4.6 --target-dir target
 
       - name: Run CI script
         run: |

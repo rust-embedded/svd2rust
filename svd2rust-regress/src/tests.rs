@@ -25,6 +25,7 @@ pub enum Manufacturer {
     Vorago,
     Espressif,
     RaspberryPi,
+    Renesas,
     Unknown,
 }
 
@@ -47,6 +48,7 @@ impl Manufacturer {
             Toshiba,
             SiFive,
             RaspberryPi,
+            Renesas,
             TexasInstruments,
             Espressif,
         ]

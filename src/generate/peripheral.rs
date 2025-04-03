@@ -188,8 +188,15 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
         "Pushing {} register or cluster blocks into output",
         ercs.len()
     );
-    let reg_block =
-        register_or_cluster_block(&ercs, &derive_infos, None, "Register block", None, config)?;
+    let reg_block = register_or_cluster_block(
+        &ercs,
+        &BlockPath::new(&p.name),
+        &derive_infos,
+        None,
+        "Register block",
+        None,
+        config,
+    )?;
 
     out.extend(quote! {
         #[doc = #doc]
@@ -469,6 +476,7 @@ fn make_comment(size: u32, offset: u32, description: &str) -> String {
 
 fn register_or_cluster_block(
     ercs: &[RegisterCluster],
+    path: &BlockPath,
     derive_infos: &[DeriveInfo],
     name: Option<&str>,
     doc: &str,
@@ -478,7 +486,7 @@ fn register_or_cluster_block(
     let mut rbfs = TokenStream::new();
     let mut accessors = TokenStream::new();
 
-    let ercs_expanded = expand(ercs, derive_infos, config)
+    let ercs_expanded = expand(ercs, path, derive_infos, config)
         .with_context(|| "Could not expand register or cluster block")?;
 
     // Locate conflicting regions; we'll need to use unions to represent them.
@@ -612,6 +620,7 @@ fn register_or_cluster_block(
 /// `RegisterBlockField`s containing `Field`s.
 fn expand(
     ercs: &[RegisterCluster],
+    path: &BlockPath,
     derive_infos: &[DeriveInfo],
     config: &Config,
 ) -> Result<Vec<RegisterBlockField>> {
@@ -623,14 +632,14 @@ fn expand(
         match &erc {
             RegisterCluster::Register(register) => {
                 let reg_name = &register.name;
-                let expanded_reg = expand_register(register, derive_info, config)
+                let expanded_reg = expand_register(register, path, derive_info, config)
                     .with_context(|| format!("can't expand register '{reg_name}'"))?;
                 trace!("Register: {reg_name}");
                 ercs_expanded.extend(expanded_reg);
             }
             RegisterCluster::Cluster(cluster) => {
                 let cluster_name = &cluster.name;
-                let expanded_cluster = expand_cluster(cluster, config)
+                let expanded_cluster = expand_cluster(cluster, path, config)
                     .with_context(|| format!("can't expand cluster '{cluster_name}'"))?;
                 trace!("Cluster: {cluster_name}");
                 ercs_expanded.extend(expanded_cluster);
@@ -873,9 +882,9 @@ fn is_derivable(
 /// Calculate the size of a Cluster.  If it is an array, then the dimensions
 /// tell us the size of the array.  Otherwise, inspect the contents using
 /// [cluster_info_size_in_bits].
-fn cluster_size_in_bits(cluster: &Cluster, config: &Config) -> Result<u32> {
+fn cluster_size_in_bits(cluster: &Cluster, path: &BlockPath, config: &Config) -> Result<u32> {
     match cluster {
-        Cluster::Single(info) => cluster_info_size_in_bits(info, config),
+        Cluster::Single(info) => cluster_info_size_in_bits(info, path, config),
         // If the contained array cluster has a mismatch between the
         // dimIncrement and the size of the array items, then the array
         // will get expanded in expand_cluster below.  The overall size
@@ -885,7 +894,7 @@ fn cluster_size_in_bits(cluster: &Cluster, config: &Config) -> Result<u32> {
                 return Ok(0); // Special case!
             }
             let last_offset = (dim.dim - 1) * dim.dim_increment * BITS_PER_BYTE;
-            let last_size = cluster_info_size_in_bits(info, config);
+            let last_size = cluster_info_size_in_bits(info, path, config);
             Ok(last_offset + last_size?)
         }
     }
@@ -893,13 +902,13 @@ fn cluster_size_in_bits(cluster: &Cluster, config: &Config) -> Result<u32> {
 
 /// Recursively calculate the size of a ClusterInfo. A cluster's size is the
 /// maximum end position of its recursive children.
-fn cluster_info_size_in_bits(info: &ClusterInfo, config: &Config) -> Result<u32> {
+fn cluster_info_size_in_bits(info: &ClusterInfo, path: &BlockPath, config: &Config) -> Result<u32> {
     let mut size = 0;
 
     for c in &info.children {
         let end = match c {
             RegisterCluster::Register(reg) => {
-                let reg_size: u32 = expand_register(reg, &DeriveInfo::Root, config)?
+                let reg_size: u32 = expand_register(reg, path, &DeriveInfo::Root, config)?
                     .iter()
                     .map(|rbf| rbf.size)
                     .sum();
@@ -907,7 +916,7 @@ fn cluster_info_size_in_bits(info: &ClusterInfo, config: &Config) -> Result<u32>
                 (reg.address_offset * BITS_PER_BYTE) + reg_size
             }
             RegisterCluster::Cluster(clust) => {
-                (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, config)?
+                (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, path, config)?
             }
         };
 
@@ -917,10 +926,14 @@ fn cluster_info_size_in_bits(info: &ClusterInfo, config: &Config) -> Result<u32>
 }
 
 /// Render a given cluster (and any children) into `RegisterBlockField`s
-fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBlockField>> {
+fn expand_cluster(
+    cluster: &Cluster,
+    path: &BlockPath,
+    config: &Config,
+) -> Result<Vec<RegisterBlockField>> {
     let mut cluster_expanded = vec![];
 
-    let cluster_size = cluster_info_size_in_bits(cluster, config)
+    let cluster_size = cluster_info_size_in_bits(cluster, path, config)
         .with_context(|| format!("Can't calculate cluster {} size", cluster.name))?;
     let description = cluster
         .description
@@ -1087,6 +1100,7 @@ fn expand_cluster(cluster: &Cluster, config: &Config) -> Result<Vec<RegisterBloc
 /// A `DeriveInfo::Implicit(_)` will also cause an array to be expanded.
 fn expand_register(
     register: &Register,
+    path: &BlockPath,
     derive_info: &DeriveInfo,
     config: &Config,
 ) -> Result<Vec<RegisterBlockField>> {
@@ -1104,7 +1118,7 @@ fn expand_register(
     } else {
         info_name.remove_dim()
     };
-    let ty_str = ty_name.clone();
+    let mut ty_str = ty_name.clone();
 
     match register {
         Register::Single(info) => {
@@ -1135,7 +1149,7 @@ fn expand_register(
                 || (register_size <= array_info.dim_increment * BITS_PER_BYTE);
 
             let convert_list = match config.keep_list {
-                true => info.name.contains("[%s]"),
+                true => info_name.contains("[%s]"),
                 false => true,
             };
 
@@ -1154,13 +1168,12 @@ fn expand_register(
                 "".into()
             };
             let ac = match derive_info {
-                DeriveInfo::Implicit(_) => {
+                DeriveInfo::Implicit(di) | DeriveInfo::Explicit(di)
+                    if path == &di.block && !info_name.contains("[%s]") =>
+                {
                     ty_name = info_name.expand_dim(&index);
-                    convert_list && sequential_indexes_from0
-                }
-                DeriveInfo::Explicit(_) => {
-                    ty_name = info_name.expand_dim(&index);
-                    convert_list && sequential_indexes_from0
+                    ty_str = ty_name.clone();
+                    false
                 }
                 _ => convert_list,
             };
@@ -1207,7 +1220,7 @@ fn expand_register(
                         let idx_name = ident(
                             &util::fullname(&ri.name, &info.alternate_group, config.ignore_groups),
                             config,
-                            "cluster_accessor",
+                            "register_accessor",
                             span,
                         );
                         let doc = make_comment(
@@ -1374,6 +1387,7 @@ fn cluster_block(
         };
         let reg_block = register_or_cluster_block(
             &c.children,
+            &path.new_cluster(&c.name),
             &mod_derive_infos,
             Some(&mod_name),
             &doc,
