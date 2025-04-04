@@ -696,6 +696,12 @@
   chip: va108xx
   svd_url: https://raw.githubusercontent.com/us-irs/va108xx-rs/refs/heads/main/va108xx/svd/va108xx.svd.patched
 
+# Renesas
+- arch: cortex-m
+  mfgr: Renesas
+  chip: r7fa4m1ab
+  svd_url: https://raw.githubusercontent.com/ra-rs/ra/refs/heads/main/svd/vendor/R7FA4M1AB.svd
+
 # Raspberry Pi
 - arch: cortex-m
   mfgr: RaspberryPi

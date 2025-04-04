@@ -50,14 +50,16 @@ pub fn render(
 ) -> Result<TokenStream> {
     let mut name = util::name_of(register, config.ignore_groups);
     // Rename if this is a derived array
-    if dpath.is_some() {
+    if let Some(dpath) = dpath.as_ref() {
         if let MaybeArray::Array(info, array_info) = register {
             if let Some(dim_index) = &array_info.dim_index {
-                let index: Cow<str> = dim_index.first().unwrap().into();
-                name = info
-                    .fullname(config.ignore_groups)
-                    .expand_dim(&index)
-                    .into()
+                if path == &dpath.block {
+                    let index: Cow<str> = dim_index.first().unwrap().into();
+                    name = info
+                        .fullname(config.ignore_groups)
+                        .expand_dim(&index)
+                        .into()
+                }
             }
         }
     }
@@ -1452,7 +1454,15 @@ impl Variant {
             span,
         );
         let sc = case.sanitize(&ev.name);
-        const INTERNALS: [&str; 6] = ["bit", "bits", "clear_bit", "set", "set_bit", "variant"];
+        const INTERNALS: [&str; 7] = [
+            "bit",
+            "bits",
+            "clear_bit",
+            "set",
+            "set_bit",
+            "variant",
+            "offset",
+        ];
         let sc = Ident::new(
             &(if INTERNALS.contains(&sc.as_ref()) {
                 sc + "_"
