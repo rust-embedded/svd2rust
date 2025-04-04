@@ -17,7 +17,7 @@ keywords = ["svd", "embedded", "register", "map", "generator"]
 license = "MIT OR Apache-2.0"
 name = "svd2rust"
 repository = "https://github.com/rust-embedded/svd2rust/"
-version = "0.36.0"
+version = "0.36.1"
 readme = "README.md"
 rust-version = "1.74"
 
@@ -58,11 +58,11 @@ url = { version = "2.5", features = ["serde"] }
 
 [dependencies.svd-parser]
 features = ["expand"]
-version = "0.14.8"
+version = "0.14.9"
 
 [dependencies.svd-rs]
 features = ["serde"]
-version = "0.14.11"
+version = "0.14.12"
 
 [dependencies.syn]
 version = "2.0"

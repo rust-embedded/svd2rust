@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.36.1] - 2025-04-04
+
 - Update `irx-config`
 - Fix register array derive regression
 
@@ -951,7 +953,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.36.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.36.1...HEAD
+[v0.36.1]: https://github.com/rust-embedded/svd2rust/compare/v0.36.0...v0.36.1
 [v0.36.0]: https://github.com/rust-embedded/svd2rust/compare/v0.35.0...v0.36.0
 [v0.35.0]: https://github.com/rust-embedded/svd2rust/compare/v0.34.0...v0.35.0
 [v0.34.0]: https://github.com/rust-embedded/svd2rust/compare/v0.33.5...v0.34.0
