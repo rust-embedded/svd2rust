@@ -132,13 +132,13 @@ pub fn ident_str(name: &str, fmt: &IdentFormat) -> String {
 }
 
 pub fn sanitize_keyword(sc: Cow<str>) -> Cow<str> {
-    const KEYWORDS: [&str; 55] = [
+    const KEYWORDS: [&str; 56] = [
         "abstract", "alignof", "as", "async", "await", "become", "box", "break", "const",
         "continue", "crate", "do", "dyn", "else", "enum", "extern", "false", "final", "fn", "for",
-        "if", "impl", "in", "let", "loop", "macro", "match", "mod", "move", "mut", "offsetof",
-        "override", "priv", "proc", "pub", "pure", "ref", "return", "self", "sizeof", "static",
-        "struct", "super", "trait", "true", "try", "type", "typeof", "unsafe", "unsized", "use",
-        "virtual", "where", "while", "yield",
+        "gen", "if", "impl", "in", "let", "loop", "macro", "match", "mod", "move", "mut",
+        "offsetof", "override", "priv", "proc", "pub", "pure", "ref", "return", "self", "sizeof",
+        "static", "struct", "super", "trait", "true", "try", "type", "typeof", "unsafe", "unsized",
+        "use", "virtual", "where", "while", "yield",
     ];
     if KEYWORDS.contains(&sc.as_ref()) {
         sc + "_"
