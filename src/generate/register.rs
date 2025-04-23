@@ -388,7 +388,9 @@ pub fn render_register_mod(
         let doc = format!("`read()` method returns [`{mod_ty}::R`](R) reader structure",);
         mod_items.extend(quote! {
             #[doc = #doc]
-            impl crate::Readable for #regspec_ty {}
+            impl crate::Readable for #regspec_ty {
+                type Reader = R;
+            }
         });
     }
     if can_write {
@@ -423,6 +425,7 @@ pub fn render_register_mod(
         mod_items.extend(quote! {
             #[doc = #doc]
             impl crate::Writable for #regspec_ty {
+                type Writer = W;
                 type Safety = crate::#safe_ty;
                 #zero_to_modify_fields_bitmap
                 #one_to_modify_fields_bitmap
