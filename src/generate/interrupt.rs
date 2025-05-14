@@ -125,12 +125,12 @@ pub fn render(
                 .as_deref()
                 .unwrap_or(".vector_table.interrupts");
             let link_section_attr = quote! {
-                #[link_section = #link_section_name]
+                #[unsafe(link_section = #link_section_name)]
             };
 
             root.extend(quote! {
                 #[cfg(feature = "rt")]
-                extern "C" {
+                unsafe extern "C" {
                     #(#names_cfg_attr fn #names();)*
                 }
 
@@ -144,7 +144,7 @@ pub fn render(
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
                 #link_section_attr
-                #[no_mangle]
+                #[unsafe(no_mangle)]
                 pub static __INTERRUPTS: [Vector; #n] = [
                     #elements
                 ];
@@ -160,7 +160,7 @@ pub fn render(
                 .as_deref()
                 .unwrap_or(".vector_table.interrupts");
             let link_section_attr = quote! {
-                #[link_section = #link_section_name]
+                #[unsafe(link_section = #link_section_name)]
             };
 
             root.extend(quote! {
@@ -179,7 +179,7 @@ pub fn render(
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
                 #link_section_attr
-                #[no_mangle]
+                #[unsafe(no_mangle)]
                 #[used]
                 pub static __INTERRUPTS:
                     [Vector; #n] = [
@@ -194,13 +194,13 @@ pub fn render(
 
             let link_section_attr = config.interrupt_link_section.as_ref().map(|section| {
                 quote! {
-                    #[link_section = #section]
+                    #[unsafe(link_section = #section)]
                 }
             });
 
             root.extend(quote! {
                 #[cfg(feature = "rt")]
-                extern "C" {
+                unsafe extern "C" {
                     #(#names_cfg_attr fn #names();)*
                 }
 
@@ -214,7 +214,7 @@ pub fn render(
                 #[cfg(feature = "rt")]
                 #[doc(hidden)]
                 #link_section_attr
-                #[no_mangle]
+                #[unsafe(no_mangle)]
                 pub static __EXTERNAL_INTERRUPTS: [Vector; #n] = [
                     #elements
                 ];
@@ -227,13 +227,13 @@ pub fn render(
 
             let link_section_attr = config.interrupt_link_section.as_ref().map(|section| {
                 quote! {
-                    #[link_section = #section]
+                    #[unsafe(link_section = #section)]
                 }
             });
 
             root.extend(quote! {
                 #[cfg(feature = "rt")]
-                extern "C" {
+                unsafe extern "C" {
                     #(#names_cfg_attr fn #names();)*
                 }
 
@@ -414,7 +414,7 @@ pub fn render(
                         }
 
                         #[allow(non_snake_case)]
-                        #[no_mangle]
+                        #[unsafe(no_mangle)]
                         pub extern #abi fn $NAME() {
                             // check that the handler exists
                             let _ = $crate::interrupt::Interrupt::$NAME;
@@ -433,7 +433,7 @@ pub fn render(
                     };
                     ($NAME:ident, $path:path) => {
                         #[allow(non_snake_case)]
-                        #[no_mangle]
+                        #[unsafe(no_mangle)]
                         pub extern #abi fn $NAME() {
                             // check that the handler exists
                             let _ = $crate::interrupt::Interrupt::$NAME;
