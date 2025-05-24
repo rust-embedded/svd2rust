@@ -52,15 +52,16 @@ impl RiscvEnumItem {
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 #[non_exhaustive]
 pub struct RiscvClintConfig {
+    pub pub_new: bool,
     pub name: String,
-    pub freq: Option<usize>,
-    pub async_delay: bool,
+    pub mtime_freq: usize,
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 #[non_exhaustive]
 pub struct RiscvPlicConfig {
+    pub pub_new: bool,
     pub name: String,
     pub core_interrupt: Option<String>,
     pub hart_id: Option<String>,
