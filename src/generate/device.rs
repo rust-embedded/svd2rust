@@ -219,34 +219,31 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             // Core peripherals are handled above
             continue;
         }
-        if config.target == Target::RISCV && riscv::is_riscv_peripheral(p, &config.settings) {
-            // RISC-V specific peripherals are handled above
-            continue;
-        }
+        if config.target != Target::RISCV || !riscv::is_riscv_peripheral(p, &config.settings) {
+            debug!("Rendering peripheral {}", p.name);
+            let periph = peripheral::render(p, &index, config).with_context(|| {
+                let group_name = p.group_name.as_deref().unwrap_or("No group name");
+                let mut context_string =
+                    format!("can't render peripheral '{}', group '{group_name}'", p.name);
+                if let Some(dname) = p.derived_from.as_ref() {
+                    context_string += &format!(", derived from: '{dname}'");
+                }
+                context_string
+            })?;
 
-        debug!("Rendering peripheral {}", p.name);
-        let periph = peripheral::render(p, &index, config).with_context(|| {
-            let group_name = p.group_name.as_deref().unwrap_or("No group name");
-            let mut context_string =
-                format!("can't render peripheral '{}', group '{group_name}'", p.name);
-            if let Some(dname) = p.derived_from.as_ref() {
-                context_string += &format!(", derived from: '{dname}'");
+            out.extend(periph);
+
+            if p.registers
+                .as_ref()
+                .map(|v| &v[..])
+                .unwrap_or(&[])
+                .is_empty()
+                && p.derived_from.is_none()
+            {
+                // No register block will be generated so don't put this peripheral
+                // in the `Peripherals` struct
+                continue;
             }
-            context_string
-        })?;
-
-        out.extend(periph);
-
-        if p.registers
-            .as_ref()
-            .map(|v| &v[..])
-            .unwrap_or(&[])
-            .is_empty()
-            && p.derived_from.is_none()
-        {
-            // No register block will be generated so don't put this peripheral
-            // in the `Peripherals` struct
-            continue;
         }
         let mut feature_attribute = TokenStream::new();
         if config.feature_group && p.group_name.is_some() {

@@ -1,7 +1,7 @@
 use crate::{svd::Peripheral, util, Config, Settings};
 use anyhow::Result;
 use log::debug;
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use std::{collections::HashMap, fmt::Write, str::FromStr};
 
@@ -216,71 +216,93 @@ pub fn render(
 
     let mut riscv_peripherals = TokenStream::new();
     if let Some(c) = config.settings.riscv_config.as_ref() {
-        let harts = match c.harts.is_empty() {
-            true => vec![],
-            false => c
-                .harts
-                .iter()
-                .map(|h| (TokenStream::from_str(&h.name).unwrap(), h.value))
-                .collect::<Vec<_>>(),
+        let harts = c
+            .harts
+            .iter()
+            .map(|h| (TokenStream::from_str(&h.name).unwrap(), h.value))
+            .collect::<Vec<_>>();
+        let harts = match harts.len() {
+            0 => quote! {},
+            _ => {
+                let harts = harts
+                    .iter()
+                    .map(|(name, value)| {
+                        let value = TokenStream::from_str(&format!("{value}")).unwrap();
+                        quote! {crate::interrupt::Hart::#name => #value}
+                    })
+                    .collect::<Vec<_>>();
+                quote! {
+                    harts [#(#harts),*]
+                }
+            }
         };
         if let Some(clint) = &c.clint {
             let p = peripherals.iter().find(|&p| p.name == clint.name).unwrap();
+
+            let span = Span::call_site();
+            let vis = match clint.pub_new {
+                true => quote! {pub},
+                false => quote! {},
+            };
+            let name = util::ident(&p.name, config, "peripheral", span);
             let base = TokenStream::from_str(&format!("base 0x{:X},", p.base_address)).unwrap();
-            let freq = match clint.freq {
-                Some(clk) => match clint.async_delay {
-                    true => TokenStream::from_str(&format!("freq {clk}, async_delay,")).unwrap(),
-                    false => TokenStream::from_str(&format!("freq {clk},")).unwrap(),
-                },
-                None => quote! {},
-            };
-            let mtimecmps = harts
-                .iter()
-                .map(|(name, value)| {
-                    let mtimecmp_name = TokenStream::from_str(&format!("mtimecmp{value}")).unwrap();
-                    let doc = format!("[{value}](crate::interrupt::Hart::{name})");
-                    quote! {#mtimecmp_name = (crate::interrupt::Hart::#name, #doc)}
-                })
-                .collect::<Vec<_>>();
-            let mtimecmps = match mtimecmps.len() {
-                0 => quote! {},
-                _ => quote! {mtimecmps [ #(#mtimecmps),* ],},
-            };
-            let msips = harts
-                .iter()
-                .map(|(name, value)| {
-                    let msip_name = TokenStream::from_str(&format!("msip{value}")).unwrap();
-                    let doc = format!("[{value}](crate::interrupt::Hart::{name})");
-                    quote! {#msip_name = (crate::interrupt::Hart::#name, #doc)}
-                })
-                .collect::<Vec<_>>();
-            let msips = match msips.len() {
-                0 => quote! {},
-                _ => quote! {msips [ #(#msips),* ],},
-            };
+            let freq = TokenStream::from_str(&format!("mtime_freq {},", clint.mtime_freq)).unwrap();
 
             riscv_peripherals.extend(quote! {
-                riscv_peripheral::clint_codegen!(#base #freq #mtimecmps #msips);
+                riscv_peripheral::clint_codegen!(#vis #name, #base #freq #harts);
+                impl #name {
+                    /// Steal an instance of this peripheral
+                    ///
+                    /// # Safety
+                    ///
+                    /// Ensure that the new instance of the peripheral cannot be used in a way
+                    /// that may race with any existing instances, for example by only
+                    /// accessing read-only or write-only registers, or by consuming the
+                    /// original peripheral and using critical sections to coordinate
+                    /// access between multiple new instances.
+                    ///
+                    /// Additionally, other software such as HALs may rely on only one
+                    /// peripheral instance existing to ensure memory safety; ensure
+                    /// no stolen instances are passed to such software.
+                    #[inline]
+                    pub unsafe fn steal() -> Self {
+                        Self::new()
+                    }
+                }
             });
         }
         if let Some(plic) = &c.plic {
             let p = peripherals.iter().find(|&p| p.name == plic.name).unwrap();
-            let base = TokenStream::from_str(&format!("base 0x{:X},", p.base_address)).unwrap();
-            let ctxs = harts
-                .iter()
-                .map(|(name, value)| {
-                    let ctx_name = TokenStream::from_str(&format!("ctx{value}")).unwrap();
-                    let doc = format!("[{value}](crate::interrupt::Hart::{name})");
-                    quote! {#ctx_name = (crate::interrupt::Hart::#name, #doc)}
-                })
-                .collect::<Vec<_>>();
-            let ctxs = match ctxs.len() {
-                0 => quote! {},
-                _ => quote! {ctxs [ #(#ctxs),* ],},
+
+            let span = Span::call_site();
+            let vis = match plic.pub_new {
+                true => quote! {pub},
+                false => quote! {},
             };
+            let name = util::ident(&p.name, config, "peripheral", span);
+            let base = TokenStream::from_str(&format!("base 0x{:X},", p.base_address)).unwrap();
 
             riscv_peripherals.extend(quote! {
-                riscv_peripheral::plic_codegen!(#base #ctxs);
+                riscv_peripheral::plic_codegen!(#vis #name, #base #harts);
+                impl #name {
+                    /// Steal an instance of this peripheral
+                    ///
+                    /// # Safety
+                    ///
+                    /// Ensure that the new instance of the peripheral cannot be used in a way
+                    /// that may race with any existing instances, for example by only
+                    /// accessing read-only or write-only registers, or by consuming the
+                    /// original peripheral and using critical sections to coordinate
+                    /// access between multiple new instances.
+                    ///
+                    /// Additionally, other software such as HALs may rely on only one
+                    /// peripheral instance existing to ensure memory safety; ensure
+                    /// no stolen instances are passed to such software.
+                    #[inline]
+                    pub unsafe fn steal() -> Self {
+                        Self::new()
+                    }
+                }
             });
 
             if let Some(core_interrupt) = &plic.core_interrupt {
@@ -294,8 +316,9 @@ pub fn render(
                 mod_items.extend(quote! {
                     #[cfg(feature = "rt")]
                     #[riscv_rt::core_interrupt(CoreInterrupt::#core_interrupt)]
-                    fn plic_handler() {
-                        let claim = crate::PLIC::#ctx.claim();
+                    unsafe fn plic_handler() {
+                        let plic = unsafe { crate::#name::steal() };
+                        let claim = plic.#ctx.claim();
                         if let Some(s) = claim.claim::<ExternalInterrupt>() {
                             unsafe { _dispatch_external_interrupt(s.number()) }
                             claim.complete(s);

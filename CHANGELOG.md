@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Adapt RISC-V specific codegen for `riscv-peripheral` v0.3.0 rework
+- Include `riscv-peripheral` peripherals in `Peripherals` struct
+
 ## [v0.36.1] - 2025-04-04
 
 - Update `irx-config`
