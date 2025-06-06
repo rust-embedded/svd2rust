@@ -115,9 +115,6 @@ pub trait Readable: RegisterSpec {}
 ///
 /// Registers marked with `Readable` can be also be `modify`'ed.
 pub trait Writable: RegisterSpec {
-    /// Is it safe to write any bits to register
-    type Safety;
-
     /// Specifies the register bits that are not changed if you pass `1` and are changed if you pass `0`
     const ZERO_TO_MODIFY_FIELDS_BITMAP: Self::Ux = Self::Ux::ZERO;
 
@@ -193,17 +190,17 @@ pub mod raw {
     }
 
     #[must_use = "after creating `FieldWriter` you need to call field value setting method"]
-    pub struct FieldWriter<'a, REG, const WI: u8, FI = u8, Safety = Unsafe>
+    pub struct FieldWriter<'a, REG, const WI: u8, FI = u8>
     where
         REG: Writable + RegisterSpec,
         FI: FieldSpec,
     {
         pub(crate) w: &'a mut W<REG>,
         pub(crate) o: u8,
-        _field: marker::PhantomData<(FI, Safety)>,
+        _field: marker::PhantomData<FI>,
     }
 
-    impl<'a, REG, const WI: u8, FI, Safety> FieldWriter<'a, REG, WI, FI, Safety>
+    impl<'a, REG, const WI: u8, FI> FieldWriter<'a, REG, WI, FI>
     where
         REG: Writable + RegisterSpec,
         FI: FieldSpec,
@@ -294,11 +291,25 @@ impl<REG: Writable> W<REG> {
 }
 impl<REG> W<REG>
 where
-    REG: Writable<Safety = Safe>,
+    REG: Writable + SafeSet<REG::Ux>,
 {
     /// Writes raw bits to the register.
     #[inline(always)]
     pub fn set(&mut self, bits: REG::Ux) -> &mut Self {
+        const {
+            match REG::SAFE {
+                Safe::All => {}
+                Safe::Range { min, max } => {
+                    assert!(bits >= min && bits <= max);
+                }
+                Safe::RangeFrom { min } => {
+                    assert!(bits >= MIN);
+                }
+                Safe::RangeTo { min } => {
+                    assert!(bits >= MIN);
+                }
+            }
+        }
         self.bits = bits;
         self
     }
@@ -371,22 +382,26 @@ impl<FI> core::fmt::Debug for BitReader<FI> {
     }
 }
 
-/// Marker for register/field writers which can take any value of specified width
-pub struct Safe;
-/// You should check that value is allowed to pass to register/field writer marked with this
-pub struct Unsafe;
-/// Marker for field writers are safe to write in specified inclusive range
-pub struct Range<const MIN: u64, const MAX: u64>;
-/// Marker for field writers are safe to write in specified inclusive range
-pub struct RangeFrom<const MIN: u64>;
-/// Marker for field writers are safe to write in specified inclusive range
-pub struct RangeTo<const MAX: u64>;
+#[derive(Clone, Copy, Debug)]
+pub enum Safe {
+    /// Marker for register/field writers which can take any value of specified width
+    All,
+    /// Marker for field writers are safe to write in specified inclusive range
+    Range { min: u64, max: u64 },
+    /// Marker for field writers are safe to write in specified inclusive range
+    RangeFrom { min: u64 },
+    /// Marker for field writers are safe to write in specified inclusive range
+    RangeTo { max: u64 },
+}
+
+pub trait SafeSet {
+    const SAFE: Safe = Safe::All;
+}
 
 /// Write field Proxy
-pub type FieldWriter<'a, REG, const WI: u8, FI = u8, Safety = Unsafe> =
-    raw::FieldWriter<'a, REG, WI, FI, Safety>;
+pub type FieldWriter<'a, REG, const WI: u8, FI = u8> = raw::FieldWriter<'a, REG, WI, FI>;
 
-impl<REG, const WI: u8, FI, Safety> FieldWriter<'_, REG, WI, FI, Safety>
+impl<REG, const WI: u8, FI> FieldWriter<'_, REG, WI, FI>
 where
     REG: Writable + RegisterSpec,
     FI: FieldSpec,
@@ -407,7 +422,7 @@ where
     }
 }
 
-impl<'a, REG, const WI: u8, FI, Safety> FieldWriter<'a, REG, WI, FI, Safety>
+impl<'a, REG, const WI: u8, FI> FieldWriter<'a, REG, WI, FI>
 where
     REG: Writable + RegisterSpec,
     FI: FieldSpec,
@@ -494,7 +509,7 @@ where
     }
 }
 
-impl<'a, REG, const WI: u8, FI, Safety> FieldWriter<'a, REG, WI, FI, Safety>
+impl<'a, REG, const WI: u8, FI> FieldWriter<'a, REG, WI, FI>
 where
     REG: Writable + RegisterSpec,
     FI: IsEnum,
