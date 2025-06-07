@@ -1497,12 +1497,6 @@ fn add_with_no_variants(
         .as_ref()
         .map(|feature| quote!(#[cfg_attr(feature = #feature, derive(defmt::Format))]));
 
-    let cast = if fty == "bool" {
-        quote! { val.0 as u8 != 0 }
-    } else {
-        quote! { val.0 as _ }
-    };
-
     let desc = if let Some(rv) = reset_value {
         format!("{desc}\n\nValue on reset: {rv}")
     } else {
@@ -1513,11 +1507,12 @@ fn add_with_no_variants(
         #[doc = #desc]
         #defmt
         #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        #[repr(transparent)]
         pub struct #pc(#fty);
         impl From<#pc> for #fty {
             #[inline(always)]
             fn from(val: #pc) -> Self {
-                #cast
+                val.0
             }
         }
     });
