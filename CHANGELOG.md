@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Adapt RISC-V specific codegen for `riscv-peripheral` v0.3.0 rework
 - Include `riscv-peripheral` peripherals in `Peripherals` struct
+- `repr(transparent)` for field wrapper
 
 ## [v0.36.1] - 2025-04-04
 
