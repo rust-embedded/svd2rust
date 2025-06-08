@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fix new `mismatched-lifetime-syntaxes` lint warnings
 - Adapt RISC-V specific codegen for `riscv-peripheral` v0.3.0 rework
 - Include `riscv-peripheral` peripherals in `Peripherals` struct
 

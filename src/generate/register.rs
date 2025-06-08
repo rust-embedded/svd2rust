@@ -1313,7 +1313,7 @@ pub fn fields(
                     #[doc = ""]
                     #[doc = #note]
                     #inline
-                    pub fn #name_snake_case(&mut self, n: u8) -> #writer_ty<#regspec_ty> {
+                    pub fn #name_snake_case(&mut self, n: u8) -> #writer_ty<'_, #regspec_ty> {
                         #[allow(clippy::no_effect)]
                         [(); #dim][n as usize];
                         #writer_ty::new(self, #offset_calc)
@@ -1333,7 +1333,7 @@ pub fn fields(
                     w_impl_items.extend(quote! {
                         #[doc = #doc]
                         #inline
-                        pub fn #name_snake_case_n(&mut self) -> #writer_ty<#regspec_ty> {
+                        pub fn #name_snake_case_n(&mut self) -> #writer_ty<'_, #regspec_ty> {
                             #writer_ty::new(self, #sub_offset)
                         }
                     });
@@ -1344,7 +1344,7 @@ pub fn fields(
                 w_impl_items.extend(quote! {
                     #[doc = #doc]
                     #inline
-                    pub fn #name_snake_case(&mut self) -> #writer_ty<#regspec_ty> {
+                    pub fn #name_snake_case(&mut self) -> #writer_ty<'_, #regspec_ty> {
                         #writer_ty::new(self, #offset)
                     }
                 });
