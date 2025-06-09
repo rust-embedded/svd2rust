@@ -50,13 +50,9 @@ mod atomic {
         #[inline(always)]
         pub unsafe fn set_bits<F>(&self, f: F)
         where
-            F: FnOnce(&mut W<REG>) -> &mut W<REG>,
+            F: FnOnce(&mut REG::Writer) -> &mut REG::Writer,
         {
-            let bits = f(&mut W {
-                bits: REG::Ux::ZERO,
-                _reg: marker::PhantomData,
-            })
-            .bits;
+            let bits = f(&mut REG::Writer::from_bits(REG::Ux::ZERO)).to_bits();
             REG::Ux::atomic_or(self.register.as_ptr(), bits);
         }
 
@@ -69,13 +65,9 @@ mod atomic {
         #[inline(always)]
         pub unsafe fn clear_bits<F>(&self, f: F)
         where
-            F: FnOnce(&mut W<REG>) -> &mut W<REG>,
+            F: FnOnce(&mut REG::Writer) -> &mut REG::Writer,
         {
-            let bits = f(&mut W {
-                bits: !REG::Ux::ZERO,
-                _reg: marker::PhantomData,
-            })
-            .bits;
+            let bits = f(&mut REG::Writer::from_bits(!REG::Ux::ZERO)).to_bits();
             REG::Ux::atomic_and(self.register.as_ptr(), bits);
         }
 
@@ -88,13 +80,9 @@ mod atomic {
         #[inline(always)]
         pub unsafe fn toggle_bits<F>(&self, f: F)
         where
-            F: FnOnce(&mut W<REG>) -> &mut W<REG>,
+            F: FnOnce(&mut REG::Writer) -> &mut REG::Writer,
         {
-            let bits = f(&mut W {
-                bits: REG::Ux::ZERO,
-                _reg: marker::PhantomData,
-            })
-            .bits;
+            let bits = f(&mut REG::Writer::from_bits(REG::Ux::ZERO)).to_bits();
             REG::Ux::atomic_xor(self.register.as_ptr(), bits);
         }
     }
