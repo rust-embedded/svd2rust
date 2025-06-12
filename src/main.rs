@@ -129,6 +129,13 @@ fn run() -> Result<()> {
                 .value_name("FEATURE"),
         )
         .arg(
+            Arg::new("bit_banding")
+                .long("bit-banding")
+                .alias("bit_banding")
+                .action(ArgAction::SetTrue)
+                .help("Generate bit-banding register modification API"),
+        )
+        .arg(
             Arg::new("ignore_groups")
                 .long("ignore-groups")
                 .alias("ignore_groups")
