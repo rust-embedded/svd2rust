@@ -245,8 +245,9 @@ pub fn render(
                 }
 
                 #[cfg(feature = "rt")]
-                #link_section_attr
                 #[doc(hidden)]
+                #link_section_attr
+                #[no_mangle]
                 pub static __INTERRUPTS: [Vector; #n] = [
                     #elements
                 ];
