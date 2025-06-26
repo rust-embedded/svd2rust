@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Fix new `mismatched-lifetime-syntaxes` lint warnings
 - Adapt RISC-V specific codegen for `riscv-peripheral` v0.3.0 rework
 - Include `riscv-peripheral` peripherals in `Peripherals` struct
+- Ensure `__INTERRUPTS` are `#[no_mangle]` on Xtensa.
 
 ## [v0.36.1] - 2025-04-04
 
