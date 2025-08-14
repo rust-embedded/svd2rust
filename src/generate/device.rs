@@ -266,7 +266,11 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                     #feature_attribute
                     pub #p_singleton: #p_ty,
                 });
-                exprs.extend(quote!(#feature_attribute #p_singleton: unsafe { #p_ty::steal() },));
+                exprs.extend(if config.edition >= RustEdition::E2024 {
+                    quote!(#feature_attribute #p_singleton: unsafe { #p_ty::steal() },)
+                } else {
+                    quote!(#feature_attribute #p_singleton: #p_ty::steal(),)
+                });
             }
             Peripheral::Array(p, dim_element) => {
                 for p_name in names(p, dim_element) {
@@ -281,9 +285,11 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                         #feature_attribute
                         pub #p_singleton: #p_ty,
                     });
-                    exprs.extend(
-                        quote!(#feature_attribute #p_singleton: unsafe { #p_ty::steal() },),
-                    );
+                    exprs.extend(if config.edition >= RustEdition::E2024 {
+                        quote!(#feature_attribute #p_singleton: unsafe { #p_ty::steal() },)
+                    } else {
+                        quote!(#feature_attribute #p_singleton: #p_ty::steal(),)
+                    });
                 }
             }
         }
