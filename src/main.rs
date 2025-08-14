@@ -108,6 +108,13 @@ fn run() -> Result<()> {
                 .value_name("YAML_FILE"),
         )
         .arg(
+            Arg::new("edition")
+                .long("edition")
+                .help("Rust edition of generated code")
+                .action(ArgAction::Set)
+                .value_name("YEAR"),
+        )
+        .arg(
             Arg::new("target")
                 .long("target")
                 .help("Target architecture")

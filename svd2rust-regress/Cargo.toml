@@ -3,7 +3,7 @@ edition = "2021"
 name = "svd2rust-regress"
 version = "0.1.0"
 authors = ["James Munns <james.munns@gmail.com>", "The svd2rust developers"]
-rust-version = "1.82.0"
+rust-version = "1.76.0"
 
 [dependencies]
 clap = { version = "4.1", features = ["color", "derive", "string", "env"] }

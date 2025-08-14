@@ -273,10 +273,19 @@ impl TestCase {
             chip_dir.display()
         );
         println!("chip_dir: {}", chip_dir.display());
+
+        let edition = if let Some(o) = passthrough_opts
+            .as_ref()
+            .and_then(|opts| opts.iter().find(|o| o.starts_with("--edition")))
+        {
+            &o[10..]
+        } else {
+            "2021"
+        };
         Command::new("cargo")
             .env("USER", user)
             .arg("init")
-            .args(["--edition", "2021"])
+            .args(["--edition", edition])
             .arg("--name")
             .arg(chip_name)
             .arg("--vcs")
