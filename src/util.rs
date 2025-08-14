@@ -436,14 +436,14 @@ pub fn build_rs(config: &Config) -> TokenStream {
 }
 
 pub trait DimSuffix {
-    fn expand_dim(&self, suffix: &str) -> Cow<str>;
-    fn remove_dim(&self) -> Cow<str> {
+    fn expand_dim(&self, suffix: &str) -> Cow<'_, str>;
+    fn remove_dim(&self) -> Cow<'_, str> {
         self.expand_dim("")
     }
 }
 
 impl DimSuffix for str {
-    fn expand_dim(&self, suffix: &str) -> Cow<str> {
+    fn expand_dim(&self, suffix: &str) -> Cow<'_, str> {
         if self.contains("%s") {
             self.replace(if self.contains("[%s]") { "[%s]" } else { "%s" }, suffix)
                 .into()
@@ -454,11 +454,11 @@ impl DimSuffix for str {
 }
 
 pub trait FullName {
-    fn fullname(&self, ignore_group: bool) -> Cow<str>;
+    fn fullname(&self, ignore_group: bool) -> Cow<'_, str>;
 }
 
 impl FullName for RegisterInfo {
-    fn fullname(&self, ignore_group: bool) -> Cow<str> {
+    fn fullname(&self, ignore_group: bool) -> Cow<'_, str> {
         fullname(&self.name, &self.alternate_group, ignore_group)
     }
 }
@@ -471,7 +471,7 @@ pub fn fullname<'a>(name: &'a str, group: &Option<String>, ignore_group: bool) -
 }
 
 impl FullName for PeripheralInfo {
-    fn fullname(&self, _ignore_group: bool) -> Cow<str> {
+    fn fullname(&self, _ignore_group: bool) -> Cow<'_, str> {
         self.name.as_str().into()
     }
 }
