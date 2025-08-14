@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Fix new `mismatched-lifetime-syntaxes` lint warnings
 - Adapt RISC-V specific codegen for `riscv-peripheral` v0.3.0 rework
 - Include `riscv-peripheral` peripherals in `Peripherals` struct
+- `repr(transparent)` for field wrapper
 - Ensure `__INTERRUPTS` are `#[no_mangle]` on Xtensa.
 - Add `base_isa` field to `riscv_config` to allow the `riscv_rt::core_interrupt`
   macro to properly generate start trap assembly routines in vectored mode.
