@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.37.0] - 2025-08-14
+
 - Fix new `mismatched-lifetime-syntaxes` lint warnings
 - Adapt RISC-V specific codegen for `riscv-peripheral` v0.3.0 rework
 - Include `riscv-peripheral` peripherals in `Peripherals` struct
@@ -963,7 +965,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.36.1...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.37.0...HEAD
+[v0.37.0]: https://github.com/rust-embedded/svd2rust/compare/v0.36.1...v0.37.0
 [v0.36.1]: https://github.com/rust-embedded/svd2rust/compare/v0.36.0...v0.36.1
 [v0.36.0]: https://github.com/rust-embedded/svd2rust/compare/v0.35.0...v0.36.0
 [v0.35.0]: https://github.com/rust-embedded/svd2rust/compare/v0.34.0...v0.35.0
