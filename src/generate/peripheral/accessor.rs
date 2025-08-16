@@ -14,11 +14,14 @@ pub enum Accessor {
 pub enum AccessType {
     Ref(Accessor),
     RawRef(Accessor),
+    Ptr(Accessor),
 }
 
 impl Accessor {
-    pub fn raw_if(self, flag: bool) -> AccessType {
-        if flag {
+    pub fn ptr_or_rawref_if(self, ptr_flag: bool, raw_flag: bool) -> AccessType {
+        if ptr_flag {
+            AccessType::Ptr(self)
+        } else if raw_flag {
             AccessType::RawRef(self)
         } else {
             AccessType::Ref(self)
@@ -29,7 +32,7 @@ impl Accessor {
 impl AccessType {
     pub fn raw(self) -> Self {
         match self {
-            Self::RawRef(_) => self,
+            Self::RawRef(_) | Self::Ptr(_) => self,
             Self::Ref(a) => Self::RawRef(a),
         }
     }
@@ -59,6 +62,21 @@ impl ToTokens for AccessType {
                     #[inline(always)]
                     pub const fn #name(&self) -> &#ty {
                         unsafe { &*core::ptr::from_ref(self).cast::<u8>() #offset .cast() }
+                    }
+                }
+            }
+            Self::Ptr(Accessor::Reg(RegAccessor {
+                doc,
+                name,
+                ty,
+                offset,
+            })) => {
+                let offset = (*offset != 0).then(|| unsuffixed(*offset)).map(|o| quote!(.add(#o)));
+                quote! {
+                    #[doc = #doc]
+                    #[inline(always)]
+                    pub const fn #name(&self) -> #ty {
+                        #ty::new(unsafe { self.ptr() #offset })
                     }
                 }
             }
@@ -118,6 +136,41 @@ impl ToTokens for AccessType {
                     }
                 }
             }
+            Self::Ptr(Accessor::Array(ArrayAccessor {
+                doc,
+                name,
+                ty,
+                offset,
+                dim,
+                increment,
+                note,
+            })) => {
+                let name_iter = Ident::new(&format!("{name}_iter"), Span::call_site());
+                let offset = (*offset != 0).then(|| unsuffixed(*offset)).map(|o| quote!(.add(#o)));
+                let dim = unsuffixed(*dim);
+                let increment = (*increment != 1).then(|| unsuffixed(*increment)).map(|i| quote!(#i *));
+                let note = note.as_ref().map(|note| quote! {
+                    #[doc = ""]
+                    #[doc = #note]
+                });
+                let cast = quote! { #ty::new(unsafe { self.ptr() #offset .add(#increment n) }) };
+                quote! {
+                    #[doc = #doc]
+                    #note
+                    #[inline(always)]
+                    pub const fn #name(&self, n: usize) -> #ty {
+                        #[allow(clippy::no_effect)]
+                        [(); #dim][n];
+                        #cast
+                    }
+                    #[doc = "Iterator for array of:"]
+                    #[doc = #doc]
+                    #[inline(always)]
+                    pub fn #name_iter(&self) -> impl Iterator<Item=#ty> + '_ {
+                        (0..#dim).map(move |n| #cast)
+                    }
+                }
+            }
             Self::RawRef(Accessor::ArrayElem(elem)) | Self::Ref(Accessor::ArrayElem(elem)) => {
                 let ArrayElemAccessor {
                     doc,
@@ -131,6 +184,21 @@ impl ToTokens for AccessType {
                     #[doc = #doc]
                     #[inline(always)]
                     pub const fn #name(&self) -> &#ty {
+                        self.#basename(#i)
+                    }
+                }
+            }
+            Self::Ptr(Accessor::ArrayElem(ArrayElemAccessor {
+                    doc,
+                    name,
+                    ty,
+                    basename,
+                    i,
+                })) => {
+                quote! {
+                    #[doc = #doc]
+                    #[inline(always)]
+                    pub const fn #name(&self) -> #ty {
                         self.#basename(#i)
                     }
                 }

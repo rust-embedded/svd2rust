@@ -1,67 +1,27 @@
-/// Generic peripheral accessor
-pub struct Periph<RB, const A: usize> {
-    _marker: marker::PhantomData<RB>,
-}
-
-unsafe impl<RB, const A: usize> Send for Periph<RB, A> {}
-
-impl<RB, const A: usize> Periph<RB, A> {
-    ///Pointer to the register block
-    pub const PTR: *const RB = A as *const _;
-
-    ///Return the pointer to the register block
-    #[inline(always)]
-    pub const fn ptr() -> *const RB {
-        Self::PTR
-    }
-
-    /// Steal an instance of this peripheral
-    ///
-    /// # Safety
-    ///
-    /// Ensure that the new instance of the peripheral cannot be used in a way
-    /// that may race with any existing instances, for example by only
-    /// accessing read-only or write-only registers, or by consuming the
-    /// original peripheral and using critical sections to coordinate
-    /// access between multiple new instances.
-    ///
-    /// Additionally, other software such as HALs may rely on only one
-    /// peripheral instance existing to ensure memory safety; ensure
-    /// no stolen instances are passed to such software.
-    pub unsafe fn steal() -> Self {
-        Self {
-            _marker: marker::PhantomData,
-        }
-    }
-}
-
-impl<RB, const A: usize> core::ops::Deref for Periph<RB, A> {
-    type Target = RB;
-
-    #[inline(always)]
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*Self::PTR }
-    }
-}
-
-/// This structure provides volatile access to registers.
-#[repr(transparent)]
+/// This structure provides unsafe volatile access to registers.
 pub struct Reg<REG: RegisterSpec> {
-    register: vcell::VolatileCell<REG::Ux>,
+    ptr: *mut u8,
     _marker: marker::PhantomData<REG>,
 }
 
 unsafe impl<REG: RegisterSpec> Send for Reg<REG> where REG::Ux: Send {}
 
 impl<REG: RegisterSpec> Reg<REG> {
+    #[inline(always)]
+    pub const fn new(ptr: *mut u8) -> Self {
+        Self {
+            ptr,
+            _marker: marker::PhantomData,
+        }
+    }
     /// Returns the underlying memory address of register.
     ///
     /// ```ignore
     /// let reg_ptr = periph.reg.as_ptr();
     /// ```
     #[inline(always)]
-    pub fn as_ptr(&self) -> *mut REG::Ux {
-        self.register.as_ptr()
+    pub const fn as_ptr(&self) -> *mut REG::Ux {
+        self.ptr.cast()
     }
 }
 
@@ -79,9 +39,9 @@ impl<REG: Readable> Reg<REG> {
     /// let flag = reader.field2().bit_is_set();
     /// ```
     #[inline(always)]
-    pub fn read(&self) -> R<REG> {
+    pub unsafe fn read(&self) -> R<REG> {
         R {
-            bits: self.register.get(),
+            bits: self.as_ptr().read_volatile(),
             _reg: marker::PhantomData,
         }
     }
@@ -92,8 +52,8 @@ impl<REG: Resettable + Writable> Reg<REG> {
     ///
     /// Resets the register to its initial state.
     #[inline(always)]
-    pub fn reset(&self) {
-        self.register.set(REG::RESET_VALUE)
+    pub unsafe fn reset(&self) {
+        self.as_ptr().write_volatile(REG::RESET_VALUE)
     }
 
     /// Writes bits to a `Writable` register.
@@ -120,7 +80,7 @@ impl<REG: Resettable + Writable> Reg<REG> {
     /// ```
     /// In the latter case, other fields will be set to their reset value.
     #[inline(always)]
-    pub fn write<F>(&self, f: F) -> REG::Ux
+    pub unsafe fn write<F>(&self, f: F) -> REG::Ux
     where
         F: FnOnce(&mut W<REG>) -> &mut W<REG>,
     {
@@ -130,7 +90,7 @@ impl<REG: Resettable + Writable> Reg<REG> {
             _reg: marker::PhantomData,
         })
         .bits;
-        self.register.set(value);
+        self.as_ptr().write_volatile(value);
         value
     }
 
@@ -163,7 +123,7 @@ impl<REG: Resettable + Writable> Reg<REG> {
     /// let state = periph.reg.write_and(|w| State::set(w.field1()));
     /// ```
     #[inline(always)]
-    pub fn from_write<F, T>(&self, f: F) -> T
+    pub unsafe fn from_write<F, T>(&self, f: F) -> T
     where
         F: FnOnce(&mut W<REG>) -> T,
     {
@@ -174,7 +134,7 @@ impl<REG: Resettable + Writable> Reg<REG> {
         };
         let result = f(&mut writer);
 
-        self.register.set(writer.bits);
+        self.as_ptr().write_volatile(writer.bits);
 
         result
     }
@@ -198,7 +158,7 @@ impl<REG: Writable> Reg<REG> {
             _reg: marker::PhantomData,
         })
         .bits;
-        self.register.set(value);
+        self.as_ptr().write_volatile(value);
         value
     }
 
@@ -221,7 +181,7 @@ impl<REG: Writable> Reg<REG> {
 
         let result = f(&mut writer);
 
-        self.register.set(writer.bits);
+        self.as_ptr().write_volatile(writer.bits);
 
         result
     }
@@ -254,11 +214,11 @@ impl<REG: Readable + Writable> Reg<REG> {
     /// ```
     /// Other fields will have the value they had before the call to `modify`.
     #[inline(always)]
-    pub fn modify<F>(&self, f: F) -> REG::Ux
+    pub unsafe fn modify<F>(&self, f: F) -> REG::Ux
     where
         for<'w> F: FnOnce(&R<REG>, &'w mut W<REG>) -> &'w mut W<REG>,
     {
-        let bits = self.register.get();
+        let bits = self.as_ptr().read_volatile();
         let value = f(
             &R {
                 bits,
@@ -270,7 +230,7 @@ impl<REG: Readable + Writable> Reg<REG> {
             },
         )
         .bits;
-        self.register.set(value);
+        self.as_ptr().write_volatile(value);
         value
     }
 
@@ -306,11 +266,11 @@ impl<REG: Readable + Writable> Reg<REG> {
     /// ```
     /// Other fields will have the value they had before the call to `modify`.
     #[inline(always)]
-    pub fn from_modify<F, T>(&self, f: F) -> T
+    pub unsafe fn from_modify<F, T>(&self, f: F) -> T
     where
         for<'w> F: FnOnce(&R<REG>, &'w mut W<REG>) -> T,
     {
-        let bits = self.register.get();
+        let bits = self.as_ptr().read_volatile();
 
         let mut writer = W {
             bits: bits & !REG::ONE_TO_MODIFY_FIELDS_BITMAP | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
@@ -325,7 +285,7 @@ impl<REG: Readable + Writable> Reg<REG> {
             &mut writer,
         );
 
-        self.register.set(writer.bits);
+        self.as_ptr().write_volatile(writer.bits);
 
         result
     }
@@ -336,6 +296,6 @@ where
     R<REG>: core::fmt::Debug,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        core::fmt::Debug::fmt(&self.read(), f)
+        unsafe { core::fmt::Debug::fmt(&self.read(), f) }
     }
 }

@@ -50,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [v0.34.0] - 2024-11-05
 
+- Add `raw-access` options
+
 - Revert #711
 - Add `defmt` impls for `TryFromInterruptError`, riscv interrupt enums
 - Fix calculating `modifiedWriteValues` bitmasks with field arrays
