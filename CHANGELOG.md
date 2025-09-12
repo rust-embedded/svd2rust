@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Use marker struct instead of address in `Periph` with `PeripheralSpec` trait
+
 ## [v0.37.1] - 2025-10-17
 
 - Change `feature(doc_auto_cfg)` to `feature(doc_cfg)` to allow nightly docs to build.
@@ -971,8 +973,7 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.37.1...HEAD
-[v0.37.1]: https://github.com/rust-embedded/svd2rust/compare/v0.37.0...v0.37.1
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.37.0...HEAD
 [v0.37.0]: https://github.com/rust-embedded/svd2rust/compare/v0.36.1...v0.37.0
 [v0.36.1]: https://github.com/rust-embedded/svd2rust/compare/v0.36.0...v0.36.1
 [v0.36.0]: https://github.com/rust-embedded/svd2rust/compare/v0.35.0...v0.36.0
