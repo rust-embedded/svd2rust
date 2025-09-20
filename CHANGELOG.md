@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add unsafe block around `DEVICE_PERIPHERALS = true` in `Peripherals::steal()`
+  to support Rust 2024 edition.
+
 ## [v0.37.0] - 2025-08-14
 
 - Fix new `mismatched-lifetime-syntaxes` lint warnings
