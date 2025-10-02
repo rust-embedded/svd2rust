@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Change `feature(doc_auto_cfg)` to `feature(doc_cfg)` to allow nightly docs to build.
 - Add unsafe block around `DEVICE_PERIPHERALS = true` in `Peripherals::steal()`
   to support Rust 2024 edition.
 
