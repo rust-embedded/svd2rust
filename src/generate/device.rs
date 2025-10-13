@@ -59,7 +59,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             #![allow(non_camel_case_types)]
             #![allow(non_snake_case)]
             #![no_std]
-            #![cfg_attr(docsrs, feature(doc_auto_cfg))]
+            #![cfg_attr(docsrs, feature(doc_cfg))]
         });
     }
 
@@ -301,6 +301,12 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         quote!(#[no_mangle])
     };
 
+    let set_device_peripherals_true = if config.edition >= RustEdition::E2024 {
+        quote!(unsafe { DEVICE_PERIPHERALS = true })
+    } else {
+        quote!(DEVICE_PERIPHERALS = true;)
+    };
+
     out.extend(quote! {
         // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
         // crate as that would let you `take` the device peripherals more than once (one per minor
@@ -339,7 +345,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
             /// Each of the returned peripherals must be used at most once.
             #[inline]
             pub unsafe fn steal() -> Self {
-                DEVICE_PERIPHERALS = true;
+                #set_device_peripherals_true
 
                 Peripherals {
                     #exprs
