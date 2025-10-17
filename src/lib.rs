@@ -100,7 +100,7 @@
 //!
 //! All these files must be included in the same device crate. The `lib.rs` file contains several
 //! inlined modules and its not formatted. It's recommend to split it out using the [`form`] tool
-//! and then format the output using `rustfmt` / `cargo fmt`:
+//! and then format the output using `rustfmt` / `cargo fmt` (alternative to `rustfmt` is `form -f`):
 //!
 //! [`form`]: https://crates.io/crates/form
 //!
@@ -170,6 +170,11 @@
 //! rt = ["riscv-rt"]
 //! v-trap = ["rt", "riscv-rt/v-trap"]
 //! ```
+//!
+//! ## Rust editions
+//!
+//! Default rust edition for generated code is 2021. Pass `--edition=2024` if you want to
+//! enable edition 2024 related features.
 //!
 //! ## Generating documentation
 //!
