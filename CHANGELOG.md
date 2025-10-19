@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.37.1] - 2025-10-17
+
 - Change `feature(doc_auto_cfg)` to `feature(doc_cfg)` to allow nightly docs to build.
 - Add unsafe block around `DEVICE_PERIPHERALS = true` in `Peripherals::steal()`
   to support Rust 2024 edition.
@@ -969,7 +971,8 @@ peripheral.register.write(|w| w.field().set());
 
 - Initial version of the `svd2rust` tool
 
-[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.37.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/svd2rust/compare/v0.37.1...HEAD
+[v0.37.1]: https://github.com/rust-embedded/svd2rust/compare/v0.37.0...v0.37.1
 [v0.37.0]: https://github.com/rust-embedded/svd2rust/compare/v0.36.1...v0.37.0
 [v0.36.1]: https://github.com/rust-embedded/svd2rust/compare/v0.36.0...v0.36.1
 [v0.36.0]: https://github.com/rust-embedded/svd2rust/compare/v0.35.0...v0.36.0
