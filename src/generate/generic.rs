@@ -291,6 +291,16 @@ impl<REG: Writable> W<REG> {
         self.bits = bits;
         self
     }
+    #[inline(always)]
+    pub unsafe fn set_bits(&mut self, bits: REG::Ux) -> &mut Self {
+        self.bits |= bits;
+        self
+    }
+    #[inline(always)]
+    pub unsafe fn clear_bits(&mut self, bits: REG::Ux) -> &mut Self {
+        self.bits &= !bits;
+        self
+    }
 }
 impl<REG> W<REG>
 where
@@ -422,6 +432,18 @@ where
     pub unsafe fn bits(self, value: FI::Ux) -> &'a mut W<REG> {
         self.w.bits &= !(REG::Ux::mask::<WI>() << self.o);
         self.w.bits |= (REG::Ux::from(value) & REG::Ux::mask::<WI>()) << self.o;
+        self.w
+    }
+
+    #[inline(always)]
+    pub unsafe fn set_bits(self, value: FI::Ux) -> &'a mut W<REG> {
+        self.w.bits |= (REG::Ux::from(value) & REG::Ux::mask::<WI>()) << self.o;
+        self.w
+    }
+
+    #[inline(always)]
+    pub unsafe fn clear_bits(self, value: FI::Ux) -> &'a mut W<REG> {
+        self.w.bits &= !((REG::Ux::from(value) & REG::Ux::mask::<WI>()) << self.o);
         self.w
     }
 }
