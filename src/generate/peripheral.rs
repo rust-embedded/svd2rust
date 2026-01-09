@@ -913,7 +913,7 @@ fn cluster_info_size_in_bits(info: &ClusterInfo, path: &BlockPath, config: &Conf
                     .map(|rbf| rbf.size)
                     .sum();
 
-                (reg.address_offset * BITS_PER_BYTE) + reg_size
+                reg_size
             }
             RegisterCluster::Cluster(clust) => {
                 (clust.address_offset * BITS_PER_BYTE) + cluster_size_in_bits(clust, path, config)?
