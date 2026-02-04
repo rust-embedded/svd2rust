@@ -72,20 +72,25 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                          feature_attribute: &TokenStream,
                          doc: &str,
                          p_ty: &Ident,
+                         name_str: &str,
                          doc_alias: Option<TokenStream>,
                          address: LitInt| {
+        let pspec = ident(name_str, config, "peripheral_spec", Span::call_site());
         out.extend(quote! {
             #[doc = #doc]
             #phtml
             #doc_alias
             #feature_attribute
-            pub type #p_ty = crate::Periph<#base::RegisterBlock, #address>;
+            pub type #p_ty = crate::Periph<#pspec>;
 
             #feature_attribute
-            impl core::fmt::Debug for #p_ty {
-                fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-                    f.debug_struct(#name_str).finish()
-                }
+            pub struct #pspec;
+
+            #feature_attribute
+            impl crate::PeripheralSpec for #pspec {
+                type RB = #base::RegisterBlock;
+                const ADDRESS: usize = #address;
+                const NAME: &'static str = #name_str;
             }
         });
     };
@@ -113,6 +118,7 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                     &feature_attribute_n,
                     &doc,
                     &p_ty,
+                    &name_str,
                     doc_alias,
                     address,
                 );
@@ -138,7 +144,15 @@ pub fn render(p_original: &Peripheral, index: &Index, config: &Config) -> Result
                 feature_attribute.extend(quote! { #[cfg(feature = #p_feature)] })
             };
             // Insert the peripheral structure
-            per_to_tokens(&mut out, &feature_attribute, &doc, &p_ty, None, address);
+            per_to_tokens(
+                &mut out,
+                &feature_attribute,
+                &doc,
+                &p_ty,
+                &name_str,
+                None,
+                address,
+            );
 
             // Derived peripherals may not require re-implementation, and will instead
             // use a single definition of the non-derived version.

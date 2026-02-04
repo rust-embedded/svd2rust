@@ -1,19 +1,35 @@
 use core::marker;
 
 /// Generic peripheral accessor
-pub struct Periph<RB, const A: usize> {
-    _marker: marker::PhantomData<RB>,
+pub struct Periph<PER: PeripheralSpec> {
+    _marker: marker::PhantomData<PER>,
 }
 
-unsafe impl<RB, const A: usize> Send for Periph<RB, A> {}
+/// Peripheral data
+pub trait PeripheralSpec {
+    /// RegisterBlock associated with peripheral
+    type RB;
+    /// Address of the register block
+    const ADDRESS: usize;
+    /// Debug name
+    const NAME: &'static str;
+}
 
-impl<RB, const A: usize> Periph<RB, A> {
+unsafe impl<PER: PeripheralSpec> Send for Periph<PER> {}
+
+impl<PER: PeripheralSpec> core::fmt::Debug for Periph<PER> {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        f.debug_struct(PER::NAME).finish()
+    }
+}
+
+impl<PER: PeripheralSpec> Periph<PER> {
     ///Pointer to the register block
-    pub const PTR: *const RB = A as *const _;
+    pub const PTR: *const PER::RB = PER::ADDRESS as *const _;
 
     ///Return the pointer to the register block
     #[inline(always)]
-    pub const fn ptr() -> *const RB {
+    pub const fn ptr() -> *const PER::RB {
         Self::PTR
     }
 
@@ -37,8 +53,8 @@ impl<RB, const A: usize> Periph<RB, A> {
     }
 }
 
-impl<RB, const A: usize> core::ops::Deref for Periph<RB, A> {
-    type Target = RB;
+impl<PER: PeripheralSpec> core::ops::Deref for Periph<PER> {
+    type Target = PER::RB;
 
     #[inline(always)]
     fn deref(&self) -> &Self::Target {

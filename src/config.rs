@@ -284,11 +284,12 @@ impl IdentFormats {
             ("register".into(), pascal.clone()),
             ("cluster".into(), pascal.clone()),
             ("register_spec".into(), pascal.clone().suffix("Spec")),
-            ("peripheral".into(), pascal),
+            ("peripheral".into(), pascal.clone()),
             (
                 "peripheral_singleton".into(),
                 IdentFormat::default().snake_case(),
             ),
+            ("peripheral_spec".into(), pascal.suffix("Spec")),
         ]);
 
         map
@@ -309,7 +310,8 @@ impl IdentFormats {
             ("register".into(), constant.clone()),
             ("register_spec".into(), constant.clone().suffix("_SPEC")),
             ("peripheral".into(), constant.clone()),
-            ("peripheral_singleton".into(), constant),
+            ("peripheral_singleton".into(), constant.clone()),
+            ("peripheral_spec".into(), constant.suffix("_SPEC")),
         ]);
 
         map
