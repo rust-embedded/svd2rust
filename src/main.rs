@@ -246,6 +246,13 @@ Allowed cases are `unchanged` (''), `pascal` ('p'), `constant` ('c') and `snake`
                 .help("Do not generate crate attributes"),
         )
         .arg(
+            Arg::new("skip_peripherals_struct")
+                .long("skip-peripherals-struct")
+                .alias("skip_peripherals_struct")
+                .action(ArgAction::SetTrue)
+                .help("Do not generate the `Peripherals` struct, its `take`/`steal` impl, and the `DEVICE_PERIPHERALS` static"),
+        )
+        .arg(
             Arg::new("strict")
                 .long("strict")
                 .short('s')

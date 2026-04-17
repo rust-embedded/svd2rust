@@ -21,6 +21,7 @@ pub struct Config {
     pub generic_mod: bool,
     pub make_mod: bool,
     pub skip_crate_attributes: bool,
+    pub skip_peripherals_struct: bool,
     pub ignore_groups: bool,
     pub keep_list: bool,
     pub strict: bool,
