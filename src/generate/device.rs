@@ -295,64 +295,66 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
         }
     }
 
-    let nomangle = if config.edition >= RustEdition::E2024 {
-        quote!(#[unsafe(no_mangle)])
-    } else {
-        quote!(#[no_mangle])
-    };
+    if !config.skip_peripherals_struct {
+        let nomangle = if config.edition >= RustEdition::E2024 {
+            quote!(#[unsafe(no_mangle)])
+        } else {
+            quote!(#[no_mangle])
+        };
 
-    let set_device_peripherals_true = if config.edition >= RustEdition::E2024 {
-        quote!(unsafe { DEVICE_PERIPHERALS = true })
-    } else {
-        quote!(DEVICE_PERIPHERALS = true;)
-    };
+        let set_device_peripherals_true = if config.edition >= RustEdition::E2024 {
+            quote!(unsafe { DEVICE_PERIPHERALS = true })
+        } else {
+            quote!(DEVICE_PERIPHERALS = true;)
+        };
 
-    out.extend(quote! {
-        // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
-        // crate as that would let you `take` the device peripherals more than once (one per minor
-        // version)
-        #nomangle
-        static mut DEVICE_PERIPHERALS: bool = false;
+        out.extend(quote! {
+            // NOTE `no_mangle` is used here to prevent linking different minor versions of the device
+            // crate as that would let you `take` the device peripherals more than once (one per minor
+            // version)
+            #nomangle
+            static mut DEVICE_PERIPHERALS: bool = false;
 
-        /// All the peripherals.
-        #[allow(non_snake_case)]
-        pub struct Peripherals {
-            #fields
-        }
-
-        impl Peripherals {
-            /// Returns all the peripherals *once*.
-            #[cfg(feature = "critical-section")]
-            #[inline]
-            pub fn take() -> Option<Self> {
-                critical_section::with(|_| {
-                    // SAFETY: We are in a critical section, so we have exclusive access
-                    // to `DEVICE_PERIPHERALS`.
-                    if unsafe { DEVICE_PERIPHERALS } {
-                        return None
-                    }
-
-                    // SAFETY: `DEVICE_PERIPHERALS` is set to `true` by `Peripherals::steal`,
-                    // ensuring the peripherals can only be returned once.
-                    Some(unsafe { Peripherals::steal() })
-                })
+            /// All the peripherals.
+            #[allow(non_snake_case)]
+            pub struct Peripherals {
+                #fields
             }
 
-            /// Unchecked version of `Peripherals::take`.
-            ///
-            /// # Safety
-            ///
-            /// Each of the returned peripherals must be used at most once.
-            #[inline]
-            pub unsafe fn steal() -> Self {
-                #set_device_peripherals_true
+            impl Peripherals {
+                /// Returns all the peripherals *once*.
+                #[cfg(feature = "critical-section")]
+                #[inline]
+                pub fn take() -> Option<Self> {
+                    critical_section::with(|_| {
+                        // SAFETY: We are in a critical section, so we have exclusive access
+                        // to `DEVICE_PERIPHERALS`.
+                        if unsafe { DEVICE_PERIPHERALS } {
+                            return None
+                        }
 
-                Peripherals {
-                    #exprs
+                        // SAFETY: `DEVICE_PERIPHERALS` is set to `true` by `Peripherals::steal`,
+                        // ensuring the peripherals can only be returned once.
+                        Some(unsafe { Peripherals::steal() })
+                    })
+                }
+
+                /// Unchecked version of `Peripherals::take`.
+                ///
+                /// # Safety
+                ///
+                /// Each of the returned peripherals must be used at most once.
+                #[inline]
+                pub unsafe fn steal() -> Self {
+                    #set_device_peripherals_true
+
+                    Peripherals {
+                        #exprs
+                    }
                 }
             }
-        }
-    });
+        });
+    }
 
     Ok(out)
 }
