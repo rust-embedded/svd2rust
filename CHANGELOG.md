@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add `--skip-peripherals-struct` flag to skip generating the `Peripherals`
+  struct, its `take`/`steal` impl and the `DEVICE_PERIPHERALS` static
+
 ## [v0.37.1] - 2025-10-17
 
 - Change `feature(doc_auto_cfg)` to `feature(doc_cfg)` to allow nightly docs to build.
