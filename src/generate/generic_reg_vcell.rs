@@ -88,6 +88,20 @@ impl<REG: Resettable + Writable> Reg<REG> {
         value
     }
 
+    /// Prepare bits for delayed write to register.
+    #[inline(always)]
+    pub fn prepare<F>(&self, f: F) -> REG::Ux
+    where
+        F: FnOnce(&mut W<REG>) -> &mut W<REG>,
+    {
+        f(&mut W {
+            bits: REG::RESET_VALUE & !REG::ONE_TO_MODIFY_FIELDS_BITMAP
+                | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
+            _reg: marker::PhantomData,
+        })
+        .bits
+    }
+
     /// Writes bits to a `Writable` register and produce a value.
     ///
     /// You can write raw bits into a register:
