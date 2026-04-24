@@ -443,7 +443,11 @@
   mfgr: SiFive
   chip: fu540
   svd_url: https://raw.githubusercontent.com/riscv-rust/fu540-pac/master/fu540.svd
-
+- arch: riscv
+  mfgr: WCH
+  chip: ch32v30x
+  svd_url: https://raw.githubusercontent.com/ch32-rs/ch32v30x/main/ch32v30x.svd
+  
 # SiliconLabs
 - arch: cortex-m
   mfgr: SiliconLabs
