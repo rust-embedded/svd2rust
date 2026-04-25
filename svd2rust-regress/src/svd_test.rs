@@ -18,7 +18,7 @@ const CRATES_ALL: &[&str] = &[
 const CRATES_MSP430: &[&str] = &["msp430 = \"0.4.0\"", "msp430-rt = \"0.4.0\""];
 const CRATES_ATOMICS: &[&str] =
     &["portable-atomic = { version = \"1\", default-features = false }"];
-const CRATES_CORTEX_M: &[&str] = &["cortex-m = \"0.7.6\"", "cortex-m-rt = \"0.7\""];
+const CRATES_CORTEX_M: &[&str] = &["cortex-m-types = \"0.1\"", "cortex-m-rt = \"0.7\""];
 const CRATES_RISCV: &[&str] = &["riscv = \"0.12.1\"", "riscv-rt = \"0.13.0\""];
 const CRATES_MIPS: &[&str] = &["mips-mcu = \"0.1.0\""];
 const PROFILE_ALL: &[&str] = &["[profile.dev]", "incremental = false"];
