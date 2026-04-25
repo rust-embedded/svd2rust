@@ -120,7 +120,7 @@ pub fn render(
         (quote!(#[no_mangle]), quote!(extern))
     };
 
-    let n = util::unsuffixed(pos);
+    let num_of_interrupts = util::unsuffixed(pos);
     match target {
         Target::CortexM => {
             for name in &names {
@@ -154,7 +154,7 @@ pub fn render(
                 #[doc(hidden)]
                 #link_section_attr
                 #nomangle
-                pub static __INTERRUPTS: [Vector; #n] = [
+                pub static __INTERRUPTS: [Vector; #num_of_interrupts] = [
                     #elements
                 ];
             });
@@ -193,7 +193,7 @@ pub fn render(
                 #nomangle
                 #[used]
                 pub static __INTERRUPTS:
-                    [Vector; #n] = [
+                    [Vector; #num_of_interrupts] = [
                         #elements
                     ];
             });
@@ -228,7 +228,7 @@ pub fn render(
                 #[doc(hidden)]
                 #link_section_attr
                 #nomangle
-                pub static __EXTERNAL_INTERRUPTS: [Vector; #n] = [
+                pub static __EXTERNAL_INTERRUPTS: [Vector; #num_of_interrupts] = [
                     #elements
                 ];
             });
@@ -263,7 +263,7 @@ pub fn render(
                 #[doc(hidden)]
                 #link_section_attr
                 #nomangle
-                pub static __INTERRUPTS: [Vector; #n] = [
+                pub static __INTERRUPTS: [Vector; #num_of_interrupts] = [
                     #elements
                 ];
             });
@@ -273,10 +273,10 @@ pub fn render(
     }
 
     let self_token = quote!(self);
-    let (enum_repr, nr_expr) = if variants.is_empty() {
-        (quote!(), quote!(match #self_token {}))
+    let enum_repr = if variants.is_empty() {
+        quote!()
     } else {
-        (quote!(#[repr(u16)]), quote!(#self_token as u16))
+        quote!(#[repr(u16)])
     };
 
     let defmt = config
@@ -309,13 +309,34 @@ pub fn render(
 
         match target {
             Target::CortexM => {
+                let num_value: usize = num_of_interrupts.base10_parse()?;
+                let max_interrupt_number = num_value.saturating_sub(1);
+
                 root.extend(quote! {
                     #interrupt_enum
 
-                    unsafe impl cortex_m::interrupt::InterruptNumber for Interrupt {
+                    unsafe impl cortex_m_types::InterruptNumber for Interrupt {
+                        const MAX_INTERRUPT_NUMBER: usize = #max_interrupt_number;
+
                         #[inline(always)]
-                        fn number(#self_token) -> u16 {
-                            #nr_expr
+                        fn number(#self_token) -> usize {
+                            #self_token as usize
+                        }
+
+                        /// Tries to convert a number to a valid interrupt.
+                        #[inline]
+                        fn from_number(value: usize) -> cortex_m_types::result::Result<Self> {
+                            if value > Self::MAX_INTERRUPT_NUMBER {
+                                return Err(cortex_m_types::result::Error::IndexOutOfBounds {
+                                    index: value,
+                                    min: 0,
+                                    max: Self::MAX_INTERRUPT_NUMBER,
+                                });
+                            }
+                            match value {
+                                #from_arms
+                                _ => Err(cortex_m_types::result::Error::InvalidVariant(value)),
+                            }
                         }
                     }
                 });

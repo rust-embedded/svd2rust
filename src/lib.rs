@@ -69,7 +69,7 @@
 //! ``` toml
 //! [dependencies]
 //! critical-section = { version = "1.0", optional = true }
-//! cortex-m = "0.7.6"
+//! cortex-m-types = "0.1"
 //! cortex-m-rt = { version = "0.6.13", optional = true }
 //! vcell = "0.1.2"
 //!
