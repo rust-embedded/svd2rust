@@ -125,11 +125,11 @@ jobs:
           cargo install svd2rust --path .
 
       # Install the MSRV toolchain
-      - uses: dtolnay/rust-toolchain@1.76.0
+      - uses: dtolnay/rust-toolchain@1.81.0
       - name: Run reression tool with MSRV
         # The MSRV only applies to the generated crate. The regress tool should still be run with
         # stable.
-        run: cargo +stable regress tests --toolchain 1.76.0 -m Nordic -- --strict --atomics
+        run: cargo +stable regress tests --toolchain 1.81.0 -m Nordic -- --strict --atomics
 
   ci-docs-clippy:
     runs-on: ubuntu-latest

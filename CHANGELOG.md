@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Generated `cortex-m` PACs now implement the `cortex_m_types::InterruptNumber` trait instead
   of `cortex-m::interrupt::InterruptNumber` to avoid a hard dependency on `cortex-m` for PACs.
   PACs should now use the `cortex-m-types` dependency instead of `cortex-m`.
+- Bump MSRV of generated code to 1.81
 
 ## [v0.37.1] - 2025-10-17
 
