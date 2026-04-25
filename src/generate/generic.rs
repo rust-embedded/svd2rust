@@ -124,6 +124,8 @@ pub trait IsEnum: FieldSpec {}
 ///
 /// Registers marked with `Writable` can be also be `modify`'ed.
 pub trait Readable: RegisterSpec {}
+/// Trait implemented by readable registers with side effects to enable the `read` method.
+pub trait ReadableSideEffect: RegisterSpec {}
 
 /// Trait implemented by writeable registers.
 ///
