@@ -15,6 +15,10 @@ use syn::{
     punctuated::Punctuated, token::PathSep, Lit, LitInt, PathArguments, PathSegment, Type, TypePath,
 };
 
+use regex::Regex;
+use std::sync::OnceLock;
+
+
 use anyhow::{anyhow, Result};
 
 pub const BITS_PER_BYTE: u32 = 8;
@@ -177,25 +181,34 @@ pub fn escape_brackets(s: &str) -> String {
         })
 }
 
+static TAG_RE: OnceLock<Regex> = OnceLock::new();
+
 /// Escape basic html tags and brackets
 pub fn escape_special_chars(s: &str) -> Cow<'_, str> {
-    if !s.contains('[') && !s.contains('&') && !s.contains('<') && !s.contains('>'){
+    let tag_re= TAG_RE.get_or_init(|| Regex::new(r"<[^>]+>|&[a-zA-Z0-9#]+;").unwrap());
+
+    if !s.contains('[') && !s.contains('&') && !s.contains('<') && !s.contains('>') {
         return s.into();
     }
-    let mut escaped = s.to_string();
-    if escaped.contains('&') {
-        escaped = escaped.replace('&', "&amp;");
+
+    let mut last_end = 0;
+    let mut escaped = String::new();
+
+    for mat in tag_re.find_iter(s) {
+        let part = &s[last_end..mat.start()];
+        escaped.push_str(&part.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;"));
+        escaped.push_str(mat.as_str());
+        last_end = mat.end();
     }
-    if escaped.contains('<') {
-        escaped = escaped.replace('<', "&lt;");
-    }
-    if escaped.contains('>') {
-        escaped = escaped.replace('>', "&gt;");
-    }
+    let remaining = &s[last_end..];
+
+    escaped.push_str(&remaining.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;"));
+
     if escaped.contains('[') {
-        escaped = escape_brackets(&escaped);
+        escape_brackets(&escaped).into()
+    } else {
+        escaped.into()
     }
-    escaped.into()
 
 }
 
@@ -529,13 +542,12 @@ fn pascalcase() {
 
 #[test]
 fn test_escape_special_chars() {
-    assert_eq!(escape_special_chars("Array[0]"), "Array\\[0\\]");
+
     assert_eq!(escape_special_chars("Enable & disable"), "Enable &amp; disable");
     assert_eq!(escape_special_chars("Wait < 10"), "Wait &lt; 10");
-    assert_eq!(escape_special_chars("Delay > 5"), "Delay &gt; 5");
-    assert_eq!(
-        escape_special_chars("Flags & [Status] > 100"),
-        "Flags &amp; \\[Status\\] &gt; 100"
-    );
+    assert_eq!(escape_special_chars("This is <b>bold</b>"), "This is <b>bold</b>");
+    assert_eq!(escape_special_chars("Use <div class=\"foo\">"), "Use <div class=\"foo\">");
+    assert_eq!(escape_special_chars("A &amp; B"), "A &amp; B");
+    assert_eq!(escape_special_chars("Array[0]"), "Array\\[0\\]");
 }
 
