@@ -38,6 +38,8 @@ pub struct Config {
     pub interrupt_link_section: Option<String>,
     pub reexport_core_peripherals: bool,
     pub reexport_interrupt: bool,
+    /// Also generating interrupt number trait implementation for `cortex-m` trait.
+    pub add_cortex_m_int_num: bool,
     pub ident_formats: IdentFormats,
     pub ident_formats_theme: Option<IdentFormatsTheme>,
     pub field_names_for_enums: bool,

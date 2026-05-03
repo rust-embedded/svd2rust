@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Use marker struct instead of address in `Periph` with `PeripheralSpec` trait
 - Add `--skip-peripherals-struct` flag to skip generating the `Peripherals`
   struct, its `take`/`steal` impl and the `DEVICE_PERIPHERALS` static
-- Generated `cortex-m` PACs now implement the `cortex_m_types::InterruptNumber` trait instead
-  of `cortex-m::interrupt::InterruptNumber` to avoid a hard dependency on `cortex-m` for PACs.
-  PACs should now use the `cortex-m-types` dependency instead of `cortex-m`.
+- Generated `cortex-m` PACs now implement the `cortex_m_types::InterruptNumber` trait instead of
+  the `cortex-m::interrupt::InterruptNumber` trait. A new `add-cortex-m-int-num` option
+  which allows adding the generation of the old trait.
 - Bump MSRV of generated code to 1.81
 
 ## [v0.37.1] - 2025-10-17

@@ -280,6 +280,15 @@ Allowed cases are `unchanged` (''), `pascal` ('p'), `constant` ('c') and `snake`
                 .help("Reexport interrupt macro from cortex-m-rt like crates"),
         )
         .arg(
+            Arg::new("add_cortex_m_int_num")
+                .long("add-cortex-m-int-num")
+                .alias("add_cortex_m_int_num")
+                .action(ArgAction::SetTrue)
+                .help("Add the generation for the cortex-m InterruptNumber trait impl")
+                .long_help("Add the generation for the cortex-m InterruptNumber trait impl.
+The generated crate will have a dependency on cortex-m.")
+        )
+        .arg(
             Arg::new("base_address_shift")
                 .short('b')
                 .long("base-address-shift")

@@ -83,6 +83,7 @@ jobs:
           - { vendor: Spansion, options: "-- --atomics" }
           - { vendor: STMicro }
           - { vendor: STMicro, options: "-- --atomics" }
+          - { vendor: STMicro, options: "-- --add-cortex-m-int-num" }
           - {
               vendor: STMicro,
               options: "-- --strict -f enum_value::p: --max-cluster-size --atomics --atomics-feature atomics --impl-debug --impl-defmt defmt",
