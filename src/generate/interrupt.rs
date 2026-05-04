@@ -340,6 +340,17 @@ pub fn render(
                         }
                     }
                 });
+
+                if config.add_cortex_m_int_num {
+                    root.extend(quote! {
+                        unsafe impl cortex_m::interrupt::InterruptNumber for Interrupt {
+                            #[inline(always)]
+                            fn number(#self_token) -> u16 {
+                                #self_token as u16
+                            }
+                        }
+                    });
+                }
             }
             Target::XtensaLX => {
                 root.extend(quote! {
