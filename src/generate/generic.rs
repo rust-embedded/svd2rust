@@ -1,10 +1,5 @@
 use core::marker;
 
-/// Generic peripheral accessor
-pub struct Periph<PER: PeripheralSpec> {
-    _marker: marker::PhantomData<PER>,
-}
-
 /// Peripheral data
 pub trait PeripheralSpec {
     /// RegisterBlock associated with peripheral
@@ -31,34 +26,6 @@ impl<PER: PeripheralSpec> Periph<PER> {
     #[inline(always)]
     pub const fn ptr() -> *const PER::RB {
         Self::PTR
-    }
-
-    /// Steal an instance of this peripheral
-    ///
-    /// # Safety
-    ///
-    /// Ensure that the new instance of the peripheral cannot be used in a way
-    /// that may race with any existing instances, for example by only
-    /// accessing read-only or write-only registers, or by consuming the
-    /// original peripheral and using critical sections to coordinate
-    /// access between multiple new instances.
-    ///
-    /// Additionally, other software such as HALs may rely on only one
-    /// peripheral instance existing to ensure memory safety; ensure
-    /// no stolen instances are passed to such software.
-    pub unsafe fn steal() -> Self {
-        Self {
-            _marker: marker::PhantomData,
-        }
-    }
-}
-
-impl<PER: PeripheralSpec> core::ops::Deref for Periph<PER> {
-    type Target = PER::RB;
-
-    #[inline(always)]
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*Self::PTR }
     }
 }
 
