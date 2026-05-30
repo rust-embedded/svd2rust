@@ -139,6 +139,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     let generic_file = include_str!("generic.rs");
     let generic_reg_file = include_str!("generic_reg_vcell.rs");
     let generic_atomic_file = include_str!("generic_atomic.rs");
+    let generic_bb_file = include_str!("generic_bb.rs");
     if config.generic_mod {
         let mut file = File::create(
             config
@@ -154,6 +155,9 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 writeln!(file, "#[cfg(feature = \"{atomics_feature}\")]")?;
             }
             writeln!(file, "\n{generic_atomic_file}")?;
+        }
+        if config.bit_banding {
+            writeln!(file, "\n{generic_bb_file}")?;
         }
 
         if !config.make_mod {
@@ -172,6 +176,9 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 quote!(#[cfg(feature = #atomics_feature)]).to_tokens(&mut tokens);
             }
             syn::parse_file(generic_atomic_file)?.to_tokens(&mut tokens);
+        }
+        if config.bit_banding {
+            syn::parse_file(generic_bb_file)?.to_tokens(&mut tokens);
         }
 
         out.extend(quote! {
