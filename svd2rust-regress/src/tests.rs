@@ -27,6 +27,8 @@ pub enum Manufacturer {
     RaspberryPi,
     Renesas,
     Unknown,
+    GigaDevice,
+    WCH,
 }
 
 impl Manufacturer {
@@ -51,6 +53,8 @@ impl Manufacturer {
             Renesas,
             TexasInstruments,
             Espressif,
+            GigaDevice,
+            WCH,
         ]
     }
 }
