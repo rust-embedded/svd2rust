@@ -310,6 +310,13 @@ Ignore this option if you are not building your own FPGA based soft-cores."),
                 .action(ArgAction::Set)
                 .value_parser(["off", "error", "warn", "info", "debug", "trace"]),
         )
+        .arg(
+            Arg::new("strict_safe_access")
+                .long("strict-safe-access")
+                .help("Marks all write accesses and read accesses with side effects as unsafe")
+                .action(ArgAction::SetTrue),
+        )
+
         .version(concat!(
             env!("CARGO_PKG_VERSION"),
             include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))

@@ -41,6 +41,21 @@ impl<REG: Readable> Reg<REG> {
     }
 }
 
+impl<REG: ReadableSideEffect> Reg<REG> {
+    /// Reads the contents of a `ReadableSideEffect` register.
+    ///
+    /// # Safety
+    ///
+    /// Reading this register has side effects.
+    #[inline(always)]
+    pub unsafe fn read(&self) -> R<REG> {
+        R {
+            bits: self.register.get(),
+            _reg: marker::PhantomData,
+        }
+    }
+}
+
 impl<REG: Resettable + Writable> Reg<REG> {
     /// Writes the reset value to `Writable` register.
     ///
@@ -74,7 +89,7 @@ impl<REG: Resettable + Writable> Reg<REG> {
     /// ```
     /// In the latter case, other fields will be set to their reset value.
     #[inline(always)]
-    pub fn write<F>(&self, f: F) -> REG::Ux
+    _WRITE_SAFETY_ fn write<F>(&self, f: F) -> REG::Ux
     where
         F: FnOnce(&mut W<REG>) -> &mut W<REG>,
     {
@@ -117,7 +132,7 @@ impl<REG: Resettable + Writable> Reg<REG> {
     /// let state = periph.reg.write_and(|w| State::set(w.field1()));
     /// ```
     #[inline(always)]
-    pub fn from_write<F, T>(&self, f: F) -> T
+    _WRITE_SAFETY_ fn from_write<F, T>(&self, f: F) -> T
     where
         F: FnOnce(&mut W<REG>) -> T,
     {
@@ -208,7 +223,7 @@ impl<REG: Readable + Writable> Reg<REG> {
     /// ```
     /// Other fields will have the value they had before the call to `modify`.
     #[inline(always)]
-    pub fn modify<F>(&self, f: F) -> REG::Ux
+    _WRITE_SAFETY_ fn modify<F>(&self, f: F) -> REG::Ux
     where
         for<'w> F: FnOnce(&R<REG>, &'w mut W<REG>) -> &'w mut W<REG>,
     {
@@ -227,6 +242,7 @@ impl<REG: Readable + Writable> Reg<REG> {
         self.register.set(value);
         value
     }
+
 
     /// Modifies the contents of the register by reading and then writing it
     /// and produces a value.
@@ -260,7 +276,7 @@ impl<REG: Readable + Writable> Reg<REG> {
     /// ```
     /// Other fields will have the value they had before the call to `modify`.
     #[inline(always)]
-    pub fn from_modify<F, T>(&self, f: F) -> T
+    _WRITE_SAFETY_ fn from_modify<F, T>(&self, f: F) -> T
     where
         for<'w> F: FnOnce(&R<REG>, &'w mut W<REG>) -> T,
     {
