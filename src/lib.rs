@@ -149,9 +149,9 @@
 //! The resulting crate must provide an opt-in `rt` feature and depend on these crates:
 //!
 //! - [`critical-section`](https://crates.io/crates/critical-section) v1.x
-//! - [`riscv`](https://crates.io/crates/riscv) v0.12.x (if target is RISC-V)
-//! - [`riscv-peripheral`](https://crates.io/crates/riscv-peripheral) v0.2.x (if target is RISC-V and has standard peripherals)
-//! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.13.x (if target is RISC-V)
+//! - [`riscv`](https://crates.io/crates/riscv) v0.16.x (if target is RISC-V)
+//! - [`riscv-peripheral`](https://crates.io/crates/riscv-peripheral) v0.5.x (if target is RISC-V and has standard peripherals)
+//! - [`riscv-rt`](https://crates.io/crates/riscv-rt) v0.18.x (if target is RISC-V)
 //! - [`vcell`](https://crates.io/crates/vcell) v0.1.x
 //!
 //! The `*-rt` dependencies must be optional only enabled when the `rt` feature is enabled.
@@ -160,15 +160,124 @@
 //!
 //! ``` toml
 //! [dependencies]
-//! critical-section = { version = "1.0", optional = true }
-//! riscv = "0.12.1"
-//! riscv-peripheral = "0.2.0"
-//! riscv-rt = { version = "0.13.0", optional = true }
+//! critical-section = { version = "1.2", optional = true }
+//! riscv = "0.16.1"
+//! riscv-peripheral = "0.5.1"
+//! riscv-rt = { version = "0.18.0", optional = true }
 //! vcell = "0.1.0"
 //!
 //! [features]
 //! rt = ["riscv-rt"]
 //! v-trap = ["rt", "riscv-rt/v-trap"]
+//! ```
+//!
+//! ## RISC-V specific settings
+//!
+//! When targeting the RISC-V architecture, `svd2rust` will expect also a settings file in YAML format to be passed with the `--settings` flag.
+//! This file is used to specify RISC-V specific settings that are not present in the SVD file. The command to generate the crate will look like this:
+//!
+//! ```text
+//! $ svd2rust -g --target riscv --settings my_device.yaml -i my_device.svd
+//! ```
+//!
+//! This settings file expects the following fields:
+//!
+//! - `base_isa` (mandatory): The base RISC-V ISA of the target. Accepted values are `"rv32i"`, `"rv32e"`, `"rv64i"`, and `"rv64e"`.
+//!   This is required for right generation of the `riscv-rt` trap handlers.
+//!
+//! - `mtvec_align` (mandatory for vectored mode): The alignment of the machine trap vector table (only needed if the target supports vectored mode).
+//!   This determines the byte alignment of the interrupt vector and thus the value of the `mtvec` register.
+//!
+//! - `harts` (mandatory): The list of HARTs of the target. This is used to generate HART enums that implement the `riscv::HartId` trait.
+//!   Each HART is specified with the following fields:
+//!   - `name`: The name of the HART. This is used to generate the name of the HART enum variants.
+//!   - `value`: The value of the HART ID. This is used to implement the `riscv::HartId` trait for the HART enum variants.
+//!   - `description`: An optional description of the HART. This is used to generate documentation for the HART enum variants.
+//!
+//! - `core_interrupts` (optional): The list of core interrupts of the target. This is used to generate core interrupt enums that implement the `riscv::CoreInterrupt` trait.
+//!   It also determines the core interrupt handlers generated in `riscv-rt` if the `rt` feature is enabled.
+//!   In contrast to external interrupts, core interrupts are not included in the SVD file because they are not device specific but rather architecture specific.
+//!   If not specified, the generated crate will use the standard core interrupts defined in `riscv::interrupt::Interrupt`
+//!   Each core interrupt is specified with the following fields:
+//!   - `name`: The name of the core interrupt. This is used to generate the name of the core interrupt enum variants.
+//!   - `value`: The value of the core interrupt ID. This is used to implement the `riscv::CoreInterrupt` trait for the core interrupt enum variants.
+//!   - `description`: An optional description of the core interrupt. This is used to generate documentation for the core interrupt enum variants.
+//!
+//! - `exceptions` (optional): The list of exceptions of the target. This is used to generate exception enums that implement the `riscv::Exception` trait.
+//!   Like core interrupts, exceptions are not included in the SVD file because they are not device specific but rather architecture specific.
+//!   If not specified, the generated crate will use the standard exceptions defined in `riscv::interrupt::Exception`.
+//!   Each exception is specified with the following fields:
+//!     - `name`: The name of the exception. This is used to generate the name of the exception enum variants.
+//!     - `value`: The value of the exception ID. This is used to implement the `riscv::Exception` trait for the exception enum variants.
+//!     - `description`: An optional description of the exception. This is used to generate documentation for the exception enum variants.
+//!
+//! - `priorities` (optional): The list of external interrupt priorities of the target. This is used to generate priority enums that implement the `riscv::Priority` trait.
+//!   These are mandartory if you want to use the PLIC peripheral API provided by `riscv-peripheral`.
+//!   Each priority is specified with the following fields:
+//!     - `name`: The name of the priority. This is used to generate the name of the priority enum variants.
+//!     - `value`: The value of the priority. This is used to implement the `riscv::Priority` trait for the priority enum variants.
+//!     - `description`: An optional description of the priority. This is used to generate documentation for the priority enum variants.
+//!
+//! - `clint` (optional): The configuration of the CLINT peripheral, if the target has one.
+//!   This is used to generate a standard CLINT API using the `riscv-peripheral` crate.
+//!   The CLINT configuration expects the following fields:
+//!     - `name`: The name of the CLINT peripheral as it appears in the SVD file.
+//!     - `pub_new`: Optional boolean field that specifies whether the `new` method of the CLINT API should be public. Default is `false`.
+//!     - `mtime_freq`: The frequency of the `mtime` register in Hz. If you target has a known fixed frecuency, you can specify it here
+//!       to use a default implementation of `embedded_hal::Delay` trait for the CLINT API.
+//!
+//! - `plic`: The configuration of the PLIC peripheral if the target has one.
+//!   This is used to generate a standard PLIC API using the `riscv-peripheral` crate.
+//!   The PLIC configuration expects the following fields:
+//!     - `name`: The name of the PLIC peripheral as it appears in the SVD file.
+//!     - `pub_new`: Optional boolean field that specifies whether the `new` method of the PLIC API should be public. Default is `false`.
+//!     - `core_interrupt`: ID of the core interrupt corresponding to external hardware interrupts managed by the PLIC.
+//!       This is used to generate the correct interrupt handler for the PLIC in `riscv-rt`.
+//!     - `hart_id` (optional): ID of the HART in charge of managing the external hardware interrupts.
+//!       This is used to generate the correct interrupt handler for the PLIC in `riscv-rt`.
+//!       If not specified, it will use the `mhartid` register to determine the HART ID at runtime and generate a generic interrupt handler for the PLIC that works for all HARTs.
+//!
+//! A settings file will look like this:
+//!
+//! ```yaml
+//! riscv_config:
+//!   base_isa: "rv32i"
+//!   mtvec_align: 64
+//!   harts:
+//!     - name: "H0"
+//!       value: 0
+//!       description: "HART 0"
+//!   core_interrupts:
+//!    - name: "MachineSoft"
+//!      value: 3
+//!      description: "Machine software interrupt"
+//!    - name: "MachineTimer"
+//!      value: 7
+//!      description: "Machine timer interrupt"
+//!    - name: "MachineExternal"
+//!      value: 11
+//!      description: "Machine external interrupt"
+//!   priorities:
+//!    - name: "P0"
+//!      value: 0
+//!      description: "Priority level 0"
+//!    - name: "P1"
+//!      value: 1
+//!      description: "Priority level 1"
+//!    - name: "P2"
+//!      value: 2
+//!      description: "Priority level 2"
+//!    - name: "P3"
+//!      value: 3
+//!      description: "Priority level 3"
+//!   clint:
+//!     - name: "CLINT"
+//!       pub_new: true
+//!       mtime_freq: 1000000
+//!   plic:
+//!     - name: "PLIC"
+//!       pub_new: true
+//!       core_interrupt: "MachineExternal"
 //! ```
 //!
 //! ## Rust editions
