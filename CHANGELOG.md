@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Improve documentation for RISC-V settings file
 - Use marker struct instead of address in `Periph` with `PeripheralSpec` trait
 - Add `--skip-peripherals-struct` flag to skip generating the `Peripherals`
   struct, its `take`/`steal` impl and the `DEVICE_PERIPHERALS` static
