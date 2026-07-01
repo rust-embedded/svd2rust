@@ -154,6 +154,7 @@ pub fn render(
                 #[doc(hidden)]
                 #link_section_attr
                 #nomangle
+                #[used]
                 pub static __INTERRUPTS: [Vector; #num_of_interrupts] = [
                     #elements
                 ];
@@ -228,6 +229,7 @@ pub fn render(
                 #[doc(hidden)]
                 #link_section_attr
                 #nomangle
+                #[used]
                 pub static __EXTERNAL_INTERRUPTS: [Vector; #num_of_interrupts] = [
                     #elements
                 ];
@@ -263,6 +265,7 @@ pub fn render(
                 #[doc(hidden)]
                 #link_section_attr
                 #nomangle
+                #[used]
                 pub static __INTERRUPTS: [Vector; #num_of_interrupts] = [
                     #elements
                 ];
