@@ -82,6 +82,8 @@ pub enum Target {
     XtensaLX,
     #[cfg_attr(feature = "serde", serde(rename = "mips"))]
     Mips,
+    #[cfg_attr(feature = "serde", serde(rename = "avr"))]
+    Avr,
     #[cfg_attr(feature = "serde", serde(rename = "none"))]
     None,
 }
@@ -94,6 +96,7 @@ impl std::fmt::Display for Target {
             Target::RISCV => "riscv",
             Target::XtensaLX => "xtensa-lx",
             Target::Mips => "mips",
+            Target::Avr => "avr",
             Target::None => "none",
         })
     }
@@ -107,6 +110,7 @@ impl Target {
             "riscv" => Target::RISCV,
             "xtensa-lx" => Target::XtensaLX,
             "mips" => Target::Mips,
+            "avr" => Target::Avr,
             "none" => Target::None,
             _ => bail!("unknown target {}", s),
         })
@@ -114,7 +118,7 @@ impl Target {
 
     pub const fn all() -> &'static [Target] {
         use self::Target::*;
-        &[CortexM, Msp430, RISCV, XtensaLX, Mips]
+        &[CortexM, Msp430, RISCV, XtensaLX, Mips, Avr]
     }
 }
 
@@ -353,9 +357,18 @@ pub struct Settings {
     pub crate_path: Option<CratePath>,
     /// RISC-V specific settings
     pub riscv_config: Option<riscv::RiscvConfig>,
+    /// AVR specific settings
+    pub avr_config: Option<avr::AvrConfig>,
 }
 
 impl Settings {
+    /// Parse chip-specific settings from their YAML representation, e.g. the
+    /// contents of the file passed with `--settings`.
+    #[cfg(all(feature = "serde", feature = "yaml"))]
+    pub fn from_yaml(yaml: &str) -> Result<Self> {
+        serde_yaml::from_str(yaml).map_err(Into::into)
+    }
+
     pub fn update_from(&mut self, source: Self) {
         if source.html_url.is_some() {
             self.html_url = source.html_url;
@@ -365,6 +378,9 @@ impl Settings {
         }
         if source.riscv_config.is_some() {
             self.riscv_config = source.riscv_config;
+        }
+        if source.avr_config.is_some() {
+            self.avr_config = source.avr_config;
         }
     }
 
@@ -405,4 +421,5 @@ impl FromStr for CratePath {
     }
 }
 
+pub mod avr;
 pub mod riscv;

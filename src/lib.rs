@@ -280,6 +280,48 @@
 //!       core_interrupt: "MachineExternal"
 //! ```
 //!
+//! ## AVR specific settings
+//!
+//! Modern (xmega based) AVR cores protect some of their registers with the
+//! configuration change protection (CCP) mechanism: a magic value has to be written
+//! to an unlock register right before the protected register can be written.
+//! SVD files carry no information about CCP, so it can be supplied with a settings
+//! file in YAML format passed with the `--settings` flag:
+//!
+//! ```text
+//! $ svd2rust -g --target avr --settings my_device.yaml -i my_device.svd
+//! ```
+//!
+//! For registers listed in the settings file, `svd2rust` generates implementations of
+//! the `Protected` trait, which enables the `write_protected` and `modify_protected`
+//! methods that perform the unlock sequence. The settings file expects an `avr_config`
+//! map with a `ccp` field holding the following entries:
+//!
+//! - `unlock_register` (mandatory): The `PERIPHERAL.REGISTER` path of the register that
+//!   unlocks protected writes, as named in the SVD file (usually `CPU.CCP`). Its address
+//!   is derived from the SVD file.
+//!
+//! - `protected_registers` (mandatory): The list of registers that are configuration
+//!   change protected. Each entry is specified with the following fields:
+//!   - `register`: The `PERIPHERAL.REGISTER` path of the protected register, as named
+//!     in the SVD file.
+//!   - `magic`: The magic value that must be written to the unlock register to allow
+//!     writing this register. Refer to the device datasheet; most devices use `0x9D`
+//!     (SPM signature) for NVM self-programming registers and `0xD8` (IOREG signature)
+//!     for protected I/O registers.
+//!
+//! A settings file will look like this:
+//!
+//! ```yaml
+//! avr_config:
+//!   ccp:
+//!     unlock_register: "CPU.CCP"
+//!     protected_registers:
+//!       - { register: "NVMCTRL.CTRLA", magic: 0x9D }
+//!       - { register: "NVMCTRL.CTRLB", magic: 0xD8 }
+//!       - { register: "CLKCTRL.MCLKCTRLA", magic: 0xD8 }
+//! ```
+//!
 //! ## Rust editions
 //!
 //! Default rust edition for generated code is 2021. Pass `--edition=2024` if you want to
@@ -764,9 +806,9 @@ pub fn generate(input: &str, config: &Config) -> Result<Generation> {
         #[cfg(feature = "yaml")]
         Some(settings) => {
             let file = std::fs::read_to_string(settings).context("could not read settings file")?;
-            config
-                .settings
-                .update_from(serde_yaml::from_str(&file).context("could not parse settings file")?)
+            config.settings.update_from(
+                config::Settings::from_yaml(&file).context("could not parse settings file")?,
+            )
         }
         #[cfg(not(feature = "yaml"))]
         Some(_) => {

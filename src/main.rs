@@ -349,9 +349,10 @@ Ignore this option if you are not building your own FPGA based soft-cores."),
         #[cfg(feature = "yaml")]
         Some(settings) => {
             let file = std::fs::read_to_string(settings).context("could not read settings file")?;
-            config
-                .settings
-                .update_from(serde_yaml::from_str(&file).context("could not parse settings file")?)
+            config.settings.update_from(
+                svd2rust::config::Settings::from_yaml(&file)
+                    .context("could not parse settings file")?,
+            )
         }
         #[cfg(not(feature = "yaml"))]
         Some(_) => {
