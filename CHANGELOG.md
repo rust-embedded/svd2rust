@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the `cortex-m::interrupt::InterruptNumber` trait. A new `add-cortex-m-int-num` option
   which allows adding the generation of the old trait.
 - Bump MSRV of generated code to 1.81
+- Add an `avr` target which includes generic code to access configuration
+  change protected (CCP) registers in a more convenient way
+- Add AVR specific settings (`avr_config`) to the `--settings` file, declaring
+  which registers are CCP protected; `Protected` trait implementations are
+  generated from it
 
 ## [v0.37.1] - 2025-10-17
 

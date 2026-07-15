@@ -313,7 +313,7 @@ impl TestCase {
         )?;
         process_stderr_paths.push(svd2rust_err_file);
         match self.arch {
-            Target::CortexM | Target::Mips | Target::Msp430 | Target::XtensaLX => {
+            Target::CortexM | Target::Mips | Target::Msp430 | Target::XtensaLX | Target::Avr => {
                 // TODO: Give error the path to stderr
                 fs::rename(path_helper_base(&chip_dir, &["lib.rs"]), &lib_rs_file)
                     .with_context(|| "While moving lib.rs file")?;
@@ -428,6 +428,7 @@ impl TestCase {
                 Target::Mips => CRATES_MIPS.iter(),
                 Target::Msp430 => CRATES_MSP430.iter(),
                 Target::XtensaLX => [].iter(),
+                Target::Avr => [].iter(),
                 Target::None => unreachable!(),
             })
             .chain(opts.as_ref().map_or(Vec::new().into_iter(), |opts| {
@@ -488,6 +489,7 @@ impl TestCase {
             Target::Mips => "mips",
             Target::RISCV => "riscv",
             Target::XtensaLX => "xtensa-lx",
+            Target::Avr => "avr",
             Target::None => unreachable!(),
         };
         let mut svd2rust_bin = Command::new(svd2rust_bin_path);
@@ -507,7 +509,7 @@ impl TestCase {
             Some(lib_rs_file).filter(|_| {
                 !matches!(
                     self.arch,
-                    Target::CortexM | Target::Msp430 | Target::XtensaLX
+                    Target::CortexM | Target::Msp430 | Target::XtensaLX | Target::Avr
                 )
             }),
             Some(svd2rust_err_file),

@@ -11,7 +11,7 @@ use crate::config::{Config, RustEdition, Target};
 use crate::util::{self, ident};
 use anyhow::{Context, Result};
 
-use crate::generate::{interrupt, peripheral, riscv};
+use crate::generate::{avr, interrupt, peripheral, riscv};
 
 /// Whole device generation
 pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<TokenStream> {
@@ -139,6 +139,7 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
     let generic_file = include_str!("generic.rs");
     let generic_reg_file = include_str!("generic_reg_vcell.rs");
     let generic_atomic_file = include_str!("generic_atomic.rs");
+    let avr_ccp_file = include_str!("generic_avr_ccp.rs");
     if config.generic_mod {
         let mut file = File::create(
             config
@@ -154,6 +155,9 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 writeln!(file, "#[cfg(feature = \"{atomics_feature}\")]")?;
             }
             writeln!(file, "\n{generic_atomic_file}")?;
+        }
+        if config.target == Target::Avr {
+            writeln!(file, "\n{}", avr_ccp_file)?;
         }
 
         if !config.make_mod {
@@ -172,6 +176,9 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 quote!(#[cfg(feature = #atomics_feature)]).to_tokens(&mut tokens);
             }
             syn::parse_file(generic_atomic_file)?.to_tokens(&mut tokens);
+        }
+        if config.target == Target::Avr {
+            syn::parse_file(avr_ccp_file)?.to_tokens(&mut tokens);
         }
 
         out.extend(quote! {
@@ -354,6 +361,16 @@ pub fn render(d: &Device, config: &Config, device_x: &mut String) -> Result<Toke
                 }
             }
         });
+    }
+
+    // The CCP impls reference the register spec types generated above, so they
+    // are emitted at the very end of the device module for readability (impl
+    // order is irrelevant to the compiler).
+    if config.target == Target::Avr {
+        out.extend(
+            avr::render(&d.peripherals, config)
+                .context("can't render AVR configuration change protection")?,
+        );
     }
 
     Ok(out)
