@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Add AVR specific settings (`avr_config`) to the `--settings` file, declaring
   which registers are CCP protected; `Protected` trait implementations are
   generated from it
+- Add `Reg::prepare`.
 
 ## [v0.37.1] - 2025-10-17
 
