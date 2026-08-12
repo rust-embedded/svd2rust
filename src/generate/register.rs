@@ -385,10 +385,19 @@ pub fn render_register_mod(
     });
 
     if can_read {
-        let doc = format!("`read()` method returns [`{mod_ty}::R`](R) reader structure",);
+        let is_side_effect = register.read_action.is_some() && config.strict_safe_access;
+        let (trait_name, read_safety_doc) = if is_side_effect {
+            (quote!(ReadableSideEffect), " (unsafe)")
+        } else {
+            (quote!(Readable), "")
+        };
+
+        let doc = format!(
+            "`read()` method returns [`{mod_ty}::R`](R) reader structure{read_safety_doc}",
+        );
         mod_items.extend(quote! {
             #[doc = #doc]
-            impl crate::Readable for #regspec_ty {}
+            impl crate::#trait_name for #regspec_ty {}
         });
     }
     if can_write {

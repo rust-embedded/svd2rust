@@ -48,6 +48,7 @@ pub struct Config {
     pub settings_file: Option<PathBuf>,
     /// Chip-specific settings
     pub settings: Settings,
+    pub strict_safe_access: bool,
 }
 
 impl Config {
