@@ -179,11 +179,24 @@ pub fn escape_brackets(s: &str) -> String {
 
 /// Escape basic html tags and brackets
 pub fn escape_special_chars(s: &str) -> Cow<'_, str> {
-    if s.contains('[') {
-        escape_brackets(s).into()
-    } else {
-        s.into()
+    if !s.contains('[') && !s.contains('&') && !s.contains('<') && !s.contains('>'){
+        return s.into();
     }
+    let mut escaped = s.to_string();
+    if escaped.contains('&') {
+        escaped = escaped.replace('&', "&amp;");
+    }
+    if escaped.contains('<') {
+        escaped = escaped.replace('<', "&lt;");
+    }
+    if escaped.contains('>') {
+        escaped = escaped.replace('>', "&gt;");
+    }
+    if escaped.contains('[') {
+        escaped = escape_brackets(&escaped);
+    }
+    escaped.into()
+
 }
 
 pub fn name_of<T: FullName>(maybe_array: &MaybeArray<T>, ignore_group: bool) -> String {
@@ -513,3 +526,16 @@ fn pascalcase() {
     assert_eq!(to_pascal_case("FOO_BAR_1_2"), "FooBar1_2");
     assert_eq!(to_pascal_case("FOO_BAR_1_2_"), "FooBar1_2_");
 }
+
+#[test]
+fn test_escape_special_chars() {
+    assert_eq!(escape_special_chars("Array[0]"), "Array\\[0\\]");
+    assert_eq!(escape_special_chars("Enable & disable"), "Enable &amp; disable");
+    assert_eq!(escape_special_chars("Wait < 10"), "Wait &lt; 10");
+    assert_eq!(escape_special_chars("Delay > 5"), "Delay &gt; 5");
+    assert_eq!(
+        escape_special_chars("Flags & [Status] > 100"),
+        "Flags &amp; \\[Status\\] &gt; 100"
+    );
+}
+
