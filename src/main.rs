@@ -201,6 +201,14 @@ Allowed cases are `unchanged` (''), `pascal` ('p'), `constant` ('c') and `snake`
                 .help("Use field name for enumerations even when enumeratedValues has a name"),
         )
         .arg(
+            Arg::new("sort_fields")
+                .long("sort-fields")
+                .alias("sort_fields")
+                .help("Sort fields direct or reverse by offset")
+                .action(ArgAction::Set)
+                .value_name("DIRECTION"),
+        )
+        .arg(
             Arg::new("max_cluster_size")
                 .long("max-cluster-size")
                 .alias("max_cluster_size")

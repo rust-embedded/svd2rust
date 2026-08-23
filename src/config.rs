@@ -43,6 +43,7 @@ pub struct Config {
     pub ident_formats: IdentFormats,
     pub ident_formats_theme: Option<IdentFormatsTheme>,
     pub field_names_for_enums: bool,
+    pub sort_fields: SortDir,
     pub base_address_shift: u64,
     /// Path to YAML file with chip-specific settings
     pub settings_file: Option<PathBuf>,
@@ -345,6 +346,19 @@ impl DerefMut for IdentFormats {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IdentFormatsTheme {
     Legacy,
+}
+
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize),
+    serde(rename_all = "lowercase")
+)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum SortDir {
+    #[default]
+    Direct,
+    Reverse,
+    None,
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]

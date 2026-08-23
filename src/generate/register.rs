@@ -628,7 +628,15 @@ pub fn fields(
     let can_read = access.can_read();
     let can_write = access.can_write();
 
-    fields.sort_by_key(|f| f.bit_offset());
+    match config.sort_fields {
+        crate::config::SortDir::Direct => {
+            fields.sort_by_key(|f| f.bit_offset());
+        }
+        crate::config::SortDir::Reverse => {
+            fields.sort_by_key(|f| -(f.bit_offset() as i32));
+        }
+        crate::config::SortDir::None => {}
+    }
 
     // Hack for #625
     let mut enum_derives = HashSet::new();
